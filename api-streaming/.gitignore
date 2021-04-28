@@ -1,0 +1,4 @@
+__pycache__/
+.idea/
+api-streaming.cfg
+console.log
