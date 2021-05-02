@@ -1,0 +1,4 @@
+__pycache__/
+.idea/
+ufm-stream-to-fluentd.cfg
+console.log
