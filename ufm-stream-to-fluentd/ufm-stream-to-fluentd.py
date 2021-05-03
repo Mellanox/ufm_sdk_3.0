@@ -6,7 +6,6 @@ import os
 import argparse
 from pyfluent.client import FluentSender
 
-
 PLUGIN_NAME = "UFM_API_Streaming"
 CONFIG_FILE = 'ufm-stream-to-fluentd.cfg'
 UFM_API_VERSIONING = 'app/versioning'
@@ -141,8 +140,15 @@ def send_ufm_request(url):
     return response.json()
 
 
-def get_config_value(section, key):
-    return section in CONFIG and key in CONFIG[section]
+def get_config_value(arg, section, key, default=None):
+    if arg:
+        return arg
+    elif section in CONFIG and key in CONFIG[section]:
+        return CONFIG[section][key]
+    elif default is not None:
+        return default
+    else:
+        raise ValueError(F'Error to request value : {section}.{key}')
 
 
 def parse_args():
@@ -161,26 +167,11 @@ def parse_args():
 def init_logging_config():
     global logs_file_name
     global logs_level
-    logging_to_default_stream = False
-
-    if args.logs_file_name:
-        logs_file_name = args.logs_file_name
-    elif get_config_value('logs-config', 'logs_file_name'):
-        logs_file_name = CONFIG['logs-config']['logs_file_name']
-    else:
-        logging_to_default_stream = True
-
-    if args.logs_level:
-        logs_level = args.logs_level
-    elif get_config_value('logs-config', 'logs_level'):
-        logs_level = CONFIG['logs-config']['logs_level']
-    else:
-        logging_to_default_stream = True
-
-    if not logging_to_default_stream:
-        logging.basicConfig(filename=logs_file_name,
-                            level=logs_level,
-                            format='%(asctime)s %(levelname)s %(name)s : %(message)s')
+    logs_file_name = get_config_value(args.logs_file_name, 'logs-config', 'logs_file_name', '')
+    logs_level = get_config_value(args.logs_level, 'logs-config', 'logs_level', 'INFO')
+    logging.basicConfig(filename=logs_file_name,
+                        level=logs_level,
+                        format='%(asctime)s %(levelname)s %(name)s : %(message)s')
 
 
 def check_app_params():
@@ -190,48 +181,12 @@ def check_app_params():
     global ufm_protocol
     global ufm_username
     global ufm_password
-
-    if args.fluentd_host:
-        fluentd_host = args.fluentd_host
-    elif get_config_value('fluentd-config', 'host'):
-        fluentd_host = CONFIG['fluentd-config']['host']
-    else:
-        raise ValueError("fluentd_host must be provided")
-
-    if args.fluentd_port:
-        fluentd_port = int(args.fluentd_port)
-    elif get_config_value('fluentd-config', 'port'):
-        fluentd_port = int(CONFIG['fluentd-config']['port'])
-    else:
-        raise ValueError("fluentd_port must be provided")
-
-    if args.ufm_host:
-        ufm_host = args.ufm_host
-    elif get_config_value('ufm-server-config', 'host'):
-        ufm_host = CONFIG['ufm-server-config']['host']
-    else:
-        raise ValueError("ufm_host must be provided")
-
-    if args.ufm_protocol:
-        ufm_protocol = args.ufm_protocol
-    elif get_config_value('ufm-server-config', 'ws_protocol'):
-        ufm_protocol = CONFIG['ufm-server-config']['ws_protocol']
-    else:
-        ufm_protocol = 'https'
-
-    if args.ufm_username:
-        ufm_username = args.ufm_username
-    elif get_config_value('ufm-server-config', 'username'):
-        ufm_username = CONFIG['ufm-server-config']['username']
-    else:
-        raise ValueError("ufm_username must be provided")
-
-    if args.ufm_password:
-        ufm_password = args.ufm_password
-    elif get_config_value('ufm-server-config', 'password'):
-        ufm_password = CONFIG['ufm-server-config']['password']
-    else:
-        raise ValueError("ufm_password must be provided")
+    fluentd_host = get_config_value(args.fluentd_host, 'fluentd-config', 'host')
+    fluentd_port = int(get_config_value(args.fluentd_port, 'fluentd-config', 'port'))
+    ufm_host = get_config_value(args.ufm_host, 'ufm-server-config', 'host')
+    ufm_protocol = get_config_value(args.ufm_protocol, 'ufm-server-config', 'ws_protocol')
+    ufm_username = get_config_value(args.ufm_username, 'ufm-server-config', 'username')
+    ufm_password = get_config_value(args.ufm_password, 'ufm-server-config', 'password')
 
 
 # if run as main module
