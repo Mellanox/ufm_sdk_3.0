@@ -181,12 +181,12 @@ def check_app_params():
     global ufm_protocol
     global ufm_username
     global ufm_password
-    fluentd_host = get_config_value(args.fluentd_host, 'fluentd-config', 'host')
-    fluentd_port = int(get_config_value(args.fluentd_port, 'fluentd-config', 'port'))
-    ufm_host = get_config_value(args.ufm_host, 'ufm-server-config', 'host')
-    ufm_protocol = get_config_value(args.ufm_protocol, 'ufm-server-config', 'ws_protocol')
-    ufm_username = get_config_value(args.ufm_username, 'ufm-server-config', 'username')
-    ufm_password = get_config_value(args.ufm_password, 'ufm-server-config', 'password')
+    fluentd_host = get_config_value(args.fluentd_host, 'fluentd-config', 'host', None)
+    fluentd_port = int(get_config_value(args.fluentd_port, 'fluentd-config', 'port', None))
+    ufm_host = get_config_value(args.ufm_host, 'ufm-server-config', 'host', None)
+    ufm_protocol = get_config_value(args.ufm_protocol, 'ufm-server-config', 'ws_protocol', None)
+    ufm_username = get_config_value(args.ufm_username, 'ufm-server-config', 'username', None)
+    ufm_password = get_config_value(args.ufm_password, 'ufm-server-config', 'password', None)
 
 
 # if run as main module
