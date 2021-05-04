@@ -50,7 +50,7 @@ Run
 | Argument | Corresponding Config Value | Required | Description | 
 | :---: | :---: |:---: |:---: |
 | --fluentd_host <fluentd_host> | [fluentd-config.host](ufm-stream-to-fluentd.sample.cfg#L19) | True |  Hostname or IP for FluentD endpoint
-| --fluentd_port <fluentd_port> | [fluentd-config.port](ufm-stream-to-fluentd.sample.cfg#20) | True | Port for FluentD endpoint  
+| --fluentd_port <fluentd_port> | [fluentd-config.port](ufm-stream-to-fluentd.sample.cfg#L20) | True | Port for FluentD endpoint  
 | --ufm_host <ufm_host> | [ufm-server-config.host](ufm-stream-to-fluentd.sample.cfg#L3) | True | Hostname or IP for The UFM Enterprise
 | --ufm_protocol <ufm_protocol> | [ufm-server-config.ws_protocol](ufm-stream-to-fluentd.sample.cfg#L6) | True | Web services protocol used by UFM Enterprise (HTTP, HTTPS)  
 | --ufm_username <ufm_username> | [ufm-server-config.username](ufm-stream-to-fluentd.sample.cfg#L8) | True | Username of UFM user
