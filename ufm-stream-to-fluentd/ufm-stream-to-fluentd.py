@@ -1,3 +1,8 @@
+#
+# Copyright (C) Mellanox Technologies Ltd. 2021.  ALL RIGHTS RESERVED.
+#
+# See file LICENSE for terms.
+
 import requests
 import configparser
 import json
