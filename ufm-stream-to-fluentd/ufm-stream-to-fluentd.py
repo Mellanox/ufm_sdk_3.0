@@ -9,10 +9,13 @@ import json
 import logging
 import os
 import argparse
+import time
+import datetime
 from pyfluent.client import FluentSender
 
 PLUGIN_NAME = "UFM_API_Streaming"
 CONFIG_FILE = 'ufm-stream-to-fluentd.cfg'
+FLUENTD_METADATA_FILE = 'fluentd_metadata.json'
 UFM_API_VERSIONING = 'app/versioning'
 UFM_API_VERSIONING_RESULT = 'api_results/versioning.json'
 UFM_API_SYSTEMS = 'resources/systems'
@@ -27,9 +30,11 @@ UFM_API_ALARMS_RESULT = 'api_results/alarms.json'
 
 global logs_file_name
 global logs_level
+global fluentd_metadata
 global fluentd_host
 global fluentd_port
 global ufm_host
+global ufm_server_name
 global ufm_protocol
 global ufm_username
 global ufm_password
@@ -68,17 +73,37 @@ def write_json_to_file(path, json_obj):
 
 
 def stream_to_fluentd():
+    global fluentd_metadata
     try:
+        current_time = int(time.time())
+        message_id = fluentd_metadata.message_id + 1
         logging.info(f'Streaming to Fluentd IP: {fluentd_host} port: {fluentd_port}')
-        fluent = FluentSender(fluentd_host, fluentd_port, 'pyfluent')
+        fluent = FluentSender(fluentd_host, fluentd_port, ufm_server_name)
+        fluentd_message = {
+            "id": message_id,
+            "timestamp": datetime.datetime.fromtimestamp(current_time).strftime('%Y-%m-%d %H:%M:%S'),
+            "type": "full"
+        }
         if enabled_streaming_systems:
-            fluent.send(stored_systems_api, PLUGIN_NAME)
+            fluentd_message["systems"] = {
+                "systems_list": stored_systems_api
+            }
         if enabled_streaming_ports:
-            fluent.send(stored_ports_api, PLUGIN_NAME)
+            fluentd_message["ports"] = {
+                "ports_list": stored_ports_api
+            }
         if enabled_streaming_links:
-            fluent.send(stored_links_api, PLUGIN_NAME)
+            fluentd_message["links"] = {
+                "links_list": stored_links_api
+            }
         if enabled_streaming_alarms:
-            fluent.send(stored_alarms_api, PLUGIN_NAME)
+            fluentd_message["alarms"] = {
+                "alarms_list": stored_alarms_api
+            }
+        fluent.send(fluentd_message, PLUGIN_NAME)
+        fluentd_metadata.message_id = message_id
+        fluentd_metadata.message_timestamp = current_time
+        write_json_to_file(FLUENTD_METADATA_FILE, fluentd_metadata.__dict__)
         logging.info(f'Finished Streaming to Fluentd Host: {fluentd_host} port: {fluentd_port}')
     except Exception as e:
         logging.error(e)
@@ -90,6 +115,7 @@ def load_memory_with_jsons():
     global stored_ports_api
     global stored_links_api
     global stored_alarms_api
+    global fluentd_metadata
 
     try:
         logging.info(f'Call load_memory_with_jsons')
@@ -108,6 +134,13 @@ def load_memory_with_jsons():
 
         if os.path.exists(UFM_API_ALARMS_RESULT) and enabled_streaming_alarms:
             stored_alarms_api = read_json_from_file(UFM_API_ALARMS_RESULT)
+
+        if os.path.exists(FLUENTD_METADATA_FILE):
+            fluentd_metadata_result = read_json_from_file(FLUENTD_METADATA_FILE)
+            fluentd_metadata = FluentdMessageMetadata(fluentd_metadata_result['message_id'],
+                                                      fluentd_metadata_result['message_timestamp'])
+        else:
+            fluentd_metadata = FluentdMessageMetadata()
     except Exception as e:
         logging.error(e)
 
@@ -191,6 +224,7 @@ def parse_args():
     parser.add_argument('--fluentd_host', help='Host name or IP of fluentd endpoint')
     parser.add_argument('--fluentd_port', help='Port of fluentd endpoint')
     parser.add_argument('--ufm_host', help='Host name or IP of UFM server')
+    parser.add_argument('--ufm_server_name', help='UFM server name')
     parser.add_argument('--ufm_protocol', help='http | https ')
     parser.add_argument('--ufm_username', help='Username of UFM user')
     parser.add_argument('--ufm_password', help='Password of UFM user')
@@ -217,6 +251,7 @@ def check_app_params():
     global fluentd_host
     global fluentd_port
     global ufm_host
+    global ufm_server_name
     global ufm_protocol
     global ufm_username
     global ufm_password
@@ -227,6 +262,7 @@ def check_app_params():
     fluentd_host = get_config_value(args.fluentd_host, 'fluentd-config', 'host', None)
     fluentd_port = int(get_config_value(args.fluentd_port, 'fluentd-config', 'port', None))
     ufm_host = get_config_value(args.ufm_host, 'ufm-server-config', 'host', None)
+    ufm_server_name = get_config_value(args.ufm_server_name, 'ufm-server-config', 'server_name', None)
     ufm_protocol = get_config_value(args.ufm_protocol, 'ufm-server-config', 'ws_protocol', None)
     ufm_username = get_config_value(args.ufm_username, 'ufm-server-config', 'username', None)
     ufm_password = get_config_value(args.ufm_password, 'ufm-server-config', 'password', None)
@@ -234,6 +270,24 @@ def check_app_params():
     enabled_streaming_ports = get_config_value(args.streaming_ports, 'streaming-config', 'ports', True) == 'True'
     enabled_streaming_links = get_config_value(args.streaming_links, 'streaming-config', 'links', True) == 'True'
     enabled_streaming_alarms = get_config_value(args.streaming_alarms, 'streaming-config', 'alarms', True) == 'True'
+
+
+class FluentdMessageMetadata:
+    def __init__(self, message_id=0, message_timestamp=None):
+        self.message_id = message_id
+        self.message_timestamp = message_timestamp
+
+    def get_message_id(self):
+        return self.message_id
+
+    def set_message_id(self,message_id):
+        self.message_id = message_id
+
+    def get_message_timestamp(self):
+        return self.message_timestamp
+
+    def set_message_timestamp(self, message_timestamp):
+        self.message_timestamp = message_timestamp
 
 
 # if run as main module
