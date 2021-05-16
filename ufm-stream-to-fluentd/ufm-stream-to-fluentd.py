@@ -129,6 +129,7 @@ def load_memory_with_jsons():
     global stored_ports_api
     global stored_links_api
     global stored_alarms_api
+    global fluentd_metadata
 
     try:
         logging.info(f'Call load_memory_with_jsons')
@@ -308,7 +309,7 @@ class FluentdMessageMetadata:
         return self.message_id
 
     def set_message_id(self, message_id):
-        self.message_id = message_id
+		self.message_id = message_id
 
     def get_message_timestamp(self):
         return self.message_timestamp
