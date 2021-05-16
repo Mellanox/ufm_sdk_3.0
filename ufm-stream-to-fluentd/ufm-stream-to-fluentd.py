@@ -147,7 +147,7 @@ def load_memory_with_jsons():
 
         if os.path.exists(UFM_API_ALARMS_RESULT) and enabled_streaming_alarms:
             stored_alarms_api = read_json_from_file(UFM_API_ALARMS_RESULT)
-
+			
     except Exception as e:
         logging.error(e)
 
@@ -245,7 +245,7 @@ def parse_args():
     parser.add_argument('--logs_file_name', help='Logs file name')
     parser.add_argument('--logs_level', help='logs level [ FATAL | ERROR | WARNING | INFO | DEBUG | NOTSET ]')
     parser.add_argument('--streaming_interval', help='Streaming interval in minutes [Default is 5 minutes]')
-    parser.add_argument('--streaming_systems', help='Enable/Disable streaming systems API [True|False]')
+	parser.add_argument('--streaming_systems', help='Enable/Disable streaming systems API [True|False]')
     parser.add_argument('--streaming_ports', help='Enable/Disable streaming ports API [True|False]')
     parser.add_argument('--streaming_alarms', help='Enable/Disable streaming alarms API [True|False]')
     parser.add_argument('--streaming_links', help='Enable/Disable streaming links API [True|False]')
@@ -293,7 +293,7 @@ def check_app_params():
                                                 'ufm-local-server-config',
                                                 'internal_server_port',
                                                 None)
-    enabled_streaming_systems = get_config_value(args.streaming_systems, 'streaming-config', 'systems', True) == 'True'
+	enabled_streaming_systems = get_config_value(args.streaming_systems, 'streaming-config', 'systems', True) == 'True'
     enabled_streaming_ports = get_config_value(args.streaming_ports, 'streaming-config', 'ports', True) == 'True'
     enabled_streaming_links = get_config_value(args.streaming_links, 'streaming-config', 'links', True) == 'True'
     enabled_streaming_alarms = get_config_value(args.streaming_alarms, 'streaming-config', 'alarms', True) == 'True'
