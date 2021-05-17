@@ -129,7 +129,6 @@ def load_memory_with_jsons():
     global stored_ports_api
     global stored_links_api
     global stored_alarms_api
-    global fluentd_metadata
 
     try:
         logging.info(f'Call load_memory_with_jsons')
@@ -148,7 +147,7 @@ def load_memory_with_jsons():
 
         if os.path.exists(UFM_API_ALARMS_RESULT) and enabled_streaming_alarms:
             stored_alarms_api = read_json_from_file(UFM_API_ALARMS_RESULT)
-			
+
     except Exception as e:
         logging.error(e)
 
