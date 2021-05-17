@@ -39,6 +39,7 @@ global ufm_protocol
 global ufm_username
 global ufm_password
 global args
+global streaming_interval
 global enabled_streaming_systems
 global enabled_streaming_ports
 global enabled_streaming_links
@@ -109,13 +110,23 @@ def stream_to_fluentd():
         logging.error(e)
 
 
+def load_fluentd_metadata_json():
+    global fluentd_metadata
+    logging.info(f'Call load_fluentd_metadata_json')
+    if os.path.exists(FLUENTD_METADATA_FILE):
+        fluentd_metadata_result = read_json_from_file(FLUENTD_METADATA_FILE)
+        fluentd_metadata = FluentdMessageMetadata(fluentd_metadata_result['message_id'],
+                                                  fluentd_metadata_result['message_timestamp'])
+    else:
+        fluentd_metadata = FluentdMessageMetadata()
+
+
 def load_memory_with_jsons():
     global stored_versioning_api
     global stored_systems_api
     global stored_ports_api
     global stored_links_api
     global stored_alarms_api
-    global fluentd_metadata
 
     try:
         logging.info(f'Call load_memory_with_jsons')
@@ -135,12 +146,6 @@ def load_memory_with_jsons():
         if os.path.exists(UFM_API_ALARMS_RESULT) and enabled_streaming_alarms:
             stored_alarms_api = read_json_from_file(UFM_API_ALARMS_RESULT)
 
-        if os.path.exists(FLUENTD_METADATA_FILE):
-            fluentd_metadata_result = read_json_from_file(FLUENTD_METADATA_FILE)
-            fluentd_metadata = FluentdMessageMetadata(fluentd_metadata_result['message_id'],
-                                                      fluentd_metadata_result['message_timestamp'])
-        else:
-            fluentd_metadata = FluentdMessageMetadata()
     except Exception as e:
         logging.error(e)
 
@@ -230,6 +235,7 @@ def parse_args():
     parser.add_argument('--ufm_password', help='Password of UFM user')
     parser.add_argument('--logs_file_name', help='Logs file name')
     parser.add_argument('--logs_level', help='logs level [ FATAL | ERROR | WARNING | INFO | DEBUG | NOTSET ]')
+    parser.add_argument('--streaming_interval', help='Streaming interval in minutes [Default is 5 minutes]')
     parser.add_argument('--streaming_systems', help='Enable/Disable streaming systems API [True|False]')
     parser.add_argument('--streaming_ports', help='Enable/Disable streaming ports API [True|False]')
     parser.add_argument('--streaming_alarms', help='Enable/Disable streaming alarms API [True|False]')
@@ -255,6 +261,7 @@ def check_app_params():
     global ufm_protocol
     global ufm_username
     global ufm_password
+    global streaming_interval
     global enabled_streaming_systems
     global enabled_streaming_ports
     global enabled_streaming_links
@@ -266,6 +273,7 @@ def check_app_params():
     ufm_protocol = get_config_value(args.ufm_protocol, 'ufm-server-config', 'ws_protocol', None)
     ufm_username = get_config_value(args.ufm_username, 'ufm-server-config', 'username', None)
     ufm_password = get_config_value(args.ufm_password, 'ufm-server-config', 'password', None)
+    streaming_interval = int(get_config_value(args.streaming_interval, 'streaming-config', 'interval', 5))
     enabled_streaming_systems = get_config_value(args.streaming_systems, 'streaming-config', 'systems', True) == 'True'
     enabled_streaming_ports = get_config_value(args.streaming_ports, 'streaming-config', 'ports', True) == 'True'
     enabled_streaming_links = get_config_value(args.streaming_links, 'streaming-config', 'links', True) == 'True'
@@ -280,7 +288,7 @@ class FluentdMessageMetadata:
     def get_message_id(self):
         return self.message_id
 
-    def set_message_id(self,message_id):
+    def set_message_id(self, message_id):
         self.message_id = message_id
 
     def get_message_timestamp(self):
@@ -288,6 +296,15 @@ class FluentdMessageMetadata:
 
     def set_message_timestamp(self, message_timestamp):
         self.message_timestamp = message_timestamp
+
+
+def streaming_interval_is_valid():
+    if fluentd_metadata and fluentd_metadata.message_timestamp:
+        # The timestamp of the last message sent exists => check if it larger than the configurable streaming interval
+        time_delta = datetime.datetime.now() - datetime.datetime.fromtimestamp(fluentd_metadata.message_timestamp)
+        streaming_interval_in_seconds = streaming_interval * 60
+        return time_delta.total_seconds() >= streaming_interval_in_seconds
+    return True
 
 
 # if run as main module
@@ -306,9 +323,13 @@ if __name__ == "__main__":
         # check app parameters
         check_app_params()
 
-        load_memory_with_jsons()
-        update_ufm_apis()
-        stream_to_fluentd()
+        load_fluentd_metadata_json()
+        if streaming_interval_is_valid():
+            load_memory_with_jsons()
+            update_ufm_apis()
+            stream_to_fluentd()
+        else:
+            logging.error("Streaming interval isn't completed")
 
     except Exception as global_ex:
         logging.error(global_ex)

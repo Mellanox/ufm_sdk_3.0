@@ -58,6 +58,7 @@ Run
 | --ufm_password <ufm_password> | [ufm-server-config.password](ufm-stream-to-fluentd.sample.cfg#L9) | True | Password of UFM user
 | --logs_file_name <logs_file_name> | [logs-config.logs_file_name](ufm-stream-to-fluentd.sample.cfg#L24) | False | Log file name, if not provided a default stream wil lbe used
 | --logs_level <logs_level> | [logs-config.logs_level](ufm-stream-to-fluentd.sample.cfg#L27) | False | Default is 'info'
+| --streaming_interval <streaming_interval> | [streaming-config.systems](ufm-stream-to-fluentd.sample.cfg#L11) | False | The periodic interval [the script will be ran in every X minutes (Default is 5 minutes)]
 | --streaming_systems <streaming_systems> | [streaming-config.systems](ufm-stream-to-fluentd.sample.cfg#L12) | False | Default is 'True'
 | --streaming_ports <streaming_ports> | [streaming-config.ports](ufm-stream-to-fluentd.sample.cfg#L13) | False | Default is 'True'
 | --streaming_links <streaming_links> | [streaming-config.links](ufm-stream-to-fluentd.sample.cfg#L14) | False | Default is 'True'
