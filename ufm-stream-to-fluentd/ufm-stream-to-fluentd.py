@@ -127,7 +127,6 @@ def load_memory_with_jsons():
     global stored_ports_api
     global stored_links_api
     global stored_alarms_api
-    global fluentd_metadata
 
     try:
         logging.info(f'Call load_memory_with_jsons')
