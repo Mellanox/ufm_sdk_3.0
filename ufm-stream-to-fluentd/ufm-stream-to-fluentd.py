@@ -11,6 +11,7 @@ import os
 import argparse
 import time
 import datetime
+import sys
 from pyfluent.client import FluentSender
 
 PLUGIN_NAME = "UFM_API_Streaming"
@@ -42,6 +43,7 @@ global local_streaming
 global internal_ufm_server_port
 global args
 global streaming_interval
+global streaming
 global enabled_streaming_systems
 global enabled_streaming_ports
 global enabled_streaming_links
@@ -244,6 +246,7 @@ def parse_args():
     parser.add_argument('--ufm_password', help='Password of UFM user')
     parser.add_argument('--logs_file_name', help='Logs file name')
     parser.add_argument('--logs_level', help='logs level [ FATAL | ERROR | WARNING | INFO | DEBUG | NOTSET ]')
+    parser.add_argument('--streaming', help='Enable/Disable streaming [True|False]')
     parser.add_argument('--streaming_interval', help='Streaming interval in minutes [Default is 5 minutes]')
 	parser.add_argument('--streaming_systems', help='Enable/Disable streaming systems API [True|False]')
     parser.add_argument('--streaming_ports', help='Enable/Disable streaming ports API [True|False]')
@@ -272,6 +275,7 @@ def check_app_params():
     global ufm_protocol
     global ufm_username
     global ufm_password
+    global streaming
     global streaming_interval
     global enabled_streaming_systems
     global enabled_streaming_ports
@@ -293,7 +297,8 @@ def check_app_params():
                                                 'ufm-local-server-config',
                                                 'internal_server_port',
                                                 None)
-	enabled_streaming_systems = get_config_value(args.streaming_systems, 'streaming-config', 'systems', True) == 'True'
+    streaming = get_config_value(args.streaming_systems, 'streaming-config', 'streaming', True) == 'True'
+    enabled_streaming_systems = get_config_value(args.streaming_systems, 'streaming-config', 'systems', True) == 'True'
     enabled_streaming_ports = get_config_value(args.streaming_ports, 'streaming-config', 'ports', True) == 'True'
     enabled_streaming_links = get_config_value(args.streaming_links, 'streaming-config', 'links', True) == 'True'
     enabled_streaming_alarms = get_config_value(args.streaming_alarms, 'streaming-config', 'alarms', True) == 'True'
@@ -341,6 +346,10 @@ if __name__ == "__main__":
 
         # check app parameters
         check_app_params()
+
+        if not streaming:
+            logging.warning("Streaming flag is disabled, please enable it from the configurations")
+            sys.exit()
 
         load_fluentd_metadata_json()
         if streaming_interval_is_valid():
