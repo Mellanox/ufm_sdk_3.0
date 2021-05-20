@@ -248,7 +248,7 @@ def parse_args():
     parser.add_argument('--logs_level', help='logs level [ FATAL | ERROR | WARNING | INFO | DEBUG | NOTSET ]')
     parser.add_argument('--streaming', help='Enable/Disable streaming [True|False]')
     parser.add_argument('--streaming_interval', help='Streaming interval in minutes [Default is 5 minutes]')
-	parser.add_argument('--streaming_systems', help='Enable/Disable streaming systems API [True|False]')
+    parser.add_argument('--streaming_systems', help='Enable/Disable streaming systems API [True|False]')
     parser.add_argument('--streaming_ports', help='Enable/Disable streaming ports API [True|False]')
     parser.add_argument('--streaming_alarms', help='Enable/Disable streaming alarms API [True|False]')
     parser.add_argument('--streaming_links', help='Enable/Disable streaming links API [True|False]')
@@ -313,7 +313,7 @@ class FluentdMessageMetadata:
         return self.message_id
 
     def set_message_id(self, message_id):
-		self.message_id = message_id
+        self.message_id = message_id
 
     def get_message_timestamp(self):
         return self.message_timestamp
