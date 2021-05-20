@@ -39,8 +39,6 @@ global ufm_server_name
 global ufm_protocol
 global ufm_username
 global ufm_password
-global local_streaming
-global internal_ufm_server_port
 global args
 global streaming_interval
 global streaming
@@ -201,19 +199,14 @@ def update_ufm_apis():
 
 
 def send_ufm_request(url):
+    url = ufm_protocol + '://' + ufm_host + '/ufmRest/' + url
     headers = {}
     # token auth: to be done
     # if token:
     #    headers = {"Authorization": "Bearer " + token['access_token']}
     try:
         logging.info(f'Send UFM API Request, URL: {url}')
-        if local_streaming:
-            url = 'http://127.0.0.1:' + internal_ufm_server_port + '/' + url
-            headers = {"X-Remote-User": ufm_username}
-            response = requests.get(url, verify=False, headers=headers)
-        else:
-            url = ufm_protocol + '://' + ufm_host + '/ufmRest/' + url
-            response = requests.get(url, verify=False, headers=headers, auth=(ufm_username, ufm_password))
+        response = requests.get(url, verify=False, headers=headers, auth=(ufm_username, ufm_password))
         logging.info("UFM API Request Status [" + str(response.status_code) + "], URL " + url)
         if response.raise_for_status():
             logging.error(response.raise_for_status())
@@ -237,8 +230,6 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Streams UFM API to fluentD')
     parser.add_argument('--fluentd_host', help='Host name or IP of fluentd endpoint')
     parser.add_argument('--fluentd_port', help='Port of fluentd endpoint')
-    parser.add_argument('--ufm_local_streaming', help='Enable/Disable streaming from local ufm server')
-    parser.add_argument('--internal_ufm_server_port', help='Port of internal ufm server')
     parser.add_argument('--ufm_host', help='Host name or IP of UFM server')
     parser.add_argument('--ufm_server_name', help='UFM server name')
     parser.add_argument('--ufm_protocol', help='http | https ')
@@ -268,8 +259,6 @@ def init_logging_config():
 def check_app_params():
     global fluentd_host
     global fluentd_port
-    global local_streaming
-    global internal_ufm_server_port
     global ufm_host
     global ufm_server_name
     global ufm_protocol
@@ -289,14 +278,6 @@ def check_app_params():
     ufm_username = get_config_value(args.ufm_username, 'ufm-remote-server-config', 'username', None)
     ufm_password = get_config_value(args.ufm_password, 'ufm-remote-server-config', 'password', None)
     streaming_interval = int(get_config_value(args.streaming_interval, 'streaming-config', 'interval', 5))
-    local_streaming = get_config_value(args.ufm_local_streaming,
-                                       'ufm-local-server-config',
-                                       'local_streaming',
-                                       False) == 'True'
-    internal_ufm_server_port = get_config_value(args.internal_ufm_server_port,
-                                                'ufm-local-server-config',
-                                                'internal_server_port',
-                                                None)
     streaming = get_config_value(args.streaming_systems, 'streaming-config', 'streaming', True) == 'True'
     enabled_streaming_systems = get_config_value(args.streaming_systems, 'streaming-config', 'systems', True) == 'True'
     enabled_streaming_ports = get_config_value(args.streaming_ports, 'streaming-config', 'ports', True) == 'True'
