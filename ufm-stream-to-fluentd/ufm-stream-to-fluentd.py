@@ -41,6 +41,7 @@ global ufm_username
 global ufm_password
 global args
 global streaming_interval
+global local_streaming
 global streaming
 global enabled_streaming_systems
 global enabled_streaming_ports
@@ -237,6 +238,7 @@ def parse_args():
     parser.add_argument('--ufm_password', help='Password of UFM user')
     parser.add_argument('--logs_file_name', help='Logs file name')
     parser.add_argument('--logs_level', help='logs level [ FATAL | ERROR | WARNING | INFO | DEBUG | NOTSET ]')
+    parser.add_argument('--local_streaming', help='Enable/Disable local streaming [True|False]')
     parser.add_argument('--streaming', help='Enable/Disable streaming [True|False]')
     parser.add_argument('--streaming_interval', help='Streaming interval in minutes [Default is 5 minutes]')
     parser.add_argument('--streaming_systems', help='Enable/Disable streaming systems API [True|False]')
@@ -264,6 +266,7 @@ def check_app_params():
     global ufm_protocol
     global ufm_username
     global ufm_password
+    global local_streaming
     global streaming
     global streaming_interval
     global enabled_streaming_systems
@@ -272,9 +275,12 @@ def check_app_params():
     global enabled_streaming_alarms
     fluentd_host = get_config_value(args.fluentd_host, 'fluentd-config', 'host', None)
     fluentd_port = int(get_config_value(args.fluentd_port, 'fluentd-config', 'port', None))
-    ufm_host = get_config_value(args.ufm_host, 'ufm-remote-server-config', 'host', None)
+    local_streaming = get_config_value(args.streaming_systems, 'streaming-config', 'streaming', True) == 'True'
+    ufm_host = get_config_value(args.ufm_host, 'ufm-remote-server-config', 'host',
+                                '127.0.0.1' if local_streaming else None)
     ufm_server_name = get_config_value(args.ufm_server_name, 'ufm-remote-server-config', 'server_name', None)
-    ufm_protocol = get_config_value(args.ufm_protocol, 'ufm-remote-server-config', 'ws_protocol', None)
+    ufm_protocol = get_config_value(args.ufm_protocol, 'ufm-remote-server-config', 'ws_protocol',
+                                    'http' if local_streaming else None)
     ufm_username = get_config_value(args.ufm_username, 'ufm-remote-server-config', 'username', None)
     ufm_password = get_config_value(args.ufm_password, 'ufm-remote-server-config', 'password', None)
     streaming_interval = int(get_config_value(args.streaming_interval, 'streaming-config', 'interval', 5))
