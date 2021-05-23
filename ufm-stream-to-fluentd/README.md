@@ -58,7 +58,7 @@ Run
 | --ufm_password <ufm_password> | [ufm-server-config.password](ufm-stream-to-fluentd.sample.cfg#L8) | True | Password of UFM user
 | --logs_file_name <logs_file_name> | [logs-config.logs_file_name](ufm-stream-to-fluentd.sample.cfg#L26) | False | Log file name, if not provided a default stream wil lbe used
 | --logs_level <logs_level> | [logs-config.logs_level](ufm-stream-to-fluentd.sample.cfg#L29) | False | Default is 'info'
-| --local_streaming <local_streaming> | [streaming-config.local_streaming](ufm-stream-to-fluentd.sample.cfg#L11) | False | Enable/Disable local topology streaming [Default is 'True']
+| --local_streaming <local_streaming> | [streaming-config.local_streaming](ufm-stream-to-fluentd.sample.cfg#L11) | False | Enable/Disable local topology streaming [Default is 'False']
 | --streaming <streaming> | [streaming-config.streaming](ufm-stream-to-fluentd.sample.cfg#L12) | False | Enable/Disable topology streaming [Default is 'True']
 | --streaming_interval <streaming_interval> | [streaming-config.interval](ufm-stream-to-fluentd.sample.cfg#L13) | False | The periodic interval [the script will be ran in every X minutes (Default is 5 minutes)]
 | --streaming_systems <streaming_systems> | [streaming-config.systems](ufm-stream-to-fluentd.sample.cfg#L14) | False | Default is 'True'
