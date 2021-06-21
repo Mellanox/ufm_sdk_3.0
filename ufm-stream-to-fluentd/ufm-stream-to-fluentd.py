@@ -34,8 +34,8 @@ global logs_level
 global fluentd_metadata
 global fluentd_host
 global fluentd_port
+global fluentd_message_tag_name
 global ufm_host
-global ufm_server_name
 global ufm_protocol
 global ufm_username
 global ufm_password
@@ -82,7 +82,7 @@ def stream_to_fluentd():
         current_time = int(time.time())
         message_id = fluentd_metadata.message_id + 1
         logging.info(f'Streaming to Fluentd IP: {fluentd_host} port: {fluentd_port}')
-        fluent = FluentSender(fluentd_host, fluentd_port, ufm_server_name)
+        fluent = FluentSender(fluentd_host, fluentd_port)
         fluentd_message = {
             "id": message_id,
             "timestamp": datetime.datetime.fromtimestamp(current_time).strftime('%Y-%m-%d %H:%M:%S'),
@@ -104,7 +104,7 @@ def stream_to_fluentd():
             fluentd_message["alarms"] = {
                 "alarms_list": stored_alarms_api
             }
-        fluent.send(fluentd_message, PLUGIN_NAME)
+        fluent.send(fluentd_message, PLUGIN_NAME + "::" + fluentd_message_tag_name)
         fluentd_metadata.message_id = message_id
         fluentd_metadata.message_timestamp = current_time
         write_json_to_file(FLUENTD_METADATA_FILE, fluentd_metadata.__dict__)
@@ -219,7 +219,7 @@ def send_ufm_request(url):
 def get_config_value(arg, section, key, default=None):
     if arg:
         return arg
-    elif section in CONFIG and key in CONFIG[section]:
+    elif section in CONFIG and key in CONFIG[section] and len(CONFIG[section][key]):
         return CONFIG[section][key]
     elif default is not None:
         return default
@@ -231,8 +231,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Streams UFM API to fluentD')
     parser.add_argument('--fluentd_host', help='Host name or IP of fluentd endpoint')
     parser.add_argument('--fluentd_port', help='Port of fluentd endpoint')
+    parser.add_argument('--fluentd_message_tag_name', help='Tag name of fluentd endpoint message')
     parser.add_argument('--ufm_host', help='Host name or IP of UFM server')
-    parser.add_argument('--ufm_server_name', help='UFM server name')
     parser.add_argument('--ufm_protocol', help='http | https ')
     parser.add_argument('--ufm_username', help='Username of UFM user')
     parser.add_argument('--ufm_password', help='Password of UFM user')
@@ -261,8 +261,8 @@ def init_logging_config():
 def check_app_params():
     global fluentd_host
     global fluentd_port
+    global fluentd_message_tag_name
     global ufm_host
-    global ufm_server_name
     global ufm_protocol
     global ufm_username
     global ufm_password
@@ -275,10 +275,10 @@ def check_app_params():
     global enabled_streaming_alarms
     fluentd_host = get_config_value(args.fluentd_host, 'fluentd-config', 'host', None)
     fluentd_port = int(get_config_value(args.fluentd_port, 'fluentd-config', 'port', None))
-    local_streaming = get_config_value(args.streaming_systems, 'streaming-config', 'streaming', True) == 'True'
+    local_streaming = get_config_value(args.streaming_systems, 'streaming-config', 'local_streaming', True) == 'True'
     ufm_host = get_config_value(args.ufm_host, 'ufm-remote-server-config', 'host',
                                 '127.0.0.1' if local_streaming else None)
-    ufm_server_name = get_config_value(args.ufm_server_name, 'ufm-remote-server-config', 'server_name', None)
+    fluentd_message_tag_name = get_config_value(args.fluentd_message_tag_name, 'fluentd-config', 'message_tag_name', ufm_host)
     ufm_protocol = get_config_value(args.ufm_protocol, 'ufm-remote-server-config', 'ws_protocol',
                                     'http' if local_streaming else None)
     ufm_username = get_config_value(args.ufm_username, 'ufm-remote-server-config', 'username', None)
