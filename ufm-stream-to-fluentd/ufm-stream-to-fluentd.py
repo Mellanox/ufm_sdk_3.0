@@ -12,7 +12,7 @@ import argparse
 import time
 import datetime
 import sys
-from pyfluent.client import FluentSender
+from fluent import asyncsender as asycsender
 
 PLUGIN_NAME = "UFM_API_Streaming"
 CONFIG_FILE = 'ufm-stream-to-fluentd.cfg'
@@ -34,6 +34,7 @@ global logs_level
 global fluentd_metadata
 global fluentd_host
 global fluentd_port
+global fluentd_timeout
 global fluentd_message_tag_name
 global ufm_host
 global ufm_protocol
@@ -81,8 +82,10 @@ def stream_to_fluentd():
     try:
         current_time = int(time.time())
         message_id = fluentd_metadata.message_id + 1
-        logging.info(f'Streaming to Fluentd IP: {fluentd_host} port: {fluentd_port}')
-        fluent = FluentSender(fluentd_host, fluentd_port)
+        logging.info(f'Streaming to Fluentd IP: {fluentd_host} port: {fluentd_port} timeout: {fluentd_timeout}')
+        fluent_sender = asycsender.FluentSender(PLUGIN_NAME,
+                                                fluentd_host,
+                                                fluentd_port,timeout=fluentd_timeout)
         fluentd_message = {
             "id": message_id,
             "timestamp": datetime.datetime.fromtimestamp(current_time).strftime('%Y-%m-%d %H:%M:%S'),
@@ -104,7 +107,8 @@ def stream_to_fluentd():
             fluentd_message["alarms"] = {
                 "alarms_list": stored_alarms_api
             }
-        fluent.send(fluentd_message, PLUGIN_NAME + "::" + fluentd_message_tag_name)
+        fluent_sender.emit(fluentd_message_tag_name,fluentd_message)
+        fluent_sender.close()
         fluentd_metadata.message_id = message_id
         fluentd_metadata.message_timestamp = current_time
         write_json_to_file(FLUENTD_METADATA_FILE, fluentd_metadata.__dict__)
@@ -231,6 +235,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Streams UFM API to fluentD')
     parser.add_argument('--fluentd_host', help='Host name or IP of fluentd endpoint')
     parser.add_argument('--fluentd_port', help='Port of fluentd endpoint')
+    parser.add_argument('--fluentd_timeout', help='Fluentd timeout in seconds')
     parser.add_argument('--fluentd_message_tag_name', help='Tag name of fluentd endpoint message')
     parser.add_argument('--ufm_host', help='Host name or IP of UFM server')
     parser.add_argument('--ufm_protocol', help='http | https ')
@@ -261,6 +266,7 @@ def init_logging_config():
 def check_app_params():
     global fluentd_host
     global fluentd_port
+    global fluentd_timeout
     global fluentd_message_tag_name
     global ufm_host
     global ufm_protocol
@@ -275,6 +281,7 @@ def check_app_params():
     global enabled_streaming_alarms
     fluentd_host = get_config_value(args.fluentd_host, 'fluentd-config', 'host', None)
     fluentd_port = int(get_config_value(args.fluentd_port, 'fluentd-config', 'port', None))
+    fluentd_timeout = int(get_config_value(args.fluentd_port, 'fluentd-config', 'timeout', 120))
     local_streaming = get_config_value(args.streaming_systems, 'streaming-config', 'local_streaming', True) == 'True'
     ufm_host = get_config_value(args.ufm_host, 'ufm-remote-server-config', 'host',
                                 '127.0.0.1' if local_streaming else None)
