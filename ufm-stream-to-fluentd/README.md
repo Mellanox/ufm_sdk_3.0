@@ -51,7 +51,7 @@ Run
 | :---: | :---: |:---: |:---: |
 | --fluentd_host <fluentd_host> | [fluentd-config.host](ufm-stream-to-fluentd.sample.cfg#L20) | True |  Hostname or IP for FluentD endpoint
 | --fluentd_port <fluentd_port> | [fluentd-config.port](ufm-stream-to-fluentd.sample.cfg#L21) | True | Port for FluentD endpoint
-| --fluentd_timeout <fluentd_timeout> | [fluentd-config.timeout](ufm-stream-to-fluentd.sample.cfg#L22) | True | Port for FluentD endpoint
+| --fluentd_timeout <fluentd_timeout> | [fluentd-config.timeout](ufm-stream-to-fluentd.sample.cfg#L22) | True | Timeout for FluentD endpoint streaming [Default is 120 seconds]
 | --fluentd_message_tag_name <fluentd_message_tag_name> | [fluentd-config.message_tag_name](ufm-stream-to-fluentd.sample.cfg#L22) | False | Message Tag Name for FluentD endpoint message [Default is the ufm_host] 
 | --ufm_host <ufm_host> | [ufm-remote-server-config.host](ufm-stream-to-fluentd.sample.cfg#L2) | True | Hostname or IP for The UFM Enterprise
 | --ufm_protocol <ufm_protocol> | [ufm-server-config.ws_protocol](ufm-stream-to-fluentd.sample.cfg#L4) | True | Web services protocol used by UFM Enterprise (HTTP, HTTPS)  
