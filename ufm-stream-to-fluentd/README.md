@@ -12,15 +12,20 @@ As a fabric manager, the UFM Enterprise holds an internal representation model o
 
 
 
-Prerequisites 
+Prerequisites
 --------------------------------------------------------
 
 To install all prerequisites, please run :
 
     pip install -r requirements.txt
 
-Run  
--------------------------------------------------------- 
+Fluentd configurations
+--------------------------------------------------------
+
+- We provide [fluentd.conf](fluentd.conf) as a fluentd configurations sample.
+
+Run
+--------------------------------------------------------
 ### 1) using command line arguments :
 
 
@@ -28,33 +33,33 @@ Run
 
 
 ### 2) using configuration file:
-  
-  - copy config file sample ufm-stream-to-fluentd.sample.cfg to ufm-stream-to-fluentd.cfg 
-      
-    
+
+  - copy config file sample ufm-stream-to-fluentd.sample.cfg to ufm-stream-to-fluentd.cfg
+
+
     cp ufm-stream-to-fluentd.sample.cfg ufm-stream-to-fluentd.cfg
 
-  - Edit config file with relevant parameters 
+  - Edit config file with relevant parameters
 
-    
+
     vi ufm-stream-to-fluentd.cfg
 
   - Run
 
-    
+
     python3 ufm-stream-to-fluentd.py
 
  Running syntax
 --------------------------------------------------------
 
-| Argument | Corresponding Config Value | Required | Description | 
+| Argument | Corresponding Config Value | Required | Description |
 | :---: | :---: |:---: |:---: |
 | --fluentd_host <fluentd_host> | [fluentd-config.host](ufm-stream-to-fluentd.sample.cfg#L20) | True |  Hostname or IP for FluentD endpoint
 | --fluentd_port <fluentd_port> | [fluentd-config.port](ufm-stream-to-fluentd.sample.cfg#L21) | True | Port for FluentD endpoint
 | --fluentd_timeout <fluentd_timeout> | [fluentd-config.timeout](ufm-stream-to-fluentd.sample.cfg#L22) | True | Timeout for FluentD endpoint streaming [Default is 120 seconds]
-| --fluentd_message_tag_name <fluentd_message_tag_name> | [fluentd-config.message_tag_name](ufm-stream-to-fluentd.sample.cfg#L22) | False | Message Tag Name for FluentD endpoint message [Default is the ufm_host] 
+| --fluentd_message_tag_name <fluentd_message_tag_name> | [fluentd-config.message_tag_name](ufm-stream-to-fluentd.sample.cfg#L22) | False | Message Tag Name for FluentD endpoint message [Default is the ufm_host]
 | --ufm_host <ufm_host> | [ufm-remote-server-config.host](ufm-stream-to-fluentd.sample.cfg#L2) | True | Hostname or IP for The UFM Enterprise
-| --ufm_protocol <ufm_protocol> | [ufm-server-config.ws_protocol](ufm-stream-to-fluentd.sample.cfg#L4) | True | Web services protocol used by UFM Enterprise (HTTP, HTTPS)  
+| --ufm_protocol <ufm_protocol> | [ufm-server-config.ws_protocol](ufm-stream-to-fluentd.sample.cfg#L4) | True | Web services protocol used by UFM Enterprise (HTTP, HTTPS)
 | --ufm_username <ufm_username> | [ufm-server-config.username](ufm-stream-to-fluentd.sample.cfg#L6) | True | Username of UFM user
 | --ufm_password <ufm_password> | [ufm-server-config.password](ufm-stream-to-fluentd.sample.cfg#L7) | True | Password of UFM user
 | --logs_file_name <logs_file_name> | [logs-config.logs_file_name](ufm-stream-to-fluentd.sample.cfg#L27) | False | Log file name, if not provided a default stream wil lbe used
@@ -66,9 +71,9 @@ Run
 | --streaming_ports <streaming_ports> | [streaming-config.ports](ufm-stream-to-fluentd.sample.cfg#L14) | False | Default is 'True'
 | --streaming_links <streaming_links> | [streaming-config.links](ufm-stream-to-fluentd.sample.cfg#L15) | False | Default is 'True'
 | --streaming_alarms <streaming_alarms> | [streaming-config.alarms](ufm-stream-to-fluentd.sample.cfg#L16) | False | Default is 'True'
-   
+
 *If command line argument is provided, the corresponding config value will be ignored
 
 Use
--------------------------------------------------------- 
+--------------------------------------------------------
 This application is not a daemon; you should run it via time-based job scheduler (cron job).
