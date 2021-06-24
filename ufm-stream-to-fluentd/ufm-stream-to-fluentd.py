@@ -284,7 +284,7 @@ def check_app_params():
     fluentd_host = get_config_value(args.fluentd_host, 'fluentd-config', 'host', None)
     fluentd_port = int(get_config_value(args.fluentd_port, 'fluentd-config', 'port', None))
     fluentd_timeout = int(get_config_value(args.fluentd_port, 'fluentd-config', 'timeout', 120))
-    local_streaming = get_config_value(args.streaming_systems, 'streaming-config', 'local_streaming', True) == 'True'
+    local_streaming = get_config_value(args.streaming_systems, 'streaming-config', 'local_streaming', 'True') == 'True'
     ufm_host = get_config_value(args.ufm_host, 'ufm-remote-server-config', 'host',
                                 '127.0.0.1' if local_streaming else None)
     fluentd_message_tag_name = get_config_value(args.fluentd_message_tag_name, 'fluentd-config', 'message_tag_name', ufm_host)
@@ -293,11 +293,11 @@ def check_app_params():
     ufm_username = get_config_value(args.ufm_username, 'ufm-remote-server-config', 'username', None)
     ufm_password = get_config_value(args.ufm_password, 'ufm-remote-server-config', 'password', None)
     streaming_interval = int(get_config_value(args.streaming_interval, 'streaming-config', 'interval', 5))
-    streaming = get_config_value(args.streaming_systems, 'streaming-config', 'streaming', True) == 'True'
-    enabled_streaming_systems = get_config_value(args.streaming_systems, 'streaming-config', 'systems', True) == 'True'
-    enabled_streaming_ports = get_config_value(args.streaming_ports, 'streaming-config', 'ports', True) == 'True'
-    enabled_streaming_links = get_config_value(args.streaming_links, 'streaming-config', 'links', True) == 'True'
-    enabled_streaming_alarms = get_config_value(args.streaming_alarms, 'streaming-config', 'alarms', True) == 'True'
+    streaming = get_config_value(args.streaming, 'streaming-config', 'streaming', 'True') == 'True'
+    enabled_streaming_systems = get_config_value(args.streaming_systems, 'streaming-config', 'systems', 'True') == 'True'
+    enabled_streaming_ports = get_config_value(args.streaming_ports, 'streaming-config', 'ports', 'True') == 'True'
+    enabled_streaming_links = get_config_value(args.streaming_links, 'streaming-config', 'links', 'True') == 'True'
+    enabled_streaming_alarms = get_config_value(args.streaming_alarms, 'streaming-config', 'alarms', 'True') == 'True'
 
 
 class FluentdMessageMetadata:
