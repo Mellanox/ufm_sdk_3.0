@@ -157,7 +157,11 @@ def load_memory_with_jsons():
         logging.error(e)
 
 
-def update_ufm_apis():
+def load_ufm_versioning_api():
+    return send_ufm_request(UFM_API_VERSIONING)
+
+
+def update_ufm_apis(ufm_new_version):
     global stored_versioning_api
     global stored_systems_api
     global stored_ports_api
@@ -166,8 +170,6 @@ def update_ufm_apis():
 
     try:
         logging.info(f'Call update_ufm_apis')
-
-        ufm_new_version = send_ufm_request(UFM_API_VERSIONING)
 
         # check if systems api is changed
         if enabled_streaming_systems and \
@@ -215,9 +217,9 @@ def send_ufm_request(url):
         logging.info("UFM API Request Status [" + str(response.status_code) + "], URL " + url)
         if response.raise_for_status():
             logging.error(response.raise_for_status())
+        return response.json()
     except Exception as e:
         logging.error(e)
-    return response.json()
 
 
 def get_config_value(arg, section, key, default=None):
@@ -347,8 +349,11 @@ if __name__ == "__main__":
 
         load_fluentd_metadata_json()
         if streaming_interval_is_valid():
+            ufm_new_version = load_ufm_versioning_api()
+            if ufm_new_version is None:
+                sys.exit()
             load_memory_with_jsons()
-            update_ufm_apis()
+            update_ufm_apis(ufm_new_version)
             stream_to_fluentd()
         else:
             logging.error("Streaming interval isn't completed")
