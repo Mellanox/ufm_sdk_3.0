@@ -23,12 +23,12 @@ activate py36 env:
 conda activate py36
 
 start server:
-UCX_TLS=rc python rest_rdma_server.py
+UCX_NET_DEVICES=mlx5_0:1 UCX_TLS=rc_x python rest_rdma_server.py
 
 start client:
 for REST
-UCX_TLS=rc python rest_rdma_client.py -i ib0 -u admin -p 123456 -t simple -a GET -w ufmRest/resources/systems
+UCX_NET_DEVICES=mlx5_0:1 UCX_TLS=rc_x python rest_rdma_client.py -i mlx5_0 -u admin -p 123456 -s r-ufm55 -t simple -a GET -w ufmRest/resources/systems
 
 for ibdiagnet
-UCX_TLS=rc python rest_rdma_client.py -i ib0 -u admin -p 123456 -t ibdiagnet -a POST -w ufmRest/reports/ibdiagnetPeriodic -l '{"general": {"name": "IBDiagnet_CMD_1234567890", "location": "local", "running_mode": "once"}, "command_flags": {"--pc": ""}}'
+UCX_NET_DEVICES=mlx5_0:1 UCX_TLS=rc_x python rest_rdma_client.py -i mlx5_0 -u admin -p 123456 -s r-ufm55 -t ibdiagnet -a POST -w ufmRest/reports/ibdiagnetPeriodic -l '{"general": {"name": "IBDiagnet_CMD_1234567890", "location": "local", "running_mode": "once"}, "command_flags": {"--pc": ""}}'
 
