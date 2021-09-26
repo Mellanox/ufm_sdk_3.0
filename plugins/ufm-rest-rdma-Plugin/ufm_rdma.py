@@ -4,18 +4,13 @@ import numpy as np
 import ctypes
 import sys
 import os
-import subprocess
-import shlex
 import configparser
 import requests
-from pprint import pprint
-from ucp._libs import ucx_api
 from ucp._libs.utils_test import (
     blocking_flush,
     get_endpoint_error_handling_default,
 )
 from ucp._libs.arr import Array
-import inspect
 import json
 import time
 import logging
@@ -23,15 +18,7 @@ import argparse
 from enum import Enum
 
 n_bytes = 2**30
-'''
-Client:
-Should be performed between 2 and 5 points of Server
-1. read service record and get remote address
-2. Create worker
-3. create ep with worker and remote address
-4. read local address
-5. send local address using ep
-'''
+
 SERVICE_NAME = b"ufm_rest_service"
 DEFAULT_CONFIG_FILE_NAME = "ufm_rdma.ini"
 DEFAULT_LOG_FILE_NAME = "ufm_rdma.log"
@@ -40,7 +27,12 @@ WORKING_DIR_NAME = os.path.dirname(os.path.realpath(__file__))
 SR_LIB_NAME = "libservice_record_wrapper.so"
 SR_LIB_PATH = os.path.join(WORKING_DIR_NAME, SR_LIB_NAME)
 LOG_FILE_PATH = os.path.join(WORKING_DIR_NAME, DEFAULT_LOG_FILE_NAME)
+LOG_FILE_PATH = "/tmp/at_log.log"
 SUCCESS_REST_CODE = (200,201,202,203,204)
+ERROR_REST_CODE = (500,501,502,503,504,505)
+ADDRESS_SR_HOLDER_SIZE = 56
+GENERAL_ERROR_NUM = 500
+GENERAL_ERROR_MSG = "REST RDMA server failed to send request to UFM Server. Check log file for details"
 # load the service record lib
 try:
     #sr_lib = ctypes.CDLL('/.autodirect/mtrswgwork/atabachnik/workspace/github/Collectx_master_libsr/src/service_record/libservice_record_wrapper.so')
@@ -199,7 +191,7 @@ async def getIbdiagnetResult(end_point, tarball_path):
     start_file_transf_charar = np.empty_like(req_charar)
     # need to send start first
     ibdiag_request_arguments = fillArgumentsDict(actionType.FILE_TRANSFER.value,
-                                                 None, None, None, None, None, None)
+                                            None, None, None, None, None, None)
     initializeRequestArray(start_file_transf_charar, ibdiag_request_arguments)
     await end_point.send(start_file_transf_charar,tag=0, force_tag=True)
     data_size = np.empty(1, dtype=np.uint64)
@@ -231,6 +223,7 @@ async def getIbdiagnetResult(end_point, tarball_path):
                                       tarball_path.split('/')[-1]])
     f = open(receive_location_file, "wb")
     f.write(resp_data)
+    print("Ibdiagnet output file stored at %s" % receive_location_file)
 
 async def cancelComplicatedRespond(end_point):
     '''
@@ -252,7 +245,7 @@ async def cancelIbdiagnetRespond(end_point):
                         None, None, None, None, None, None)
     initializeRequestArray(abort_charar, ibdiag_request_arguments)
     await end_point.send(abort_charar, tag=0, force_tag=True)
-    
+
 
 async def handleIbdiagnetRespond(end_point, parsed_respond, ibdiag_request_arguments):
     '''
@@ -346,7 +339,8 @@ def registerLocalAddressInServiceRecord(interface):
     #print(serialized_address)
     addres_value_len = len(serialized_address)
     #print("addres_value_len %d" % addres_value_len)
-    address_value_to_send = (ctypes.c_char * addres_value_len).from_buffer(serialized_address)
+    address_value_to_send = (ctypes.c_char * addres_value_len).from_buffer(
+                                                             serialized_address)
     # publish local address to server record
     sr_service_name = ctypes.c_char_p(SERVICE_NAME)
     sr_device_name = ctypes.c_char_p(str.encode(interface))
@@ -356,11 +350,12 @@ def registerLocalAddressInServiceRecord(interface):
         return 1;
     else:
         logging.debug("Server: sr_wrapper_ctx_t init done");
-    if not sr_lib.sr_wrapper_register(sr_context, address_value_to_send, addres_value_len):
+    if not sr_lib.sr_wrapper_register(sr_context, address_value_to_send,
+                                                            addres_value_len):
         logging.critical("Server: Unable to register sr_wrapper")
         return 1
 
-async def ReceiveRestRequest(end_point):
+async def receiveRestRequest(end_point):
     '''
     Handle simple rest request
     :param ep: - end point
@@ -385,22 +380,26 @@ async def sendRestRequest(real_url, action, payload, username, password):
         send_payload = json.loads(payload)
     else:
         send_payload = None
-
-    if action == UFMrestAction.GET.value:
-        rest_respond = requests.get(real_url, auth=(username, password),
-                                                                   verify=False)
-    elif action == UFMrestAction.PUT.value:
-        rest_respond = requests.put(real_url, auth=(username, password),
-                                                json=send_payload, verify=False)
-    elif action == UFMrestAction.SET.value:
-        rest_respond = requests.set(real_url, auth=(username, password),
-                                                json=send_payload, verify=False)
-    elif action == UFMrestAction.POST.value:
-        rest_respond = requests.post(real_url, auth=(username, password),
-                                                json=send_payload, verify=False)
-    else:
-        # unknown - probably error
-        logging.error("Server: Unknown action %s received. Escape." % action)
+    try:
+        if action == UFMrestAction.GET.value:
+            rest_respond = requests.get(real_url, auth=(username, password),
+                                                                verify=False)
+        elif action == UFMrestAction.PUT.value:
+            rest_respond = requests.put(real_url, auth=(username, password),
+                                            json=send_payload, verify=False)
+        elif action == UFMrestAction.SET.value:
+            rest_respond = requests.set(real_url, auth=(username, password),
+                                             son=send_payload, verify=False)
+        elif action == UFMrestAction.POST.value:
+            rest_respond = requests.post(real_url, auth=(username, password),
+                                            json=send_payload, verify=False)
+        else:
+            # unknown - probably error
+            logging.error("Server: Unknown action %s received. Escape." % action)
+            rest_respond = None
+    except Exception as e:
+        logging.error("Server: Failed to send REST request %s: %s." %
+                                                                (real_url, e))
         rest_respond = None
     return rest_respond
     
@@ -410,7 +409,7 @@ async def handleRestRequest(end_point):
     :param ep: - end point
     '''
     resp_array= np.chararray((2), itemsize=n_bytes)
-    action_type, action, url, payload, username, password, host = await ReceiveRestRequest(end_point)
+    action_type, action, url, payload, username, password, host = await receiveRestRequest(end_point)
     # Separate flow for file transfer
     if action_type == actionType.ABORT.value:
         logging.error("Server: Abort received - cancel complicated flow")
@@ -420,23 +419,27 @@ async def handleRestRequest(end_point):
     if action_type != actionType.FILE_TRANSFER.value: # REST REQUEST- RESPOND
         username_pwd="%s:%s" % (username, password)
         real_url = "https://%s/%s" % (host, url)
-        logging.debug("Server: Received: action %s, url %s, payload %s" % (action, url, payload))
-#         if payload and payload != 'None':
-#             curl_cmd='''curl -d '%s' -H "Content-Type: application/json" -k -X %s -u %s %s''' % (payload, action, username_pwd, real_url)
-#         else:
-#             curl_cmd='''curl -k -X %s -u %s %s''' % (action, username_pwd, real_url)
+        logging.debug("Server: Received: action %s, url %s, payload %s" %
+                                                         (action, url, payload))
         # use requests
-        rest_respond = await sendRestRequest(real_url, action, payload, username, password)
-#         curl_cmd_list = shlex.split(curl_cmd)
-#         logging.debug("Server: Finally curl command: %s" % curl_cmd)
-#         result = subprocess.run(curl_cmd_list, stdout=subprocess.PIPE)
-#         resp_array[0]=result.stdout
-        #print(resp_array)
-        if rest_respond.status_code not in SUCCESS_REST_CODE:
-            # error
-            logging.error("Server: REST request failed: error code %d" % int(rest_respond.status_code))
-        resp_array[0] = rest_respond.status_code
-        resp_array[1] = rest_respond.content
+        rest_respond = await sendRestRequest(real_url, action, payload,
+                                                            username, password)
+        if rest_respond is None: # failed to send request at all
+            logging.error("Server: exception on REST request")
+            resp_array[0] = GENERAL_ERROR_NUM
+            resp_array[1] = GENERAL_ERROR_MSG
+        else:
+            if rest_respond.status_code not in SUCCESS_REST_CODE:
+                # error
+                resp_string = "%s:%s" % (rest_respond.reason,
+                                         str(rest_respond.content))
+                logging.error("Server: REST request failed: error code %d: %s" %
+                                                  (int(rest_respond.status_code),
+                                                  resp_string))
+            else:
+                resp_string = rest_respond.content
+            resp_array[0] = rest_respond.status_code
+            resp_array[1] = resp_string
         await end_point.send(resp_array, tag=0, force_tag=True)
         # recursion
         if action_type == actionType.IBDIAGNET.value:
@@ -450,6 +453,7 @@ async def handleFileTransfer(end_point):
     Handle transfer of the file from server to client
     :param ep:
     '''
+    logging.debug("Server: Perform ibdiagnet output file transfer")
     try:
         logging.debug("Server: Allocate memory for path")
         file_path = np.chararray((1), itemsize=200)
@@ -501,7 +505,7 @@ def main_client(request_arguments):
         sr_service_name = ctypes.c_char_p(SERVICE_NAME)
         sr_device_name = ctypes.c_char_p(str.encode(request_arguments['interface']))
         sr_context = sr_lib.sr_wrapper_create(sr_service_name, sr_device_name, 1)
-        addr_holder = bytearray(56)
+        addr_holder = bytearray(ADDRESS_SR_HOLDER_SIZE)
         address_buffer = ctypes.c_char * len(addr_holder)
         address_len = sr_lib.sr_wrapper_query(sr_context,
                                     address_buffer.from_buffer(addr_holder), 56)
@@ -540,6 +544,7 @@ def main_client(request_arguments):
         if int(request_status) not in SUCCESS_REST_CODE:
             if request_arguments['type'] == actionType.IBDIAGNET.value:
                 # need to send cancelation to server - to exit ibdiagnet loop
+                logging.error("Client: REST Request Failed: %s" % as_string)
                 await cancelIbdiagnetRespond(ep)
             elif request_arguments['type'] == actionType.COMPLICATTED.value:
                 await cancelComplicatedRespond(ep)
