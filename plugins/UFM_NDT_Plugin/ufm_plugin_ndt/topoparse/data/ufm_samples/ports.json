@@ -1,0 +1,140 @@
+[
+    {
+        "active_speed": "HDR",
+        "active_width": "4x",
+        "capabilities": [
+            "healthy_operations",
+            "reset",
+            "disable",
+            "get_cables_info"
+        ],
+        "description": "Switch IB Port",
+        "dname": "1",
+        "enabled_speed": [
+            "SDR",
+            "DDR",
+            "QDR",
+            "FDR",
+            "EDR",
+            "HDR"
+        ],
+        "enabled_width": [
+            "1x",
+            "4x"
+        ],
+        "external_number": 1,
+        "guid": "1c34da0300728606",
+        "high_ber_severity": "N/A",
+        "lid": 2,
+        "logical_state": "Active",
+        "mirror": "disable",
+        "module": "N/A",
+        "mtu": 2048,
+        "name": "1c34da0300728606_1",
+        "node_description": "SLG01-02:1",
+        "number": 1,
+        "path": "default / Switch: SLG01-02 / NA / 1",
+        "peer": "0c42a103001b8256_1",
+        "peer_guid": "0c42a103001b8256",
+        "peer_ip": "0.0.0.0",
+        "peer_lid": 254,
+        "peer_node_description": "luna-0001 mlx5_10",
+        "peer_node_guid": "0c42a103001b8256",
+        "peer_node_name": "luna-0001",
+        "peer_port_dname": "HCA-2/1",
+        "physical_state": "Link Up",
+        "severity": "Info",
+        "supported_speed": [
+            "SDR",
+            "DDR",
+            "QDR",
+            "FDR",
+            "EDR",
+            "HDR",
+            "NDR"
+        ],
+        "supported_width": [
+            "1x",
+            "2x",
+            "4x",
+            "8x",
+            "12x"
+        ],
+        "systemID": "1c34da0300728606",
+        "system_capabilities": [
+            "burn_cables_transceivers"
+        ],
+        "system_ip": "0.0.0.0",
+        "system_mirroring_template": false,
+        "system_name": "SLG01-02",
+        "tier": 4
+    },
+    {
+        "active_speed": "HDR",
+        "active_width": "4x",
+        "capabilities": [
+            "healthy_operations",
+            "reset",
+            "disable"
+        ],
+        "description": "Computer IB Port",
+        "dname": "HCA-1/1",
+        "enabled_speed": [
+            "SDR",
+            "DDR",
+            "QDR",
+            "FDR",
+            "EDR",
+            "HDR"
+        ],
+        "enabled_width": [
+            "1x",
+            "4x"
+        ],
+        "external_number": 1,
+        "guid": "0c42a10300280000",
+        "high_ber_severity": "N/A",
+        "lid": 145,
+        "logical_state": "Active",
+        "mirror": "disable",
+        "module": "N/A",
+        "mtu": 2048,
+        "name": "0c42a10300280000_1",
+        "node_description": "luna-0218 mlx5_4",
+        "number": 1,
+        "path": "default / Computer: luna-0218 / NA / HCA-1/1",
+        "peer": "0c42a103005de2f0_6",
+        "peer_guid": "0c42a103005de2f0",
+        "peer_ip": "0.0.0.0",
+        "peer_lid": 651,
+        "peer_node_description": "SLG02-07:6",
+        "peer_node_guid": "0c42a103005de2f0",
+        "peer_node_name": "SLG02-07",
+        "peer_port_dname": "6",
+        "physical_state": "Link Up",
+        "severity": "Info",
+        "supported_speed": [
+            "SDR",
+            "DDR",
+            "QDR",
+            "FDR",
+            "EDR",
+            "HDR",
+            "NDR"
+        ],
+        "supported_width": [
+            "1x",
+            "2x",
+            "4x",
+            "8x",
+            "12x"
+        ],
+        "systemID": "0c42a10300280000",
+        "system_capabilities": [],
+        "system_ip": "0.0.0.0",
+        "system_mirroring_template": false,
+        "system_name": "luna-0218",
+        "tier": 1
+    }
+]
+        
