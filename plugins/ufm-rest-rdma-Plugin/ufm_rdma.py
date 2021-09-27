@@ -15,9 +15,8 @@ import json
 import time
 import logging
 import argparse
+import struct
 from enum import Enum
-
-n_bytes = 2**30
 
 SERVICE_NAME = b"ufm_rest_service"
 DEFAULT_CONFIG_FILE_NAME = "ufm_rdma.ini"
@@ -90,7 +89,7 @@ base_protocol="https"
 SERVER_MODE_RUN = "server"
 CLIENT_MODE_RUN = "client"
 
-n_bytes = 2**30
+N_BYTES = 2 ** 29
 
 class actionType(Enum):
     SIMPLE = "simple"
@@ -262,7 +261,7 @@ async def handleIbdiagnetRespond(end_point, parsed_respond, ibdiag_request_argum
     #---------------------------------------------------------
     data_size = np.empty(1, dtype=np.uint64)
     file_path= np.chararray((1), itemsize=200)
-    ibdiag_resp_array= np.chararray((2), itemsize=n_bytes) # will get there the response
+    ibdiag_resp_array= np.chararray((2), itemsize=N_BYTES) # will get there the response
     # allocation of name of file path to be received - no need to 
     # we will get full respond of data and path will be one of fields - json
     logging.debug("Client: handleIbdiagnetRespond: Receive response for simple request")
@@ -355,13 +354,13 @@ def registerLocalAddressInServiceRecord(interface):
         logging.critical("Server: Unable to register sr_wrapper")
         return 1
 
-async def receiveRestRequest(end_point):
+async def receiveRestRequest(end_point, recv_tag):
     '''
     Handle simple rest request
     :param ep: - end point
     '''
     arr = np.chararray((7,2), itemsize=200)
-    await ucp.recv(arr, tag=0)
+    await end_point.recv(arr, tag=recv_tag, force_tag=True)
     logging.debug("Server: Received NumPy request array: %s" % str(arr))
     # print(arr) 
     action_type = arr[0][1].decode()
@@ -403,13 +402,13 @@ async def sendRestRequest(real_url, action, payload, username, password):
         rest_respond = None
     return rest_respond
     
-async def handleRestRequest(end_point):
+async def handleRestRequest(end_point, recv_tag, send_tag):
     '''
     Handle simple rest request
     :param ep: - end point
     '''
-    resp_array= np.chararray((2), itemsize=n_bytes)
-    action_type, action, url, payload, username, password, host = await receiveRestRequest(end_point)
+    resp_array = np.chararray((2), itemsize=N_BYTES)
+    action_type, action, url, payload, username, password, host = await receiveRestRequest(end_point, recv_tag)
     # Separate flow for file transfer
     if action_type == actionType.ABORT.value:
         logging.error("Server: Abort received - cancel complicated flow")
@@ -440,15 +439,15 @@ async def handleRestRequest(end_point):
                 resp_string = rest_respond.content
             resp_array[0] = rest_respond.status_code
             resp_array[1] = resp_string
-        await end_point.send(resp_array, tag=0, force_tag=True)
+        await end_point.send(resp_array, tag=send_tag, force_tag=True)
         # recursion
         if action_type == actionType.IBDIAGNET.value:
             await handleRestRequest(end_point)
     else: # enter to the flow for file_transfer
         logging.debug("Server: Requested transfer of ibdiagnet files")
-        await handleFileTransfer(end_point)
+        await handleFileTransfer(end_point, recv_tag, send_tag)
 
-async def handleFileTransfer(end_point):
+async def handleFileTransfer(end_point, recv_tag, send_tag):
     '''
     Handle transfer of the file from server to client
     :param ep:
@@ -459,7 +458,7 @@ async def handleFileTransfer(end_point):
         file_path = np.chararray((1), itemsize=200)
         logging.debug("Server: Allocate memory for for data size")
         data_size = np.empty(1, dtype=np.uint64)
-        await ucp.recv(file_path, tag=0)
+        await end_point.recv(file_path, tag=recv_tag, force_tag=True)
         file_path_value = file_path[0].decode()
         logging.debug("Server: Received file path %s" % file_path_value)
         f = open(file_path_value, "rb")
@@ -469,10 +468,69 @@ async def handleFileTransfer(end_point):
         logging.debug("Server: Error filed to read file %s" % e)
         data_size[0] = 0
     logging.debug("Server: The size of data to be sent is %d" % data_size)
-    await end_point.send(data_size, tag=0, force_tag=True)  # Requires some parsing with NumPy or struct, as we previously discussed
+    await end_point.send(data_size, tag=send_tag, force_tag=True)  # Requires some parsing with NumPy or struct, as we previously discussed
     if data_size[0] > 0:
         logging.debug("Server: Send data now")
-        await end_point.send(s, tag=0, force_tag=True)
+        await end_point.send(s, tag=send_tag, force_tag=True)
+
+def _get_address_info(address=None):
+    # Fixed frame size
+    frame_size = 10000
+
+    # Header format: Recv Tag (Q) + Send Tag (Q) + UCXAddress.length (Q)
+    header_fmt = "QQQ"
+
+    # Data length
+    data_length = frame_size - struct.calcsize(header_fmt)
+
+    # Padding length
+    padding_length = None if address is None else (data_length - address.length)
+
+    # Header + UCXAddress string + padding
+    fixed_size_address_buffer_fmt = header_fmt + str(data_length) + "s"
+
+    assert struct.calcsize(fixed_size_address_buffer_fmt) == frame_size
+
+    return {
+        "frame_size": frame_size,
+        "data_length": data_length,
+        "padding_length": padding_length,
+        "fixed_size_address_buffer_fmt": fixed_size_address_buffer_fmt,
+    }
+
+
+def _pack_address_and_tag(address, recv_tag, send_tag):
+    address_info = _get_address_info(address)
+
+    fixed_size_address_packed = struct.pack(
+        address_info["fixed_size_address_buffer_fmt"],
+        recv_tag,  # Recv Tag
+        send_tag,  # Send Tag
+        address.length,  # Address buffer length
+        (
+            bytearray(address) + bytearray(address_info["padding_length"])
+        ),  # Address buffer + padding
+    )
+
+    assert len(fixed_size_address_packed) == address_info["frame_size"]
+
+    return fixed_size_address_packed
+
+
+def _unpack_address_and_tag(address_packed):
+    address_info = _get_address_info()
+
+    recv_tag, send_tag, address_length, address_padded = struct.unpack(
+        address_info["fixed_size_address_buffer_fmt"], address_packed,
+    )
+
+    # Swap send and recv tags, as they are used by the remote process in the
+    # opposite direction.
+    return {
+        "address": address_padded[:address_length],
+        "recv_tag": send_tag,
+        "send_tag": recv_tag,
+    }
 
 def main_server(request_arguments):
     '''
@@ -484,16 +542,22 @@ def main_server(request_arguments):
     async def handleRdmaRequest():
         # Receive address size
         while True:
-            address_size = np.empty(1, dtype=np.int64)
-            await ucp.recv(address_size, tag=0)
-            # Receive address buffer on tag 0 and create UCXAddress from it
-            remote_address = bytearray(address_size[0])
-            await ucp.recv(remote_address, tag=0)
-            remote_address = ucp.get_ucx_address_from_buffer(remote_address)
+            address_info = _get_address_info()
+
+            # Receive fixed-size address+tag buffer on tag 0
+            packed_remote_address = bytearray(address_info["frame_size"])
+            logging.warning("Receiving adress..")
+            await ucp.recv(packed_remote_address, tag=0)
+            logging.warning("Address received")
+
+            # Unpack the fixed-size address+tag buffer
+            unpacked = _unpack_address_and_tag(packed_remote_address)
+            remote_address = ucp.get_ucx_address_from_buffer(unpacked["address"])
+
             # Create endpoint to remote worker using the received address
             ep = await ucp.create_endpoint_from_worker_address(remote_address)
             # prepare np array to receive request
-            await handleRestRequest(ep)
+            await handleRestRequest(ep, unpacked["recv_tag"], unpacked["send_tag"])
     asyncio.get_event_loop().run_until_complete(handleRdmaRequest())
 
 def main_client(request_arguments):
@@ -518,20 +582,23 @@ def main_client(request_arguments):
                                                      (address_len, addr_holder))
         # get local address
         address = ucp.get_worker_address()
+        recv_tag = ucp.utils.hash64bits(os.urandom(16))
+        send_tag = ucp.utils.hash64bits(os.urandom(16))
+        packed_address = _pack_address_and_tag(address, recv_tag, send_tag)
+
         remote_address = ucp.get_ucx_address_from_buffer(addr_holder)
         ep = await ucp.create_endpoint_from_worker_address(remote_address)
         # Send local address to server on tag 0
-        await ep.send(np.array(address.length, np.int64), tag=0, force_tag=True)
-        await ep.send(address, tag=0, force_tag=True)
+        await ep.send(packed_address, tag=0, force_tag=True)
         ########################################################################
         # Init the request and send it to server
         ########################################################################
         logging.debug("Client: Initialize chararray to sent request to client")
         charar = np.chararray((7,2), itemsize=200)
-        resp_array= np.chararray((2), itemsize=n_bytes) #temporarry TODO: exchange size of respond for request
+        resp_array= np.chararray((2), itemsize=N_BYTES) #temporarry TODO: exchange size of respond for request
         initializeRequestArray(charar, request_arguments)
         logging.debug("Client: Send NumPy request char array")
-        await ep.send(charar, tag=0, force_tag=True)  # send the real message
+        await ep.send(charar, tag=send_tag, force_tag=True)  # send the real message
         # recv response in different way and handle differently
         logging.debug("Client: Receive response for simple request")
         resp = np.empty_like(resp_array)
