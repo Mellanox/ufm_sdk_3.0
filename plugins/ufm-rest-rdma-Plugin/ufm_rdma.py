@@ -34,7 +34,6 @@ GENERAL_ERROR_NUM = 500
 GENERAL_ERROR_MSG = "REST RDMA server failed to send request to UFM Server. Check log file for details"
 # load the service record lib
 try:
-    # sr_lib = ctypes.CDLL('/.autodirect/mtrswgwork/atabachnik/workspace/github/Collectx_master_libsr/src/service_record/libservice_record_wrapper.so')
     sr_lib = ctypes.CDLL(SR_LIB_PATH)
 except Exception as e:
     error_message = "Failed to load SR lib: %s" % e
@@ -209,7 +208,7 @@ async def get_ibdiagnet_result(end_point, recv_tag, send_tag, tarball_path):
     logging.debug("Client: Send File path %s" % file_path[0].decode())
     await end_point.send(file_path, tag=send_tag, force_tag=True)  # send the real message
     logging.debug("Client: Receive Data size")
-    await end_point.recv(data_size, tag=recv_tag, force_tag=True)  # receive the echo
+    await ucp.recv(data_size, tag=recv_tag, force_tag=True)  # receive the echo
     logging.debug("Client: Allocate data for bytes - to receive data %d" % data_size[0])
     if data_size == 0:  # failure on file receive on server side
         await cancel_ibdiagnet_respond(end_point, send_tag)
@@ -220,7 +219,7 @@ async def get_ibdiagnet_result(end_point, recv_tag, send_tag, tarball_path):
     # recv response
     logging.debug("Client: Receive ibdiagnet tar File")
     resp_data = np.empty_like(resp)
-    await end_point.recv(resp_data, tag=recv_tag, force_tag=True)  # receive the echo
+    await ucp.recv(resp_data, tag=recv_tag, force_tag=True)  # receive the echo
     ibdiagnet_resp_dir = rdmaRestConfig.get("Client", "ibdiagnet_file_location_dir",
                                             fallback=DEFAULT_IBDIAGNET_RESPONSE_DIR)
     # ibdiagnet_resp_dir = DEFAULT_IBDIAGNET_RESPONSE_DIR
@@ -291,7 +290,7 @@ async def handle_ibdiagnet_respond(end_point, recv_tag, send_tag, parsed_respond
     # print(start_charar)
     await end_point.send(start_charar, tag=send_tag, force_tag=True)
     ibdiag_start_resp = np.empty_like(ibdiag_resp_array)
-    await end_point.recv(ibdiag_start_resp, tag=recv_tag, force_tag=True)  # receive the echo
+    await ucp.recv(ibdiag_start_resp, tag=recv_tag, force_tag=True)  # receive the echo
     if int(ibdiag_start_resp[0]) not in SUCCESS_REST_CODE:
         ibdiag_start_failure_as_string = ibdiag_start_resp[1].decode()
         logging.error("Client: Failed to start ibdiagnet task: %s" %
@@ -380,7 +379,7 @@ async def receive_rest_request(end_point, recv_tag):
     :param recv_tag: - receive tag
     """
     arr = np.chararray((7, 2), itemsize=200)
-    await end_point.recv(arr, tag=recv_tag, force_tag=True)
+    await ucp.recv(arr, tag=recv_tag, force_tag=True)
     logging.debug("Server: Received NumPy request array: %s" % str(arr))
     # print(arr) 
     action_type = arr[0][1].decode()
@@ -448,7 +447,6 @@ async def handle_rest_request(end_point, recv_tag, send_tag):
     if not host or host == 'None':
         host = DEFAULT_HOST_NAME
     if action_type != ActionType.FILE_TRANSFER.value:  # REST REQUEST- RESPOND
-        username_pwd = "%s:%s" % (username, password)
         real_url = "https://%s/%s" % (host, url)
         logging.debug("Server: Received: action %s, url %s, payload %s" %
                       (action, url, payload))
@@ -493,7 +491,7 @@ async def handle_file_transfer(end_point, recv_tag, send_tag):
         file_path = np.chararray((1), itemsize=200)
         logging.debug("Server: Allocate memory for for data size")
         data_size = np.empty(1, dtype=np.uint64)
-        await end_point.recv(file_path, tag=recv_tag, force_tag=True)
+        await ucp.recv(file_path, tag=recv_tag, force_tag=True)
         file_path_value = file_path[0].decode()
         logging.debug("Server: Received file path %s" % file_path_value)
         f = open(file_path_value, "rb")
@@ -510,7 +508,7 @@ async def handle_file_transfer(end_point, recv_tag, send_tag):
         await end_point.send(s, tag=send_tag, force_tag=True)
 
 
-def _get_address_info(address=None):
+def get_address_info(address=None):
     # Fixed frame size
     frame_size = 10000
 
@@ -536,8 +534,8 @@ def _get_address_info(address=None):
     }
 
 
-def _pack_address_and_tag(address, recv_tag, send_tag):
-    address_info = _get_address_info(address)
+def pack_address_and_tag(address, recv_tag, send_tag):
+    address_info = get_address_info(address)
 
     fixed_size_address_packed = struct.pack(
         address_info["fixed_size_address_buffer_fmt"],
@@ -554,8 +552,8 @@ def _pack_address_and_tag(address, recv_tag, send_tag):
     return fixed_size_address_packed
 
 
-def _unpack_address_and_tag(address_packed):
-    address_info = _get_address_info()
+def unpack_address_and_tag(address_packed):
+    address_info = get_address_info()
 
     recv_tag, send_tag, address_length, address_padded = struct.unpack(
         address_info["fixed_size_address_buffer_fmt"], address_packed,
@@ -584,14 +582,14 @@ def main_server(request_arguments):
     async def handle_rdma_request():
         # Receive address size
         while True:
-            address_info = _get_address_info()
+            address_info = get_address_info()
 
             # Receive fixed-size address+tag buffer on tag 0
             packed_remote_address = bytearray(address_info["frame_size"])
             await ucp.recv(packed_remote_address, tag=0)
 
             # Unpack the fixed-size address+tag buffer
-            unpacked = _unpack_address_and_tag(packed_remote_address)
+            unpacked = unpack_address_and_tag(packed_remote_address)
             remote_address = ucp.get_ucx_address_from_buffer(unpacked["address"])
             connection_info[remote_address] = (unpacked["recv_tag"], unpacked["send_tag"])
 
@@ -628,7 +626,7 @@ def main_client(request_arguments):
         address = ucp.get_worker_address()
         recv_tag = ucp.utils.hash64bits(os.urandom(16))
         send_tag = ucp.utils.hash64bits(os.urandom(16))
-        packed_address = _pack_address_and_tag(address, recv_tag, send_tag)
+        packed_address = pack_address_and_tag(address, recv_tag, send_tag)
 
         remote_address = ucp.get_ucx_address_from_buffer(addr_holder)
         ep = await ucp.create_endpoint_from_worker_address(remote_address)
@@ -646,7 +644,7 @@ def main_client(request_arguments):
         # recv response in different way and handle differently
         logging.debug("Client: Receive response for simple request")
         resp = np.empty_like(resp_array)
-        await ep.recv(resp, tag=recv_tag, force_tag=True)  # receive the echo
+        await ucp.recv(resp, tag=recv_tag, force_tag=True)  # receive the echo
         request_status = resp[0]
         # print(resp[1])
         as_string = resp[1].decode()
@@ -727,7 +725,7 @@ def allocate_request_args(parser):
                          help="REST payload")
 
 
-def extractRequestArgs(arguments):
+def extract_request_args(arguments):
     """
     Extracting the connection arguments from the parsed arguments.
     """
@@ -741,7 +739,7 @@ def main():
     parser = create_base_parser()
     allocate_request_args(parser)
     arguments = vars(parser.parse_args())
-    request_arguments = extractRequestArgs(arguments)
+    request_arguments = extract_request_args(arguments)
     run_mode = request_arguments['run_mode']
     rdmaRestConfig = configparser.ConfigParser()
     config_file_name = request_arguments['config_file']
