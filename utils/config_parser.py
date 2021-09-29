@@ -46,6 +46,19 @@ class ConfigParser(object):
         else:
             raise ValueError(F'Error to request value : {section}.{key}')
 
+    def safe_get_bool(self, arg, section, option, default=None):
+        """
+        Get boolean value of option that belong to specified section - if not exist return the default value.
+        @param section    section name
+        @param option    option name
+        @param default    default value
+        @return    boolean value (True or False)
+        """
+        config_value = self.get_config_value(arg, section, option, default)
+        if isinstance(config_value, str):
+            return config_value.lower() == 'true'
+        return config_value
+
     def get_ufm_host(self):
         return self.get_config_value(self.args.ufm_host,
                                      SDK_CONFIG_UFM_REMOTE_SECTION,
