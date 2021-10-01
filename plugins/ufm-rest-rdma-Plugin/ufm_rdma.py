@@ -283,18 +283,21 @@ async def handle_ibdiagnet_respond(end_point, recv_tag, send_tag, ibdiag_request
     # receive response size
     resp_size_array = np.array([0], dtype=np.uint64)
     await ucp.recv(resp_size_array, tag=recv_tag)  # receive the echo
+    # receive status code
+    status_array = np.array([0], dtype=np.uint32)
+    await ucp.recv(status_array, tag=recv_tag)  # receive the echo
     resp_size = resp_size_array[0]
-    ibdiag_resp_array = np.chararray((2), itemsize=resp_size)
+    ibdiag_resp_array = np.chararray((1), itemsize=resp_size)
     ibdiag_start_resp = np.empty_like(ibdiag_resp_array)
     # receive response itself
     await ucp.recv(ibdiag_start_resp, tag=recv_tag)  # receive the echo
-    if int(ibdiag_start_resp[0]) not in SUCCESS_REST_CODE:
-        ibdiag_start_failure_as_string = ibdiag_start_resp[1].decode()
+    if int(status_array[0]) not in SUCCESS_REST_CODE:
+        ibdiag_start_failure_as_string = ibdiag_start_resp[0].decode()
         logging.error("Client: Failed to start ibdiagnet task: %s" %
                       ibdiag_start_failure_as_string)
         await cancel_ibdiagnet_respond(end_point, send_tag)
         return
-    ibdiag_start_as_string = ibdiag_start_resp[1].decode()
+    ibdiag_start_as_string = ibdiag_start_resp[0].decode()
     logging.debug("Client: On Start action received %s" % ibdiag_start_as_string)
     logging.debug("Client: Initialize request for get array")
     # let's say it was OK - start sending requests if completed
@@ -314,12 +317,15 @@ async def handle_ibdiagnet_respond(end_point, recv_tag, send_tag, ibdiag_request
         # receive response size
         resp_size_array = np.array([0], dtype=np.uint64)
         await ucp.recv(resp_size_array, tag=recv_tag)  # receive the echo
+        # receive status code
+        status_array = np.array([0], dtype=np.uint32)
+        await ucp.recv(status_array, tag=recv_tag)  # receive the echo
         resp_size = resp_size_array[0]
-        ibdiag_resp_array = np.chararray((2), itemsize=resp_size)
+        ibdiag_resp_array = np.chararray((1), itemsize=resp_size)
         ibdiag_resp = np.empty_like(ibdiag_resp_array)
         await ucp.recv(ibdiag_resp, tag=recv_tag)  # receive the echo
-        request_status = int(ibdiag_resp[0])
-        ibdiag_as_string = ibdiag_resp[1].decode()
+        request_status = int(status_array[0])
+        ibdiag_as_string = ibdiag_resp[0].decode()
         try:
             if request_status not in SUCCESS_REST_CODE:
                 logging.error("Client: Request Failed: %s" % ibdiag_as_string)
@@ -432,7 +438,6 @@ async def handle_rest_request(end_point, recv_tag, send_tag):
     :param recv_tag: - receive tag
     :param send_tag: - send tag
     """
-    resp_array = np.chararray((2), itemsize=DEFAULT_N_BYTES)
     action_type, action, url, payload, username, password, host = await receive_rest_request(recv_tag)
     # Separate flow for file transfer
     if action_type == ActionType.ABORT.value:
@@ -448,10 +453,10 @@ async def handle_rest_request(end_point, recv_tag, send_tag):
         rest_respond = await send_rest_request(real_url, action, payload,
                                                username, password)
         resp_size = DEFAULT_N_BYTES
+        status = GENERAL_ERROR_NUM
+        response = GENERAL_ERROR_MSG
         if rest_respond is None:  # failed to send request at all
             logging.error("Server: exception on REST request")
-            resp_array[0] = GENERAL_ERROR_NUM
-            resp_array[1] = GENERAL_ERROR_MSG
         else:
             if rest_respond.status_code not in SUCCESS_REST_CODE:
                 # error
@@ -463,14 +468,18 @@ async def handle_rest_request(end_point, recv_tag, send_tag):
             else:
                 resp_string = rest_respond.content
             resp_size = len(resp_string)
-            resp_array = np.chararray((2), itemsize=resp_size)
-            resp_array[0] = rest_respond.status_code
-            resp_array[1] = resp_string
+            status = rest_respond.status_code
+            response = resp_string
 
         # send response size
         resp_size_array = np.array([resp_size], dtype=np.uint64)
         await end_point.send(resp_size_array, tag=send_tag, force_tag=True)
+        # send status
+        resp_size_array = np.array([status], dtype=np.uint32)
+        await end_point.send(resp_size_array, tag=send_tag, force_tag=True)
         # send response itself
+        resp_array = np.chararray((1), itemsize=resp_size)
+        resp_array[0] = response
         await end_point.send(resp_array, tag=send_tag, force_tag=True)
         # recursion
         if action_type == ActionType.IBDIAGNET.value:
@@ -647,14 +656,17 @@ def main_client(request_arguments):
         # receive response size
         resp_size_array = np.array([0], dtype=np.uint64)
         await ucp.recv(resp_size_array, tag=recv_tag)  # receive the echo
+        # receive status code
+        status_array = np.array([0], dtype=np.uint32)
+        await ucp.recv(status_array, tag=recv_tag)  # receive the echo
         resp_size = resp_size_array[0]
         logging.debug("Client: Receive response for simple request")
-        resp_array = np.chararray((2), itemsize=resp_size)
+        resp_array = np.chararray((1), itemsize=resp_size)
         resp = np.empty_like(resp_array)
         # receive response itself
         await ucp.recv(resp, tag=recv_tag)  # receive the echo
-        request_status = resp[0]
-        as_string = resp[1].decode()
+        request_status = status_array[0]
+        as_string = resp[0].decode()
         ready_string = as_string.replace("N\\/A", "NA")
         # Check if respond was OK. If not - print error
         if int(request_status) not in SUCCESS_REST_CODE:
