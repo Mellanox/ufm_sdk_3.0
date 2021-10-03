@@ -24,19 +24,19 @@ Run
 ### 1. Using command line arguments :
  - Export topology as .topo file:
 
-    python3 ufm_topology.py --ufm_host=ufm_host --ufm_username=ufm_username --ufm_protocol=https --ufm_password=ufm_password --export_as_topo
+        python3 ufm_topology.py --ufm_host=ufm_host --ufm_username=ufm_username --ufm_protocol=https --ufm_password=ufm_password --export_as_topo
 
  - Export topology to Gephi:
 
-    python3 ufm_topology.py --ufm_host=ufm_host --ufm_username=ufm_username --ufm_protocol=https --ufm_password=ufm_password --export_to_gephi
+        python3 ufm_topology.py --ufm_host=ufm_host --ufm_username=ufm_username --ufm_protocol=https --ufm_password=ufm_password --export_to_gephi
 
  - Compare topology with external .topo file:
 
-    python3 ufm_topology.py --ufm_host=ufm_host --ufm_username=ufm_username --ufm_protocol=https --ufm_password=ufm_password --compare_topology_with=path_to_external_topo_file
+        python3 ufm_topology.py --ufm_host=ufm_host --ufm_username=ufm_username --ufm_protocol=https --ufm_password=ufm_password --compare_topology_with=path_to_external_topo_file
 
  - Compare topology with external .topo file and export compare result to Gephi:
 
-    python3 ufm_topology.py --ufm_host=ufm_host --ufm_username=ufm_username --ufm_protocol=https --ufm_password=ufm_password --compare_topology_with=path_to_external_topo_file --export_compare_topology_to_gephi
+        python3 ufm_topology.py --ufm_host=ufm_host --ufm_username=ufm_username --ufm_protocol=https --ufm_password=ufm_password --compare_topology_with=path_to_external_topo_file --export_compare_topology_to_gephi
 
 
 ### 2) using configuration file:
@@ -44,28 +44,28 @@ Run
   - Copy main SDK config file sample ufm-sdk.sample.cfg to ufm-sdk.cfg
 
 
-    cp ../conf/ufm-sdk.sample.cfg ../conf/ufm-sdk.cfg
+        cp ../conf/ufm-sdk.sample.cfg ../conf/ufm-sdk.cfg
 
   - Edit config file with relevant parameters
 
 
-    vi ../conf/ufm-sdk.cfg
+        vi ../conf/ufm-sdk.cfg
     
   - Copy ufm topology config file sample ufm_topology.sample.cfg to ufm_topology.cfg
 
 
-    cp ufm_topology.sample.cfg ufm_topology.cfg
+        cp ufm_topology.sample.cfg ufm_topology.cfg
 
   - Edit config file with relevant parameters
 
 
-    vi ufm_topology.cfg
+        vi ufm_topology.cfg
     
 
   - Run
 
 
-    python3 ufm-topology.py
+        python3 ufm-topology.py
 
  Running syntax
 --------------------------------------------------------
