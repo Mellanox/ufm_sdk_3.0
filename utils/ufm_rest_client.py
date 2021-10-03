@@ -15,6 +15,7 @@
 """
 import requests
 import logging
+from enum import Enum
 
 
 class MissingUFMCredentials(Exception):
@@ -27,8 +28,18 @@ class ApiErrorMessages(object):
 
 class UfmRestConstants(object):
     UFM_API_SYSTEMS = 'resources/systems'
-    UFM_API_LINKS = 'resources/links'
+    # The pagination attached  in the links API as workaround for the bug https://redmine.mellanox.com/issues/2805739
+    # TODO:: remove .get("data") after removing the pagination and fix the bug
+    UFM_API_LINKS = 'resources/links?page_number=1&rpp=1000000000'
     UFM_API_PORTS = 'resources/ports'
+
+
+class HTTPMethods(Enum):
+    GET = 1
+    POST = 2
+    PATCH = 3
+    PUT = 4
+    DELETE = 5
 
 
 class UfmRestClient(object):
@@ -55,11 +66,14 @@ class UfmRestClient(object):
             raise MissingUFMCredentials
         return url, headers, auth
 
-    def send_request(self,url):
+    def send_request(self,url,method=HTTPMethods.GET,payload={}, files={}):
         try:
             url, headers, auth = self._get_ufm_request_conf(url)
-            logging.info(f'Send UFM API Request, URL: {url}')
-            response = requests.get(url, verify=False, headers=headers, auth=auth)
+            logging.info(f'Send UFM API Request, Method: {method} ,URL: {url}')
+            if method == HTTPMethods.GET:
+                response = requests.get(url, verify=False, headers=headers, auth=auth)
+            elif method == HTTPMethods.POST:
+                response = requests.post(url, data=payload, verify=False, headers=headers, auth=auth, files=files)
             logging.info("UFM API Request Status [" + str(response.status_code) + "], URL " + url)
             if response.raise_for_status():
                 logging.error(response.raise_for_status())
@@ -75,7 +89,9 @@ class UfmRestClient(object):
 
     def get_links(self):
         response = self.send_request(UfmRestConstants.UFM_API_LINKS)
-        return response.json()
+        # the pagination attached as workaround for the bug https://redmine.mellanox.com/issues/2805739
+        # TODO:: remove .get("data") after removing the pagination and fix the bug
+        return response.json().get("data")
 
     def get_ports(self):
         response = self.send_request(UfmRestConstants.UFM_API_PORTS)
