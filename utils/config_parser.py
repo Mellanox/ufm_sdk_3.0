@@ -59,6 +59,21 @@ class ConfigParser(object):
             return config_value.lower() == 'true'
         return config_value
 
+    def safe_get_list(self, arg, section, option, default=None, splitter= ","):
+        """
+        Get list value of option that belong to specified section - if not exist return the default value.
+        @param section    section name
+        @param option    option name
+        @param default    default value
+        @param default    default value
+        @param splitter splitter of elements in string
+        @return    boolean value (List)
+        """
+        config_value = self.get_config_value(arg, section, option, default)
+        if isinstance(config_value, str):
+            return config_value.split(splitter)
+        return config_value
+
     def get_ufm_host(self):
         return self.get_config_value(self.args.ufm_host,
                                      SDK_CONFIG_UFM_REMOTE_SECTION,

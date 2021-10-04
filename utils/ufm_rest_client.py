@@ -15,8 +15,10 @@
 """
 import requests
 import logging
+import urllib3
 from enum import Enum
 
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class MissingUFMCredentials(Exception):
     pass
@@ -74,6 +76,10 @@ class UfmRestClient(object):
                 response = requests.get(url, verify=False, headers=headers, auth=auth)
             elif method == HTTPMethods.POST:
                 response = requests.post(url, data=payload, verify=False, headers=headers, auth=auth, files=files)
+            elif method == HTTPMethods.PUT:
+                response = requests.put(url, json=payload, verify=False, headers=headers, auth=auth, files=files)
+            elif method == HTTPMethods.DELETE:
+                response = requests.delete(url, json=payload, verify=False, headers=headers, auth=auth)
             logging.info("UFM API Request Status [" + str(response.status_code) + "], URL " + url)
             if response.raise_for_status():
                 logging.error(response.raise_for_status())

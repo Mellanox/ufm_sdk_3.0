@@ -15,7 +15,14 @@
 """
 
 import logging
+from enum import Enum
 
+class LOG_LEVELS(Enum):
+    FATAL=0
+    ERROR=1
+    WARNING=2
+    INFO=3
+    DEBUG=4
 
 class Logger:
 
@@ -24,3 +31,17 @@ class Logger:
         logging.basicConfig(filename=logs_file_name,
                             level=logs_level,
                             format='%(asctime)s %(levelname)s %(name)s : %(message)s')
+
+    @staticmethod
+    def log_message(message, log_level=LOG_LEVELS.INFO):
+        if log_level == LOG_LEVELS.INFO:
+            logging.info(message)
+        elif log_level == LOG_LEVELS.WARNING:
+            logging.warning(message)
+        elif log_level == LOG_LEVELS.ERROR:
+            logging.error(message)
+        elif log_level == LOG_LEVELS.DEBUG:
+            logging.debug(message)
+        elif log_level == LOG_LEVELS.FATAL:
+            logging.fatal(message)
+        print(message)
