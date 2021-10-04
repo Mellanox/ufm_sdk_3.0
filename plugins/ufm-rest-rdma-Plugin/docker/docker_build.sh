@@ -1,4 +1,12 @@
 #!/bin/bash
+
+set -eE
+
+if [ "$EUID" -ne 0 ]
+  then echo "Please run the script as root"
+  exit
+fi
+
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 
 IMAGE_VERSION=$1
@@ -24,8 +32,6 @@ function create_out_dir()
     chmod 777 ${build_dir}
     echo ${build_dir}
 }
-
-check_image_version $IMAGE_VERSION
 
 function build_docker_image()
 {
@@ -53,9 +59,9 @@ function build_docker_image()
     echo "  full_image_version    : [${full_image_version}]"
 
     pushd ${build_dir}
-    echo "sudo docker build --network host --no-cache --pull -t ${full_image_version} . --compress"
+    echo "docker build --network host --no-cache --pull -t ${full_image_version} . --compress"
 
-    sudo docker build --network host --no-cache --pull -t ${full_image_version} . --compress
+    docker build --network host --no-cache --pull -t ${full_image_version} . --compress
     exit_code=$?
     popd
     if [ $exit_code -ne 0 ]; then
@@ -64,19 +70,19 @@ function build_docker_image()
     fi
 
     printf "\n\n\n"
-    echo "sudo docker images | grep ufm-plugin-ufm-plugin-ufm-rest"
-    sudo docker images | grep ufm-plugin-ufm-rest
+    echo "docker images | grep ufm-plugin-ufm-plugin-ufm-rest"
+    docker images | grep ufm-plugin-ufm-rest
     printf "\n\n\n"
 
-    echo "sudo docker save ${full_image_version}:latest | gzip > ${out_dir}/${full_image_version}.tar.gz"
-    sudo docker save ${full_image_version}:latest | gzip > ${out_dir}/${full_image_version}.tar.gz
+    echo "docker save ${full_image_version}:latest | gzip > ${out_dir}/${full_image_version}.tar.gz"
+    docker save ${full_image_version}:latest | gzip > ${out_dir}/${full_image_version}.tar.gz
     exit_code=$?
     if [ $exit_code -ne 0 ]; then
         echo "Failed to save image"
         return $exit_code
     fi
     if [ "$keep_image" != "y" -a "$keep_image" != "Y" ]; then
-        sudo docker image rm -f ${full_image_version}
+        docker image rm -f ${full_image_version}
     fi
     return 0
 }

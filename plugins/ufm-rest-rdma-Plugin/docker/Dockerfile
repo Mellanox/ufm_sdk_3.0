@@ -49,4 +49,8 @@ COPY init.sh /init.sh
 COPY src ${BASE_PATH}
 
 # Copy service record library
+# TODO: need to copy source code and build it here
 COPY lib ${BASE_PATH}
+
+# TODO: temporary solution to check deplotment flow, replace it with ufm_rdma.py call
+CMD ["/opt/ufm/ufm-plugin-ufm-rest/infinite_loop.sh"]

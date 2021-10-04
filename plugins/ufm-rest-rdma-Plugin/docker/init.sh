@@ -9,47 +9,40 @@
 # This software product is governed by the End User License Agreement
 # provided with the software product.
 
-# ====================================================================
-# This script prepares and checks  NDT docker/container Environment
-# ====================================================================
-
-
-SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
-
-LICENSE_FILE=$1
-
-UFM_DIR="${SCRIPT_DIR}/.."
+# =====================================================================
+# This script prepares and checks UFM REST docker/container Environment
+# =====================================================================
 
 echo "Running init.sh"
 
-#Test UFM version if plugin can run with UFM.
-#cmd ./init.sh –ufm_version “6.7.0 build 9”
-#cmd ./init.sh -v “6.7.0 build 9”
-#/opt/ufm/version/release
-
-#Updating /confiag folder
+# Updating /config folder
 touch /config/UFM_REST.conf
 touch /config/ufm_plugin_UFM_REST_httpd.conf
 touch /config/UFM_REST_shared_volumes.conf
 touch /config/UFM_REST_cmdline_args.conf
 
-#release_version=$(</opt/ufm/version/release)
-release_version="6.7.0 build 9"
-echo "Actual Release Build Version: $release_version"
+# TODO: just for the testing, will be removed later
+echo /auto/mtrswgwork/atolikin/:tmp/shared_folder > /config/UFM_REST_shared_volumes.conf
+
+# UFM version test
+required_ufm_version=(6 7 0)
+echo "Required UFM version: ${required_ufm_version[0]}.${required_ufm_version[1]}.${required_ufm_version[2]}"
 
 if [ "$1" == "-ufm_version" ]; then
-          ufm_version=$2
-          echo "Required Release UFM Version Build: $ufm_version"
-          if [ "$release_version" == "$ufm_version" ]; then
-                echo "Actual and Required Build Versions are same"
-                exit 0
-          else
-                echo "Actual and Required Build Versions are not same"
-                exit 1
-          fi
+    actual_ufm_version_string=$2
+    actual_ufm_version=(${actual_ufm_version_string//./ })
+    echo "Actual UFM version: ${actual_ufm_version[0]}.${actual_ufm_version[1]}.${actual_ufm_version[2]}"
+    if [ ${actual_ufm_version[0]} -ge ${required_ufm_version[0]} ] \
+    && [ ${actual_ufm_version[1]} -ge ${required_ufm_version[1]} ] \
+    && [ ${actual_ufm_version[2]} -ge ${required_ufm_version[2]} ]; then
+        echo "UFM version meets the requirements"
+        exit 0
+    else
+        echo "UFM version is older than required"
+        exit 1
+    fi
 else
     exit 1
 fi
-
 
 exit 1

@@ -17,6 +17,7 @@ import logging
 import argparse
 import struct
 from enum import Enum
+from threading import Thread
 
 SERVICE_NAME = b"ufm_rest_service"
 DEFAULT_CONFIG_FILE_NAME = "ufm_rdma.ini"
@@ -579,6 +580,20 @@ def unpack_address_and_tag(address_packed):
     }
 
 
+def handle_rest_request_wrapper(ep, recv_tag, send_tag):
+    """
+    Wrapper function to asynchronously handle simple rest request
+    :param end_point: - end point
+    :param recv_tag: - receive tag
+    :param send_tag: - send tag
+    """
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    loop.run_until_complete(handle_rest_request(ep, recv_tag, send_tag))
+    loop.close()
+
+
 def main_server(request_arguments):
     """
     Main Server flow
@@ -607,7 +622,9 @@ def main_server(request_arguments):
             # Create endpoint to remote worker using the received address
             ep = await ucp.create_endpoint_from_worker_address(remote_address)
             # prepare np array to receive request
-            await handle_rest_request(ep, unpacked["recv_tag"], unpacked["send_tag"])
+            rest_thread = Thread(target=handle_rest_request_wrapper,
+                                 args=(ep, unpacked["recv_tag"], unpacked["send_tag"]))
+            rest_thread.start()
 
     asyncio.get_event_loop().run_until_complete(handle_rdma_request())
 
