@@ -149,7 +149,10 @@ class UfmPkeysManagement:
             url = UfmPkeysConstants.PKEYS_API_URL
         url = f'{url}?guids_data=true'
         response = ufm_rest_client.send_request(url)
-        Logger.log_message(response.json())
+        if response and response.status_code == HTTPStatus.OK:
+            Logger.log_message(response.json())
+        else:
+            Logger.log_message(response, LOG_LEVELS.ERROR)
         return response
 
     @staticmethod

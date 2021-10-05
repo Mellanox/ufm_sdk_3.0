@@ -48,10 +48,10 @@ Run
 | --set_pkey <set_pkey> | None | True | Option to set a Pkey network
 | --pkey <pkey> | None | Required for set_pkey operation | Network Pkey [Hexadecimal string between '0x0'-'0x7fff' exclusive]
 | --guids <guids> | None | Required for set_pkey operation | The List of port GUIDs(comma seprated), Each GUID is a hexadecimal string with a minimum length of 16 characters and maximum length of 20 characters,[e.g.043f720300dd1d3c,0c42a103007aca90,etc...] 
-| --membership <membership> | None | False | 'full' / 'limited'. “full”- members with full membership can communicate with all hosts (members)" within the network/partition “limited” - members with limited membership cannot communicate with other members with limited membership. However, communication is allowed between every other combination of membership types. [Default = 'full'].* This parameter will be ignored in case the “memberships” parameter has been set
-| --memberships <memberships> | None | False | List of “full” or “limited” comma-separated strings.It must be the same length as the GUIDs list. Each value by an index represents a GUID membership e.g. ['full', 'limited', etc...]. This parameter conflicts with the “membership” parameter. You must select either a list of memberships or just one membership for all GUIDs
-| --index0 <index0> | None | False | If true, the API will store the PKey at index 0 of the PKey table of the GUID.[Default = False]
-| --ip_over_ib <index0> | None | False | If true, PKey is a member in a multicast group that uses IP over InfiniBand.[Default = True]
+| --membership <membership> | None | Optional for set_pkey operation | 'full' / 'limited'. “full”- members with full membership can communicate with all hosts (members)" within the network/partition “limited” - members with limited membership cannot communicate with other members with limited membership. However, communication is allowed between every other combination of membership types. [Default = 'full'].* This parameter will be ignored in case the “memberships” parameter has been set
+| --memberships <memberships> | None | Optional for set_pkey operation | List of “full” or “limited” comma-separated strings.It must be the same length as the GUIDs list. Each value by an index represents a GUID membership e.g. ['full', 'limited', etc...]. This parameter conflicts with the “membership” parameter. You must select either a list of memberships or just one membership for all GUIDs
+| --index0 <index0> | None | Optional for set_pkey operation | If true, the API will store the PKey at index 0 of the PKey table of the GUID.[Default = False]
+| --ip_over_ib <index0> | None | Optional for set_pkey operation | If true, PKey is a member in a multicast group that uses IP over InfiniBand.[Default = True]
 
 
 *If command line argument is provided, the corresponding config value will be ignored
