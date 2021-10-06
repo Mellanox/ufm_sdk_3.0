@@ -17,7 +17,8 @@ import logging
 import argparse
 import struct
 from enum import Enum
-from threading import Thread
+from threading import Thread, Timer
+
 
 SERVICE_NAME = b"ufm_rest_service"
 DEFAULT_CONFIG_FILE_NAME = "ufm_rdma.ini"
@@ -27,12 +28,13 @@ WORKING_DIR_NAME = os.path.dirname(os.path.realpath(__file__))
 SR_LIB_NAME = "libservice_record_wrapper.so"
 SR_LIB_PATH = os.path.join(WORKING_DIR_NAME, SR_LIB_NAME)
 LOG_FILE_PATH = os.path.join(WORKING_DIR_NAME, DEFAULT_LOG_FILE_NAME)
-LOG_FILE_PATH = "/tmp/at_log.log"
+#LOG_FILE_PATH = "/tmp/at_log.log"  # TODO: remove it!!
 SUCCESS_REST_CODE = (200, 201, 202, 203, 204)
 ERROR_REST_CODE = (500, 501, 502, 503, 504, 505)
 ADDRESS_SR_HOLDER_SIZE = 56
 GENERAL_ERROR_NUM = 500
 GENERAL_ERROR_MSG = "REST RDMA server failed to send request to UFM Server. Check log file for details"
+UCX_REEIVE_ERROR_MSG = "REST RDMA server failed to receive request from client of some reason"
 # load the service record lib
 try:
     sr_lib = ctypes.CDLL(SR_LIB_PATH)
@@ -90,6 +92,8 @@ SERVER_MODE_RUN = "server"
 CLIENT_MODE_RUN = "client"
 
 DEFAULT_N_BYTES = 200  # size of a default response
+DEFAULT_SR_RENEW_INTERVAL = 180
+
 
 
 class ActionType(Enum):
@@ -103,8 +107,9 @@ class ActionType(Enum):
 class UFMRestAction(Enum):
     GET = "GET"
     PUT = "PUT"
-    SET = "SET"
+    PATCH = "PATCH"
     POST = "POST"
+    DELETE = "DELETE"
 
 
 def get_ibdiagnet_job_name_from_payload(ibdiagnet_payload):
@@ -193,40 +198,58 @@ async def get_ibdiagnet_result(end_point, recv_tag, send_tag, tarball_path):
     """
     # first send to server notification that it should be file request
     # send simple request to get status
-    req_charar = np.chararray((7, 2), itemsize=DEFAULT_N_BYTES)
-    start_file_transf_charar = np.empty_like(req_charar)
-    # need to send start first
-    ibdiag_request_arguments = fill_arguments_dict(ActionType.FILE_TRANSFER.value,
-                                                   None, None, None, None, None, None)
-    initialize_request_array(start_file_transf_charar, ibdiag_request_arguments)
-    await end_point.send(start_file_transf_charar, tag=send_tag, force_tag=True)
-    data_size = np.empty(1, dtype=np.uint64)
-    file_path = np.chararray((1), itemsize=DEFAULT_N_BYTES)
-    # send message
-    file_path[0] = tarball_path
-    logging.debug("Client: Send File path %s" % file_path[0].decode())
-    await end_point.send(file_path, tag=send_tag, force_tag=True)  # send the real message
-    logging.debug("Client: Receive Data size")
-    await ucp.recv(data_size, tag=recv_tag)  # receive the echo
-    logging.debug("Client: Allocate data for bytes - to receive data %d" % data_size[0])
-    if data_size == 0:  # failure on file receive on server side
-        await cancel_ibdiagnet_respond(end_point, send_tag)
-        error_msg = "Failed to get file %s on server side" % tarball_path
-        logging.error(error_msg)
+    try:
+        req_charar = np.chararray((7, 2), itemsize=DEFAULT_N_BYTES)
+        start_file_transf_charar = np.empty_like(req_charar)
+        # need to send start first
+        ibdiag_request_arguments = fill_arguments_dict(ActionType.FILE_TRANSFER.value,
+                                                       None, None, None, None, None, None)
+        initialize_request_array(start_file_transf_charar, ibdiag_request_arguments)
+        await end_point.send(start_file_transf_charar, tag=send_tag, force_tag=True)
+        data_size = np.empty(1, dtype=np.uint64)
+        file_path = np.chararray((1), itemsize=DEFAULT_N_BYTES)
+        # send message
+        file_path[0] = tarball_path
+        logging.debug("Client: Send File path %s" % file_path[0].decode())
+        await end_point.send(file_path, tag=send_tag, force_tag=True)  # send the real message
+        logging.debug("Client: Receive Data size")
+        await ucp.recv(data_size, tag=recv_tag)  # receive the echo
+        logging.debug("Client: Allocate data for bytes - to receive data %d" % data_size[0])
+        if data_size == 0:  # failure on file receive on server side
+            await cancel_ibdiagnet_respond(end_point, send_tag)
+            error_msg = "Failed to get file %s on server side" % tarball_path
+            logging.error(error_msg)
+            return
+        resp = bytearray(b"m" * data_size[0])
+        # recv response
+        logging.debug("Client: Receive ibdiagnet tar File")
+        resp_data = np.empty_like(resp)
+        await ucp.recv(resp_data, tag=recv_tag)  # receive the echo
+        ibdiagnet_resp_dir = rdma_rest_config.get("Client", "ibdiagnet_file_location_dir",
+                                                  fallback=DEFAULT_IBDIAGNET_RESPONSE_DIR)
+        if not os.path.exists(ibdiagnet_resp_dir):  # create if not exist
+            os.makedirs(ibdiagnet_resp_dir)
+        receive_location_file = "/".join([ibdiagnet_resp_dir,
+                                          tarball_path.split('/')[-1]])
+    except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError) as e:
+        logging.error("Client: ucx-py exception: %s" % e)
+        raise e("ucx-py exception")
+    except ucp.exceptions.UCXError as e:
+        logging.error("Server: ucx-py UCXError exception: %s")
+        raise e("ucx-py exception: UCXError")
+    except Exception as e:
+        logging.error("Client: Failed to receive ibdiagnet result file: %s" % e)
+        print("Failed to receive ibdiagnet output file")
         return
-    resp = bytearray(b"m" * data_size[0])
-    # recv response
-    logging.debug("Client: Receive ibdiagnet tar File")
-    resp_data = np.empty_like(resp)
-    await ucp.recv(resp_data, tag=recv_tag)  # receive the echo
-    ibdiagnet_resp_dir = rdma_rest_config.get("Client", "ibdiagnet_file_location_dir",
-                                              fallback=DEFAULT_IBDIAGNET_RESPONSE_DIR)
-    if not os.path.exists(ibdiagnet_resp_dir):  # create if not exist
-        os.makedirs(ibdiagnet_resp_dir)
-    receive_location_file = "/".join([ibdiagnet_resp_dir,
-                                      tarball_path.split('/')[-1]])
-    f = open(receive_location_file, "wb")
-    f.write(resp_data)
+    try:
+        f = open(receive_location_file, "wb")
+        f.write(resp_data)
+    except Exception as e:
+        err_message =("Failed to store ibdiagnet result tarball file in %s: %s"%
+                                                  (receive_location_file, e))
+        logging.error("Client: %s" % err_message)
+        print(err_message)
+        return
     print("Ibdiagnet output file stored at %s" % receive_location_file)
 
 
@@ -282,30 +305,24 @@ async def handle_ibdiagnet_respond(end_point, recv_tag, send_tag, ibdiag_request
     initialize_request_array(start_charar, ibdiag_request_arguments)
     await end_point.send(start_charar, tag=send_tag, force_tag=True)
     # receive response size
-    resp_size_array = np.array([0], dtype=np.uint64)
-    await ucp.recv(resp_size_array, tag=recv_tag)  # receive the echo
-    # receive status code
-    status_array = np.array([0], dtype=np.uint32)
-    await ucp.recv(status_array, tag=recv_tag)  # receive the echo
-    resp_size = resp_size_array[0]
-    ibdiag_resp_array = np.chararray((1), itemsize=resp_size)
-    ibdiag_start_resp = np.empty_like(ibdiag_resp_array)
-    # receive response itself
-    await ucp.recv(ibdiag_start_resp, tag=recv_tag)  # receive the echo
-    if int(status_array[0]) not in SUCCESS_REST_CODE:
-        ibdiag_start_failure_as_string = ibdiag_start_resp[0].decode()
+    logging.debug("Client: Receive respond for ibdiagnet task start")
+    request_status, ibdiag_start_as_string = await receive_rest_respond_from_server(recv_tag)
+    if not request_status or int(request_status) not in SUCCESS_REST_CODE:
+#        ibdiag_start_failure_as_string = ibdiag_start_resp[0].decode()
         logging.error("Client: Failed to start ibdiagnet task: %s" %
-                      ibdiag_start_failure_as_string)
+                                             ibdiag_start_as_string)
         await cancel_ibdiagnet_respond(end_point, send_tag)
         return
-    ibdiag_start_as_string = ibdiag_start_resp[0].decode()
     logging.debug("Client: On Start action received %s" % ibdiag_start_as_string)
     logging.debug("Client: Initialize request for get array")
     # let's say it was OK - start sending requests if completed
     # loop to verify if job completed succesfully  
     num_of_retries = int(rdma_rest_config.get("Client", "ibdiagnet_wait_intetrval",
                                               fallback=300))
+    retry_interval = int(rdma_rest_config.get("Client", "ibdiagnet_retry_intetrval",
+                                              fallback=1))
     # create a new end_point
+    logging.debug("Client: Start polling UFM server for ibdiagnet job request completion")
     while num_of_retries > 0:
         get_charar = np.empty_like(req_charar)
         request_url_path = "%s%s" % (GET_IBDIAG_JOB_URL, job_name)
@@ -314,21 +331,10 @@ async def handle_ibdiagnet_respond(end_point, recv_tag, send_tag, ibdiag_request
         initialize_request_array(get_charar, ibdiag_request_arguments)
         await end_point.send(get_charar, tag=send_tag, force_tag=True)  # send the real message
         # recv response in different way and handle differently
-        logging.debug("Client: Receive response for simple request for ibdiagnet")
-        # receive response size
-        resp_size_array = np.array([0], dtype=np.uint64)
-        await ucp.recv(resp_size_array, tag=recv_tag)  # receive the echo
-        # receive status code
-        status_array = np.array([0], dtype=np.uint32)
-        await ucp.recv(status_array, tag=recv_tag)  # receive the echo
-        resp_size = resp_size_array[0]
-        ibdiag_resp_array = np.chararray((1), itemsize=resp_size)
-        ibdiag_resp = np.empty_like(ibdiag_resp_array)
-        await ucp.recv(ibdiag_resp, tag=recv_tag)  # receive the echo
-        request_status = int(status_array[0])
-        ibdiag_as_string = ibdiag_resp[0].decode()
+        logging.debug("Client: Receive response for simple request for ibdiagnet status")
+        request_status, ibdiag_as_string = await receive_rest_respond_from_server(recv_tag)
         try:
-            if request_status not in SUCCESS_REST_CODE:
+            if not request_status or int(request_status) not in SUCCESS_REST_CODE:
                 logging.error("Client: Request Failed: %s" % ibdiag_as_string)
                 break
             else:
@@ -336,9 +342,9 @@ async def handle_ibdiagnet_respond(end_point, recv_tag, send_tag, ibdiag_request
                 task_status = str(ibdiag_parsed_respond["last_run_result"])
                 logging.debug("Client: Task status %s" % task_status)
                 if task_status != 'Successful':
-                    logging.debug("Client: Request again")
+                    logging.debug("Client: Request for ibdiagnet status again")
                     num_of_retries -= 1
-                    time.sleep(1)
+                    time.sleep(retry_interval)
                 else:
                     # take path of tarball file
                     tarball_path = str(ibdiag_parsed_respond["last_result_location"])
@@ -373,24 +379,102 @@ def register_local_address_in_service_record(interface):
                                       addres_value_len):
         logging.critical("Server: Unable to register sr_wrapper")
         return 1
+    # need to renew
+    sr_renew_interval = rdma_rest_config.get("Server", "sr_renew_interval",
+                                     fallback=DEFAULT_SR_RENEW_INTERVAL)
+    Timer(int(sr_renew_interval), register_local_address_in_service_record, 
+                                                       [interface]).start()
 
+async def receive_rest_respond_from_server(recv_tag):
+    request_status = ready_string = None
+    try:
+        # receive response size
+        resp_size_array = np.array([0], dtype=np.uint64)
+        await ucp.recv(resp_size_array, tag=recv_tag)  # receive the echo
+        # receive status code
+        status_array = np.array([0], dtype=np.uint32)
+        await ucp.recv(status_array, tag=recv_tag)  # receive the echo
+        resp_size = resp_size_array[0]
+        logging.debug("Client: Receive response for simple request")
+        resp_array = np.chararray((1), itemsize=resp_size)
+        resp = np.empty_like(resp_array)
+        # receive response itself
+        await ucp.recv(resp, tag=recv_tag)  # receive the echo
+        request_status = status_array[0]
+        as_string = resp[0].decode()
+        ready_string = as_string.replace("N\\/A", "NA")
+    except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError) as e:
+        logging.error("Clien: ucx-py exception: %s" % e)
+        raise e("ucx-py exception")
+    except ucp.exceptions.UCXError as e:
+        logging.error("Client: ucx-py UCXError exception: %s")
+        raise e("ucx-py exception: UCXError")
+    except Exception as e:
+        logging.error("Client: Failed to receive respond over rdma:%s" % e)
+    finally:
+        return request_status, ready_string
+
+async def send_rest_respond_to_client(end_point, send_tag, resp_size,
+                                      status, response):
+    try:
+        # send response size
+        resp_size_array = np.array([resp_size], dtype=np.uint64)
+        await end_point.send(resp_size_array, tag=send_tag, force_tag=True)
+        # send status
+        resp_size_array = np.array([status], dtype=np.uint32)
+        await end_point.send(resp_size_array, tag=send_tag, force_tag=True)
+        # send response itself
+        resp_array = np.chararray((1), itemsize=resp_size)
+        resp_array[0] = response
+        await end_point.send(resp_array, tag=send_tag, force_tag=True)
+    except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError) as e:
+        logging.error("Server: ucx-py exception: %s" % e)
+        raise e("ucx-py exception")
+    except ucp.exceptions.UCXError as e:
+        logging.error("Server: ucx-py UCXError exception: %s")
+        raise e("ucx-py exception: UCXError")
+    except Exception as e:
+        logging.error("Server: Failed to send rest respond over rdma:%s" % e)
+        return
+
+async def return_error_to_client(end_point, send_tag):
+    """
+    Send respond with error to client
+    """
+    resp_size = DEFAULT_N_BYTES
+    status = GENERAL_ERROR_NUM
+    response = UCX_REEIVE_ERROR_MSG
+    await send_rest_respond_to_client(end_point, send_tag, resp_size,
+                                             status, response)
 
 async def receive_rest_request(recv_tag):
     """
     Handle simple rest request
     :param recv_tag: - receive tag
     """
-    arr = np.chararray((7, 2), itemsize=DEFAULT_N_BYTES)
-    await ucp.recv(arr, tag=recv_tag)
-    logging.debug("Server: Received NumPy request array: %s" % str(arr))
-    action_type = arr[0][1].decode()
-    action = arr[1][1].decode()
-    url = arr[2][1].decode()
-    payload = arr[3][1].decode()
-    username = arr[4][1].decode()
-    password = arr[5][1].decode()
-    host = arr[6][1].decode()
-    return action_type, action, url, payload, username, password, host
+    logging.debug("Server: Receive rest_request - Start")
+    try:
+        action_type = action = url = payload = username = password = host = None
+        arr = np.chararray((7, 2), itemsize=DEFAULT_N_BYTES)
+        await ucp.recv(arr, tag=recv_tag)
+        logging.debug("Server: Received NumPy request array: %s" % str(arr))
+        action_type = arr[0][1].decode()
+        action = arr[1][1].decode()
+        url = arr[2][1].decode()
+        payload = arr[3][1].decode()
+        username = arr[4][1].decode()
+        password = arr[5][1].decode()
+        host = arr[6][1].decode()
+    except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError) as e:
+        logging.error("Server: ucx-py exception: %s" % e)
+        raise e("ucx-py exception")
+    except ucp.exceptions.UCXError as e:
+        logging.error("Server: ucx-py UCXError exception: %s")
+        raise e("ucx-py exception: UCXError")
+    except Exception as e:
+        logging.error("Server: Failed to receive rest request from client: %s" % e)
+    finally:
+        return action_type, action, url, payload, username, password, host
 
 
 async def send_rest_request(real_url, action, payload, username, password):
@@ -415,19 +499,22 @@ async def send_rest_request(real_url, action, payload, username, password):
         elif action == UFMRestAction.PUT.value:
             rest_respond = requests.put(real_url, auth=(username, password),
                                         json=send_payload, verify=False)
-        elif action == UFMRestAction.SET.value:
-            rest_respond = requests.set(real_url, auth=(username, password),
+        elif action == UFMRestAction.PATCH.value:
+            rest_respond = requests.patch(real_url, auth=(username, password),
                                         son=send_payload, verify=False)
         elif action == UFMRestAction.POST.value:
             rest_respond = requests.post(real_url, auth=(username, password),
+                                         json=send_payload, verify=False)
+        elif action == UFMRestAction.DELETE.value:
+            rest_respond = requests.delete(real_url, auth=(username, password),
                                          json=send_payload, verify=False)
         else:
             # unknown - probably error
             logging.error("Server: Unknown action %s received. Escape." % action)
             rest_respond = None
     except Exception as e:
-        logging.error("Server: Failed to send REST request %s: %s." %
-                      (real_url, e))
+        logging.error("Server: Failed to send REST request URL %s: Payload %s: error %s." %
+                      (real_url,send_payload, e))
         rest_respond = None
     return rest_respond
 
@@ -439,13 +526,17 @@ async def handle_rest_request(end_point, recv_tag, send_tag):
     :param recv_tag: - receive tag
     :param send_tag: - send tag
     """
+    logging.debug("Server: Start handling client request")
     action_type, action, url, payload, username, password, host = await receive_rest_request(recv_tag)
-    # Separate flow for file transfer
+    if not action_type: # Failure on request receive - send error to client
+        await return_error_to_client(end_point, send_tag)
+        return
     if action_type == ActionType.ABORT.value:
         logging.error("Server: Abort received - cancel complicated flow")
         return
     if not host or host == 'None':
         host = DEFAULT_HOST_NAME
+    # Separate flow for file transfer
     if action_type != ActionType.FILE_TRANSFER.value:  # REST REQUEST- RESPOND
         real_url = "https://%s/%s" % (host, url)
         logging.debug("Server: Received: action %s, url %s, payload %s" %
@@ -459,6 +550,9 @@ async def handle_rest_request(end_point, recv_tag, send_tag):
         if rest_respond is None:  # failed to send request at all
             logging.error("Server: exception on REST request")
         else:
+            logging.debug("Received from UFM server status %d - %s" %
+                          (rest_respond.status_code,
+                          str(rest_respond.content)))
             if rest_respond.status_code not in SUCCESS_REST_CODE:
                 # error
                 resp_string = "%s:%s" % (rest_respond.reason,
@@ -471,19 +565,15 @@ async def handle_rest_request(end_point, recv_tag, send_tag):
             resp_size = len(resp_string)
             status = rest_respond.status_code
             response = resp_string
-
-        # send response size
-        resp_size_array = np.array([resp_size], dtype=np.uint64)
-        await end_point.send(resp_size_array, tag=send_tag, force_tag=True)
-        # send status
-        resp_size_array = np.array([status], dtype=np.uint32)
-        await end_point.send(resp_size_array, tag=send_tag, force_tag=True)
-        # send response itself
-        resp_array = np.chararray((1), itemsize=resp_size)
-        resp_array[0] = response
-        await end_point.send(resp_array, tag=send_tag, force_tag=True)
+        try:
+            await send_rest_respond_to_client(end_point, send_tag, resp_size,
+                                                            status, response)
+        except Exception as e:
+            logging.error("Server: Failed to send rest respond over rdma:%s" % e)
+            return
         # recursion
         if action_type == ActionType.IBDIAGNET.value:
+            logging.debug("Server: Handle ibdiagnet request")
             await handle_rest_request(end_point, recv_tag, send_tag)
     else:  # enter to the flow for file_transfer
         logging.debug("Server: Requested transfer of ibdiagnet files")
@@ -523,28 +613,21 @@ async def handle_file_transfer(end_point, recv_tag, send_tag):
 def get_address_info(address=None):
     # Fixed frame size
     frame_size = 10000
-
     # Header format: Recv Tag (Q) + Send Tag (Q) + UCXAddress.length (Q)
     header_fmt = "QQQ"
-
     # Data length
     data_length = frame_size - struct.calcsize(header_fmt)
-
     # Padding length
     padding_length = None if address is None else (data_length - address.length)
-
     # Header + UCXAddress string + padding
     fixed_size_address_buffer_fmt = header_fmt + str(data_length) + "s"
-
     assert struct.calcsize(fixed_size_address_buffer_fmt) == frame_size
-
     return {
         "frame_size": frame_size,
         "data_length": data_length,
         "padding_length": padding_length,
         "fixed_size_address_buffer_fmt": fixed_size_address_buffer_fmt,
     }
-
 
 def pack_address_and_tag(address, recv_tag, send_tag):
     address_info = get_address_info(address)
@@ -570,7 +653,6 @@ def unpack_address_and_tag(address_packed):
     recv_tag, send_tag, address_length, address_padded = struct.unpack(
         address_info["fixed_size_address_buffer_fmt"], address_packed,
     )
-
     # Swap send and recv tags, as they are used by the remote process in the
     # opposite direction.
     return {
@@ -601,7 +683,6 @@ def main_server(request_arguments):
     """
     # register server record
     register_local_address_in_service_record(request_arguments['interface'])
-
     # dictionary with connection info in {address: (recv_tag, send_tag)} format
     connection_info = {}
 
@@ -622,9 +703,10 @@ def main_server(request_arguments):
             # Create endpoint to remote worker using the received address
             ep = await ucp.create_endpoint_from_worker_address(remote_address)
             # prepare np array to receive request
-            rest_thread = Thread(target=handle_rest_request_wrapper,
-                                 args=(ep, unpacked["recv_tag"], unpacked["send_tag"]))
-            rest_thread.start()
+            await handle_rest_request(ep, unpacked["recv_tag"], unpacked["send_tag"])
+            #rest_thread = Thread(target=handle_rest_request_wrapper,
+            #                     args=(ep, unpacked["recv_tag"], unpacked["send_tag"]))
+            #rest_thread.start()
 
     asyncio.get_event_loop().run_until_complete(handle_rdma_request())
 
@@ -663,42 +745,28 @@ def main_client(request_arguments):
         ########################################################################
         # Init the request and send it to server
         ########################################################################
-        logging.debug("Client: Initialize chararray to sent request to client")
+        logging.debug("Client: Initialize chararray to sent request to client %s" %
+                                                          str(request_arguments))
         charar = np.chararray((7, 2), itemsize=DEFAULT_N_BYTES)
         initialize_request_array(charar, request_arguments)
         logging.debug("Client: Send NumPy request char array")
         await ep.send(charar, tag=send_tag, force_tag=True)  # send the real message
         # recv response in different way and handle differently
-        resp_size = DEFAULT_N_BYTES
-        # receive response size
-        resp_size_array = np.array([0], dtype=np.uint64)
-        await ucp.recv(resp_size_array, tag=recv_tag)  # receive the echo
-        # receive status code
-        status_array = np.array([0], dtype=np.uint32)
-        await ucp.recv(status_array, tag=recv_tag)  # receive the echo
-        resp_size = resp_size_array[0]
-        logging.debug("Client: Receive response for simple request")
-        resp_array = np.chararray((1), itemsize=resp_size)
-        resp = np.empty_like(resp_array)
-        # receive response itself
-        await ucp.recv(resp, tag=recv_tag)  # receive the echo
-        request_status = status_array[0]
-        as_string = resp[0].decode()
-        ready_string = as_string.replace("N\\/A", "NA")
+        request_status, resp_string = await receive_rest_respond_from_server(recv_tag)
         # Check if respond was OK. If not - print error
-        if int(request_status) not in SUCCESS_REST_CODE:
+        if not request_status or int(request_status) not in SUCCESS_REST_CODE:
+            logging.error("Client: REST Request Failed: %s" % resp_string)
             if request_arguments['type'] == ActionType.IBDIAGNET.value:
-                # need to send cancelation to server - to exit ibdiagnet loop
-                logging.error("Client: REST Request Failed: %s" % as_string)
+                # need to send cancellation to server - to exit ibdiagnet loop
                 await cancel_ibdiagnet_respond(ep, send_tag)
             elif request_arguments['type'] == ActionType.COMPLICATED.value:
                 await cancel_complicated_respond(ep)
             else:
-                logging.error("Client: REST Request Failed: %s" % as_string)
-                print(as_string)
+                error_mesg = resp_string if resp_string else "Client. Failed to receive responce from server"
+                print(error_mesg)
         else:  # Succeed
             try:
-                parsed_respond = json.loads(ready_string.strip())
+                parsed_respond = json.loads(resp_string.strip())
                 if request_arguments['type'] == ActionType.IBDIAGNET.value:
                     # need to get from respond the name of ibdiagnet job
                     await handle_ibdiagnet_respond(ep, recv_tag, send_tag, request_arguments)
@@ -707,7 +775,7 @@ def main_client(request_arguments):
                 else:
                     print(json.dumps(parsed_respond, indent=4, sort_keys=True))
             except Exception as e:
-                logging.error("Client: Got respond: %s Error %s " % (ready_string, e))
+                logging.error("Client: Got respond: %s Error %s " % (resp_string, e))
 
     asyncio.get_event_loop().run_until_complete(run(request_arguments))
 
@@ -744,7 +812,7 @@ def allocate_request_args(parser):
                          choices=["simple", "complicated", "ibdiagnet"],
                          help="Action type to be performed")
     request.add_argument("-a", "--rest_action", action="store",
-                         required=None, default="GET", choices=["GET", "PUT", "SET", "POST"],
+                         required=None, default="GET", choices=["GET", "PUT", "PATCH", "POST", "DELETE"],
                          help="REST Action to perform")
     request.add_argument("-w", "--rest_url", action="store",
                          required=None, default=None, choices=None,
@@ -800,8 +868,8 @@ def main():
         logging.info("Running in Server mode")
         main_server(request_arguments)
     else:  # run as client
-        main_client(request_arguments)
         logging.info("Running in Client mode")
+        main_client(request_arguments)
 
 
 if __name__ == '__main__':
