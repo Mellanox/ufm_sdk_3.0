@@ -57,15 +57,16 @@ class UfmRestClient(object):
         self.password = password
 
     def _get_ufm_request_conf(self,api_url):
-        url = self.ws_protocol+ "://" + self.host + "/" + self.api_prefix + "/" + api_url
         headers = {}
         auth = None
         if self.client_token:
-            headers["Authorization"] = "Bearer {0}".format(self.client_token)
+            headers["Authorization"] = "Basic {0}".format(self.client_token)
+            self.api_prefix = "ufmRestV3"
         elif self.username and self.password:
             auth = (self.username, self.password)
         else:
             raise MissingUFMCredentials
+        url = self.ws_protocol + "://" + self.host + "/" + self.api_prefix + "/" + api_url
         return url, headers, auth
 
     def send_request(self,url,method=HTTPMethods.GET,payload={}, files={}):
@@ -75,7 +76,7 @@ class UfmRestClient(object):
             if method == HTTPMethods.GET:
                 response = requests.get(url, verify=False, headers=headers, auth=auth)
             elif method == HTTPMethods.POST:
-                response = requests.post(url, data=payload, verify=False, headers=headers, auth=auth, files=files)
+                response = requests.post(url, json=payload, verify=False, headers=headers, auth=auth, files=files)
             elif method == HTTPMethods.PUT:
                 response = requests.put(url, json=payload, verify=False, headers=headers, auth=auth, files=files)
             elif method == HTTPMethods.DELETE:
@@ -86,8 +87,10 @@ class UfmRestClient(object):
             return response
         except MissingUFMCredentials as M:
             logging.error(ApiErrorMessages.Missing_UFM_Credentials)
+            return response
         except Exception as e:
             logging.error(e)
+            return response
 
     def get_systems(self):
         response = self.send_request(UfmRestConstants.UFM_API_SYSTEMS)

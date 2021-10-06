@@ -67,11 +67,25 @@ class ConfigParser(object):
         @param default    default value
         @param default    default value
         @param splitter splitter of elements in string
-        @return    boolean value (List)
+        @return    value (List)
         """
         config_value = self.get_config_value(arg, section, option, default)
         if isinstance(config_value, str):
             return config_value.split(splitter)
+        return config_value
+
+    def safe_get_int(self, arg, section, option, default=None):
+        """
+        Get integer value of option that belong to specified section - if not exist return the default value.
+        @param section    section name
+        @param option    option name
+        @param default    default value
+        @param default    default value
+        @return    value (integer)
+        """
+        config_value = self.get_config_value(arg, section, option, default)
+        if isinstance(config_value, str):
+            return int(config_value)
         return config_value
 
     def get_ufm_host(self):
@@ -82,12 +96,14 @@ class ConfigParser(object):
     def get_ufm_username(self):
         return self.get_config_value(self.args.ufm_username,
                                      SDK_CONFIG_UFM_REMOTE_SECTION,
-                                     SDK_CONFIG_UFM_REMOTE_SECTION_USERNAME)
+                                     SDK_CONFIG_UFM_REMOTE_SECTION_USERNAME,
+                                     False)
 
     def get_ufm_password(self):
         return self.get_config_value(self.args.ufm_password,
                                      SDK_CONFIG_UFM_REMOTE_SECTION,
-                                     SDK_CONFIG_UFM_REMOTE_SECTION_PASSWORD)
+                                     SDK_CONFIG_UFM_REMOTE_SECTION_PASSWORD,
+                                     False)
 
     def get_ufm_protocol(self):
         return self.get_config_value(self.args.ufm_protocol,
@@ -97,7 +113,8 @@ class ConfigParser(object):
     def get_ufm_access_token(self):
         return self.get_config_value(self.args.ufm_access_token,
                                      SDK_CONFIG_UFM_REMOTE_SECTION,
-                                     SDK_CONFIG_UFM_REMOTE_SECTION_ACCESS_TOKEN)
+                                     SDK_CONFIG_UFM_REMOTE_SECTION_ACCESS_TOKEN,
+                                     False)
 
 
     def get_logs_file_name(self):

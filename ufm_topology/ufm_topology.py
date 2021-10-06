@@ -374,8 +374,7 @@ if __name__ == "__main__":
 
     # init ufm rest client
     ufm_rest_client = UfmRestClient(host = config_parser.get_ufm_host(),
-                                    username=config_parser.get_ufm_username(),
-                                    password=config_parser.get_ufm_password())
+                                    client_token=config_parser.get_ufm_access_token())
 
     if config_parser.get_export_to_gephi():
         # load systems,links

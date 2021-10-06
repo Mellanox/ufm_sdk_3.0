@@ -187,8 +187,7 @@ if __name__ == "__main__":
 
     # init ufm rest client
     ufm_rest_client = UfmRestClient(host = config_parser.get_ufm_host(),
-                                    username=config_parser.get_ufm_username(),
-                                    password=config_parser.get_ufm_password())
+                                    client_token=config_parser.get_ufm_access_token())
     args_dict = args.__dict__
     if args_dict.get(UfmPkeysConstants.PKEYS_OPERATIONS.get("set_pkey")):
         try:

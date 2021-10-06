@@ -45,3 +45,12 @@ class Logger:
         elif log_level == LOG_LEVELS.FATAL:
             logging.fatal(message)
         print(message)
+
+    @staticmethod
+    def log_missing_args_message(operation, *argv):
+        Logger.log_message(f'The {operation} operation requires at least the following parameters: '+ \
+                           ''.join(['--{0} '.format(arg) for arg in argv]),
+                           LOG_LEVELS.ERROR)
+
+
+

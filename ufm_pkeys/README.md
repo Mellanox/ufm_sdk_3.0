@@ -26,7 +26,7 @@ Run
 
     python3 ufm_pkeys.py --set_pkey --pkey=pkey_hexadecimal --guids=guid1,guid2
 
-### 3. Delete an existing pkey :
+### 4. Delete an existing pkey :
 
     python3 ufm_pkeys.py --delete_pkey=pkey_hexadecimal
 
