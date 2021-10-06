@@ -22,16 +22,10 @@ volumes:
   #- {mountPath: /project/sw/, hostPath: /project/sw}
 
   - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
-  - {mountPath: /var/home/swx-jenkins/, hostPath: /labhome/swx-jenkins}
-
-env:
-  build_dockers: false
   DOCKER_CLI_EXPERIMENTAL: enabled
 
 runs_on_dockers:
   # Also build UFM docker
-  #- {file: '.ci/Dockerfile_centos7ofed5', name: 'ufm_rest_rhel7_ofed5', tag: 'latest'}
-   - {name: 'swx_static', url: 'harbor.mellanox.com/collectx/x86_64/swx_static_tests:latest', category: 'tool', arch: 'x86_64'}
 
 matrix:
   axes:
