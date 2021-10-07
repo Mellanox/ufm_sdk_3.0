@@ -23,7 +23,7 @@ steps:
     shell: '#!/bin/bash -x'
     run: |
       ret_code=0
-      mkdir -p logs
+      mkdir -p $WORKSPACE/logs/
       export PYTHONPATH=./src/:$PYTHONPATH
       python3 --version > logs/app-versions.txt
       python3 -m pip list >> logs/app-versions.txt
@@ -51,13 +51,13 @@ steps:
     containerSelector: "{name: 'swx_static'}"
     shell: '#!/bin/bash -x'
     run: |
+      mkdir $WORKSPACE/logs/
       lst=$(git diff --name-status remotes/origin/$ghprbTargetBranch | grep -v ^D | awk '{print $NF}' |grep ".py$")
       if [ "$lst" == "" ]; then
-          echo "No *.py changed files" > $WORKSPACE/logs/bandit_${UFM_TAG}.html
+          echo "No *.py changed files" > $WORKSPACE/logs/bandit.html
       else
-          /usr/local/bin/bandit -lll -f html -c $WORKSPACE/.ci/bandit.yaml ${lst} > $WORKSPACE/logs/bandit_${UFM_TAG}.html ||:
+          /usr/local/bin/bandit -lll -f html -c $WORKSPACE/.ci/bandit.yaml ${lst} > $WORKSPACE/logs/bandit.html || true
       fi
-      echo "Check Bandit results $BUILD_URL/artifact/logs/bandit_${UFM_TAG}.html" >> /auto/UFM/tmp/${UFM_TAG}/${PROJECT_NAME}_release_${BUILD_ID}.txt
     parallel: true
     archiveArtifacts: 'logs/*'
 
