@@ -15,7 +15,7 @@
               PROJECT_NAME=UFM-REST-RDMA
     description: Do NOT edit this job through the Web GUI !
     concurrent: true
-    disabled: true
+    disabled: false
     parameters:
         - string:
             name: "sha1"
