@@ -49,6 +49,7 @@ steps:
 
   - name: Running Bandit
     containerSelector: "{name: 'swx_static'}"
+    shell: '#!/bin/bash -x'
     ruin: |
       lst=$(git diff --name-status remotes/origin/$ghprbTargetBranch | grep -v ^D | awk '{print $NF}' |grep ".py$")
       if [ "$lst" == "" ]; then
