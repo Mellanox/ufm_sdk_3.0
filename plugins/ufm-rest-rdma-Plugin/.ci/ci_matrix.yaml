@@ -1,0 +1,88 @@
+---
+job: ufm-rest-rdma
+
+registry_host: harbor.mellanox.com
+registry_path: /swx-storage/ci-demo
+registry_auth: swx-storage
+
+kubernetes:
+  cloud: swx-k8s-spray
+
+volumes:
+  - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
+  - {mountPath: /project/sw/ufm/cyberai, hostPath: /project/sw/ufm/cyberai} ##- {mountPath: /project/sw/ufm/rest-rdma, hostPath: /project/sw/ufm/res-rdma}
+
+runs_on_dockers:
+  # - {file: '.ci/Dockerfile_ub2004', arch: 'x86_64', name: 'ubuntu20_04', tag: 'latest'}
+  - {name: 'swx_static', url: 'harbor.mellanox.com/collectx/x86_64/swx_static_tests:latest', category: 'tool', arch: 'x86_64'}
+
+
+steps:
+
+  - name: pylint
+    containerSelector: "{name: 'swx_static'}"
+    shell: '#!/bin/bash -x'
+    run: |
+      ret_code=0
+      mkdir -p logs
+      export PYTHONPATH=./src/:$PYTHONPATH
+      python3 --version > logs/app-versions.txt
+      python3 -m pip list >> logs/app-versions.txt
+      lst=$(git diff --name-status remotes/origin/${ghprbTargetBranch} | grep -v ^D | awk '{print $NF}' |grep ".py$")
+      # lst=$(git diff --name-status remotes/origin/${ghprbTargetBranch} | awk '{print $NF}' |grep ".py$")
+      if [ -z "$lst" ]
+      then 
+        echo "No *.py changed files" >> logs/pylint.txt
+      else
+        for f in ${lst}
+        do 
+          echo "pylint ${f}" >> logs/pylint.txt
+          echo " " >> logs/pylint.txt
+          pylint "${f}" >> logs/pylint.txt 2>&1
+          # we are interested in return codes 1(fatal), 2(error), 4(warning) ==> bitmask 0x7
+          # see: http://pylint.pycqa.org/en/latest/user_guide/run.html#exit-codes
+          pylint_code=$(($(echo $?) & 0x7))
+          ret_code=$(($pylint_code | $ret_code))
+          echo " " >> logs/pylint.txt
+        done
+      fi
+      exit $ret_code
+    archiveArtifacts: 'logs/'
+    parallel: true
+
+  # - name: unittests
+  #   shell: '#!/bin/bash -x'
+  #   run: |
+  #     PYTHONPATH=src
+  #     python3 -m grpc_tools.protoc \
+  #     --proto_path src/ \
+  #     --python_out src/ \
+  #     --grpc_python_out src/ \
+  #     cyberai/infra/grpcsrv/analytic_job_service.proto
+
+  #     python3 .ci/run_unittests.py > logs/unittests.txt 2>&1
+  #   archiveArtifacts: 'logs/'
+  #   parallel: true
+
+  # - name: Docker build
+  #   shell: '#!/bin/bash -x'
+  #   run: |
+  #     ./build/cyberai_build.sh ${version} > logs/cyberai-build.txt 2>&1 #  ./build/cyberai_build.sh ${version} > logs/cyberai-build.txt 2>&1
+  #   archiveArtifacts: 'logs/'
+  #   parallel: true
+
+  # - name: Analytics Job Tests
+  #   shell: '#!/bin/bash -x'
+  #   run: |
+  #     lst=$(git diff --name-status remotes/origin/$ghprbTargetBranch | grep -v ^D | egrep "src/cyberai/analytics|src/cyberai/infra/mlutils" | awk '{print $NF}' |egrep ".py$")
+  #     if [ ! -z "$lst" ]
+  #     then
+  #       ./tests/analytics/run_test.sh > logs/cyberai-analytics-tests.txt 2>&1
+  #     else
+  #       echo "The analytics jobs code was not changed, no need to run analytics tests!" >  logs/cyberai-analytics-tests.txt
+  #     fi
+  #   archiveArtifacts: 'logs/'
+  #   parallel: true
+
+# Fail job if one of the steps fails or continue
+failFast: false

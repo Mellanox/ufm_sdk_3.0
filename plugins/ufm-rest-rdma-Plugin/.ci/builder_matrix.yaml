@@ -1,0 +1,143 @@
+---
+job: ufm-rdma
+
+registry_host: harbor.mellanox.com
+registry_path: /swx-storage/ci-demo
+registry_auth: swx-storage
+
+kubernetes:
+  cloud: swx-k8s
+  nodeSelector: 'beta.kubernetes.io/os=linux'
+
+volumes:
+  #- {mountPath: /auto/sw_tools, hostPath: /auto/sw_tools}
+  - {mountPath: /auto/UFM, hostPath: /auto/UFM}
+  - {mountPath: /auto/GLIT/SCRIPTS/HELPERS, hostPath: /auto/GLIT/SCRIPTS/HELPERS}
+  - {mountPath: /auto/BACKUP/logs_of_LOGS/, hostPath: /auto/BACKUP/logs_of_LOGS}
+  #- {mountPath: /hpc/local/etc/modulefiles, hostPath: /hpc/local/etc/modulefiles}
+
+  #- {mountPath: /.autodirect/mtrswgwork, hostPath: /.autodirect/mtrswgwork}
+  #- {mountPath: /.autodirect/sw/release/mlnx_ofed/MLNX_OFED, hostPath: /.autodirect/sw/release/mlnx_ofed/MLNX_OFED}
+  #- {mountPath: /mswg/projects, hostPath: /mswg/projects}
+  #- {mountPath: /project/sw/, hostPath: /project/sw}
+
+  - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
+  DOCKER_CLI_EXPERIMENTAL: enabled
+
+runs_on_dockers:
+  # Also build UFM docker
+
+matrix:
+  axes:
+    arch:
+      - x86_64
+
+steps:
+  - name: Create release
+    run: |
+      exit 0
+      
+    
+  - name: Running Bandit
+    containerSelector: "{name: 'swx_static'}"
+    run: |
+      bandit -r $WORKSPACE/ -f html $BANDIT_OPTS 2>&1|tee $WORKSPACE/logs/bandit_${UFM_TAG}.html ||:
+      echo "Check Bandit results $BUILD_URL/artifact/logs/bandit_${UFM_TAG}.html" >> /auto/UFM/tmp/${UFM_TAG}/${PROJECT_NAME}_release_${BUILD_ID}.txt
+    parallel: true
+    archiveArtifacts: 'logs/*'
+
+
+  - name: Running Antivirus
+    containerSelector: "{name: 'swx_static'}"
+    run: |
+      echo "Running Antivirus on $name"
+      exit 0
+
+      if [ "$SECURITY" != true ]; then
+         echo "Skipping Antivirus check"
+         echo "Antivirus skipped" > $WORKSPACE/logs/${name}_antivirus.log
+         exit 0
+      fi
+      echo "Running Antivirus on $name"
+      export PROJECT_SRC_PATH=$(ls /auto/UFM/tmp/${UFM_TAG}/ufm-*)
+      sudo -u swx-jenkins /auto/GLIT/SCRIPTS/HELPERS/antivirus-scan.sh $PROJECT_SRC_PATH 2>&1 |tee > /tmp/antivirus.log
+      # if there are Viruses in the log this step will fail
+      ls $WORKSPACE
+      ls $WORKSPACE/logs :||
+      cat /tmp/antivirus.log |grep 'Possibly Infected:.............     0'
+      echo "Antivirus Passed $BUILD_URL/artifact/logs/antivirus.log" >> /auto/UFM/tmp/${UFM_TAG}/${PROJECT_NAME}_release_${BUILD_ID}.txt
+      cp /tmp/antivirus.log $WORKSPACE/logs/ ||:
+    parallel: true
+    archiveArtifacts: 'logs/*'
+
+
+  - name: Get BlackDuck Report
+    containerSelector: "{name: 'swx_static'}"
+    run: |
+      status=0
+      exit 0
+
+      if [ "$SECURITY" != true ]; then
+          echo "Security is skipped"
+          exit $status
+      fi
+      echo "Get full blackduck report"
+      cd /home/blackduck_reports/
+      for version in ${UFM_TAG}_src ${UFM_TAG}_binary; do
+          rm -rf output/* ||:
+          python3 ./csv_license_report_for_project_version.py ${PROJECT_NAME} ${version} -r vulnerabilities,source,components ||:
+          cp output/* $WORKSPACE/logs/
+          [ ! -f $WORKSPACE/logs/license_${version}.csv ] && status=1
+          cve=$(egrep -rni "HIGH|CRITICAL" output/secu* |tee)
+          if [ "$cve" != "" ]; then
+              echo "CVEs in code"
+              egrep -rni "HIGH|CRITICAL" output/secu*
+              echo "BlackDuck $version Failed" >> /auto/UFM/tmp/${UFM_TAG}/${PROJECT_NAME}_release_${BUILD_ID}.txt
+              status=1
+          fi
+          echo "Full BlackDuck license $BUILD_URL/artifact/logs/license_${PROJECT_NAME}_${version}.csv/*view*/" >> /auto/UFM/tmp/${UFM_TAG}/${PROJECT_NAME}_release_${BUILD_ID}.txt
+          echo "Full BlackDuck security $BUILD_URL/artifact/logs/security_${PROJECT_NAME}_${version}.csv/*view*/" >> /auto/UFM/tmp/${UFM_TAG}/${PROJECT_NAME}_release_${BUILD_ID}.txt
+      done
+      exit $status
+    parallel: false
+    archiveArtifacts: 'logs/*'
+
+
+pipeline_start:
+  run: |
+    d=UFM_6_9_0_$(date +%V)
+    UFM_TAG=${UFM_TAG:-d}
+    mkdir -p /auto/UFM/tmp/$UFM_TAG/logs
+    sudo rm -rf /auto/UFM/tmp/$UFM_TAG/*
+    release_log=/auto/UFM/tmp/${UFM_TAG}/${PROJECT_NAME}_release_${BUILD_ID}.txt
+    sudo chown $USER ${release_log} ||:
+    echo "Hello my dear friend," >> ${release_log}
+    echo "Kindly review the build, that you asked me to run" >> ${release_log}
+    echo "" >> ${release_log}
+    echo "Job     ${JENKINS_URL}/blue/organizations/jenkins/${JOB_NAME}/detail/${JOB_NAME}/${BUILD_ID}/pipeline" >> ${release_log}
+    echo "Console $BUILD_URL/console" >> ${release_log}
+    echo "Logs    $BUILD_URL/artifact/logs/" >> ${release_log}
+    echo "" >> ${release_log}
+    echo "" >> ${release_log}
+    
+
+pipeline_stop:
+  run: |
+    release_log=/auto/UFM/tmp/${UFM_TAG}/${PROJECT_NAME}_release_${BUILD_ID}.txt
+    sudo chown $USER ${release_log} ||:
+    echo "" >> ${release_log}
+    echo "" >> ${release_log}
+    echo "" >> ${release_log}
+    joke=$(curl https://api.chucknorris.io/jokes/random | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["value"]')
+    echo "" >> ${release_log}
+    echo "" >> ${release_log}
+    echo "" >> ${release_log}
+    echo "" >> ${release_log}
+    echo "Best Regards," >> ${release_log}
+    echo "Jenkins" >> ${release_log}
+    echo "P.S. did you know that $joke" >> ${release_log}
+    mutt -s "$JOB_NAME $BUILD_ID $subject" -c $EMAIL < ${release_log} ||:
+    rm -f ${release_log}
+    echo All done
+
+failFast: false
