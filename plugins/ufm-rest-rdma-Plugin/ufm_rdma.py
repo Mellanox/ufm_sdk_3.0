@@ -28,7 +28,7 @@ WORKING_DIR_NAME = os.path.dirname(os.path.realpath(__file__))
 SR_LIB_NAME = "libservice_record_wrapper.so"
 SR_LIB_PATH = os.path.join(WORKING_DIR_NAME, SR_LIB_NAME)
 LOG_FILE_PATH = os.path.join(WORKING_DIR_NAME, DEFAULT_LOG_FILE_NAME)
-#LOG_FILE_PATH = "/tmp/at_log.log"  # TODO: remove it!!
+LOG_FILE_PATH = "/tmp/at_log.log"  # TODO: remove it!!
 SUCCESS_REST_CODE = (200, 201, 202, 203, 204)
 ERROR_REST_CODE = (500, 501, 502, 503, 504, 505)
 ADDRESS_SR_HOLDER_SIZE = 56
@@ -93,7 +93,7 @@ CLIENT_MODE_RUN = "client"
 
 DEFAULT_N_BYTES = 200  # size of a default response
 DEFAULT_SR_RENEW_INTERVAL = 180
-
+DEFAULT_UCP_CONNECTION_TIMEOUT = 10
 
 
 class ActionType(Enum):
@@ -741,7 +741,22 @@ def main_client(request_arguments):
         remote_address = ucp.get_ucx_address_from_buffer(addr_holder)
         ep = await ucp.create_endpoint_from_worker_address(remote_address)
         # Send local address to server on tag 0
-        await ep.send(packed_address, tag=0, force_tag=True)
+        ucp_connection_timeout = rdma_rest_config.get("Client", "ucp_connection_timeout",
+                                     fallback=DEFAULT_UCP_CONNECTION_TIMEOUT)
+        logging.debug("Client: Send local address to server")
+        try:
+            await asyncio.wait_for(ep.send(packed_address, tag=0, force_tag=True),
+                                                        ucp_connection_timeout)
+        except asyncio.TimeoutError:  # pragma: no cover
+            error_msg = "Client: Failed to send local address to server - timeout. Probably server not running"
+            logging.error(error_msg)
+            os._exit(1)
+        except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError,
+                ucp.exceptions.UCXError) as e:
+            error_msg = "Client: Failed to send local address to server"
+            logging.error(error_msg)
+            raise e(error_msg)
+            os._exit(1)
         ########################################################################
         # Init the request and send it to server
         ########################################################################
