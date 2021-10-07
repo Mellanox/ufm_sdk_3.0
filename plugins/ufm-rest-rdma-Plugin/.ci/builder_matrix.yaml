@@ -25,14 +25,6 @@ volumes:
 
 DOCKER_CLI_EXPERIMENTAL: enabled
 
-runs_on_dockers:
-  # Also build UFM docker
-
-matrix:
-  axes:
-    arch:
-      - x86_64
-
 steps:
   - name: Create release
     run: |
