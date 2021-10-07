@@ -746,7 +746,7 @@ def main_client(request_arguments):
         logging.debug("Client: Send local address to server")
         try:
             await asyncio.wait_for(ep.send(packed_address, tag=0, force_tag=True),
-                                                        ucp_connection_timeout)
+                                                    int(ucp_connection_timeout))
         except asyncio.TimeoutError:  # pragma: no cover
             error_msg = "Client: Failed to send local address to server - timeout. Probably server not running"
             logging.error(error_msg)
