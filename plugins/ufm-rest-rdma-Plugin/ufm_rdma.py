@@ -33,8 +33,8 @@ SUCCESS_REST_CODE = (200, 201, 202, 203, 204)
 ERROR_REST_CODE = (500, 501, 502, 503, 504, 505)
 ADDRESS_SR_HOLDER_SIZE = 56
 GENERAL_ERROR_NUM = 500
-GENERAL_ERROR_MSG = "REST RDMA server failed to send request to UFM Server. Check log file for details"
-UCX_REEIVE_ERROR_MSG = "REST RDMA server failed to receive request from client of some reason"
+GENERAL_ERROR_MSG = "REST RDMA server failed to send request to UFM Server. Check log file for details."
+UCX_RECEIVE_ERROR_MSG = "REST RDMA server failed to receive request from client. Check log file for details."
 # load the service record lib
 try:
     sr_lib = ctypes.CDLL(SR_LIB_PATH)
@@ -443,7 +443,7 @@ async def return_error_to_client(end_point, send_tag):
     """
     resp_size = DEFAULT_N_BYTES
     status = GENERAL_ERROR_NUM
-    response = UCX_REEIVE_ERROR_MSG
+    response = UCX_RECEIVE_ERROR_MSG
     await send_rest_respond_to_client(end_point, send_tag, resp_size,
                                              status, response)
 
@@ -777,7 +777,7 @@ def main_client(request_arguments):
             elif request_arguments['type'] == ActionType.COMPLICATED.value:
                 await cancel_complicated_respond(ep)
             else:
-                error_mesg = resp_string if resp_string else "Client. Failed to receive responce from server"
+                error_mesg = resp_string if resp_string else "Client. Failed to receive response from server."
                 print(error_mesg)
         else:  # Succeed
             try:
