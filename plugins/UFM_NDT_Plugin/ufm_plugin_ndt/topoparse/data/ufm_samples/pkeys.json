@@ -1,7 +1,0 @@
-{
-    "0x7fff": {
-        "guids": [],
-        "ip_over_ib": true,
-        "partition": "management"
-    }
-}
