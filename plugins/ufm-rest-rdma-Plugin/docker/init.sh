@@ -16,13 +16,13 @@
 echo "Running init.sh"
 
 # Updating /config folder
-touch /config/UFM_REST.conf
-touch /config/ufm_plugin_UFM_REST_httpd.conf
-touch /config/UFM_REST_shared_volumes.conf
-touch /config/UFM_REST_cmdline_args.conf
-
+touch /config/ufm-rest.conf
+touch /config/ufm_plugin_ufm-rest_httpd.conf
+touch /config/ufm-rest_shared_volumes.conf
+touch /config/ufm-rest_cmdline_args.conf
 # TODO: just for the testing, will be removed later
-echo /auto/mtrswgwork/atolikin/:tmp/shared_folder > /config/UFM_REST_shared_volumes.conf
+echo /opt/ufm/files/periodicIbdiagnet:/opt/ufm/files/periodicIbdiagnet > /config/ufm-rest_shared_volumes.conf
+
 
 # UFM version test
 required_ufm_version=(6 7 0)

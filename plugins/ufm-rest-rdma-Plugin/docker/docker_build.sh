@@ -92,6 +92,7 @@ pushd ${SCRIPT_DIR}
 BUILD_DIR=$(create_out_dir)
 
 cp Dockerfile ${BUILD_DIR}
+cp supervisord.conf ${BUILD_DIR}
 cp -r src ${BUILD_DIR}
 cp -r lib ${BUILD_DIR}
 cp -r whl ${BUILD_DIR}

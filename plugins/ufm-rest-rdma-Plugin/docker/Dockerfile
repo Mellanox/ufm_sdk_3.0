@@ -17,6 +17,7 @@ RUN apt-get update && \
       python3-dev \
       python3-pip \
       git \
+      supervisor \
       libtool \
       libtool-bin \
       glib2.0 \
@@ -24,9 +25,16 @@ RUN apt-get update && \
       libcurl3-dev \
       libssl-dev \
       vim \
+      iproute2 \
       libcap2 \
         && \
     apt clean all
+
+
+ADD src ${BASE_PATH}/src
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+
 
 # Install OFED
 RUN wget -q https://content.mellanox.com/ofed/MLNX_OFED-${MOFED_VER}/${MOFED_DIR}.tgz && \
@@ -39,9 +47,14 @@ RUN wget -q https://content.mellanox.com/ofed/MLNX_OFED-${MOFED_VER}/${MOFED_DIR
 
 # Install UCX-Py
 COPY whl/ucx_py-0+unknown-cp36-cp36m-linux_x86_64.whl /tmp/ucx-py/
-RUN python3 -m pip install requests numpy cython \
-    /tmp/ucx-py/ucx_py-0+unknown-cp36-cp36m-linux_x86_64.whl
+COPY whl/cryptography-2.8-cp34-abi3-manylinux1_x86_64.whl /tmp/ucx-py/
+COPY whl/pyOpenSSL-19.1.0-py2.py3-none-any.whl /tmp/ucx-py/
 
+RUN python3 -m pip install setuptools-rust requests numpy cython asyncio \
+    /tmp/ucx-py/ucx_py-0+unknown-cp36-cp36m-linux_x86_64.whl \
+    /tmp/ucx-py/cryptography-2.8-cp34-abi3-manylinux1_x86_64.whl \
+    /tmp/ucx-py/pyOpenSSL-19.1.0-py2.py3-none-any.whl
+    
 # Copy init.sh needed for manage_ufm_plugins.py script
 COPY init.sh /init.sh
 
@@ -52,5 +65,7 @@ COPY src ${BASE_PATH}
 # TODO: need to copy source code and build it here
 COPY lib ${BASE_PATH}
 
-# TODO: temporary solution to check deplotment flow, replace it with ufm_rdma.py call
-CMD ["/opt/ufm/ufm-plugin-ufm-rest/infinite_loop.sh"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+
+
+
