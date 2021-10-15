@@ -1,10 +1,11 @@
 import requests
 import os
 import csv
+import logging
 
 
 def parse_switch_to_switch_ndt(ndt_dict_of_dicts, switch_to_switch_path):
-    print("Reading from csv file:" + switch_to_switch_path)
+    logging.debug("Reading from csv file:" + switch_to_switch_path)
     with open(switch_to_switch_path, 'r') as csvfile:
         dictreader = csv.DictReader(csvfile)
 
@@ -29,7 +30,7 @@ def parse_switch_to_switch_ndt(ndt_dict_of_dicts, switch_to_switch_path):
 
 
 def parse_switch_to_host_ndt(ndt_dict_of_dicts, switch_to_host_path):
-    print("Reading from csv file:" + switch_to_host_path)
+    logging.debug("Reading from csv file:" + switch_to_host_path)
     with open(switch_to_host_path, 'r') as csvfile:
         dictreader = csv.DictReader(csvfile)
 
@@ -48,38 +49,38 @@ def parse_switch_to_host_ndt(ndt_dict_of_dicts, switch_to_host_path):
             ndt_dict_of_dicts[unique_key] = ndt_dict
 
 
-# reading csv file
-def parse_ndt_files():
+def parse_ndt_files(ndt_files_dir):
     ndt_dict_of_dicts = {}
     try:
-        ndt_dir = "ndt_files"
-        for ndt_file in os.listdir(ndt_dir):  # TODO: replace with constant
+        for ndt_file in os.listdir(ndt_files_dir):
             if "switch_to_switch" in ndt_file:
-                parse_switch_to_switch_ndt(ndt_dict_of_dicts, os.path.join(ndt_dir, ndt_file))
+                parse_switch_to_switch_ndt(ndt_dict_of_dicts, os.path.join(ndt_files_dir, ndt_file))
             elif "switch_to_host" in ndt_file:
-                parse_switch_to_host_ndt(ndt_dict_of_dicts, os.path.join(ndt_dir, ndt_file))
+                parse_switch_to_host_ndt(ndt_dict_of_dicts, os.path.join(ndt_files_dir, ndt_file))
     except Exception as e:
-        print(e)
+        logging.error(e)
     finally:
         return ndt_dict_of_dicts
 
 
 def get_ufm_links():
     ufm_protocol = "https"
-    ufm_host = "swx-tol"
+    ufm_host = "127.0.0.1"
+    # ufm_username = "ufmsystem"
+    # ufm_password = ""
     ufm_username = "admin"
     ufm_password = "123456"
     request = ufm_protocol + '://' + ufm_host + '/ufmRest/resources/links'
     headers = {}
     try:
-        print("Send UFM API Request, URL:" + request)
+        logging.info("Send UFM API Request, URL:" + request)
         response = requests.get(request, verify=False, headers=headers, auth=(ufm_username, ufm_password))
-        print("UFM API Request Status [" + str(response.status_code) + "], URL " + request)
+        logging.info("UFM API Request Status [" + str(response.status_code) + "], URL " + request)
         if response.raise_for_status():
-            print(response.raise_for_status())
+            logging.warning(response.raise_for_status())
         return response.json()
     except Exception as e:
-        print(e)
+        logging.error(e)
 
 
 def parse_ufm_links():
@@ -88,7 +89,7 @@ def parse_ufm_links():
     for link in get_ufm_links():
         ufm_dict = {}
 
-        # parse source_port_node_description
+        # logging.debug("Parsing source_port_node_description")
         dev_name_split = ((link["source_port_node_description"]).upper()).split(':')
         if (len(dev_name_split) == 2):
             ufm_dict["StartDev"] = dev_name_split[0]
@@ -108,7 +109,7 @@ def parse_ufm_links():
             ufm_dict["StartDev"] = dev_name_split[0]
             ufm_dict["StartPort"] = port_name_split
 
-        # parse source_port_node_description
+        # logging.debug("Parsing destination_port_node_description")
         dev_name_split = ((link["destination_port_node_description"]).upper()).split(':')
         if (len(dev_name_split) == 2):
             ufm_dict["EndDev"] = dev_name_split[0]
@@ -138,23 +139,29 @@ def parse_ufm_links():
     return ufm_dict_of_dicts
 
 
-def main(timestamp):
+def compare_topologies(timestamp, ndt_files_dir):
     try:
-        ndt_dict_of_dicts = parse_ndt_files()
+        ndt_dict_of_dicts = parse_ndt_files(ndt_files_dir)
         ufm_dict_of_dicts = parse_ufm_links()
 
         report = []
-        # compare NDT to UFM
-        for ndt_key in ndt_dict_of_dicts:
-            if ndt_key not in ufm_dict_of_dicts.keys():
-                report.append({"expected": ndt_key,
-                               "actual": ""})
+        logging.debug("Comparing NDT to UFM")
+        if ndt_dict_of_dicts is not None:
+            for ndt_key in ndt_dict_of_dicts:
+                if ndt_key not in ufm_dict_of_dicts.keys():
+                    report.append({"expected": ndt_key,
+                                   "actual": ""})
+        else:
+            logging.warning("List of NDT links is empty")
 
-        # compare UFM to NDT
-        for ufm_key in ufm_dict_of_dicts:
-            if ufm_key not in ndt_dict_of_dicts.keys():
-                report.append({"expected": "",
-                               "actual": ufm_key})
+        logging.debug("Comparing UFM to NDT")
+        if ufm_dict_of_dicts is not None:
+            for ufm_key in ufm_dict_of_dicts:
+                if ufm_key not in ndt_dict_of_dicts.keys():
+                    report.append({"expected": "",
+                                   "actual": ufm_key})
+        else:
+            logging.warning("List of UFM links is empty")
 
         response = {"errors": "",
                     "timestamp": timestamp,

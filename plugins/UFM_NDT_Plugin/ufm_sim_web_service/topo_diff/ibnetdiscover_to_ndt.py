@@ -68,8 +68,8 @@ def main():
                                 switch_to_switch.write('{},Port {},{},Port {}, Data\n'.format(switch1.upper(), port1, switch2.upper(), port2))
 
 
-                #match = re.search(r'^\[(\d+)\].*\[(\d+)\].*(DSM.*) (.*)\".*', line) #orig
-                match = re.search(r'^\[(\d+)\].*\[(\d+)\].*(SAT.*) (.*)\".*', line)
+                match = re.search(r'^\[(\d+)\].*\[(\d+)\].*(DSM.*) (.*)\".*', line) #orig
+                #match = re.search(r'^\[(\d+)\].*\[(\d+)\].*(SAT.*) (.*)\".*', line)
                 if match:
                     port1 = match.group(1)
                     hca = match.group(3)

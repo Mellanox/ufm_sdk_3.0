@@ -19,7 +19,9 @@ import os
 from flask_restful import Resource
 from flask import request
 import datetime
-from topo_diff.topo_diff import main
+from topo_diff.topo_diff import compare_topologies
+import logging
+import hashlib
 
 
 def read_json_file(file_name):
@@ -27,7 +29,7 @@ def read_json_file(file_name):
         with open(file_name) as file:
             data = json.load(file)
     except Exception as ex:
-        print("Exception, %s" % ex)
+        logging.error(ex)
         data = {}
     return data
 
@@ -37,21 +39,23 @@ class UFMResource(Resource):
         self.response_file = ""
         self.reports_dir = "reports"
         self.ndt_files_dir = "ndt_files"
+        # self.reports_dir = "/data/reports"
+        # self.ndt_files_dir = "/data/ndt_files"
         self.reports_list_file = os.path.join(self.reports_dir, "reports_list.json")
         self.ndts_list_file = os.path.join(self.ndt_files_dir, "ndts_list.json")
         try:
-            # create file for reports list
+            logging.info("Creating file for reports list")
             if not os.path.exists(self.reports_list_file):
                 with open(self.reports_list_file, "w") as file:
                     json.dump([], file)
 
-            # create file for NDTs list
+            logging.info("Creating file for NDTs list")
             if not os.path.exists(self.ndts_list_file):
                 with open(self.ndts_list_file, "w") as file:
                     json.dump([], file)
 
         except Exception as ex:
-            print("Exception, %s" % ex)
+            logging.error(ex)
 
     def get_ndt_path(self, file_name, file_type):
         return os.path.join(self.ndt_files_dir,
@@ -70,116 +74,134 @@ def get_timestamp():
 
 class UploadMetadata(UFMResource):
     def post(self):
+        logging.info("POST /plugin/ndt/upload_metadata")
         try:
             json_data = request.get_json(force=True)
+            logging.debug("Parsing JSON request: {}".format(json_data))
             for file_dict in json_data:
-                # parse request
                 file_name = file_dict["file_name"]
                 file_content = file_dict["file"]
+                file_content = file_content.replace('\r\n', '\n')
                 file_type = file_dict["file_type"]
+                checksum = file_dict["sha-1"]
 
-                # upload the file
+                sha1 = hashlib.sha1()
+                sha1.update(file_content.encode('utf-8'))
+                if checksum != sha1.hexdigest():
+                    logging.error("Provided sha-1 {} is not equal to actual one {}"
+                                  .format(checksum, sha1.hexdigest()))
+
+                logging.debug("Uploading file: {}".format(file_name))
                 with open(self.get_ndt_path(file_name, file_type), "w") as file:
-                    json.dump(file_content, file)
+                    file.write(file_content)
 
-                # update ndts list
+                logging.debug("Updating NDTs list")
                 with open(self.ndts_list_file, "r+") as file:
                     data = json.load(file)
                     entry = {"file": file_name,
                              "last_uploaded": get_timestamp(),
-                             "sha-1": "abracadabra",
+                             "sha-1": sha1.hexdigest(),
                              "file_type": file_type}
+                    logging.debug("New NDT: {}".format(entry))
                     data.append(entry)
                     file.seek(0)
                     json.dump(data, file)
         except Exception as ex:
-            print("Exception, %s" % ex)
+            logging.error(ex)
 
 
 class Delete(UFMResource):
     def post(self):
+        logging.info("POST /plugin/ndt/delete")
         try:
             json_data = request.get_json(force=True)
-
-            # update ndts list
+            logging.debug("Parsing JSON request: {}".format(json_data))
             with open(self.ndts_list_file, "r") as file:
                 data = json.load(file)
 
-                # iterate over request
+                logging.debug("Looking for the file to delete")
                 for file_dict in json_data:
                     file_name = file_dict["file_name"]
-
-                    # iterate over the list of all NDTs
                     for entry in list(data):
                         if entry["file"] == file_name:
+                            logging.debug("Deleting file: {}".format(entry))
                             data.remove(entry)
-
-                            # delete the file
                             os.remove(self.get_ndt_path(file_name, entry["file_type"]))
 
-            # update NDTs list
+            logging.debug("Updating NDTs list")
             with open(self.ndts_list_file, "w") as file:
                 json.dump(data, file)
 
         except Exception as ex:
-            print("Exception, %s" % ex)
+            logging.error(ex)
 
 
 class Compare(UFMResource):
     def post(self):
         try:
+            logging.info("POST /plugin/ndt/compare")
             timestamp = get_timestamp()
             self.response_file = os.path.join(self.reports_dir, "report_{}.json".format(timestamp))
+            logging.debug("Report file name: {}".format(self.response_file))
 
-            # run compare
-            response = main(timestamp)
+            logging.debug("Running topology comparison")
+            response = compare_topologies(timestamp, self.ndt_files_dir)
 
-            # dump result into file
+            logging.debug("Dumping the result into the file")
             with open(self.response_file, "w") as file:
                 json.dump(response, file)
 
-            # update reports list
+            logging.debug("Updating NDTs list")
             with open(self.reports_list_file, "r+") as file:
                 data = json.load(file)
                 entry = {"report_id": len(data) + 1,
                          "timestamp": timestamp}
+                logging.debug("New report: {}".format(entry))
                 data.append(entry)
                 file.seek(0)
                 json.dump(data, file)
         except Exception as ex:
-            print("Exception, %s" % ex)
+            logging.error(ex)
 
 
 class ReportId(UFMResource):
     def __init__(self):
         super().__init__()
         try:
+            logging.debug("Loading reports list file")
             with open(self.reports_list_file, "r") as file:
                 self.data = json.load(file)
         except Exception as ex:
-            print("Exception, %s" % ex)
+            logging.error(ex)
             self.data = {}
 
     def get(self, report_id):
+        logging.info("GET /plugin/ndt/reports")
         try:
             for entry in self.data:
                 if entry["report_id"] == int(report_id):
                     self.response_file = \
                         os.path.join(self.reports_dir,
                                      "report_{}.json".format(entry["timestamp"]))
+                    logging.debug("Report found: {}".format(self.response_file))
+                    break
+            else:
+                logging.info("Report {} not found".format(report_id))
         except Exception as ex:
-            print("Exception, %s" % ex)
+            logging.error(ex)
         finally:
             return super().get()
 
 
 class Reports(UFMResource):
     def __init__(self):
+        logging.info("GET /plugin/ndt/reports")
         super().__init__()
         self.response_file = self.reports_list_file
 
 
 class Ndts(UFMResource):
     def __init__(self):
+        logging.info("GET /plugin/ndt/list")
         super().__init__()
         self.response_file = self.ndts_list_file
