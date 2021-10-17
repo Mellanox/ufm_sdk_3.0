@@ -20,9 +20,11 @@ touch /config/ufm-rest.conf
 touch /config/ufm_plugin_ufm-rest_httpd.conf
 touch /config/ufm-rest_shared_volumes.conf
 touch /config/ufm-rest_cmdline_args.conf
-# TODO: just for the testing, will be removed later
+# define docker shared dirs
 echo /opt/ufm/files/periodicIbdiagnet:/opt/ufm/files/periodicIbdiagnet > /config/ufm-rest_shared_volumes.conf
-
+# define application devault envitonment variables
+echo "export UCX_NET_DEVICES=mlx5_0:1" >> /config/ufm-rest.conf
+echo "export UCX_TLS=rc_x" >> /config/ufm-rest.conf
 
 # UFM version test
 required_ufm_version=(6 7 0)
