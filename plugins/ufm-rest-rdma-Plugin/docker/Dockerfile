@@ -31,10 +31,12 @@ RUN apt-get update && \
     apt clean all
 
 
-ADD src ${BASE_PATH}/src
+ADD src/ufm_rdma ${BASE_PATH}/src
+ADD src/service_record /tmp/service_record
+
+
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-
+COPY docker_init.sh /usr/sbin/docker_init.sh
 
 # Install OFED
 RUN wget -q https://content.mellanox.com/ofed/MLNX_OFED-${MOFED_VER}/${MOFED_DIR}.tgz && \
@@ -45,7 +47,7 @@ RUN wget -q https://content.mellanox.com/ofed/MLNX_OFED-${MOFED_VER}/${MOFED_DIR
     cd ../ && \
     rm -rf ${MOFED_DIR}
 
-# Install UCX-Py
+# Install UCX-Py and additional whl packages
 COPY whl/ucx_py-0+unknown-cp36-cp36m-linux_x86_64.whl /tmp/ucx-py/
 COPY whl/cryptography-2.8-cp34-abi3-manylinux1_x86_64.whl /tmp/ucx-py/
 COPY whl/pyOpenSSL-19.1.0-py2.py3-none-any.whl /tmp/ucx-py/
@@ -54,18 +56,13 @@ RUN python3 -m pip install setuptools-rust requests numpy cython asyncio \
     /tmp/ucx-py/ucx_py-0+unknown-cp36-cp36m-linux_x86_64.whl \
     /tmp/ucx-py/cryptography-2.8-cp34-abi3-manylinux1_x86_64.whl \
     /tmp/ucx-py/pyOpenSSL-19.1.0-py2.py3-none-any.whl
-    
+
 # Copy init.sh needed for manage_ufm_plugins.py script
 COPY init.sh /init.sh
 
-# Copy ufm_rdma.py and ufm_rdma.ini
-COPY src ${BASE_PATH}
+# compile SRlib and copy to ${BASE_PATH}
+COPY install_deps.sh /install_deps.sh
+RUN /install_deps.sh /tmp/service_record /tmp/ready_sr_lib
+RUN cp /tmp/ready_sr_lib/libservice_record_wrapper.so ${BASE_PATH}/src/
 
-# Copy service record library
-# TODO: need to copy source code and build it here
-COPY lib ${BASE_PATH}
-
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
-
-
-
+ENTRYPOINT ["sh", "/usr/sbin/docker_init.sh"]

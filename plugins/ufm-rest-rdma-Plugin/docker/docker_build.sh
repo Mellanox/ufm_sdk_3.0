@@ -8,7 +8,6 @@ if [ "$EUID" -ne 0 ]
 fi
 
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
-
 IMAGE_VERSION=$1
 IMAGE_NAME=ufm-plugin-ufm-rest
 OUT_DIR=$2
@@ -89,16 +88,21 @@ function build_docker_image()
 
 pushd ${SCRIPT_DIR}
 
+cp ../.ci/install_deps.sh ${SCRIPT_DIR}
+
 BUILD_DIR=$(create_out_dir)
 
 cp Dockerfile ${BUILD_DIR}
 cp supervisord.conf ${BUILD_DIR}
-cp -r src ${BUILD_DIR}
-cp -r lib ${BUILD_DIR}
+cp docker_init.sh ${BUILD_DIR}
+cp -r ../src ${BUILD_DIR}
 cp -r whl ${BUILD_DIR}
 cp init.sh ${BUILD_DIR}
+cp install_deps.sh ${BUILD_DIR}
+
 
 echo "BUILD_DIR    : [${BUILD_DIR}]"
+
 
 build_docker_image $BUILD_DIR $IMAGE_NAME $IMAGE_VERSION ${RANDOM_HASH} $OUT_DIR
 exit_code=$?

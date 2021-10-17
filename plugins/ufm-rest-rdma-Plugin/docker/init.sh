@@ -23,8 +23,8 @@ touch /config/ufm-rest_cmdline_args.conf
 # define docker shared dirs
 echo /opt/ufm/files/periodicIbdiagnet:/opt/ufm/files/periodicIbdiagnet > /config/ufm-rest_shared_volumes.conf
 # define application devault envitonment variables
-echo "export UCX_NET_DEVICES=mlx5_0:1" >> /config/ufm-rest.conf
-echo "export UCX_TLS=rc_x" >> /config/ufm-rest.conf
+echo "UCX_NET_DEVICES=mlx5_0:1" >> /config/ufm-rest.conf
+echo "UCX_TLS=rc_x" >> /config/ufm-rest.conf
 
 # UFM version test
 required_ufm_version=(6 7 0)

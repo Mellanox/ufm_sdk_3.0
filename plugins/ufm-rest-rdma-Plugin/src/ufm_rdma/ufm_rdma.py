@@ -1,40 +1,53 @@
+import argparse
 import asyncio
-import ucp
-import numpy as np
-import ctypes
-import sys
-import os
 import configparser
+import ctypes
+from enum import Enum
+import json
+import logging
+import os
+import struct
+import sys
+from threading import Thread, Timer
+import time
+import warnings
+
+import numpy as np
 import requests
+import ucp
+from ucp._libs.arr import Array
 from ucp._libs.utils_test import (
     blocking_flush,
     get_endpoint_error_handling_default,
 )
-from ucp._libs.arr import Array
-import json
-import time
-import logging
-import argparse
-import struct
-from enum import Enum
-from threading import Thread, Timer
 
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    import OpenSSL.crypto
 
 SERVICE_NAME = b"ufm_rest_service"
 DEFAULT_CONFIG_FILE_NAME = "ufm_rdma.ini"
 DEFAULT_LOG_FILE_NAME = "ufm_rdma.log"
 DEFAULT_HOST_NAME = "localhost"
+PLUGIN_CONF_FILE = "/config/ufm-rest.conf"
+UCX_NET_DEVICES_NAME = "ucx_net_devices"
+UCX_NET_DEVICES_ENV_VAR_NAME = "UCX_NET_DEVICES"
+UCX_TLS_NAME = "ucx_tls"
+UCX_TLS_ENV_VAR_NAME = "UCX_TLS"
+DEFAULT_UCX_NET_DEVICES = "mlx5_0:1"
+DEFAULT_UCX_TLS = "rc_x"
 WORKING_DIR_NAME = os.path.dirname(os.path.realpath(__file__))
 SR_LIB_NAME = "libservice_record_wrapper.so"
 SR_LIB_PATH = os.path.join(WORKING_DIR_NAME, SR_LIB_NAME)
-LOG_FILE_PATH = os.path.join(WORKING_DIR_NAME, DEFAULT_LOG_FILE_NAME)
-LOG_FILE_PATH = "/tmp/at_log.log"  # TODO: remove it!!
+DEFAULT_LOG_FILE_PATH = os.path.join(WORKING_DIR_NAME, DEFAULT_LOG_FILE_NAME)
 SUCCESS_REST_CODE = (200, 201, 202, 203, 204)
 ERROR_REST_CODE = (500, 501, 502, 503, 504, 505)
 ADDRESS_SR_HOLDER_SIZE = 56
 GENERAL_ERROR_NUM = 500
 GENERAL_ERROR_MSG = "REST RDMA server failed to send request to UFM Server. Check log file for details."
 UCX_RECEIVE_ERROR_MSG = "REST RDMA server failed to receive request from client. Check log file for details."
+DEFAULT_CLIENT_PEM_KEY = "/tmp/ufm-client.key"
+DEFAULT_CLIENT_PEM_CERT = "/tmp/ufm-client.crt"
 # load the service record lib
 try:
     sr_lib = ctypes.CDLL(SR_LIB_PATH)
@@ -76,13 +89,15 @@ sr_lib.sr_wrapper_query.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_s
 
 # ---------------------------------------------------------------------------------
 REQUEST_ARGS = ["type", "rest_action", "ufm_server_ip", "run_mode", "rest_url", "url_payload", "interface",
-                "username", "password", "config_file"]
+                "username", "password", "config_file", "client_certificate"]
 
 ERROR_RESPOND = '404'
 IBDIAGNET_EXCEED_NUMBER_OF_TASKS = "Maximum number of task exceeded, please remove a task before adding a new one"
 IBDIAGNET_TASK_ALREDY_EXIST = "Task with same name already exists"
 IBDIAGNET_RERROR_RESPONDS = (IBDIAGNET_EXCEED_NUMBER_OF_TASKS, IBDIAGNET_TASK_ALREDY_EXIST)
 DEFAULT_IBDIAGNET_RESPONSE_DIR = '/tmp/ibdiagnet'  # temporarry - should be received as parameter
+DEFAULT_CLIENT_CERT_LOCATION_DIR = '/tmp/client_certificate'  #
+DEFAULT_CLIENT_CERT_TARGET_DIR = '/tmp/client_certificate'  #
 # or may be in config file
 # TODO: delete
 START_IBDIAG_JOB_URL = "ufmRest/reports/ibdiagnetPeriodic/start/"
@@ -154,10 +169,12 @@ def initialize_request_array(charar, request_arguments):
     charar[5][1] = request_arguments['password']
     charar[6][0] = "Host"
     charar[6][1] = request_arguments['ufm_server_ip']
+    charar[7][0] = "Client_Ceritificate"
+    charar[7][1] = request_arguments['client_certificate']
 
 
 def fill_arguments_dict(action_type, rest_action, rest_url, url_payload, username,
-                        password, host):
+                        password, client_certificate, host):
     """
     Fill arguments dictionary with parameters
     :param action_type:
@@ -176,6 +193,7 @@ def fill_arguments_dict(action_type, rest_action, rest_url, url_payload, usernam
     request_arguments['ufm_server_ip'] = host
     request_arguments['username'] = username
     request_arguments['password'] = password
+    request_arguments['client_certificate'] = client_certificate
 
     return request_arguments
 
@@ -187,6 +205,92 @@ async def handle_complicated_respond(ep):
     """
     pass
 
+async def receive_and_generate_client_certificate(recv_tag, file_path,
+                                        cert_file_path, key_file_path):
+    """
+    receive client certificat file from client and generate cert and key files
+    """
+    # receive size of file
+    try:
+        data_size = np.empty(1, dtype=np.uint64)
+        await ucp.recv(data_size, tag=recv_tag)
+        if data_size[0] == 0:
+            error_msg = ("Server. Failed to get client certificate file from client."
+                                              "Check client log file for details")
+            logging.error(error_msg)
+            return False
+        res = bytearray(b"m" * data_size[0])
+        # recv response
+        logging.debug("Server: Receive client_certificate_file")
+        res_data = np.empty_like(res)
+        await ucp.recv(res_data, tag=recv_tag)  # receive the echo
+    except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError) as e:
+        logging.error("Server: ucx-py exception: %s" % e)
+        raise e("ucx-py exception")
+    except ucp.exceptions.UCXError as e:
+        logging.error("Server: ucx-py UCXError exception: %s")
+        raise e("ucx-py exception: UCXError")
+    except Exception as e:
+        error_msg = ("Client: Failed to receive client certificate file:%s" % e)
+        logging.error(error_msg)
+        return False
+    # save and generate
+    try:
+        certificate_dir = rdma_rest_config.get("Server",
+                                               "certificate_file_location_dir",
+                                     fallback=DEFAULT_CLIENT_CERT_LOCATION_DIR)
+        if not os.path.exists(certificate_dir):  # create if not exist
+            os.makedirs(certificate_dir)
+        receive_location_file = "/".join([certificate_dir,
+                                          file_path.split('/')[-1]])
+
+        f = open(receive_location_file, "wb")
+        f.write(res_data)
+        f.flush()
+    except Exception as e:
+        err_message =("Failed to store client certificate file in %s: %s"%
+                                                  (receive_location_file, e))
+        logging.error("Client: %s" % err_message)
+        print(err_message)
+        return False
+    # generate cert and key files
+    convert_pfx_cert_to_pem_cert_and_key(receive_location_file,
+                                                 cert_file_path, key_file_path)
+        # TODO: Kobi code
+    return True
+
+async def handle_client_file_transfer(end_point, send_tag, file_path):
+    """
+    Handle transfer of the file from client to server
+    :param end_point: end point
+    :param recv_tag: receive tag
+    :param send_tag: send tag
+    """
+    logging.debug("Client: Perform file transfer to server")
+    # check file exist before call to this function
+    try:
+        logging.debug("Client: Allocate memory for for data size")
+        data_size = np.empty(1, dtype=np.uint64)
+        logging.debug("Client: Read from file %s" % file_path)
+        f = open(file_path, "rb")
+        s = f.read()
+        data_size[0] = len(s)
+    except Exception as e:
+        logging.error("Client: Error filed to read from file %s : %s" % (file_path, e))
+        data_size[0] = 0
+    logging.debug("Client: The size of data to be sent is %d" % data_size)
+    await end_point.send(data_size, tag=send_tag,
+                         force_tag=True)
+    if data_size[0] > 0:
+        logging.debug("Client: Send data now")
+        await end_point.send(s, tag=send_tag, force_tag=True)
+    return data_size[0] # if failed to read from file - cancel request on calling side
+
+async def send_client_cetrificate(end_point, recv_tag, send_tag, certificate_path):
+    pass
+
+async def receive_client_cetrificate(end_point, recv_tag, send_tag):
+    pass
 
 async def get_ibdiagnet_result(end_point, recv_tag, send_tag, tarball_path):
     """
@@ -199,11 +303,11 @@ async def get_ibdiagnet_result(end_point, recv_tag, send_tag, tarball_path):
     # first send to server notification that it should be file request
     # send simple request to get status
     try:
-        req_charar = np.chararray((7, 2), itemsize=DEFAULT_N_BYTES)
+        req_charar = np.chararray((8, 2), itemsize=DEFAULT_N_BYTES)
         start_file_transf_charar = np.empty_like(req_charar)
         # need to send start first
         ibdiag_request_arguments = fill_arguments_dict(ActionType.FILE_TRANSFER.value,
-                                                       None, None, None, None, None, None)
+                                    None, None, None, None, None, None, None)
         initialize_request_array(start_file_transf_charar, ibdiag_request_arguments)
         await end_point.send(start_file_transf_charar, tag=send_tag, force_tag=True)
         data_size = np.empty(1, dtype=np.uint64)
@@ -215,7 +319,7 @@ async def get_ibdiagnet_result(end_point, recv_tag, send_tag, tarball_path):
         logging.debug("Client: Receive Data size")
         await ucp.recv(data_size, tag=recv_tag)  # receive the echo
         logging.debug("Client: Allocate data for bytes - to receive data %d" % data_size[0])
-        if data_size == 0:  # failure on file receive on server side
+        if data_size[0] == 0:  # failure on file receive on server side
             await cancel_ibdiagnet_respond(end_point, send_tag)
             error_msg = "Failed to get file %s on server side" % tarball_path
             logging.error(error_msg)
@@ -235,11 +339,10 @@ async def get_ibdiagnet_result(end_point, recv_tag, send_tag, tarball_path):
         logging.error("Client: ucx-py exception: %s" % e)
         raise e("ucx-py exception")
     except ucp.exceptions.UCXError as e:
-        logging.error("Server: ucx-py UCXError exception: %s")
+        logging.error("Client: ucx-py UCXError exception: %s")
         raise e("ucx-py exception: UCXError")
     except Exception as e:
         logging.error("Client: Failed to receive ibdiagnet result file: %s" % e)
-        print("Failed to receive ibdiagnet output file")
         return
     try:
         f = open(receive_location_file, "wb")
@@ -266,11 +369,11 @@ async def cancel_ibdiagnet_respond(end_point, send_tag):
     :param send_tag:
     """
     logging.debug("Client: cancelIbdiagnetRespond: Send abort to server")
-    req_charar = np.chararray((7, 2), itemsize=DEFAULT_N_BYTES)
+    req_charar = np.chararray((8, 2), itemsize=DEFAULT_N_BYTES)
     abort_charar = np.empty_like(req_charar)
 
     ibdiag_request_arguments = fill_arguments_dict(ActionType.ABORT.value,
-                                                   None, None, None, None, None, None)
+                                        None, None, None, None,None, None, None)
     initialize_request_array(abort_charar, ibdiag_request_arguments)
     await end_point.send(abort_charar, tag=send_tag, force_tag=True)
 
@@ -287,21 +390,24 @@ async def handle_ibdiagnet_respond(end_point, recv_tag, send_tag, ibdiag_request
     # allocation definition of size of data (file that should be received)
     job_name = get_ibdiagnet_job_name_from_payload(
         ibdiag_request_arguments.get("url_payload"))
-    host = ibdiag_request_arguments.get("host")
+    host = ibdiag_request_arguments.get("ufm_server_ip")
     username = ibdiag_request_arguments.get("username")
     password = ibdiag_request_arguments.get("password")
+    client_certificate = ibdiag_request_arguments.get("client_certificate")
     # ---------------------------------------------------------
     # allocation of name of file path to be received - no need to 
     # we will get full respond of data and path will be one of fields - json
     logging.debug("Client: handleIbdiagnetRespond: Receive response for simple request")
     # send simple request to get status
     logging.debug("Client: Send start for ibdiagnet task")
-    req_charar = np.chararray((7, 2), itemsize=DEFAULT_N_BYTES)
+    req_charar = np.chararray((8, 2), itemsize=DEFAULT_N_BYTES)
     start_charar = np.empty_like(req_charar)
     # need to send start first
     ibdiagnet_url = "%s%s" % (START_IBDIAG_JOB_URL, job_name)
     ibdiag_request_arguments = fill_arguments_dict(ActionType.IBDIAGNET.value,
-                                                   "POST", ibdiagnet_url, None, username, password, host)
+                                                   "POST", ibdiagnet_url, None,
+                                                   username, password,
+                                                   client_certificate, host)
     initialize_request_array(start_charar, ibdiag_request_arguments)
     await end_point.send(start_charar, tag=send_tag, force_tag=True)
     # receive response size
@@ -327,7 +433,8 @@ async def handle_ibdiagnet_respond(end_point, recv_tag, send_tag, ibdiag_request
         get_charar = np.empty_like(req_charar)
         request_url_path = "%s%s" % (GET_IBDIAG_JOB_URL, job_name)
         ibdiag_request_arguments = fill_arguments_dict(ActionType.IBDIAGNET.value,
-                                                       "GET", request_url_path, None, username, password, host)
+                                "GET", request_url_path, None,
+                                username, password, client_certificate, host)
         initialize_request_array(get_charar, ibdiag_request_arguments)
         await end_point.send(get_charar, tag=send_tag, force_tag=True)  # send the real message
         # recv response in different way and handle differently
@@ -437,13 +544,14 @@ async def send_rest_respond_to_client(end_point, send_tag, resp_size,
         logging.error("Server: Failed to send rest respond over rdma:%s" % e)
         return
 
-async def return_error_to_client(end_point, send_tag):
+async def return_error_to_client(end_point, send_tag, response=None):
     """
     Send respond with error to client
     """
     resp_size = DEFAULT_N_BYTES
     status = GENERAL_ERROR_NUM
-    response = UCX_RECEIVE_ERROR_MSG
+    if not response:
+        response = UCX_RECEIVE_ERROR_MSG
     await send_rest_respond_to_client(end_point, send_tag, resp_size,
                                              status, response)
 
@@ -455,7 +563,7 @@ async def receive_rest_request(recv_tag):
     logging.debug("Server: Receive rest_request - Start")
     try:
         action_type = action = url = payload = username = password = host = None
-        arr = np.chararray((7, 2), itemsize=DEFAULT_N_BYTES)
+        arr = np.chararray((8, 2), itemsize=DEFAULT_N_BYTES)
         await ucp.recv(arr, tag=recv_tag)
         logging.debug("Server: Received NumPy request array: %s" % str(arr))
         action_type = arr[0][1].decode()
@@ -465,6 +573,7 @@ async def receive_rest_request(recv_tag):
         username = arr[4][1].decode()
         password = arr[5][1].decode()
         host = arr[6][1].decode()
+        client_certificate = arr[7][1].decode()
     except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError) as e:
         logging.error("Server: ucx-py exception: %s" % e)
         raise e("ucx-py exception")
@@ -474,8 +583,50 @@ async def receive_rest_request(recv_tag):
     except Exception as e:
         logging.error("Server: Failed to receive rest request from client: %s" % e)
     finally:
-        return action_type, action, url, payload, username, password, host
+        return action_type, action, url, payload, username, password, host, client_certificate
 
+async def send_rest_request_client_certificate(real_url, action, payload,
+                                                cert_file_path, key_file_path):
+    """
+    Send simple rest request
+    :param real_url:
+    :param action:
+    :param payload:
+    :param username:
+    :param password:
+    :param client_certificate:
+    """
+    logging.debug("real_url %s, action %s, payload %s, sert file path %s, key file path %s" %
+                    (real_url, action, payload, cert_file_path, key_file_path))
+    if payload and payload != 'None':
+        send_payload = json.loads(payload)
+    else:
+        send_payload = None
+    cert = (cert_file_path, key_file_path)
+    session = requests.Session()
+    session.cert = cert
+    session.verify = False
+    session.headers.update({'Content-Type': 'application/json; charset=utf-8'})
+    try:
+        if action == UFMRestAction.GET.value:
+            rest_respond = session.get(real_url, cert=cert)
+        elif action == UFMRestAction.PUT.value:
+            rest_respond = session.put(real_url, cert=cert, json=send_payload)
+        elif action == UFMRestAction.PATCH.value:
+            rest_respond = session.patch(real_url, cert=cert, json=send_payload)
+        elif action == UFMRestAction.POST.value:
+            rest_respond = session.post(real_url, cert=cert, json=send_payload)
+        elif action == UFMRestAction.DELETE.value:
+            rest_respond = session.delete(real_url, cert=cert, json=send_payload)
+        else:
+            # unknown - probably error
+            logging.error("Server: Unknown action %s received. Escape." % action)
+            rest_respond = None
+    except Exception as e:
+        logging.error("Server: Failed to send REST request URL %s: Payload %s: error %s." %
+                      (real_url,send_payload, e))
+        rest_respond = None
+    return rest_respond
 
 async def send_rest_request(real_url, action, payload, username, password):
     """
@@ -485,9 +636,10 @@ async def send_rest_request(real_url, action, payload, username, password):
     :param payload:
     :param username:
     :param password:
+    :param client_certificate:
     """
     logging.debug("real_url %s, action %s, payload %s, username %s, password %s" %
-                  (real_url, action, payload, username, password))
+                                (real_url, action, payload, username, password))
     if payload and payload != 'None':
         send_payload = json.loads(payload)
     else:
@@ -519,7 +671,7 @@ async def send_rest_request(real_url, action, payload, username, password):
     return rest_respond
 
 
-async def handle_rest_request(end_point, recv_tag, send_tag):
+async def handle_rest_request(end_point, recv_tag, send_tag, generate_cs=True):
     """
     Handle simple rest request
     :param end_point: - end point
@@ -527,7 +679,8 @@ async def handle_rest_request(end_point, recv_tag, send_tag):
     :param send_tag: - send tag
     """
     logging.debug("Server: Start handling client request")
-    action_type, action, url, payload, username, password, host = await receive_rest_request(recv_tag)
+    action_type, action, url, payload, username, password, host, client_certificate  = \
+                                            await receive_rest_request(recv_tag)
     if not action_type: # Failure on request receive - send error to client
         await return_error_to_client(end_point, send_tag)
         return
@@ -541,9 +694,36 @@ async def handle_rest_request(end_point, recv_tag, send_tag):
         real_url = "https://%s/%s" % (host, url)
         logging.debug("Server: Received: action %s, url %s, payload %s" %
                       (action, url, payload))
-        # use requests
-        rest_respond = await send_rest_request(real_url, action, payload,
-                                               username, password)
+        # now if client_certificate has value - need to receive it and to generate
+        # certificate files
+        if client_certificate and client_certificate != "None":
+            cert_file_name = rdma_rest_config.get("Server", "client_pem_cert",
+                                     fallback=DEFAULT_CLIENT_PEM_CERT)
+            key_file_name = rdma_rest_config.get("Server", "client_pem_key",
+                                     fallback=DEFAULT_CLIENT_PEM_KEY)
+            certificate_dir = rdma_rest_config.get("Server",
+                                              "certificate_file_target_dir",
+                                     fallback=DEFAULT_CLIENT_CERT_TARGET_DIR)
+            cert_file_path = "/".join([certificate_dir, cert_file_name])
+            key_file_path = "/".join([certificate_dir,key_file_name])
+            # generate
+            if generate_cs:
+                client_cert_status = await receive_and_generate_client_certificate(
+                                                      recv_tag, client_certificate,
+                                                      cert_file_path, key_file_path)
+                if not client_cert_status:
+                    error_msg = "Server: Failed to receive client certificate and to generate cert and key files."
+                    logging.error(error_msg)
+                    await return_error_to_client(end_point, send_tag, error_msg)
+                    return
+                        # use requests
+            rest_respond = await send_rest_request_client_certificate(
+                                                    real_url, action, payload,
+                                                cert_file_path, key_file_path)
+        else:
+            # use requests
+            rest_respond = await send_rest_request(real_url, action, payload,
+                                        username, password)
         resp_size = DEFAULT_N_BYTES
         status = GENERAL_ERROR_NUM
         response = GENERAL_ERROR_MSG
@@ -573,10 +753,10 @@ async def handle_rest_request(end_point, recv_tag, send_tag):
             return
         # recursion
         if action_type == ActionType.IBDIAGNET.value:
-            logging.debug("Server: Handle ibdiagnet request")
-            await handle_rest_request(end_point, recv_tag, send_tag)
+            logging.info("Server: Handle ibdiagnet request")
+            await handle_rest_request(end_point, recv_tag, send_tag, False)
     else:  # enter to the flow for file_transfer
-        logging.debug("Server: Requested transfer of ibdiagnet files")
+        logging.info("Server: Requested transfer of ibdiagnet files")
         await handle_file_transfer(end_point, recv_tag, send_tag)
 
 
@@ -675,6 +855,68 @@ def handle_rest_request_wrapper(ep, recv_tag, send_tag):
     loop.run_until_complete(handle_rest_request(ep, recv_tag, send_tag))
     loop.close()
 
+# Client certificate related code
+
+CLIENT_PFX_CERT = "/tmp/ufm-client.pfx"
+
+CLIENT_PEM_KEY = "/tmp/ufm-client.key"
+CLIENT_PEM_CERT = "/tmp/ufm-client.crt"
+
+def generate_unified_ca_certs_file():
+    ca_files = (SYS_CA_CERT_PATH, CA_CERT_PATH)
+    try:
+        with open(UNIFIED_CA_PATH, 'wb') as outfile:
+            for ca_file in ca_files:
+                if os.path.exists(ca_file):
+                    with open(ca_file, 'rb') as infile:
+                        outfile.write(infile.read())
+        logging.debug("Server: Unified CA file has been generated")
+    except (IOError, OSError, UnicodeDecodeError) as e:
+        logging.error("Server: Generating the unified CA file has failed: %s" % str(e))
+
+def dump_pem_cert_key(pem_cert_key_file, pfx_cert_obj):
+    try:
+        with open(pem_cert_key_file, "wb") as f:
+            f.write(OpenSSL.crypto.dump_privatekey(OpenSSL.crypto.FILETYPE_PEM,
+                                                pfx_cert_obj.get_privatekey()))
+            f.flush()
+    except Exception as e:
+        logging.error("Server: Writing the PEM certificate key to file %s has failed: %s" %
+                                  (os.path.basename(pem_cert_key_file), str(e)))
+
+def dump_pem_cert(pem_cert_file, pfx_cert_obj):
+    try:
+        with open(pem_cert_file, "wb") as f:
+            f.write(OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_PEM,
+                                                pfx_cert_obj.get_certificate()))
+            f.flush()
+    except Exception as e:
+        logging.error("Server: Writing the PEM certificate to file %s has failed: %s" %
+                                      (os.path.basename(pem_cert_file), str(e)))
+
+def dump_pem_cert_and_key_from_pfx(pfx_file, pfx_data, cert_file_path,
+                                                key_file_path, pfx_password):
+    try:
+        cert_obj = OpenSSL.crypto.load_pkcs12(pfx_data, pfx_password)
+        dump_pem_cert_key(key_file_path, cert_obj)
+        dump_pem_cert(cert_file_path, cert_obj)
+    except Exception as e:
+        logging.error("Server: Cannot convert the PFX file %s to PEM cert and key: %s" %
+                                          (os.path.basename(pfx_file), str(e)))
+
+def convert_pfx_cert_to_pem_cert_and_key(pfx_cert, cert_file_path, key_file_path):
+    try:
+        with open(pfx_cert, "rb") as f:
+            cert_data = f.read()
+        dump_pem_cert_and_key_from_pfx(pfx_cert, cert_data, cert_file_path,
+                                       key_file_path, pfx_password='')
+    except IOError as e:
+        logging.error("Server: Reading the PFX file %s has failed: %s" %
+                                     (os.path.basename(args.pfx_cert), str(e)))
+    except Exception as e:
+        logging.error("Server: Cannot convert the PFX file %s to PEM cert and key: %s" %
+                                           (os.path.basename(pfx_cert), str(e)))
+# End of client certificate related code
 
 def main_server(request_arguments):
     """
@@ -688,6 +930,12 @@ def main_server(request_arguments):
 
     async def handle_rdma_request():
         # Receive address size
+        to_stop_server = rdma_rest_config.get("Server", "restart_server",
+                                     fallback="False")
+        number_requests_to_stop_server = rdma_rest_config.get("Server", 
+                                            "number_of_requests_to_restart",
+                                     fallback=10000)
+        served_requests = 0
         while True:
             address_info = get_address_info()
 
@@ -707,6 +955,12 @@ def main_server(request_arguments):
             #rest_thread = Thread(target=handle_rest_request_wrapper,
             #                     args=(ep, unpacked["recv_tag"], unpacked["send_tag"]))
             #rest_thread.start()
+            # mechanism that will kill server after defined in conf file number of requests
+            served_requests += 1
+            if to_stop_server.lower() == "true":
+                if served_requests >= int(number_requests_to_stop_server):
+                    logging.info("Server: Served %d requests. Exit to prevent memory problems." % served_requests)
+                    os._exit(0)
 
     asyncio.get_event_loop().run_until_complete(handle_rdma_request())
 
@@ -741,8 +995,9 @@ def main_client(request_arguments):
         remote_address = ucp.get_ucx_address_from_buffer(addr_holder)
         ep = await ucp.create_endpoint_from_worker_address(remote_address)
         # Send local address to server on tag 0
-        ucp_connection_timeout = rdma_rest_config.get("Client", "ucp_connection_timeout",
-                                     fallback=DEFAULT_UCP_CONNECTION_TIMEOUT)
+        ucp_connection_timeout = rdma_rest_config.get("Client",
+                                                      "ucp_connection_timeout",
+                                       fallback=DEFAULT_UCP_CONNECTION_TIMEOUT)
         logging.debug("Client: Send local address to server")
         try:
             await asyncio.wait_for(ep.send(packed_address, tag=0, force_tag=True),
@@ -762,10 +1017,19 @@ def main_client(request_arguments):
         ########################################################################
         logging.debug("Client: Initialize chararray to sent request to client %s" %
                                                           str(request_arguments))
-        charar = np.chararray((7, 2), itemsize=DEFAULT_N_BYTES)
+        charar = np.chararray((8, 2), itemsize=DEFAULT_N_BYTES)
         initialize_request_array(charar, request_arguments)
         logging.debug("Client: Send NumPy request char array")
         await ep.send(charar, tag=send_tag, force_tag=True)  # send the real message
+        # in case client certificate not empty - need to send client cert file to server
+        # otherwice - use user name and password - a standard authentication
+        if (request_arguments['client_certificate'] and
+                     request_arguments['client_certificate'] != "None"):
+            sent_data_size = await handle_client_file_transfer(ep, send_tag,
+                                        request_arguments['client_certificate'])
+            if sent_data_size == 0: # failed to read data and it was not sent
+                logging.error("Client: Failed to send client certificate to server."
+                              " Check log file for more information. Exit.")
         # recv response in different way and handle differently
         request_status, resp_string = await receive_rest_respond_from_server(recv_tag)
         # Check if respond was OK. If not - print error
@@ -817,10 +1081,10 @@ def allocate_request_args(parser):
                          required=True, default=None,
                          choices=["client", "server"], help="Run mode")
     request.add_argument("-u", "--username", action="store",
-                         required=None, default="admin", choices=None,
+                         required=None, default=None, choices=None,
                          help="UFM REST request user name")
     request.add_argument("-p", "--password", action="store",
-                         required=None, default="123456", choices=None,
+                         required=None, default=None, choices=None,
                          help="UFM REST password")
     request.add_argument("-t", "--type", action="store",
                          required=None, default="simple",
@@ -838,6 +1102,9 @@ def allocate_request_args(parser):
     request.add_argument("-c", "--config_file", action="store",
                          required=None, default=None, choices=None,
                          help="Path to the config file name.")
+    request.add_argument("-d", "--client_certificate", action="store",
+                         required=None, default=None, choices=None,
+                         help="Path to the client certificate file name.")
     request.add_argument("-l", "--url_payload", action="store",
                          default=None, required=None,
                          choices=None,
@@ -851,6 +1118,32 @@ def extract_request_args(arguments):
     return dict([(arg, arguments.pop(arg))
                  for arg in REQUEST_ARGS])
 
+def set_env_variables():
+    '''
+    export defined environment variables
+    '''
+    # set environment variables:
+    # UCX_NET_DEVICES=mlx5_0:1
+    # UCX_TLS=rc_x 
+    # if it is plugin on applience - variables should be in /config/ufm-rest.conf file
+    # if it is docker - it should be in config file
+    # if not found - use default values
+    if os.path.isfile(PLUGIN_CONF_FILE):
+        # read values from file
+        print("set variables from conf file")
+        with open(PLUGIN_CONF_FILE) as conf_file:
+            for line in conf_file:
+                var_name, var_value = (line.rstrip().split("="))
+                os.environ[var_name] = var_value
+    else:
+        print("set variables from ini file")
+        ucx_net_devices = rdma_rest_config.get("Common", UCX_NET_DEVICES_NAME,
+                                     fallback=DEFAULT_UCX_NET_DEVICES)
+        os.environ[UCX_NET_DEVICES_ENV_VAR_NAME] = ucx_net_devices
+        ucx_tls = rdma_rest_config.get("Common", UCX_TLS_NAME,
+                                     fallback=DEFAULT_UCX_TLS)
+        os.environ[UCX_TLS_ENV_VAR_NAME] = ucx_tls
+        print(os.environ)
 
 def main():
     # arguments parser
@@ -875,9 +1168,13 @@ def main():
     else:
         error_message = "Configuration file %s not found" % config_file_name
         sys.exit(error_message)
+    # set linux environment variables
+    set_env_variables()
     log_level = rdma_rest_config.get("Common", "debug_level",
                                      fallback=logging.DEBUG)
-    logging.basicConfig(filename=LOG_FILE_PATH,
+    log_file_name = rdma_rest_config.get("Common", "log_file_path",
+                                     fallback=DEFAULT_LOG_FILE_PATH)
+    logging.basicConfig(filename=log_file_name,
                         level=logging._nameToLevel[log_level])
     if run_mode == SERVER_MODE_RUN:  # run as server
         logging.info("Running in Server mode")
@@ -889,3 +1186,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
