@@ -1,7 +1,7 @@
 #!/bin/bash -eE
 
 
-TMP_DIR=/tmp/sr_build_tmp
+TMP_DIR=/tmp/sr_build_tmp/src
 LIB_FILE_NAME=libservice_record_wrapper.so
 
 
@@ -23,7 +23,7 @@ then
 else
     if [ ! $# -eq 2 ];
     then
-        echo "Please ented path to service record source directory and to path where tyo copy compiled results"
+        echo "Please ented path to service record source directory and to path where to copy compiled results"
         usage
         exit 1
     fi
@@ -43,8 +43,14 @@ mkdir -p $TMP_DIR > /dev/null 2>&1
 cp -rf $src_dir $TMP_DIR
 [ $? -ne 0 ] && { echo "Failed to copy SR sources to $TMP_DIR directory"; exit 1; }
 
+# copy common code into build directory
+cp -rf $src_dir/../common $TMP_DIR
+[ $? -ne 0 ] && { echo "Failed to copy common dir to $TMP_DIR directory"; exit 1; }
+
 cd $TMP_DIR/service_record
 
+# build
+make clean > /dev/null 2>&1
 # build
 make > /dev/null 2>&1 
 [ $? -ne 0 ] && { echo "Failed to build SR lib"; exit 1; }

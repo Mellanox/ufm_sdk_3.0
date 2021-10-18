@@ -33,6 +33,7 @@ RUN apt-get update && \
 
 ADD src/ufm_rdma ${BASE_PATH}/src
 ADD src/service_record /tmp/service_record
+ADD src/common /tmp/common
 
 
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf

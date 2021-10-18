@@ -1,7 +1,14 @@
 #!/bin/bash
 
-if [ $# -eq 0 ];
+if [ $# -ne 0 ];
 then
-     /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
+    first_param=$1
+    if [ "$first_param" = "/init.sh" ]; # init process
+    then
+        $@
+        exit 0
+    fi
+else
+    /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
 fi
-tail -f /dev/null
+sleep infinity

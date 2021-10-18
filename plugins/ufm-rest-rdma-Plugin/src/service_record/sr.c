@@ -39,7 +39,7 @@ struct ib_service_record {
 #define BIT(x) (1UL << (x))
 #define SR_DEV_SERVICE_REGISTER_RETRIES  20
 #define SR_QUERY_SLEEP                   500000
-#define SR_SERVICE_ID                    0x100002c900000002UL
+#define SR_SERVICE_ID                    0x100002c900000003UL
 #define SR_SERVICE_FORMAT                1
 #define SR_LEASE_TIME                    2000
 #define SR_RETRIES                       20
