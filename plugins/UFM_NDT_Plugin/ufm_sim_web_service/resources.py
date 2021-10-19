@@ -18,7 +18,7 @@ import json
 import os
 from flask_restful import Resource
 from flask import request
-import datetime
+from datetime import datetime, timedelta
 from topo_diff.topo_diff import compare_topologies
 import logging
 import hashlib
@@ -43,6 +43,7 @@ class UFMResource(Resource):
         # self.ndt_files_dir = "/data/ndt_files"
         self.reports_list_file = os.path.join(self.reports_dir, "reports_list.json")
         self.ndts_list_file = os.path.join(self.ndt_files_dir, "ndts_list.json")
+        self.response_code = 200
         try:
             logging.info("Creating file for reports list")
             if not os.path.exists(self.reports_list_file):
@@ -62,14 +63,14 @@ class UFMResource(Resource):
                             "{}_{}".format(file_type, file_name))
 
     def get(self):
-        return read_json_file(self.response_file)
+        return read_json_file(self.response_file), self.response_code
 
     def post(self):
         pass
 
 
 def get_timestamp():
-    return str(datetime.datetime.now())
+    return str(datetime.now())
 
 
 class UploadMetadata(UFMResource):
@@ -91,9 +92,12 @@ class UploadMetadata(UFMResource):
                     logging.error("Provided sha-1 {} is not equal to actual one {}"
                                   .format(checksum, sha1.hexdigest()))
 
-                logging.debug("Uploading file: {}".format(file_name))
-                with open(self.get_ndt_path(file_name, file_type), "w") as file:
-                    file.write(file_content)
+                if not os.path.exists(self.get_ndt_path(file_name, file_type)):
+                    logging.debug("Uploading file: {}".format(file_name))
+                    with open(self.get_ndt_path(file_name, file_type), "w") as file:
+                        file.write(file_content)
+                else:
+                    logging.debug("This NDT file was already uploaded")
 
                 logging.debug("Updating NDTs list")
                 with open(self.ndts_list_file, "r+") as file:
@@ -137,29 +141,65 @@ class Delete(UFMResource):
 
 
 class Compare(UFMResource):
+    def __init__(self, scheduler):
+        super().__init__()
+        self.scheduler = scheduler
+
+    def compare(self):
+        logging.info("Run topology comparison")
+        timestamp = get_timestamp()
+        self.response_file = os.path.join(self.reports_dir, "report_{}.json".format(timestamp))
+        logging.debug("Report file name: {}".format(self.response_file))
+
+        logging.debug("Running topology comparison")
+        response = compare_topologies(timestamp, self.ndt_files_dir)
+
+        logging.debug("Dumping the result into the file")
+        with open(self.response_file, "w") as file:
+            json.dump(response, file)
+
+        logging.debug("Updating NDTs list")
+        with open(self.reports_list_file, "r+") as file:
+            data = json.load(file)
+            entry = {"report_id": len(data) + 1,
+                     "timestamp": timestamp}
+            logging.debug("New report: {}".format(entry))
+            data.append(entry)
+            file.seek(0)
+            json.dump(data, file)
+
     def post(self):
         try:
             logging.info("POST /plugin/ndt/compare")
-            timestamp = get_timestamp()
-            self.response_file = os.path.join(self.reports_dir, "report_{}.json".format(timestamp))
-            logging.debug("Report file name: {}".format(self.response_file))
+            if request.data:
+                json_data = request.get_json(force=True)
+                logging.debug("Parsing JSON request: {}".format(json_data))
+                params = json_data["run"]
+                start_time = params["startTime"]
+                datetime_start = datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
+                end_time = params["endTime"]
+                datetime_end = datetime.strptime(end_time, '%Y-%m-%d %H:%M:%S')
+                interval = params["interval"]
+                while datetime_start <= datetime_end:
+                    self.scheduler.add_job(func=self.compare, run_date=datetime_start)
+                    datetime_start += timedelta(minutes=interval)
+                self.scheduler.start()
+            else:
+                logging.info("Running instant topology comparison")
+                self.compare()
 
-            logging.debug("Running topology comparison")
-            response = compare_topologies(timestamp, self.ndt_files_dir)
+        except Exception as ex:
+            logging.error(ex)
 
-            logging.debug("Dumping the result into the file")
-            with open(self.response_file, "w") as file:
-                json.dump(response, file)
 
-            logging.debug("Updating NDTs list")
-            with open(self.reports_list_file, "r+") as file:
-                data = json.load(file)
-                entry = {"report_id": len(data) + 1,
-                         "timestamp": timestamp}
-                logging.debug("New report: {}".format(entry))
-                data.append(entry)
-                file.seek(0)
-                json.dump(data, file)
+class Cancel(UFMResource):
+    def __init__(self, scheduler):
+        super().__init__()
+        self.scheduler = scheduler
+
+    def get(self):
+        try:
+            self.scheduler.shutdown(wait=False)
         except Exception as ex:
             logging.error(ex)
 

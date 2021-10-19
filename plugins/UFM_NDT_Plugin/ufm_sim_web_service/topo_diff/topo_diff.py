@@ -64,10 +64,11 @@ def parse_ndt_files(ndt_files_dir):
 
 
 def get_ufm_links():
-    ufm_protocol = "https"
     ufm_host = "127.0.0.1"
+    # ufm_protocol = "http"
     # ufm_username = "ufmsystem"
     # ufm_password = ""
+    ufm_protocol = "https"
     ufm_username = "admin"
     ufm_password = "123456"
     request = ufm_protocol + '://' + ufm_host + '/ufmRest/resources/links'
@@ -85,6 +86,9 @@ def get_ufm_links():
 
 def parse_ufm_links():
     ufm_dict_of_dicts = {}
+    links = get_ufm_links()
+    if not links:
+        return ufm_dict_of_dicts
 
     for link in get_ufm_links():
         ufm_dict = {}
@@ -146,7 +150,7 @@ def compare_topologies(timestamp, ndt_files_dir):
 
         report = []
         logging.debug("Comparing NDT to UFM")
-        if ndt_dict_of_dicts is not None:
+        if ndt_dict_of_dicts:
             for ndt_key in ndt_dict_of_dicts:
                 if ndt_key not in ufm_dict_of_dicts.keys():
                     report.append({"expected": ndt_key,
@@ -155,7 +159,7 @@ def compare_topologies(timestamp, ndt_files_dir):
             logging.warning("List of NDT links is empty")
 
         logging.debug("Comparing UFM to NDT")
-        if ufm_dict_of_dicts is not None:
+        if ufm_dict_of_dicts:
             for ufm_key in ufm_dict_of_dicts:
                 if ufm_key not in ndt_dict_of_dicts.keys():
                     report.append({"expected": "",
@@ -170,4 +174,4 @@ def compare_topologies(timestamp, ndt_files_dir):
         return response
 
     except Exception as global_ex:
-        print(global_ex)
+        logging.error(global_ex)
