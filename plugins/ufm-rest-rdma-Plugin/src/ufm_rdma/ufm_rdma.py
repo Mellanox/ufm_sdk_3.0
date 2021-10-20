@@ -5,13 +5,13 @@ import ctypes
 from enum import Enum
 import json
 import logging
+from logging.handlers import RotatingFileHandler
 import os
 import struct
 import sys
-from threading import Thread, Timer
+#from threading import Thread, Timer
 import time
 import warnings
-
 import numpy as np
 import requests
 import ucp
@@ -48,6 +48,7 @@ GENERAL_ERROR_MSG = "REST RDMA server failed to send request to UFM Server. Chec
 UCX_RECEIVE_ERROR_MSG = "REST RDMA server failed to receive request from client. Check log file for details."
 DEFAULT_CLIENT_PEM_KEY = "/tmp/ufm-client.key"
 DEFAULT_CLIENT_PEM_CERT = "/tmp/ufm-client.crt"
+LOG_FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
 # load the service record lib
 try:
     sr_lib = ctypes.CDLL(SR_LIB_PATH)
@@ -224,12 +225,12 @@ async def receive_and_generate_client_certificate(recv_tag, file_path,
         logging.debug("Server: Receive client_certificate_file")
         res_data = np.empty_like(res)
         await ucp.recv(res_data, tag=recv_tag)  # receive the echo
-    except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError) as e:
-        logging.error("Server: ucx-py exception: %s" % e)
-        raise e("ucx-py exception")
-    except ucp.exceptions.UCXError as e:
-        logging.error("Server: ucx-py UCXError exception: %s")
-        raise e("ucx-py exception: UCXError")
+    except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError,
+            ucp.exceptions.UCXError) as e:
+        error_msg = "Client:  Failed to receive client certificate file. UCP error."
+        logging.error(error_msg)
+        logging.critical(e, exc_info=True)
+        return False
     except Exception as e:
         error_msg = ("Client: Failed to receive client certificate file:%s" % e)
         logging.error(error_msg)
@@ -243,7 +244,6 @@ async def receive_and_generate_client_certificate(recv_tag, file_path,
             os.makedirs(certificate_dir)
         receive_location_file = "/".join([certificate_dir,
                                           file_path.split('/')[-1]])
-
         f = open(receive_location_file, "wb")
         f.write(res_data)
         f.flush()
@@ -285,12 +285,6 @@ async def handle_client_file_transfer(end_point, send_tag, file_path):
         logging.debug("Client: Send data now")
         await end_point.send(s, tag=send_tag, force_tag=True)
     return data_size[0] # if failed to read from file - cancel request on calling side
-
-async def send_client_cetrificate(end_point, recv_tag, send_tag, certificate_path):
-    pass
-
-async def receive_client_cetrificate(end_point, recv_tag, send_tag):
-    pass
 
 async def get_ibdiagnet_result(end_point, recv_tag, send_tag, tarball_path):
     """
@@ -335,12 +329,12 @@ async def get_ibdiagnet_result(end_point, recv_tag, send_tag, tarball_path):
             os.makedirs(ibdiagnet_resp_dir)
         receive_location_file = "/".join([ibdiagnet_resp_dir,
                                           tarball_path.split('/')[-1]])
-    except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError) as e:
-        logging.error("Client: ucx-py exception: %s" % e)
-        raise e("ucx-py exception")
-    except ucp.exceptions.UCXError as e:
-        logging.error("Client: ucx-py UCXError exception: %s")
-        raise e("ucx-py exception: UCXError")
+    except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError,
+            ucp.exceptions.UCXError) as e:
+        error_msg = "Client: Failed to receive ibdiagnet result file. UCP error."
+        logging.error(error_msg)
+        logging.critical(e, exc_info=True)
+        return
     except Exception as e:
         logging.error("Client: Failed to receive ibdiagnet result file: %s" % e)
         return
@@ -375,8 +369,13 @@ async def cancel_ibdiagnet_respond(end_point, send_tag):
     ibdiag_request_arguments = fill_arguments_dict(ActionType.ABORT.value,
                                         None, None, None, None,None, None, None)
     initialize_request_array(abort_charar, ibdiag_request_arguments)
-    await end_point.send(abort_charar, tag=send_tag, force_tag=True)
-
+    try:
+        await end_point.send(abort_charar, tag=send_tag, force_tag=True)
+    except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError,
+            ucp.exceptions.UCXError) as e:
+        error_msg = "Client: Failed to send abort request to server"
+        logging.error(error_msg)
+        logging.critical(e, exc_info=True)
 
 async def handle_ibdiagnet_respond(end_point, recv_tag, send_tag, ibdiag_request_arguments):
     """
@@ -409,7 +408,14 @@ async def handle_ibdiagnet_respond(end_point, recv_tag, send_tag, ibdiag_request
                                                    username, password,
                                                    client_certificate, host)
     initialize_request_array(start_charar, ibdiag_request_arguments)
-    await end_point.send(start_charar, tag=send_tag, force_tag=True)
+    try:
+        await end_point.send(start_charar, tag=send_tag, force_tag=True)
+    except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError,
+            ucp.exceptions.UCXError) as e:
+        error_msg = "Client: Failed to send start for ibdiagnet task. UCP error."
+        logging.error(error_msg)
+        logging.critical(e, exc_info=True)
+        return
     # receive response size
     logging.debug("Client: Receive respond for ibdiagnet task start")
     request_status, ibdiag_start_as_string = await receive_rest_respond_from_server(recv_tag)
@@ -479,18 +485,19 @@ def register_local_address_in_service_record(interface):
     sr_context = sr_lib.sr_wrapper_create(sr_service_name, sr_device_name, 1)
     if not sr_context:
         logging.critical("Server: Unable to allocate sr_wrapper_ctx_t")
-        return 1
+        return False
     else:
         logging.debug("Server: sr_wrapper_ctx_t init done")
     if not sr_lib.sr_wrapper_register(sr_context, address_value_to_send,
                                       addres_value_len):
         logging.critical("Server: Unable to register sr_wrapper")
-        return 1
+        return False
     # need to renew
     sr_renew_interval = rdma_rest_config.get("Server", "sr_renew_interval",
                                      fallback=DEFAULT_SR_RENEW_INTERVAL)
     Timer(int(sr_renew_interval), register_local_address_in_service_record, 
                                                        [interface]).start()
+    return True
 
 async def receive_rest_respond_from_server(recv_tag):
     request_status = ready_string = None
@@ -510,12 +517,11 @@ async def receive_rest_respond_from_server(recv_tag):
         request_status = status_array[0]
         as_string = resp[0].decode()
         ready_string = as_string.replace("N\\/A", "NA")
-    except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError) as e:
-        logging.error("Clien: ucx-py exception: %s" % e)
-        raise e("ucx-py exception")
-    except ucp.exceptions.UCXError as e:
-        logging.error("Client: ucx-py UCXError exception: %s")
-        raise e("ucx-py exception: UCXError")
+    except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError,
+            ucp.exceptions.UCXError) as e:
+        error_msg = "Client: Failed tto receive respond over rdma. UCP related error"
+        logging.error(error_msg)
+        logging.critical(e, exc_info=True)
     except Exception as e:
         logging.error("Client: Failed to receive respond over rdma:%s" % e)
     finally:
@@ -534,12 +540,13 @@ async def send_rest_respond_to_client(end_point, send_tag, resp_size,
         resp_array = np.chararray((1), itemsize=resp_size)
         resp_array[0] = response
         await end_point.send(resp_array, tag=send_tag, force_tag=True)
-    except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError) as e:
-        logging.error("Server: ucx-py exception: %s" % e)
-        raise e("ucx-py exception")
-    except ucp.exceptions.UCXError as e:
-        logging.error("Server: ucx-py UCXError exception: %s")
-        raise e("ucx-py exception: UCXError")
+    except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError,
+            ucp.exceptions.UCXError) as e:
+        error_msg = "Server: Failed to send rest respond over rdma.UCP error."
+        logging.error(error_msg)
+        logging.critical(e, exc_info=True)
+        ucp.reset()
+        return
     except Exception as e:
         logging.error("Server: Failed to send rest respond over rdma:%s" % e)
         return
@@ -574,12 +581,12 @@ async def receive_rest_request(recv_tag):
         password = arr[5][1].decode()
         host = arr[6][1].decode()
         client_certificate = arr[7][1].decode()
-    except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError) as e:
-        logging.error("Server: ucx-py exception: %s" % e)
-        raise e("ucx-py exception")
-    except ucp.exceptions.UCXError as e:
-        logging.error("Server: ucx-py UCXError exception: %s")
-        raise e("ucx-py exception: UCXError")
+    except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError,
+            ucp.exceptions.UCXError) as e:
+        error_msg = "Server: Failed to receive rest request from client. UCP error"
+        logging.error(error_msg)
+        logging.critical(e, exc_info=True)
+        ucp.reset()
     except Exception as e:
         logging.error("Server: Failed to receive rest request from client: %s" % e)
     finally:
@@ -776,18 +783,25 @@ async def handle_file_transfer(end_point, recv_tag, send_tag):
         await ucp.recv(file_path, tag=recv_tag)
         file_path_value = file_path[0].decode()
         logging.debug("Server: Received file path %s" % file_path_value)
-        f = open(file_path_value, "rb")
-        s = f.read()
-        data_size[0] = len(s)
-    except Exception as e:
-        logging.debug("Server: Error filed to read file %s" % e)
-        data_size[0] = 0
-    logging.debug("Server: The size of data to be sent is %d" % data_size)
-    await end_point.send(data_size, tag=send_tag,
-                         force_tag=True)  # Requires some parsing with NumPy or struct, as we previously discussed
-    if data_size[0] > 0:
-        logging.debug("Server: Send data now")
-        await end_point.send(s, tag=send_tag, force_tag=True)
+        try:
+            f = open(file_path_value, "rb")
+            s = f.read()
+            data_size[0] = len(s)
+        except Exception as e:
+            logging.debug("Server: Error filed to read file %s" % e)
+            data_size[0] = 0
+        logging.debug("Server: The size of data to be sent is %d" % data_size)
+        await end_point.send(data_size, tag=send_tag,
+                             force_tag=True)  # Requires some parsing with NumPy or struct, as we previously discussed
+        if data_size[0] > 0:
+            logging.debug("Server: Send data now")
+            await end_point.send(s, tag=send_tag, force_tag=True)
+    except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError,
+            ucp.exceptions.UCXError) as e:
+        error_msg = "Server: Failed to send ibdiagnet file. UCP error."
+        logging.error(error_msg)
+        logging.critical(e, exc_info=True)
+        ucp.reset()
 
 
 def get_address_info(address=None):
@@ -857,23 +871,6 @@ def handle_rest_request_wrapper(ep, recv_tag, send_tag):
 
 # Client certificate related code
 
-CLIENT_PFX_CERT = "/tmp/ufm-client.pfx"
-
-CLIENT_PEM_KEY = "/tmp/ufm-client.key"
-CLIENT_PEM_CERT = "/tmp/ufm-client.crt"
-
-def generate_unified_ca_certs_file():
-    ca_files = (SYS_CA_CERT_PATH, CA_CERT_PATH)
-    try:
-        with open(UNIFIED_CA_PATH, 'wb') as outfile:
-            for ca_file in ca_files:
-                if os.path.exists(ca_file):
-                    with open(ca_file, 'rb') as infile:
-                        outfile.write(infile.read())
-        logging.debug("Server: Unified CA file has been generated")
-    except (IOError, OSError, UnicodeDecodeError) as e:
-        logging.error("Server: Generating the unified CA file has failed: %s" % str(e))
-
 def dump_pem_cert_key(pem_cert_key_file, pfx_cert_obj):
     try:
         with open(pem_cert_key_file, "wb") as f:
@@ -924,7 +921,15 @@ def main_server(request_arguments):
     :param request_arguments:
     """
     # register server record
-    register_local_address_in_service_record(request_arguments['interface'])
+    device_name = request_arguments['interface']
+    if not device_name or device_name == "None":
+        device_name = (rdma_rest_config.get("Common",
+                                            "ucx_net_device",
+                                fallback=DEFAULT_UCX_NET_DEVICES)).split(":")[0]
+    refister_sr = register_local_address_in_service_record(device_name)
+    if not refister_sr:
+        logging.critical("Failed to register SR. Exit.")
+        os._exit()
     # dictionary with connection info in {address: (recv_tag, send_tag)} format
     connection_info = {}
 
@@ -934,27 +939,33 @@ def main_server(request_arguments):
                                      fallback="False")
         number_requests_to_stop_server = rdma_rest_config.get("Server", 
                                             "number_of_requests_to_restart",
-                                     fallback=10000)
+                                            fallback=100000)
         served_requests = 0
         while True:
             address_info = get_address_info()
-
             # Receive fixed-size address+tag buffer on tag 0
             packed_remote_address = bytearray(address_info["frame_size"])
-            await ucp.recv(packed_remote_address, tag=0)
-
-            # Unpack the fixed-size address+tag buffer
-            unpacked = unpack_address_and_tag(packed_remote_address)
-            remote_address = ucp.get_ucx_address_from_buffer(unpacked["address"])
-            connection_info[remote_address] = (unpacked["recv_tag"], unpacked["send_tag"])
-
-            # Create endpoint to remote worker using the received address
-            ep = await ucp.create_endpoint_from_worker_address(remote_address)
-            # prepare np array to receive request
-            await handle_rest_request(ep, unpacked["recv_tag"], unpacked["send_tag"])
-            #rest_thread = Thread(target=handle_rest_request_wrapper,
-            #                     args=(ep, unpacked["recv_tag"], unpacked["send_tag"]))
-            #rest_thread.start()
+            try:
+                await ucp.recv(packed_remote_address, tag=0)
+                # Unpack the fixed-size address+tag buffer
+                unpacked = unpack_address_and_tag(packed_remote_address)
+                remote_address = ucp.get_ucx_address_from_buffer(unpacked["address"])
+                connection_info[remote_address] = (unpacked["recv_tag"], unpacked["send_tag"])
+    
+                # Create endpoint to remote worker using the received address
+                ep = await ucp.create_endpoint_from_worker_address(remote_address)
+                # prepare np array to receive request
+                await handle_rest_request(ep, unpacked["recv_tag"], unpacked["send_tag"])
+                #rest_thread = Thread(target=handle_rest_request_wrapper,
+                #                     args=(ep, unpacked["recv_tag"], unpacked["send_tag"]))
+                #rest_thread.start()
+            except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError,
+                ucp.exceptions.UCXError) as e:
+                error_msg = "Server: Failed to serve client request. UCP related issue."
+                logging.error(error_msg)
+                logging.critical(e, exc_info=True)
+                ucp.reset()
+                continue
             # mechanism that will kill server after defined in conf file number of requests
             served_requests += 1
             if to_stop_server.lower() == "true":
@@ -972,13 +983,18 @@ def main_client(request_arguments):
     """
 
     async def run(request_arguments):
+        device_name = request_arguments['interface']
+        if not device_name or device_name == "None":
+            device_name = (rdma_rest_config.get("Common", "ucx_net_device",
+                                fallback=DEFAULT_UCX_NET_DEVICES)).split(":")[0]
         sr_service_name = ctypes.c_char_p(SERVICE_NAME)
-        sr_device_name = ctypes.c_char_p(str.encode(request_arguments['interface']))
+        sr_device_name = ctypes.c_char_p(str.encode(device_name))
         sr_context = sr_lib.sr_wrapper_create(sr_service_name, sr_device_name, 1)
         addr_holder = bytearray(ADDRESS_SR_HOLDER_SIZE)
         address_buffer = ctypes.c_char * len(addr_holder)
         address_len = sr_lib.sr_wrapper_query(sr_context,
-                                              address_buffer.from_buffer(addr_holder), 56)
+                                              address_buffer.from_buffer(addr_holder),
+                                              ADDRESS_SR_HOLDER_SIZE)
         if address_len == 0:
             logging.critical("FATAL. Unable to query sr_wrapper and to get "
                              "Server address from Service record")
@@ -993,34 +1009,53 @@ def main_client(request_arguments):
         packed_address = pack_address_and_tag(address, recv_tag, send_tag)
 
         remote_address = ucp.get_ucx_address_from_buffer(addr_holder)
-        ep = await ucp.create_endpoint_from_worker_address(remote_address)
+        try:
+            ep = await ucp.create_endpoint_from_worker_address(remote_address)
+        except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError,
+                ucp.exceptions.UCXError) as e:
+            error_msg = "Client: Failed to create end point from server address."
+            logging.error(error_msg)
+            logging.critical(e, exc_info=True)
+            os._exit(1)
         # Send local address to server on tag 0
         ucp_connection_timeout = rdma_rest_config.get("Client",
                                                       "ucp_connection_timeout",
                                        fallback=DEFAULT_UCP_CONNECTION_TIMEOUT)
         logging.debug("Client: Send local address to server")
+        # still use call with timeout on initial connection - it should not take long
         try:
             await asyncio.wait_for(ep.send(packed_address, tag=0, force_tag=True),
                                                     int(ucp_connection_timeout))
         except asyncio.TimeoutError:  # pragma: no cover
-            error_msg = "Client: Failed to send local address to server - timeout. Probably server not running"
+            error_msg = ("Client: Failed to send local address to server - timeout."
+                                                      " Check if server running.")
             logging.error(error_msg)
             os._exit(1)
         except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError,
                 ucp.exceptions.UCXError) as e:
             error_msg = "Client: Failed to send local address to server"
             logging.error(error_msg)
-            raise e(error_msg)
+            logging.critical(e, exc_info=True)
             os._exit(1)
         ########################################################################
         # Init the request and send it to server
         ########################################################################
         logging.debug("Client: Initialize chararray to sent request to client %s" %
                                                           str(request_arguments))
-        charar = np.chararray((8, 2), itemsize=DEFAULT_N_BYTES)
-        initialize_request_array(charar, request_arguments)
-        logging.debug("Client: Send NumPy request char array")
-        await ep.send(charar, tag=send_tag, force_tag=True)  # send the real message
+        try:
+            charar = np.chararray((8, 2), itemsize=DEFAULT_N_BYTES)
+            initialize_request_array(charar, request_arguments)
+            logging.debug("Client: Send NumPy request char array")
+            await ep.send(charar, tag=send_tag, force_tag=True)  # send the real message
+        except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError,
+                ucp.exceptions.UCXError) as e:
+            error_msg = "Client: Failed to send request to server. UCP error."
+            logging.error(error_msg)
+            logging.critical(e, exc_info=True)
+            os._exit(1)
+        except Exception as e:
+            logging.error("Client: Failed to send request to server %s" % str(e))
+            os._exit(1)
         # in case client certificate not empty - need to send client cert file to server
         # otherwice - use user name and password - a standard authentication
         if (request_arguments['client_certificate'] and
@@ -1075,7 +1110,7 @@ def allocate_request_args(parser):
     """
     request = parser.add_argument_group('request')
     request.add_argument("-i", "--interface", action="store",
-                         required=True, default="mlx5_0",
+                         required=None, default=None,
                          choices=None, help="Connection interface name")
     request.add_argument("-r", "--run_mode", action="store",
                          required=True, default=None,
@@ -1130,20 +1165,17 @@ def set_env_variables():
     # if not found - use default values
     if os.path.isfile(PLUGIN_CONF_FILE):
         # read values from file
-        print("set variables from conf file")
         with open(PLUGIN_CONF_FILE) as conf_file:
             for line in conf_file:
                 var_name, var_value = (line.rstrip().split("="))
                 os.environ[var_name] = var_value
     else:
-        print("set variables from ini file")
         ucx_net_devices = rdma_rest_config.get("Common", UCX_NET_DEVICES_NAME,
                                      fallback=DEFAULT_UCX_NET_DEVICES)
         os.environ[UCX_NET_DEVICES_ENV_VAR_NAME] = ucx_net_devices
         ucx_tls = rdma_rest_config.get("Common", UCX_TLS_NAME,
                                      fallback=DEFAULT_UCX_TLS)
         os.environ[UCX_TLS_ENV_VAR_NAME] = ucx_tls
-        print(os.environ)
 
 def main():
     # arguments parser
@@ -1174,8 +1206,15 @@ def main():
                                      fallback=logging.DEBUG)
     log_file_name = rdma_rest_config.get("Common", "log_file_path",
                                      fallback=DEFAULT_LOG_FILE_PATH)
-    logging.basicConfig(filename=log_file_name,
-                        level=logging._nameToLevel[log_level])
+    logging.basicConfig(handlers=[
+                                RotatingFileHandler(
+                                  log_file_name,
+                                  maxBytes=10240000,
+                                  backupCount=5
+                                )
+                              ],
+                        level=logging._nameToLevel[log_level],
+                        format=LOG_FORMAT)
     if run_mode == SERVER_MODE_RUN:  # run as server
         logging.info("Running in Server mode")
         main_server(request_arguments)
