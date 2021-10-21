@@ -58,9 +58,11 @@ class UFMResource(Resource):
         except Exception as ex:
             logging.error(ex)
 
-    def get_ndt_path(self, file_name, file_type):
-        return os.path.join(self.ndt_files_dir,
-                            "{}_{}".format(file_type, file_name))
+    def get_ndt_path(self, file_name):
+        return os.path.join(self.ndt_files_dir, file_name)
+
+    def get_report_path(self, file_name):
+        return os.path.join(self.reports_dir, file_name)
 
     def get(self):
         return read_json_file(self.response_file), self.response_code
@@ -73,6 +75,12 @@ def get_timestamp():
     return str(datetime.now())
 
 
+def get_hash(file_content):
+    sha1 = hashlib.sha1()
+    sha1.update(file_content.encode('utf-8'))
+    return sha1.hexdigest()
+
+
 class UploadMetadata(UFMResource):
     def post(self):
         logging.info("POST /plugin/ndt/upload_metadata")
@@ -82,34 +90,38 @@ class UploadMetadata(UFMResource):
             for file_dict in json_data:
                 file_name = file_dict["file_name"]
                 file_content = file_dict["file"]
+                sha1 = get_hash(file_content)
                 file_content = file_content.replace('\r\n', '\n')
                 file_type = file_dict["file_type"]
                 checksum = file_dict["sha-1"]
 
-                sha1 = hashlib.sha1()
-                sha1.update(file_content.encode('utf-8'))
-                if checksum != sha1.hexdigest():
+                if checksum != sha1:
                     logging.error("Provided sha-1 {} is not equal to actual one {}"
-                                  .format(checksum, sha1.hexdigest()))
-
-                if not os.path.exists(self.get_ndt_path(file_name, file_type)):
-                    logging.debug("Uploading file: {}".format(file_name))
-                    with open(self.get_ndt_path(file_name, file_type), "w") as file:
-                        file.write(file_content)
-                else:
-                    logging.debug("This NDT file was already uploaded")
+                                  .format(checksum, sha1))
 
                 logging.debug("Updating NDTs list")
                 with open(self.ndts_list_file, "r+") as file:
                     data = json.load(file)
-                    entry = {"file": file_name,
-                             "last_uploaded": get_timestamp(),
-                             "sha-1": sha1.hexdigest(),
-                             "file_type": file_type}
-                    logging.debug("New NDT: {}".format(entry))
-                    data.append(entry)
+                    if not os.path.exists(self.get_ndt_path(file_name)):
+                        entry = {"file": file_name,
+                                 "timestamp": get_timestamp(),
+                                 "sha-1": sha1,
+                                 "file_type": file_type}
+                        logging.debug("New NDT: {}".format(entry))
+                        data.append(entry)
+                    else:
+                        for entry in data:
+                            if entry["file"] == file_name:
+                                entry["timestamp"] = get_timestamp()
+                                entry["sha-1"] = sha1
+                                entry["file_type"] = file_type
                     file.seek(0)
                     json.dump(data, file)
+
+                logging.debug("Uploading file: {}".format(file_name))
+                with open(self.get_ndt_path(file_name), "w") as file:
+                    file.write(file_content)
+
         except Exception as ex:
             logging.error(ex)
 
@@ -130,7 +142,7 @@ class Delete(UFMResource):
                         if entry["file"] == file_name:
                             logging.debug("Deleting file: {}".format(entry))
                             data.remove(entry)
-                            os.remove(self.get_ndt_path(file_name, entry["file_type"]))
+                            os.remove(self.get_ndt_path(file_name))
 
             logging.debug("Updating NDTs list")
             with open(self.ndts_list_file, "w") as file:
@@ -148,25 +160,26 @@ class Compare(UFMResource):
     def compare(self):
         logging.info("Run topology comparison")
         timestamp = get_timestamp()
-        self.response_file = os.path.join(self.reports_dir, "report_{}.json".format(timestamp))
-        logging.debug("Report file name: {}".format(self.response_file))
-
-        logging.debug("Running topology comparison")
-        response = compare_topologies(timestamp, self.ndt_files_dir)
-
-        logging.debug("Dumping the result into the file")
-        with open(self.response_file, "w") as file:
-            json.dump(response, file)
+        response = compare_topologies(timestamp, self.ndts_list_file)
 
         logging.debug("Updating NDTs list")
-        with open(self.reports_list_file, "r+") as file:
-            data = json.load(file)
-            entry = {"report_id": len(data) + 1,
+        with open(self.reports_list_file, "r+") as reports_list_file:
+            data = json.load(reports_list_file)
+            reports_number = len(data)
+            if reports_number == 10:
+                os.remove(self.get_report_path("report_1.json"))
+                data.remove(data[0])
+                data = [{key: report[key] - 1 for key in report if key == "report_id"} for report in data]
+                reports_number = 9
+            entry = {"report_id": reports_number + 1,
                      "timestamp": timestamp}
-            logging.debug("New report: {}".format(entry))
+            self.response_file = os.path.join(self.reports_dir, "report_{}.json".format(reports_number + 1))
+            logging.debug("Report file name: {}".format(self.response_file))
+            with open(self.response_file, "w") as response_file:
+                json.dump(response, response_file)
             data.append(entry)
-            file.seek(0)
-            json.dump(data, file)
+            reports_list_file.seek(0)
+            json.dump(data, reports_list_file)
 
     def post(self):
         try:
@@ -222,7 +235,7 @@ class ReportId(UFMResource):
                 if entry["report_id"] == int(report_id):
                     self.response_file = \
                         os.path.join(self.reports_dir,
-                                     "report_{}.json".format(entry["timestamp"]))
+                                     "report_{}.json".format(report_id))
                     logging.debug("Report found: {}".format(self.response_file))
                     break
             else:

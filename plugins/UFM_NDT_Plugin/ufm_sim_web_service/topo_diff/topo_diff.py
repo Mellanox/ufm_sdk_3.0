@@ -2,6 +2,7 @@ import requests
 import os
 import csv
 import logging
+import json
 
 
 def parse_switch_to_switch_ndt(ndt_dict_of_dicts, switch_to_switch_path):
@@ -49,14 +50,19 @@ def parse_switch_to_host_ndt(ndt_dict_of_dicts, switch_to_host_path):
             ndt_dict_of_dicts[unique_key] = ndt_dict
 
 
-def parse_ndt_files(ndt_files_dir):
+def parse_ndt_files(ndts_list_file):
     ndt_dict_of_dicts = {}
+    ndt_files_dir = os.path.dirname(ndts_list_file)
     try:
-        for ndt_file in os.listdir(ndt_files_dir):
-            if "switch_to_switch" in ndt_file:
-                parse_switch_to_switch_ndt(ndt_dict_of_dicts, os.path.join(ndt_files_dir, ndt_file))
-            elif "switch_to_host" in ndt_file:
-                parse_switch_to_host_ndt(ndt_dict_of_dicts, os.path.join(ndt_files_dir, ndt_file))
+        with open(ndts_list_file, "r") as file:
+            data = json.load(file)
+            for ndt_file_entry in data:
+                ndt_file = ndt_file_entry["file"]
+                ndt_type = ndt_file_entry["file_type"]
+                if ndt_type == "switch_to_switch":
+                    parse_switch_to_switch_ndt(ndt_dict_of_dicts, os.path.join(ndt_files_dir, ndt_file))
+                elif ndt_type == "switch_to_host":
+                    parse_switch_to_host_ndt(ndt_dict_of_dicts, os.path.join(ndt_files_dir, ndt_file))
     except Exception as e:
         logging.error(e)
     finally:
@@ -143,9 +149,9 @@ def parse_ufm_links():
     return ufm_dict_of_dicts
 
 
-def compare_topologies(timestamp, ndt_files_dir):
+def compare_topologies(timestamp, ndts_list_file):
     try:
-        ndt_dict_of_dicts = parse_ndt_files(ndt_files_dir)
+        ndt_dict_of_dicts = parse_ndt_files(ndts_list_file)
         ufm_dict_of_dicts = parse_ufm_links()
 
         report = []
