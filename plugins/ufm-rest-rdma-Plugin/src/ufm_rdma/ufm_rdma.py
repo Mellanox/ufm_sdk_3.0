@@ -9,7 +9,7 @@ from logging.handlers import RotatingFileHandler
 import os
 import struct
 import sys
-#from threading import Thread, Timer
+from threading import Thread, Timer
 import time
 import warnings
 import numpy as np
@@ -44,6 +44,8 @@ SUCCESS_REST_CODE = (200, 201, 202, 203, 204)
 ERROR_REST_CODE = (500, 501, 502, 503, 504, 505)
 ADDRESS_SR_HOLDER_SIZE = 56
 GENERAL_ERROR_NUM = 500
+DEFAULT_LOG_FILE_SIZE = 10240000
+DEFAULT_LOG_FILE_BACKUP_COUNT = 5
 GENERAL_ERROR_MSG = "REST RDMA server failed to send request to UFM Server. Check log file for details."
 UCX_RECEIVE_ERROR_MSG = "REST RDMA server failed to receive request from client. Check log file for details."
 DEFAULT_CLIENT_PEM_KEY = "/tmp/ufm-client.key"
@@ -101,8 +103,8 @@ DEFAULT_CLIENT_CERT_LOCATION_DIR = '/tmp/client_certificate'  #
 DEFAULT_CLIENT_CERT_TARGET_DIR = '/tmp/client_certificate'  #
 # or may be in config file
 # TODO: delete
-START_IBDIAG_JOB_URL = "ufmRest/reports/ibdiagnetPeriodic/start/"
-GET_IBDIAG_JOB_URL = "ufmRest/reports/ibdiagnetPeriodic/"
+IBDIAG_JOB_URL = "ufmRest/reports/ibdiagnetPeriodic/"
+START_IBDIAG_JOB_URL = "%sstart/" % IBDIAG_JOB_URL
 base_protocol = "https"
 SERVER_MODE_RUN = "server"
 CLIENT_MODE_RUN = "client"
@@ -317,7 +319,7 @@ async def get_ibdiagnet_result(end_point, recv_tag, send_tag, tarball_path):
             await cancel_ibdiagnet_respond(end_point, send_tag)
             error_msg = "Failed to get file %s on server side" % tarball_path
             logging.error(error_msg)
-            return
+            return 0
         resp = bytearray(b"m" * data_size[0])
         # recv response
         logging.debug("Client: Receive ibdiagnet tar File")
@@ -334,10 +336,10 @@ async def get_ibdiagnet_result(end_point, recv_tag, send_tag, tarball_path):
         error_msg = "Client: Failed to receive ibdiagnet result file. UCP error."
         logging.error(error_msg)
         logging.critical(e, exc_info=True)
-        return
+        return 0
     except Exception as e:
         logging.error("Client: Failed to receive ibdiagnet result file: %s" % e)
-        return
+        return 0
     try:
         f = open(receive_location_file, "wb")
         f.write(resp_data)
@@ -346,8 +348,9 @@ async def get_ibdiagnet_result(end_point, recv_tag, send_tag, tarball_path):
                                                   (receive_location_file, e))
         logging.error("Client: %s" % err_message)
         print(err_message)
-        return
+        return data_size[0]
     print("Ibdiagnet output file stored at %s" % receive_location_file)
+    return data_size[0]
 
 
 async def cancel_complicated_respond(end_point):
@@ -356,13 +359,47 @@ async def cancel_complicated_respond(end_point):
     """
     pass
 
+async def handle_delete_ibdiagnet_job(end_point, recv_tag, send_tag, job_name,
+                               username, password, client_certificate, host):
+    '''
+    send delete ibdiagnet job to server
+    :param end_point:
+    :param recv_tag:
+    :param send_tag:
+    :param job_name:
+    '''
+    logging.info("Client: Send deletion of ibdiagnet job to server")
+    req_charar = np.chararray((8, 2), itemsize=DEFAULT_N_BYTES)
+    delete_charar = np.empty_like(req_charar)
+    request_url_path = "%s%s" % (IBDIAG_JOB_URL, job_name)
+    ibdiag_request_arguments = fill_arguments_dict(ActionType.SIMPLE.value,
+                            "DELETE", request_url_path, None,
+                            username, password, client_certificate, host)
+    initialize_request_array(delete_charar, ibdiag_request_arguments)
+    try:
+        await end_point.send(delete_charar, tag=send_tag, force_tag=True)  # send the real message
+    except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError,
+            ucp.exceptions.UCXError) as e:
+        error_msg = "Client: Failed to delete ibdiagnet job request to server. UCP related error."
+        logging.error(error_msg)
+        logging.critical(e, exc_info=True)
+    logging.debug("Client: Receive response for request of ibdiagnet job removal")
+    request_status, resp_string = await receive_rest_respond_from_server(recv_tag)
+    # Check if respond was OK. If not - print error
+    if not request_status or int(request_status) not in SUCCESS_REST_CODE:
+        logging.error("Client: REST Request Failed: %s" % resp_string)
+        error_mesg = resp_string if resp_string else "Client. Failed to receive response from server."
+        print(error_mesg)
+    else:  # Succeed
+        ok_msg = ("Succeed to remove ibdiagnet task %s" % job_name)
+        logging.info(ok_msg)
 
 async def cancel_ibdiagnet_respond(end_point, send_tag):
     """
     :param end_point:
     :param send_tag:
     """
-    logging.debug("Client: cancelIbdiagnetRespond: Send abort to server")
+    logging.info("Client: cancelIbdiagnetRespond: Send abort to server")
     req_charar = np.chararray((8, 2), itemsize=DEFAULT_N_BYTES)
     abort_charar = np.empty_like(req_charar)
 
@@ -437,7 +474,7 @@ async def handle_ibdiagnet_respond(end_point, recv_tag, send_tag, ibdiag_request
     logging.debug("Client: Start polling UFM server for ibdiagnet job request completion")
     while num_of_retries > 0:
         get_charar = np.empty_like(req_charar)
-        request_url_path = "%s%s" % (GET_IBDIAG_JOB_URL, job_name)
+        request_url_path = "%s%s" % (IBDIAG_JOB_URL, job_name)
         ibdiag_request_arguments = fill_arguments_dict(ActionType.IBDIAGNET.value,
                                 "GET", request_url_path, None,
                                 username, password, client_certificate, host)
@@ -463,7 +500,11 @@ async def handle_ibdiagnet_respond(end_point, recv_tag, send_tag, ibdiag_request
                     tarball_path = str(ibdiag_parsed_respond["last_result_location"])
                     logging.debug("Client: Received tarballpath %s" % tarball_path)
                     # -----
-                    await get_ibdiagnet_result(end_point, recv_tag, send_tag, tarball_path)
+                    await get_ibdiagnet_result(end_point,recv_tag, send_tag,
+                                                         tarball_path)
+                    await handle_delete_ibdiagnet_job(end_point, recv_tag, send_tag,
+                                                  job_name, username, password,
+                                                  client_certificate, host)
                     break
         except Exception as e:
             logging.error("Client: Error. Failed to get ibdiagnet result file %s" % e)
@@ -519,7 +560,7 @@ async def receive_rest_respond_from_server(recv_tag):
         ready_string = as_string.replace("N\\/A", "NA")
     except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError,
             ucp.exceptions.UCXError) as e:
-        error_msg = "Client: Failed tto receive respond over rdma. UCP related error"
+        error_msg = "Client: Failed to receive respond over rdma. UCP related error"
         logging.error(error_msg)
         logging.critical(e, exc_info=True)
     except Exception as e:
@@ -764,7 +805,11 @@ async def handle_rest_request(end_point, recv_tag, send_tag, generate_cs=True):
             await handle_rest_request(end_point, recv_tag, send_tag, False)
     else:  # enter to the flow for file_transfer
         logging.info("Server: Requested transfer of ibdiagnet files")
-        await handle_file_transfer(end_point, recv_tag, send_tag)
+        data_sent = await handle_file_transfer(end_point, recv_tag, send_tag)
+        # handle ibdiagnet output file removal
+        if data_sent > 0:
+            logging.info("Server: Delete ibdiagnet job")
+            await handle_rest_request(end_point, recv_tag, send_tag, False)
 
 
 async def handle_file_transfer(end_point, recv_tag, send_tag):
@@ -788,7 +833,7 @@ async def handle_file_transfer(end_point, recv_tag, send_tag):
             s = f.read()
             data_size[0] = len(s)
         except Exception as e:
-            logging.debug("Server: Error filed to read file %s" % e)
+            logging.debug("Server: Error failed to read file %s" % e)
             data_size[0] = 0
         logging.debug("Server: The size of data to be sent is %d" % data_size)
         await end_point.send(data_size, tag=send_tag,
@@ -802,6 +847,7 @@ async def handle_file_transfer(end_point, recv_tag, send_tag):
         logging.error(error_msg)
         logging.critical(e, exc_info=True)
         ucp.reset()
+    return data_size[0]
 
 
 def get_address_info(address=None):
@@ -942,6 +988,7 @@ def main_server(request_arguments):
                                             fallback=100000)
         served_requests = 0
         while True:
+            logging.info("Server: Rady for new request.")
             address_info = get_address_info()
             # Receive fixed-size address+tag buffer on tag 0
             packed_remote_address = bytearray(address_info["frame_size"])
@@ -1110,8 +1157,8 @@ def allocate_request_args(parser):
     """
     request = parser.add_argument_group('request')
     request.add_argument("-i", "--interface", action="store",
-                         required=None, default=None,
-                         choices=None, help="Connection interface name")
+                         required=None, default=None, choices=None,
+                         help="Connection interface name. If not set - will be used default or first available")
     request.add_argument("-r", "--run_mode", action="store",
                          required=True, default=None,
                          choices=["client", "server"], help="Run mode")
@@ -1206,11 +1253,20 @@ def main():
                                      fallback=logging.DEBUG)
     log_file_name = rdma_rest_config.get("Common", "log_file_path",
                                      fallback=DEFAULT_LOG_FILE_PATH)
+    log_file_size = rdma_rest_config.get("Common", "log_file_max_size",
+                                     fallback=DEFAULT_LOG_FILE_SIZE)
+    log_file_backup_count = rdma_rest_config.get("Common", "log_file_backup_count",
+                                     fallback=DEFAULT_LOG_FILE_BACKUP_COUNT)
+    # handle log file dir existence. If not exist - create
+    log_dir_name = os.path.dirname(log_file_name)
+    is_dir_exist = os.path.exists(log_dir_name)
+    if not is_dir_exist:
+        os.makedirs(log_dir_name)
     logging.basicConfig(handlers=[
                                 RotatingFileHandler(
                                   log_file_name,
-                                  maxBytes=10240000,
-                                  backupCount=5
+                                  maxBytes=int(log_file_size),
+                                  backupCount=int(log_file_backup_count)
                                 )
                               ],
                         level=logging._nameToLevel[log_level],
