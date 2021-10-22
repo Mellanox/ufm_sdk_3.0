@@ -29,25 +29,20 @@ from resources import Compare, Ndts, Reports, ReportId, UploadMetadata, Delete, 
 
 
 class UFMWebSim:
-
-    def __init__(self):
-        self.port_number = 8980
-        self.app = Flask(__name__)
-        api = Api(self.app)
-        log_level = logging.INFO
+    def parse_config(self):
         ndt_config = configparser.ConfigParser()
-        scheduler = BackgroundScheduler()
         # config_file_name = "/config/ndt.conf"
         config_file_name = "../build/config/ndt.conf"
         if os.path.exists(config_file_name):
             ndt_config.read(config_file_name)
-            log_level = ndt_config.get("Common", "log_level",
-                                       fallback=logging.INFO)
+            self.log_level = ndt_config.get("Common", "log_level",
+                                            fallback=logging.INFO)
         logging.basicConfig(filename="/tmp/ndt.log",
-                            level=logging.getLevelName(log_level))
+                            level=logging.getLevelName(self.log_level))
         # logging.basicConfig(filename="/data/ndt.log",
-        #                     level=logging.getLevelName(log_level))
+        #                     level=logging.getLevelName(self.log_level))
 
+    def init_apis(self):
         default_apis = {
             Ndts: "/list",
             Reports: "/reports",
@@ -56,14 +51,20 @@ class UFMWebSim:
             ReportId: "/reports/<report_id>",
         }
         for resource, path in default_apis.items():
-            api.add_resource(resource, path)
+            self.api.add_resource(resource, path)
 
-        scheduler_apis = {
-            Compare: "/compare",
-            Cancel: "/cancel",
-        }
-        for resource, path in scheduler_apis.items():
-            api.add_resource(resource, path, resource_class_kwargs={'scheduler': scheduler})
+        self.api.add_resource(Cancel, "/cancel", resource_class_kwargs={'scheduler': self.scheduler})
+        self.api.add_resource(Compare, "/compare", resource_class_kwargs={'scheduler': self.scheduler})
+
+    def __init__(self):
+        self.log_level = logging.INFO
+        self.port_number = 8980
+        self.app = Flask(__name__)
+        self.api = Api(self.app)
+        self.scheduler = BackgroundScheduler(daemon=True)
+
+        self.parse_config()
+        self.init_apis()
 
     async def run(self):
         self.app.run(port=self.port_number, debug=True)
