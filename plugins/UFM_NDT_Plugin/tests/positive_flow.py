@@ -12,6 +12,12 @@ def get_hash(file_content):
     return sha1.hexdigest()
 
 
+HOST_IP = "swx-tol"
+DEFAULT_PASSWORD = "123456"
+# HOST_IP = "r-ufm235"
+# DEFAULT_PASSWORD = "admin"
+
+
 def remove_timestamp(response):
     if response:
         if isinstance(response, dict):
@@ -25,12 +31,11 @@ def remove_timestamp(response):
         return response
 
 
-def make_request(host_ip, request_type, resource, payload=None, user="admin", password="123456", rest_version="",
-                 headers=None):
+def make_request(host_ip, request_type, resource, payload=None, user="admin", password=DEFAULT_PASSWORD,
+                 rest_version="", headers=None):
     if headers is None:
         headers = {}
     request = "https://{}/ufmRest{}/plugin/ndt/{}".format(host_ip, rest_version, resource)
-    logging.info("Send UFM API Request, URL:" + request)
     try:
         response = None
         if request_type == "POST":
@@ -70,7 +75,7 @@ def get_status_code(response):
 
 
 def no_ndts_test():
-    response = make_request("swx-tol", "GET", "list")
+    response = make_request(HOST_IP, "GET", "list")
     json_response = get_json(response)
     assert_equal("Empty list", json_response, [])
 
@@ -96,28 +101,28 @@ def upload_metadata(ndts_folder):
                                        "file_type": file_type,
                                        "sha-1": get_hash(data)})
 
-    response = make_request("swx-tol", "POST", "upload_metadata", payload=json.dumps(upload_request))
+    response = make_request(HOST_IP, "POST", "upload_metadata", payload=json.dumps(upload_request))
     status_code = get_status_code(response)
     assert_equal("Upload 2 NDTs", status_code, 200)
 
-    response = make_request("swx-tol", "GET", "list")
+    response = make_request(HOST_IP, "GET", "list")
     json_response = get_json(response)
     assert_equal("Check NDTs list has 2 NDTs", remove_timestamp(json_response), ndts_list_response)
 
 
 def instant_comparison():
-    response = make_request("swx-tol", "POST", "compare")
+    response = make_request(HOST_IP, "POST", "compare")
     status_code = get_status_code(response)
     assert_equal("Instant comparison", status_code, 200)
 
 
 def check_comparison_report():
-    response = make_request("swx-tol", "GET", "reports")
+    response = make_request(HOST_IP, "GET", "reports")
     reports = get_json(response)
     reports_number = 0
     if reports:
         reports_number = len(reports)
-    response = make_request("swx-tol", "GET", "reports/{}".format(reports_number))
+    response = make_request(HOST_IP, "GET", "reports/{}".format(reports_number))
     report = get_json(response)
     expected_report = os.path.join(os.path.dirname(os.path.abspath(__file__)), "expected_report.json")
     with open(expected_report, "r") as file:
@@ -129,11 +134,11 @@ def delete_ndts(ndts_folder):
     delete_request = []
     for ndt in os.listdir(ndts_folder):
         delete_request.append({"file_name": "{}".format(ndt)})
-    response = make_request("swx-tol", "POST", "delete", payload=json.dumps(delete_request))
+    response = make_request(HOST_IP, "POST", "delete", payload=json.dumps(delete_request))
     status_code = get_status_code(response)
     assert_equal("Delete 2 NDTs", status_code, 200)
 
-    response = make_request("swx-tol", "GET", "list")
+    response = make_request(HOST_IP, "GET", "list")
     json_response = get_json(response)
     assert_equal("Check NDTs list is empty", json_response, [])
 
