@@ -104,7 +104,9 @@ DEFAULT_CLIENT_CERT_TARGET_DIR = '/tmp/client_certificate'  #
 # or may be in config file
 # TODO: delete
 IBDIAG_JOB_URL = "ufmRest/reports/ibdiagnetPeriodic/"
+IBDIAG_JOB_URL_TOKEN = "ufmRestV3/reports/ibdiagnetPeriodic/"
 START_IBDIAG_JOB_URL = "%sstart/" % IBDIAG_JOB_URL
+START_IBDIAG_JOB_URL_TOKEN = "%sstart/" % IBDIAG_JOB_URL_TOKEN
 base_protocol = "https"
 SERVER_MODE_RUN = "server"
 CLIENT_MODE_RUN = "client"
@@ -179,7 +181,7 @@ def initialize_request_array(charar, request_arguments):
 
 
 def fill_arguments_dict(action_type, rest_action, rest_url, url_payload, username,
-                        password, client_certificate, host):
+                        password, client_certificate, host, token):
     """
     Fill arguments dictionary with parameters
     :param action_type:
@@ -199,7 +201,7 @@ def fill_arguments_dict(action_type, rest_action, rest_url, url_payload, usernam
     request_arguments['username'] = username
     request_arguments['password'] = password
     request_arguments['client_certificate'] = client_certificate
-
+    request_arguments['token'] = token
     return request_arguments
 
 
@@ -305,7 +307,7 @@ async def get_ibdiagnet_result(end_point, recv_tag, send_tag, tarball_path):
         start_file_transf_charar = np.empty_like(req_charar)
         # need to send start first
         ibdiag_request_arguments = fill_arguments_dict(ActionType.FILE_TRANSFER.value,
-                                    None, None, None, None, None, None, None)
+                                    None, None, None, None, None, None, None, None)
         initialize_request_array(start_file_transf_charar, ibdiag_request_arguments)
         await end_point.send(start_file_transf_charar, tag=send_tag, force_tag=True)
         data_size = np.empty(1, dtype=np.uint64)
@@ -362,7 +364,7 @@ async def cancel_complicated_respond(end_point):
     pass
 
 async def handle_delete_ibdiagnet_job(end_point, recv_tag, send_tag, job_name,
-                               username, password, client_certificate, host):
+                               username, password, client_certificate, host, token):
     '''
     send delete ibdiagnet job to server
     :param end_point:
@@ -373,10 +375,14 @@ async def handle_delete_ibdiagnet_job(end_point, recv_tag, send_tag, job_name,
     logging.info("Client: Send deletion of ibdiagnet job to server")
     req_charar = np.chararray((9, 2), itemsize=DEFAULT_N_BYTES)
     delete_charar = np.empty_like(req_charar)
-    request_url_path = "%s%s" % (IBDIAG_JOB_URL, job_name)
+    if token and token != "None":
+        ibdiag_job_url = IBDIAG_JOB_URL_TOKEN
+    else:
+        ibdiag_job_url = IBDIAG_JOB_URL
+    request_url_path = "%s%s" % (ibdiag_job_url, job_name)
     ibdiag_request_arguments = fill_arguments_dict(ActionType.SIMPLE.value,
                             "DELETE", request_url_path, None,
-                            username, password, client_certificate, host)
+                            username, password, client_certificate, host, token)
     initialize_request_array(delete_charar, ibdiag_request_arguments)
     try:
         await end_point.send(delete_charar, tag=send_tag, force_tag=True)  # send the real message
@@ -406,7 +412,7 @@ async def cancel_ibdiagnet_respond(end_point, send_tag):
     abort_charar = np.empty_like(req_charar)
 
     ibdiag_request_arguments = fill_arguments_dict(ActionType.ABORT.value,
-                                        None, None, None, None,None, None, None)
+                           None, None, None, None, None, None, None, None)
     initialize_request_array(abort_charar, ibdiag_request_arguments)
     try:
         await end_point.send(abort_charar, tag=send_tag, force_tag=True)
@@ -432,6 +438,7 @@ async def handle_ibdiagnet_respond(end_point, recv_tag, send_tag, ibdiag_request
     username = ibdiag_request_arguments.get("username")
     password = ibdiag_request_arguments.get("password")
     client_certificate = ibdiag_request_arguments.get("client_certificate")
+    token = ibdiag_request_arguments.get("token")
     # ---------------------------------------------------------
     # allocation of name of file path to be received - no need to 
     # we will get full respond of data and path will be one of fields - json
@@ -441,11 +448,15 @@ async def handle_ibdiagnet_respond(end_point, recv_tag, send_tag, ibdiag_request
     req_charar = np.chararray((9, 2), itemsize=DEFAULT_N_BYTES)
     start_charar = np.empty_like(req_charar)
     # need to send start first
-    ibdiagnet_url = "%s%s" % (START_IBDIAG_JOB_URL, job_name)
+    if token and token != "None":
+        start_ib_diag_job_url = START_IBDIAG_JOB_URL_TOKEN
+    else:
+        start_ib_diag_job_url = START_IBDIAG_JOB_URL
+    ibdiagnet_url = "%s%s" % (start_ib_diag_job_url, job_name)
     ibdiag_request_arguments = fill_arguments_dict(ActionType.IBDIAGNET.value,
                                                    "POST", ibdiagnet_url, None,
                                                    username, password,
-                                                   client_certificate, host)
+                                                   client_certificate, host, token)
     initialize_request_array(start_charar, ibdiag_request_arguments)
     try:
         await end_point.send(start_charar, tag=send_tag, force_tag=True)
@@ -474,12 +485,16 @@ async def handle_ibdiagnet_respond(end_point, recv_tag, send_tag, ibdiag_request
                                               fallback=1))
     # create a new end_point
     logging.debug("Client: Start polling UFM server for ibdiagnet job request completion")
+    if token and token != "None":
+        ib_diag_job_url = IBDIAG_JOB_URL_TOKEN
+    else:
+        ib_diag_job_url = IBDIAG_JOB_URL
     while num_of_retries > 0:
         get_charar = np.empty_like(req_charar)
-        request_url_path = "%s%s" % (IBDIAG_JOB_URL, job_name)
+        request_url_path = "%s%s" % (ib_diag_job_url, job_name)
         ibdiag_request_arguments = fill_arguments_dict(ActionType.IBDIAGNET.value,
                                 "GET", request_url_path, None,
-                                username, password, client_certificate, host)
+                                username, password, client_certificate, host, token)
         initialize_request_array(get_charar, ibdiag_request_arguments)
         await end_point.send(get_charar, tag=send_tag, force_tag=True)  # send the real message
         # recv response in different way and handle differently
@@ -506,7 +521,7 @@ async def handle_ibdiagnet_respond(end_point, recv_tag, send_tag, ibdiag_request
                                                          tarball_path)
                     await handle_delete_ibdiagnet_job(end_point, recv_tag, send_tag,
                                                   job_name, username, password,
-                                                  client_certificate, host)
+                                                  client_certificate, host, token)
                     break
         except Exception as e:
             logging.error("Client: Error. Failed to get ibdiagnet result file %s" % e)
@@ -639,8 +654,7 @@ async def receive_rest_request(recv_tag):
 async def send_rest_request_token_authentication(real_url, action, payload, token):
     """
     Send simple rest request
-     p = requests.get("https://10.209.36.123/ufmRestV3/app/events", headers={'Authorization': 'Basic OGUY7TwLvTmFkXyTkcsEWD9KKNvq6f'}, verify=False)
-    ll = requests.get("https://r-ufm55/ufmRestV3/app/users",headers={'Authorization': 'Basic OGUY7TwLvTmFkXyTkcsEWD9KKNvq6f'}, verify=False)
+    res = requests.get("https://r-ufm55/ufmRestV3/app/users",headers={'Authorization': 'Basic OGUY7TwLvTmFkXyTkcsEWD9KKNvq6f'}, verify=False)
     :param real_url:
     :param action:
     :param payload:
@@ -655,8 +669,6 @@ async def send_rest_request_token_authentication(real_url, action, payload, toke
     else:
         send_payload = None
     try:
-        print(real_url)
-        print(head)
         if action == UFMRestAction.GET.value:
             rest_respond = requests.get(real_url, headers=head,
                                                   verify=False)
@@ -1040,7 +1052,7 @@ def main_server(request_arguments):
                                             fallback=100000)
         served_requests = 0
         while True:
-            logging.info("Server: Rady for new request.")
+            logging.info("Server: Ready for new request.")
             address_info = get_address_info()
             # Receive fixed-size address+tag buffer on tag 0
             packed_remote_address = bytearray(address_info["frame_size"])
