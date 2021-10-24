@@ -92,7 +92,7 @@ sr_lib.sr_wrapper_query.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_s
 
 # ---------------------------------------------------------------------------------
 REQUEST_ARGS = ["type", "rest_action", "ufm_server_ip", "run_mode", "rest_url", "url_payload", "interface",
-                "username", "password", "config_file", "client_certificate"]
+                "username", "password", "config_file", "client_certificate", "token"]
 
 ERROR_RESPOND = '404'
 IBDIAGNET_EXCEED_NUMBER_OF_TASKS = "Maximum number of task exceeded, please remove a task before adding a new one"
@@ -174,6 +174,8 @@ def initialize_request_array(charar, request_arguments):
     charar[6][1] = request_arguments['ufm_server_ip']
     charar[7][0] = "Client_Ceritificate"
     charar[7][1] = request_arguments['client_certificate']
+    charar[8][0] = "Token"
+    charar[8][1] = request_arguments['token']
 
 
 def fill_arguments_dict(action_type, rest_action, rest_url, url_payload, username,
@@ -299,7 +301,7 @@ async def get_ibdiagnet_result(end_point, recv_tag, send_tag, tarball_path):
     # first send to server notification that it should be file request
     # send simple request to get status
     try:
-        req_charar = np.chararray((8, 2), itemsize=DEFAULT_N_BYTES)
+        req_charar = np.chararray((9, 2), itemsize=DEFAULT_N_BYTES)
         start_file_transf_charar = np.empty_like(req_charar)
         # need to send start first
         ibdiag_request_arguments = fill_arguments_dict(ActionType.FILE_TRANSFER.value,
@@ -369,7 +371,7 @@ async def handle_delete_ibdiagnet_job(end_point, recv_tag, send_tag, job_name,
     :param job_name:
     '''
     logging.info("Client: Send deletion of ibdiagnet job to server")
-    req_charar = np.chararray((8, 2), itemsize=DEFAULT_N_BYTES)
+    req_charar = np.chararray((9, 2), itemsize=DEFAULT_N_BYTES)
     delete_charar = np.empty_like(req_charar)
     request_url_path = "%s%s" % (IBDIAG_JOB_URL, job_name)
     ibdiag_request_arguments = fill_arguments_dict(ActionType.SIMPLE.value,
@@ -400,7 +402,7 @@ async def cancel_ibdiagnet_respond(end_point, send_tag):
     :param send_tag:
     """
     logging.info("Client: cancelIbdiagnetRespond: Send abort to server")
-    req_charar = np.chararray((8, 2), itemsize=DEFAULT_N_BYTES)
+    req_charar = np.chararray((9, 2), itemsize=DEFAULT_N_BYTES)
     abort_charar = np.empty_like(req_charar)
 
     ibdiag_request_arguments = fill_arguments_dict(ActionType.ABORT.value,
@@ -436,7 +438,7 @@ async def handle_ibdiagnet_respond(end_point, recv_tag, send_tag, ibdiag_request
     logging.debug("Client: handleIbdiagnetRespond: Receive response for simple request")
     # send simple request to get status
     logging.debug("Client: Send start for ibdiagnet task")
-    req_charar = np.chararray((8, 2), itemsize=DEFAULT_N_BYTES)
+    req_charar = np.chararray((9, 2), itemsize=DEFAULT_N_BYTES)
     start_charar = np.empty_like(req_charar)
     # need to send start first
     ibdiagnet_url = "%s%s" % (START_IBDIAG_JOB_URL, job_name)
@@ -611,7 +613,7 @@ async def receive_rest_request(recv_tag):
     logging.debug("Server: Receive rest_request - Start")
     try:
         action_type = action = url = payload = username = password = host = None
-        arr = np.chararray((8, 2), itemsize=DEFAULT_N_BYTES)
+        arr = np.chararray((9, 2), itemsize=DEFAULT_N_BYTES)
         await ucp.recv(arr, tag=recv_tag)
         logging.debug("Server: Received NumPy request array: %s" % str(arr))
         action_type = arr[0][1].decode()
@@ -622,6 +624,7 @@ async def receive_rest_request(recv_tag):
         password = arr[5][1].decode()
         host = arr[6][1].decode()
         client_certificate = arr[7][1].decode()
+        token = arr[8][1].decode()
     except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError,
             ucp.exceptions.UCXError) as e:
         error_msg = "Server: Failed to receive rest request from client. UCP error"
@@ -631,7 +634,53 @@ async def receive_rest_request(recv_tag):
     except Exception as e:
         logging.error("Server: Failed to receive rest request from client: %s" % e)
     finally:
-        return action_type, action, url, payload, username, password, host, client_certificate
+        return action_type, action, url, payload, username, password, host, client_certificate, token
+
+async def send_rest_request_token_authentication(real_url, action, payload, token):
+    """
+    Send simple rest request
+     p = requests.get("https://10.209.36.123/ufmRestV3/app/events", headers={'Authorization': 'Basic OGUY7TwLvTmFkXyTkcsEWD9KKNvq6f'}, verify=False)
+    ll = requests.get("https://r-ufm55/ufmRestV3/app/users",headers={'Authorization': 'Basic OGUY7TwLvTmFkXyTkcsEWD9KKNvq6f'}, verify=False)
+    :param real_url:
+    :param action:
+    :param payload:
+    :param token:
+    """
+    logging.debug("Token authentication: real_url %s, action %s, payload %s, token %s" %
+                    (real_url, action, payload, token))
+    access_token = "Basic %s" % token
+    head={"Authorization": access_token}
+    if payload and payload != 'None':
+        send_payload = json.loads(payload)
+    else:
+        send_payload = None
+    try:
+        print(real_url)
+        print(head)
+        if action == UFMRestAction.GET.value:
+            rest_respond = requests.get(real_url, headers=head,
+                                                  verify=False)
+        elif action == UFMRestAction.PUT.value:
+            rest_respond = requests.put(real_url, headers=head,
+                                        json=send_payload, verify=False)
+        elif action == UFMRestAction.PATCH.value:
+            rest_respond = requests.patch(real_url, headers=head,
+                                        json=send_payload, verify=False)
+        elif action == UFMRestAction.POST.value:
+            rest_respond = requests.post(real_url, headers=head,
+                                         json=send_payload, verify=False)
+        elif action == UFMRestAction.DELETE.value:
+            rest_respond = requests.delete(real_url, headers=head,
+                                         json=send_payload, verify=False)
+        else:
+            # unknown - probably error
+            logging.error("Server: Unknown action %s received. Escape." % action)
+            rest_respond = None
+    except Exception as e:
+        logging.error("Server: Failed to send REST request URL %s: Payload %s: error %s." %
+                      (real_url,send_payload, e))
+        rest_respond = None
+    return rest_respond
 
 async def send_rest_request_client_certificate(real_url, action, payload,
                                                 cert_file_path, key_file_path):
@@ -644,7 +693,7 @@ async def send_rest_request_client_certificate(real_url, action, payload,
     :param password:
     :param client_certificate:
     """
-    logging.debug("real_url %s, action %s, payload %s, sert file path %s, key file path %s" %
+    logging.debug("Client certificate: real_url %s, action %s, payload %s, sert file path %s, key file path %s" %
                     (real_url, action, payload, cert_file_path, key_file_path))
     if payload and payload != 'None':
         send_payload = json.loads(payload)
@@ -686,7 +735,7 @@ async def send_rest_request(real_url, action, payload, username, password):
     :param password:
     :param client_certificate:
     """
-    logging.debug("real_url %s, action %s, payload %s, username %s, password %s" %
+    logging.debug("Username and password: real_url %s, action %s, payload %s, username %s, password %s" %
                                 (real_url, action, payload, username, password))
     if payload and payload != 'None':
         send_payload = json.loads(payload)
@@ -701,7 +750,7 @@ async def send_rest_request(real_url, action, payload, username, password):
                                         json=send_payload, verify=False)
         elif action == UFMRestAction.PATCH.value:
             rest_respond = requests.patch(real_url, auth=(username, password),
-                                        son=send_payload, verify=False)
+                                        json=send_payload, verify=False)
         elif action == UFMRestAction.POST.value:
             rest_respond = requests.post(real_url, auth=(username, password),
                                          json=send_payload, verify=False)
@@ -727,7 +776,7 @@ async def handle_rest_request(end_point, recv_tag, send_tag, generate_cs=True):
     :param send_tag: - send tag
     """
     logging.debug("Server: Start handling client request")
-    action_type, action, url, payload, username, password, host, client_certificate  = \
+    action_type, action, url, payload, username, password, host, client_certificate, token  = \
                                             await receive_rest_request(recv_tag)
     if not action_type: # Failure on request receive - send error to client
         await return_error_to_client(end_point, send_tag)
@@ -768,8 +817,11 @@ async def handle_rest_request(end_point, recv_tag, send_tag, generate_cs=True):
             rest_respond = await send_rest_request_client_certificate(
                                                     real_url, action, payload,
                                                 cert_file_path, key_file_path)
+        elif token and token != "None":
+            rest_respond = await send_rest_request_token_authentication(real_url,
+                                                    action, payload, token)
         else:
-            # use requests
+        # use requests
             rest_respond = await send_rest_request(real_url, action, payload,
                                         username, password)
         resp_size = DEFAULT_N_BYTES
@@ -1090,7 +1142,7 @@ def main_client(request_arguments):
         logging.debug("Client: Initialize chararray to sent request to client %s" %
                                                           str(request_arguments))
         try:
-            charar = np.chararray((8, 2), itemsize=DEFAULT_N_BYTES)
+            charar = np.chararray((9, 2), itemsize=DEFAULT_N_BYTES)
             initialize_request_array(charar, request_arguments)
             logging.debug("Client: Send NumPy request char array")
             await ep.send(charar, tag=send_tag, force_tag=True)  # send the real message
@@ -1187,6 +1239,9 @@ def allocate_request_args(parser):
     request.add_argument("-d", "--client_certificate", action="store",
                          required=None, default=None, choices=None,
                          help="Path to the client certificate file name.")
+    request.add_argument("-k", "--token", action="store",
+                         required=None, default=None, choices=None,
+                         help="Token for authentication.")
     request.add_argument("-l", "--url_payload", action="store",
                          default=None, required=None,
                          choices=None,
