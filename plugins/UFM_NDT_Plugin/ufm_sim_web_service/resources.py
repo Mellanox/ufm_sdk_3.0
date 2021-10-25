@@ -26,12 +26,15 @@ import hashlib
 
 
 class UFMResource(Resource):
+    config_file_name = "/config/ndt.conf"
+    # config_file_name = "../build/config/ndt.conf"
+
     def __init__(self):
         self.response_file = ""
-        self.reports_dir = "reports"
-        self.ndts_dir = "ndts"
-        # self.reports_dir = "/data/reports"
-        # self.ndts_dir = "/data/ndts"
+        # self.reports_dir = "reports"
+        # self.ndts_dir = "ndts"
+        self.reports_dir = "/data/reports"
+        self.ndts_dir = "/data/ndts"
         self.reports_list_file = os.path.join(self.reports_dir, "reports_list.json")
         self.ndts_list_file = os.path.join(self.ndts_dir, "ndts_list.json")
         self.success = 200
@@ -43,10 +46,8 @@ class UFMResource(Resource):
 
     def parse_config(self):
         ndt_config = configparser.ConfigParser()
-        # config_file_name = "/config/ndt.conf"
-        config_file_name = "../build/config/ndt.conf"
-        if os.path.exists(config_file_name):
-            ndt_config.read(config_file_name)
+        if os.path.exists(self.config_file_name):
+            ndt_config.read(self.config_file_name)
             self.reports_to_save = ndt_config.getint("Common", "reports_to_save",
                                                      fallback=10)
 
@@ -260,12 +261,13 @@ class Compare(UFMResource):
     def get(self):
         return {}, self.report_error(405, "Method is not allowed")
 
-    def update_reports_list(self):
+    def update_reports_list(self, scope):
         try:
             with open(self.reports_list_file, "r+") as reports_list_file:
                 data = json.load(reports_list_file)
                 self.report_number = len(data) + 1
                 entry = {"report_id": self.report_number,
+                         "report_scope": scope,
                          "timestamp": self.timestamp}
                 if self.report_number > self.reports_to_save:
                     try:
@@ -298,12 +300,12 @@ class Compare(UFMResource):
         except OSError as oe:
             return self.report_error(500, "Cannot save report {}: {}".format(report, oe))
 
-    def compare(self):
+    def compare(self, scope="Periodic"):
         logging.info("Run topology comparison")
         self.timestamp = get_timestamp()
         report_content = compare_topologies(self.timestamp, self.ndts_list_file)
 
-        status_code = self.update_reports_list()
+        status_code = self.update_reports_list(scope)
         if status_code != self.success:
             return status_code
         status_code = self.save_report(report_content)
@@ -345,7 +347,7 @@ class Compare(UFMResource):
             return self.start_scheduler()
         else:
             logging.info("Running instant topology comparison")
-            return self.compare()
+            return self.compare("Instant")
 
 
 class Cancel(UFMResource):
@@ -354,14 +356,14 @@ class Cancel(UFMResource):
         self.scheduler = scheduler
 
     def post(self):
-        return self.report_error(405, "Method is not allowed")
-
-    def get(self):
         try:
             self.scheduler.remove_all_jobs()
             return super().get()
         except Exception as e:
             return {}, self.report_error(400, "Failed to cancel scheduler jobs: {}".format(e))
+
+    def get(self):
+        return self.report_error(405, "Method is not allowed")
 
 
 class ReportId(UFMResource):

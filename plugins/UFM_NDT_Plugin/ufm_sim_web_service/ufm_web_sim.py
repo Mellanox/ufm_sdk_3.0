@@ -25,22 +25,20 @@ from twisted.web.wsgi import WSGIResource
 from twisted.internet import reactor
 from twisted.web import server
 
-from resources import Compare, Ndts, Reports, ReportId, UploadMetadata, Delete, Cancel
+from resources import UFMResource, Compare, Ndts, Reports, ReportId, UploadMetadata, Delete, Cancel
 
 
 class UFMWebSim:
     def parse_config(self):
         ndt_config = configparser.ConfigParser()
-        # config_file_name = "/config/ndt.conf"
-        config_file_name = "../build/config/ndt.conf"
-        if os.path.exists(config_file_name):
-            ndt_config.read(config_file_name)
+        if os.path.exists(UFMResource.config_file_name):
+            ndt_config.read(UFMResource.config_file_name)
             self.log_level = ndt_config.get("Common", "log_level",
                                             fallback=logging.INFO)
-        logging.basicConfig(filename="/tmp/ndt.log",
-                            level=logging.getLevelName(self.log_level))
-        # logging.basicConfig(filename="/data/ndt.log",
+        # logging.basicConfig(filename="/tmp/ndt.log",
         #                     level=logging.getLevelName(self.log_level))
+        logging.basicConfig(filename="/data/ndt.log",
+                            level=logging.getLevelName(self.log_level))
 
     def init_apis(self):
         default_apis = {
@@ -67,10 +65,10 @@ class UFMWebSim:
         self.init_apis()
 
     async def run(self):
-        self.app.run(port=self.port_number, debug=True)
-        # resource = WSGIResource(reactor, reactor.getThreadPool(), self.app)
-        # reactor.listenTCP(self.port_number, server.Site(resource))
-        # reactor.run()
+        # self.app.run(port=self.port_number, debug=True)
+        resource = WSGIResource(reactor, reactor.getThreadPool(), self.app)
+        reactor.listenTCP(self.port_number, server.Site(resource))
+        reactor.run()
 
     async def stop(self):
         pass
