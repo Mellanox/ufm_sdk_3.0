@@ -20,7 +20,7 @@ touch /config/ndt_shared_volumes.conf
 touch /config/ndt_cmdline_args.conf
 
 mkdir /data/reports
-mkdir /data/ndt_files
+mkdir /data/ndts
 
 # UFM version test
 required_ufm_version=(6 7 0)
