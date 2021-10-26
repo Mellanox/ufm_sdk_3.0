@@ -9,11 +9,12 @@
 
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 
 typedef void sr_wrapper_ctx_t;
 
-sr_wrapper_ctx_t* sr_wrapper_create(const char* service_name, const char* dev_name, int port);
+sr_wrapper_ctx_t* sr_wrapper_create(const char* service_name, uint64_t service_id, const char* dev_name, int port);
 bool sr_wrapper_destroy(sr_wrapper_ctx_t* ctx);
 bool sr_wrapper_register(sr_wrapper_ctx_t* ctx, const void* addr, size_t addr_size);
 bool sr_wrapper_unregister(sr_wrapper_ctx_t* ctx);

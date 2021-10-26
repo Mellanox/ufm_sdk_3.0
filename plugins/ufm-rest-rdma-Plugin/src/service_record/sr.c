@@ -39,8 +39,6 @@ struct ib_service_record {
 #define BIT(x) (1UL << (x))
 #define SR_DEV_SERVICE_REGISTER_RETRIES  20
 #define SR_QUERY_SLEEP                   500000
-#define SR_SERVICE_ID                    0x100002c900000003UL
-#define SR_SERVICE_FORMAT                1
 #define SR_LEASE_TIME                    2000
 #define SR_RETRIES                       20
 #define SR_DEV_PKEY                      0xffff
@@ -557,7 +555,8 @@ found:
 int service_record_register_service(struct sr_ctx_t* context,
                                     const void* addr,
                                     size_t addr_size,
-                                    const uint8_t (*service_key)[SR_128_BIT_SIZE]) {
+                                    const uint8_t (*service_key)[SR_128_BIT_SIZE],
+                                    bool unregister_old_services) {
     struct sr_dev_service old_srs[SRS_MAX];
     struct sr_dev_service sr;
     int count, found;
@@ -570,7 +569,7 @@ int service_record_register_service(struct sr_ctx_t* context,
     }
 
     /* Register/replace new service */
-    sr.id = SR_SERVICE_ID;
+    sr.id = context->service_id;
     strncpy(sr.name, context->service_name, sizeof(sr.name) - 1);
     sr.name[sizeof(sr.name) - 1] = '\0';
     sr.lease = context->sr_lease_time;
@@ -585,33 +584,35 @@ int service_record_register_service(struct sr_ctx_t* context,
         log_info("Registered new service, with id 0x%016" PRIx64, sr.id);
     }
 
-    /* Remove previous services, whose ID and port GID are not ours */
-    do {
-        count = dev_get_service(context, context->service_name, old_srs,
-                                SRS_MAX, context->sr_retries, 0);
-        found = 0;
-        for (int i = 0; i < count; ++i) {
-            struct sr_dev_service* old_sr = &old_srs[i];
+    if (unregister_old_services) {
+        /* Remove previous services, whose ID and port GID are not ours */
+        do {
+            count = dev_get_service(context, context->service_name, old_srs,
+                                    SRS_MAX, context->sr_retries, 0);
+            found = 0;
+            for (int i = 0; i < count; ++i) {
+                struct sr_dev_service* old_sr = &old_srs[i];
 
-            if (old_sr->id == SR_SERVICE_ID &&
-                    !memcmp(&old_sr->port_gid, &context->dev->port_gid,
-                            sizeof(old_sr->port_gid))) {
-                continue;
-            } else {
-                log_warning("Previous SR 0x%" PRIx64 " is"
-                            "not the same as new SR 0x%" PRIx64 "",
-                            old_sr->id, SR_SERVICE_ID);
-            }
+                if (old_sr->id == context->service_id &&
+                        !memcmp(&old_sr->port_gid, &context->dev->port_gid,
+                                sizeof(old_sr->port_gid))) {
+                    continue;
+                } else {
+                    log_warning("Previous SR 0x%" PRIx64 " is"
+                                "not the same as new SR 0x%" PRIx64 "",
+                                old_sr->id, context->service_id);
+                }
 
-            found = 1;
-            if ((ret = dev_unregister_service(context->dev, old_sr->id, old_sr->port_gid, service_key)) < 0) {
-                log_warning("Couldn't unregister old SR with id 0x%016" PRIx64 ": %s",
-                            old_sr->id, strerror(ret));
-            } else {
-                log_info("Unregistered old service with id 0x%016" PRIx64, old_sr->id);
+                found = 1;
+                if ((ret = dev_unregister_service(context->dev, old_sr->id, old_sr->port_gid, service_key)) < 0) {
+                    log_warning("Couldn't unregister old SR with id 0x%016" PRIx64 ": %s",
+                                old_sr->id, strerror(ret));
+                } else {
+                    log_info("Unregistered old service with id 0x%016" PRIx64, old_sr->id);
+                }
             }
-        }
-    } while (found);
+        } while (found);
+    }
 
     return 0;
 }
@@ -627,7 +628,7 @@ int service_record_unregister_service(struct sr_ctx_t* context, const uint8_t (*
     for (int i = 0; i < count; ++i) {
         struct sr_dev_service* old_sr = &old_srs[i];
 
-        if (old_sr->id == SR_SERVICE_ID) {
+        if (old_sr->id == context->service_id) {
             int ret = dev_unregister_service(context->dev, old_sr->id, old_sr->port_gid, service_key);
             if (ret < 0) {
                 log_warning("Couldn't unregister old SR with id 0x%016" PRIx64 ": %s", old_sr->id, strerror(ret));
@@ -676,8 +677,8 @@ static inline unsigned long get_timer(void) {
 }
 
 int service_record_init(struct sr_ctx_t** context,
-                        const char* service_name, const char* dev_name,
-                        int port, struct sr_config* conf) {
+                        const char* service_name, uint64_t service_id,
+                        const char* dev_name, int port, struct sr_config* conf) {
     struct sr_ctx_t* ctx = calloc(1, sizeof(struct sr_ctx_t));
     int ret = 0;
 
@@ -687,7 +688,8 @@ int service_record_init(struct sr_ctx_t** context,
 
     ctx->dev = calloc(1, sizeof(struct sr_dev));
     if (!ctx->dev) {
-        free(ctx);
+        service_record_cleanup(ctx);
+        *context = NULL;
         return -ENOMEM;
     }
 
@@ -713,10 +715,12 @@ int service_record_init(struct sr_ctx_t** context,
     ctx->dev->seed = get_timer();
     memset(ctx->dev->service_cache, 0, sizeof(ctx->dev->service_cache));
     ctx->service_name = strndup(service_name, SR_DEV_SERVICE_NAME_MAX);
+    ctx->service_id = service_id;
 
     if ((ret = services_dev_init(ctx->dev, dev_name, port))) {
-        free(ctx);
-        ctx = NULL;
+        service_record_cleanup(ctx);
+        *context = NULL;
+        return ret;
     }
 
     *context = ctx;
@@ -724,7 +728,8 @@ int service_record_init(struct sr_ctx_t** context,
     return ret;
 }
 
-int service_record_init_via_guid(struct sr_ctx_t** context, const char* service_name, uint64_t guid, struct sr_config* conf) {
+int service_record_init_via_guid(struct sr_ctx_t** context, const char* service_name, uint64_t service_id,
+                                 uint64_t guid, struct sr_config* conf) {
     char hca[UMAD_CA_NAME_LEN];
     int port;
 
@@ -732,7 +737,7 @@ int service_record_init_via_guid(struct sr_ctx_t** context, const char* service_
         return 1;
     }
 
-    return service_record_init(context, service_name, hca, port, conf);
+    return service_record_init(context, service_name, service_id, hca, port, conf);
 }
 
 int service_record_cleanup(struct sr_ctx_t* context) {

@@ -8,9 +8,9 @@
 #include "common/logger.h"
 #include "service_record/sr.h"
 
-sr_wrapper_ctx_t* sr_wrapper_create(const char* service_name, const char* dev_name, int port) {
+sr_wrapper_ctx_t* sr_wrapper_create(const char* service_name, uint64_t service_id, const char* dev_name, int port) {
     struct sr_ctx_t* context = NULL;
-    if (service_record_init(&context, service_name, dev_name, port, NULL)) {
+    if (service_record_init(&context, service_name, service_id, dev_name, port, NULL)) {
         return NULL;
     }
     return context;
@@ -28,7 +28,7 @@ bool sr_wrapper_destroy(sr_wrapper_ctx_t* ctx) {
 bool sr_wrapper_register(sr_wrapper_ctx_t* ctx, const void* addr, size_t addr_size) {
     bool result = true;
     struct sr_ctx_t* sr_ctx = (struct sr_ctx_t*)ctx;
-    if (service_record_register_service(sr_ctx, (const void*)addr, addr_size, NULL)) {
+    if (service_record_register_service(sr_ctx, (const void*)addr, addr_size, NULL, true)) {
         result = false;
     }
     return result;

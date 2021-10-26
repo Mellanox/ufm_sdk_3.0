@@ -134,7 +134,7 @@ int services_dev_init(struct sr_dev* dev, const char* dev_name, int port) {
         }
     }
 
-    log_error("Unable to find appropriate CA device from %d devices", num_devices);
+    log_error("Unable to find appropriate hca device %s from %d devices", dev_name, num_devices);
     return -ENODEV;
 }
 

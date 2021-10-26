@@ -15,6 +15,7 @@
 #include <sys/time.h>
 #include <stdio.h>
 #include <errno.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,6 +58,7 @@ struct sr_ctx_t {
     int            sr_lease_time; /* SR lease time */
     int            sr_retries;    /* Number of SR set/get query retries */
     char*          service_name;
+    uint64_t       service_id;
 };
 
 struct sr_config {
@@ -67,14 +69,16 @@ struct sr_config {
     uint16_t pkey;          /* pkey for the request */
     unsigned fabric_timeout_ms;
     uint16_t pkey_index;    /* pkey index for MAD */
+    char*    service_name;
 };
 
-int service_record_init(struct sr_ctx_t** context, const char* service_name,
+int service_record_init(struct sr_ctx_t** context, const char* service_name, uint64_t service_id,
                         const char* dev_name, int port, struct sr_config* conf);
-int service_record_init_via_guid(struct sr_ctx_t** context, const char* service_name, uint64_t guid, struct sr_config* conf);
+int service_record_init_via_guid(struct sr_ctx_t** context, const char* service_name, uint64_t service_id,
+                                 uint64_t guid, struct sr_config* conf);
 int service_record_cleanup(struct sr_ctx_t* context);
 int service_record_register_service(struct sr_ctx_t* context, const void* addr, size_t addr_size,
-                                    const uint8_t (*service_key)[SR_128_BIT_SIZE]);
+                                    const uint8_t (*service_key)[SR_128_BIT_SIZE], bool unregister_old_services);
 int service_record_unregister_service(struct sr_ctx_t* context, const uint8_t (*service_key)[SR_128_BIT_SIZE]);
 int service_record_query_service(struct sr_ctx_t* context, struct sr_dev_service* srs, int srs_num, int retries);
 void service_record_printout_service(struct sr_dev_service* srs, int srs_num);

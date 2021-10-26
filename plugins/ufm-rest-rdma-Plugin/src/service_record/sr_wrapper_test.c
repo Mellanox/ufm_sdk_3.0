@@ -1,3 +1,9 @@
+/**
+ * Copyright (C) Mellanox Technologies Ltd. 2016.  ALL RIGHTS RESERVED.
+ *
+ * See file LICENSE for terms.
+ */
+
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
@@ -8,6 +14,7 @@
 #include "common/logger.h"
 
 #define SERVICE_NAME "lalala_service"
+#define SERVICE_ID    0x100002c900000002UL
 #define SERVICE_ADDRSS "Hello world!"
 
 
@@ -27,7 +34,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    sr_wrapper_ctx_t* context = sr_wrapper_create(SERVICE_NAME, "mlx5_2", 1);
+    sr_wrapper_ctx_t* context = sr_wrapper_create(SERVICE_NAME, SERVICE_ID, "mlx5_2", 1);
 
     if (!context) {
         log_error("Unable to allocate sr_wrapper_ctx_t: %s", strerror(errno));
@@ -47,7 +54,7 @@ int main(int argc, char** argv) {
         } else {
             int sleep_sec = 1000;
             log_info("sr_wrapper register done, sleep %d seconds", sleep_sec);
-            sleep (sleep_sec);
+            sleep(sleep_sec);
         }
 
         if (false == sr_wrapper_unregister(context)) {

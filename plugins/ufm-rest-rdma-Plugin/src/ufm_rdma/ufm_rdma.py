@@ -46,6 +46,7 @@ ADDRESS_SR_HOLDER_SIZE = 56
 GENERAL_ERROR_NUM = 500
 DEFAULT_LOG_FILE_SIZE = 10240000
 DEFAULT_LOG_FILE_BACKUP_COUNT = 5
+DEFAULT_SERVICE_RECORD_ID = "0x100002c900000003"
 GENERAL_ERROR_MSG = "REST RDMA server failed to send request to UFM Server. Check log file for details."
 UCX_RECEIVE_ERROR_MSG = "REST RDMA server failed to receive request from client. Check log file for details."
 DEFAULT_CLIENT_PEM_KEY = "/tmp/ufm-client.key"
@@ -64,7 +65,7 @@ sr_context = ctypes.c_void_p
 # Function returns
 sr_lib.sr_wrapper_create.restype = ctypes.c_void_p
 # Function gets arguments
-sr_lib.sr_wrapper_create.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
+sr_lib.sr_wrapper_create.argtypes = [ctypes.c_char_p, ctypes.c_ulong, ctypes.c_char_p, ctypes.c_int]
 
 # bool sr_wrapper_destroy(sr_wrapper_ctx_t* ctx);
 # Function returns
@@ -540,7 +541,10 @@ def register_local_address_in_service_record(interface):
     # publish local address to server record
     sr_service_name = ctypes.c_char_p(SERVICE_NAME)
     sr_device_name = ctypes.c_char_p(str.encode(interface))
-    sr_context = sr_lib.sr_wrapper_create(sr_service_name, sr_device_name, 1)
+    sid = int(rdma_rest_config.get("Common", "service_record_id",
+                                fallback=DEFAULT_SERVICE_RECORD_ID), 16)
+    sr_id = ctypes.c_ulong(sid)
+    sr_context = sr_lib.sr_wrapper_create(sr_service_name, sr_id, sr_device_name, 1)
     if not sr_context:
         logging.critical("Server: Unable to allocate sr_wrapper_ctx_t")
         return False
@@ -1100,7 +1104,10 @@ def main_client(request_arguments):
                                 fallback=DEFAULT_UCX_NET_DEVICES)).split(":")[0]
         sr_service_name = ctypes.c_char_p(SERVICE_NAME)
         sr_device_name = ctypes.c_char_p(str.encode(device_name))
-        sr_context = sr_lib.sr_wrapper_create(sr_service_name, sr_device_name, 1)
+        sid = int(rdma_rest_config.get("Common", "service_record_id",
+                                fallback=DEFAULT_SERVICE_RECORD_ID), 16)
+        sr_id = ctypes.c_ulong(sid)
+        sr_context = sr_lib.sr_wrapper_create(sr_service_name, sr_id, sr_device_name, 1)
         addr_holder = bytearray(ADDRESS_SR_HOLDER_SIZE)
         address_buffer = ctypes.c_char * len(addr_holder)
         address_len = sr_lib.sr_wrapper_query(sr_context,
