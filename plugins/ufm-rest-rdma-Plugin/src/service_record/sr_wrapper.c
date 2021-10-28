@@ -50,7 +50,7 @@ size_t sr_wrapper_query(sr_wrapper_ctx_t* ctx,  void* addr, size_t addr_size) {
     size_t result = 0;
 
     int num_of_services = service_record_query_service(sr_ctx, &sr, 1, -1);
-    if (num_of_services == 0) {
+    if (num_of_services <= 0) {
         return result;
     }
 

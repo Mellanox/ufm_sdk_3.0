@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
     } else {
         struct sr_dev_service srs[SRS_MAX];
         int num_of_services = service_record_query_service(context, srs, SRS_MAX, -1);
-        if (num_of_services == 0) {
+        if (num_of_services <= 0) {
             log_error("Unable to query service_record: %s", strerror(errno));
         } else {
             log_info("Query done");
