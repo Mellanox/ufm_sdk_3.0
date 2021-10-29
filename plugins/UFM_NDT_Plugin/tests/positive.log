@@ -4,3 +4,88 @@ ERROR:root:502 Server Error: Proxy Error for url: https://swx-tol/ufmRest/plugin
 ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/reports/0
 ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/delete
 ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:500 Server Error: INTERNAL SERVER ERROR for url: https://swx-tol/ufmRest/plugin/ndt/compare
+ERROR:root:500 Server Error: INTERNAL SERVER ERROR for url: https://swx-tol/ufmRest/plugin/ndt/compare
+ERROR:root:502 Server Error: Proxy Error for url: https://swx-tol/ufmRest/plugin/ndt/compare
+ERROR:root:502 Server Error: Proxy Error for url: https://swx-tol/ufmRest/plugin/ndt/reports
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/reports/0
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/delete
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:502 Server Error: Proxy Error for url: https://swx-tol/ufmRest/plugin/ndt/compare
+ERROR:root:502 Server Error: Proxy Error for url: https://swx-tol/ufmRest/plugin/ndt/reports
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/reports/0
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/delete
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/upload_metadata
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/compare
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/reports
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/reports/0
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/delete
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:502 Server Error: Proxy Error for url: https://swx-tol/ufmRest/plugin/ndt/compare
+ERROR:root:502 Server Error: Proxy Error for url: https://swx-tol/ufmRest/plugin/ndt/reports
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/reports/0
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/delete
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:500 Server Error: INTERNAL SERVER ERROR for url: https://swx-tol/ufmRest/plugin/ndt/upload_metadata
+ERROR:root:500 Server Error: INTERNAL SERVER ERROR for url: https://swx-tol/ufmRest/plugin/ndt/compare
+ERROR:root:500 Server Error: INTERNAL SERVER ERROR for url: https://swx-tol/ufmRest/plugin/ndt/delete
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/upload_metadata
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/compare
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/reports
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/reports/0
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/delete
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:500 Server Error: INTERNAL SERVER ERROR for url: https://swx-tol/ufmRest/plugin/ndt/compare
+ERROR:root:500 Server Error: INTERNAL SERVER ERROR for url: https://swx-tol/ufmRest/plugin/ndt/compare
+ERROR:root:500 Server Error: INTERNAL SERVER ERROR for url: https://swx-tol/ufmRest/plugin/ndt/compare
+ERROR:root:502 Server Error: Proxy Error for url: https://swx-tol/ufmRest/plugin/ndt/compare
+ERROR:root:502 Server Error: Proxy Error for url: https://swx-tol/ufmRest/plugin/ndt/reports
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/reports/0
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/upload_metadata
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/compare
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/reports
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/reports/0
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/upload_metadata
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/compare
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/reports
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/reports/0
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/upload_metadata
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/compare
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/reports
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/reports/0
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/delete
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/upload_metadata
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/compare
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/reports
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/reports/0
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/delete
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/upload_metadata
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/compare
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/reports
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/reports/0
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/delete
+ERROR:root:503 Server Error: Service Unavailable for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:502 Server Error: Proxy Error for url: https://swx-tol/ufmRest/plugin/ndt/compare
+ERROR:root:500 Server Error: INTERNAL SERVER ERROR for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:500 Server Error: INTERNAL SERVER ERROR for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:500 Server Error: INTERNAL SERVER ERROR for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:500 Server Error: INTERNAL SERVER ERROR for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:405 Client Error: METHOD NOT ALLOWED for url: https://swx-tol/ufmRest/plugin/ndt/list
+ERROR:root:405 Client Error: METHOD NOT ALLOWED for url: https://swx-tol/ufmRest/plugin/ndt/list

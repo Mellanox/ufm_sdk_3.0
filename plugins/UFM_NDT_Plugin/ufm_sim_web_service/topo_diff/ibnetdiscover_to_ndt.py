@@ -1,9 +1,9 @@
 import re
 
 #MS_NET_FILE_PATH = '/.autodirect/mtrswgwork/nahum/ndt_poc/Director_Switches/ibnetdiscover_director.txt'
-MS_NET_FILE_PATH = '../ndts/ms-net.txt'
-SWITCH_TO_SWITCH_FILE_PATH = 'switch-to-switch.csv'
-SWITCH_TO_HOST_FILE_PATH = 'switch-to-host.csv'
+MS_NET_FILE_PATH = r"C:\Users\atolikin\OneDrive - NVIDIA Corporation\Documents\MyFiles\UFM\ndt\ms-net.txt"
+SWITCH_TO_SWITCH_FILE_PATH = 'switch-to-switch.ndt'
+SWITCH_TO_HOST_FILE_PATH = 'switch-to-host.ndt'
 
 Director_Switch_Flag = False
 
@@ -75,6 +75,15 @@ def main():
                     hca = match.group(3)
                     port2 = match.group(4)
                     switch_to_host.write('{},{} {},{},Port {}, Data\n'.format(hca.upper(), hca.upper(), port2, switch1.upper(), port1))
+                else:
+                    match = re.search(r'^\[(\d+)\].*\[(\d+)\].*(dsm.*) (.*)\".*', line)  # orig
+                    if match:
+                        port1 = match.group(1)
+                        hca = match.group(3)
+                        port2 = match.group(4)
+                        switch_to_host.write(
+                            '{},{} {},{},Port {}, Data\n'.format(hca.upper(), hca.upper(), port2, switch1.upper(),
+                                                                 port1))
                 match = re.search(r'^Ca', line)
                 if match:
                     break
