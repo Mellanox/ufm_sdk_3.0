@@ -37,7 +37,7 @@ class UFMWebSim:
                                             fallback=logging.INFO)
         # logging.basicConfig(filename="/tmp/ndt.log",
         #                     level=logging.getLevelName(self.log_level))
-        logging.basicConfig(filename="/data/ndt.log",
+        logging.basicConfig(filename="/log/ndt.log",
                             level=logging.getLevelName(self.log_level))
 
     def init_apis(self):

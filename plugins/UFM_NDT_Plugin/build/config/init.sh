@@ -15,12 +15,15 @@
 
 # Updating /config folder
 mv /opt/ufm/ufm_plugin_ndt/ndt.conf /config
-mv /opt/ufm/ufm_plugin_ndt/ufm_plugin_ndt_httpd.conf /config
+mv /opt/ufm/ufm_plugin_ndt/ndt_httpd_proxy.conf /config
 touch /config/ndt_shared_volumes.conf
 touch /config/ndt_cmdline_args.conf
 
-mkdir /data/reports
-mkdir /data/ndts
+mkdir /config/reports
+mkdir /config/ndts
+
+echo /opt/ufm/files/log:/log > /config/ndt_shared_volumes.conf
+echo /dev:/host_dev >> /config/ndt_shared_volumes.conf
 
 # UFM version test
 required_ufm_version=(6 7 0)
