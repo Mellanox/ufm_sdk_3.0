@@ -19,3 +19,16 @@ To deploy the plugin with UFM (SA or HA), you should:
 -	check that plugin is up and running with docker ps;
 
 Log file ndt.log is located in /opt/ufm/files/log on host.
+
+-----------------------------------------------------------------------------------------------------------
+  
+Example of a test scenario (positive flow):
+-	run UFM simulation based on /auto/mtrswgwork/atolikin/ndt_testing/ibnetdiscover_director.txt file;
+-	curl -k -i -X POST -H "Content-Type:application/json" -d ‘<request>’ ‘http://<host_ip>/ufmRest<V2><V3>/plugin/ndt/upload_metadata’: upload the data (ndts can be found here: /auto/mtrswgwork/atolikin/ndt_testing/<name>.ndt), don’t forget to replace Windows line endings with Linux ones;
+-	curl -k -i -X GET 'http:// <host_ip>/ ufmRest<V2><V3>/plugin/ndt/list': check a list of uploaded NDTs;
+-	curl -k -i -X POST -H "Content-Type:application/json" -d ‘’ 'http://<host_ip>/ ufmRest<V2><V3>/plugin/ndt/compare’: run topology comparison;
+-	curl -k -i -X GET 'http:// <host_ip>/ ufmRest<V2><V3>/plugin/ndt/reports’: check a list of reports;
+-	curl -k -i -X GET 'http:// <host_ip>/ ufmRest<V2><V3>/plugin/ndt/reports/1’: check the content of the 1-st (and the only one) report;
+-	curl -k -i -X POST -H "Content-Type:application/json" -d ‘<request>’ 'http://<host_ip>/ ufmRest<V2><V3>/plugin/ndt/compare’: run topology periodic comparison, e.g., startTime is current time, endTime is current time + 2 minutes, interval is 1 minute;
+-	wait for 3 minutes and run curl -k -i -X GET 'http://<host_ip>/ ufmRest<V2><V3>/plugin/ndt/reports’ to check the list of reports again – there should be 4 now.
+-	curl -k -i -X POST -H "Content-Type:application/json" -d ‘’ 'http://<host_ip>/ ufmRest<V2><V3>/plugin/ndt/delete’: delete NDTs;
