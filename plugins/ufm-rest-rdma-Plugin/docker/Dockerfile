@@ -49,14 +49,14 @@ RUN wget -q https://content.mellanox.com/ofed/MLNX_OFED-${MOFED_VER}/${MOFED_DIR
     rm -rf ${MOFED_DIR}
 
 # Install UCX-Py and additional whl packages
-COPY whl/ucx_py-0.23-cp36-cp36m-linux_x86_64.whl /tmp/ucx-py/
+COPY whl/ucx_py-0.23.0a0+21.g5cf86fc-cp36-cp36m-linux_x86_64.whl /tmp/ucx-py/
 
 RUN python3 -m pip install --trusted-host swx-repos.mtr.labs.mlnx \
    -i http://swx-repos.mtr.labs.mlnx:8081/repository/ufm-py3-ubuntu1804/simple \
    pyOpenSSL
 
 RUN python3 -m pip install setuptools-rust requests numpy cython asyncio \
-    /tmp/ucx-py/ucx_py-0.23-cp36-cp36m-linux_x86_64.whl
+    /tmp/ucx-py/ucx_py-0.23.0a0+21.g5cf86fc-cp36-cp36m-linux_x86_64.whl
 
 # Copy init.sh needed for manage_ufm_plugins.py script
 COPY init.sh /init.sh
