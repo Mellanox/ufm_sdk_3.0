@@ -94,7 +94,7 @@ def get_code(response):
         return None
 
 
-def no_ndts_test():
+def no_ndts():
     print("Empty NDTs folder test")
 
     response, request_string = make_request(GET, NDTS)
@@ -124,7 +124,7 @@ def upload_metadata(ndts_folder):
             upload_request.append({"file_name": ndt,
                                    "file": data,
                                    "file_type": file_type,
-                                   "sha-1": "1"})
+                                   "sha-1": get_hash(data)})
             ndts_list_response.append({"file": ndt,
                                        "sha-1": get_hash(data),
                                        "file_type": file_type})
@@ -134,17 +134,35 @@ def upload_metadata(ndts_folder):
     assert_equal(request_string, get_code(response), 405, test_name)
     assert_equal(request_string, get_response(response), {'error': 'Method is not allowed'}, test_name)
 
+    possible_file_types = ["switch_to_switch", "switch_to_host"]
+    test_name = "incorrect file type"
+    good_file_type = upload_request[0]["file_type"]
+    upload_request[0]["file_type"] = "asd"
+    response, request_string = make_request(POST, UPLOAD_METADATA, payload=json.dumps(upload_request))
+    assert_equal(request_string, get_code(response), 400, test_name)
+    assert_equal(request_string, get_response(response),
+                 {'error': ["Incorrect file type. Possible file types: {}."
+                            .format(",".join(possible_file_types))]}, test_name)
+    upload_request[0]["file_type"] = good_file_type
+
+    good_file_name = upload_request[0]["file_name"]
+    upload_request[0]["file_name"] = ""
+    test_name = "empty file name"
+    response, request_string = make_request(POST, UPLOAD_METADATA, payload=json.dumps(upload_request))
+    assert_equal(request_string, get_code(response), 400, test_name)
+    assert_equal(request_string, get_response(response), {'error': ['File name is empty']}, test_name)
+    upload_request[0]["file_name"] = good_file_name
+
     test_name = "wrong sha-1"
     good_sha = upload_request[0]["sha-1"]
-    file_name = upload_request[0]["file_name"]
     upload_request[0]["sha-1"] = "xyz"
     response, request_string = make_request(POST, UPLOAD_METADATA, payload=json.dumps(upload_request))
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response),
                  {"error": ["Provided sha-1 {} for {} is different from actual one {}"
-                 .format("xyz", file_name, good_sha)]}, test_name)
+                 .format("xyz", good_file_name, good_sha)]}, test_name)
 
-    response, request_string = make_request(GET, NDTS, )
+    response, request_string = make_request(GET, NDTS)
     assert_equal(request_string, get_code(response), 200, test_name)
     assert_equal(request_string, remove_timestamp(get_response(response)), [ndts_list_response[1]], test_name)
 
@@ -172,25 +190,8 @@ def upload_metadata(ndts_folder):
                                                                     "'file_name'"]}, test_name)
 
 
-def instant_comparison():
-    print("Simple compare test")
-    response, request_string = make_request(POST, COMPARE)
-    assert_equal(request_string, get_code(response), 200)
-    assert_equal(request_string, get_response(response), {})
-    comparison_status_code = get_code(response)
-
-    test_name = "not allowed"
-    response, request_string = make_request(GET, COMPARE)
-    assert_equal(request_string, get_code(response), 405, test_name)
-    assert_equal(request_string, get_response(response), {'error': 'Method is not allowed'}, test_name)
-
-    if comparison_status_code == 200:
-        check_comparison_report("Instant")
-
-
 def check_comparison_report(comparison_type):
     print("{} report content test".format(comparison_type))
-    start_test_time = datetime.now()
 
     test_name = "not allowed"
     response, request_string = make_request(POST, REPORTS)
@@ -200,9 +201,16 @@ def check_comparison_report(comparison_type):
     response, request_string = make_request(GET, REPORTS)
     assert_equal(request_string, get_code(response), 200)
     reports = get_response(response)
-    reports_number = 0
     if reports:
+        if reports[-1]["report_scope"] != comparison_type:
+            print("    - no {} new report was generated, exit -- FAIL".format(comparison_type))
+            return
+        else:
+            print("    - new {} report was generated, continue -- PASS".format(comparison_type))
         reports_number = len(reports)
+    else:
+        print("    - no new report was generated, exit -- FAIL")
+        return
 
     test_name = "difference"
     response, request_string = make_request(GET, REPORT_ID.format(reports_number))
@@ -210,11 +218,6 @@ def check_comparison_report(comparison_type):
     report = get_response(response)
     report_len = 0
     if report:
-        # if datetime.strptime(report["timestamp"], DATETIME_FORMAT) < start_test_time:
-        #     print("    - no new report was generated, exit -- FAIL")
-        #     return
-        # else:
-        #     print("    - new report was generated, continue -- PASS")
         report_len = len(report["report"]["missing_in_ndt"])
     expected_report = os.path.join(os.path.dirname(os.path.abspath(__file__)), "expected_report.json")
     with open(expected_report, "r") as file:
@@ -237,10 +240,26 @@ def check_comparison_report(comparison_type):
                  test_name)
 
 
+def instant_comparison():
+    print("Simple compare test")
+    response, request_string = make_request(POST, COMPARE)
+    assert_equal(request_string, get_code(response), 200)
+    assert_equal(request_string, get_response(response), {})
+    comparison_status_code = get_code(response)
+
+    test_name = "not allowed"
+    response, request_string = make_request(GET, COMPARE)
+    assert_equal(request_string, get_code(response), 405, test_name)
+    assert_equal(request_string, get_response(response), {'error': 'Method is not allowed'}, test_name)
+
+    if comparison_status_code == 200:
+        check_comparison_report("Instant")
+
+
 def periodic_comparison():
     print("Periodic comparison")
 
-    datetime_end = datetime_start = datetime.now() + timedelta(seconds=1)
+    datetime_end = datetime_start = datetime.now() - timedelta(hours=2) + timedelta(seconds=1)
 
     test_name = "incorrect request"
     payload = {"asd": "asd"}
@@ -274,7 +293,7 @@ def periodic_comparison():
     }
     response, request_string = make_request(POST, COMPARE, payload=json.dumps(payload))
     assert_equal(request_string, get_code(response), 400, test_name)
-    assert_equal(request_string, get_response(response), {'error': 'Minimum interval value is 5 minutes'},
+    assert_equal(request_string, get_response(response), {'error': 'Minimal interval value is 5 minutes'},
                  test_name)
 
     good_payload = {
@@ -287,14 +306,23 @@ def periodic_comparison():
     response, request_string = make_request(POST, COMPARE, payload=json.dumps(good_payload))
     assert_equal(request_string, get_code(response), 200)
     assert_equal(request_string, get_response(response), {})
-    comparison_status_code = get_code(response)
 
-    # if comparison_status_code == 200:
-    #     time.sleep(1)
-    #     check_comparison_report("Periodic")
+    if get_code(response) == 200:
+        time.sleep(5)
+        check_comparison_report("Periodic")
 
     test_name = "start scheduler twice"
-    response, request_string = make_request(POST, COMPARE, payload=json.dumps(good_payload))
+    datetime_start = datetime.now() - timedelta(hours=2) + timedelta(seconds=1)
+    datetime_end = datetime_start + timedelta(minutes=10)
+    payload = {
+        "run": {
+            "startTime": datetime_start.strftime("%Y-%m-%d %H:%M:%S"),
+            "endTime": datetime_end.strftime("%Y-%m-%d %H:%M:%S"),
+            "interval": 5
+        }
+    }
+    make_request(POST, COMPARE, payload=json.dumps(payload))
+    response, request_string = make_request(POST, COMPARE, payload=json.dumps(payload))
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response), {'error': 'Periodic comparison is already running'}, test_name)
 
@@ -318,6 +346,12 @@ def delete_ndts(ndts_folder):
     response, request_string = make_request(GET, DELETE)
     assert_equal(request_string, get_code(response), 405, test_name)
     assert_equal(request_string, get_response(response), {'error': 'Method is not allowed'}, test_name)
+
+    test_name = "empty file name"
+    upload_request = [{"file_name": ""}]
+    response, request_string = make_request(POST, DELETE, payload=json.dumps(upload_request))
+    assert_equal(request_string, get_code(response), 400, test_name)
+    assert_equal(request_string, get_response(response), {'error': ['File name is empty']}, test_name)
 
     test_name = "incorrect request"
     upload_request = {"asd": "asd"}
@@ -356,17 +390,77 @@ def delete_ndts(ndts_folder):
     assert_equal(request_string, get_response(response), [])
 
 
+def topo_diff(ndts_folder):
+    print("Topo diff tests")
+
+    test_name = "no ndts"
+    response, request_string = make_request(POST, COMPARE)
+    assert_equal(request_string, get_code(response), 400, test_name)
+    assert_equal(request_string, get_response(response), {'error': ['No NDTs were uploaded for comparison']}, test_name)
+
+    garbage_ndt = "garbage.ndt"
+    upload_request = []
+    with open(os.path.join(ndts_folder, garbage_ndt), "r") as file:
+        data = file.read()
+        upload_request.append({"file_name": garbage_ndt,
+                               "file": data,
+                               "file_type": "switch_to_switch",
+                               "sha-1": get_hash(data)})
+    make_request(POST, UPLOAD_METADATA, payload=json.dumps(upload_request))
+    response, request_string = make_request(POST, COMPARE)
+    assert_equal(request_string, get_code(response), 400, garbage_ndt)
+    assert_equal(request_string, get_response(response),
+                 {'error': ['ndts/garbage.ndt is empty or cannot be parsed']}, garbage_ndt)
+    make_request(POST, DELETE, payload=json.dumps([{"file_name": garbage_ndt}]))
+
+    incorrect_ports_ndt = "incorrect_ports.ndt"
+    upload_request.clear()
+    with open(os.path.join(ndts_folder, incorrect_ports_ndt), "r") as file:
+        data = file.read()
+        upload_request.append({"file_name": incorrect_ports_ndt,
+                               "file": data,
+                               "file_type": "switch_to_switch",
+                               "sha-1": get_hash(data)})
+    make_request(POST, UPLOAD_METADATA, payload=json.dumps(upload_request))
+    response, request_string = make_request(POST, COMPARE)
+    assert_equal(request_string, get_code(response), 400, incorrect_ports_ndt)
+    # patterns = (r"^Port (\d+)$", r"(^Blade \d+_Port \d+/\d+$)", r"(^SAT\d+ ibp.*$)")
+    assert_equal(request_string, get_response(response),
+                 {'error': ['Failed to parse PortType.SOURCE: abra, in line: 0.',
+                            'Failed to parse PortType.DESTINATION: cadabra, in line: 0.']},
+                 incorrect_ports_ndt)
+    make_request(POST, DELETE, payload=json.dumps([{"file_name": incorrect_ports_ndt}]))
+
+    incorrect_columns_ndt = "incorrect_columns.ndt"
+    upload_request.clear()
+    with open(os.path.join(ndts_folder, incorrect_columns_ndt), "r") as file:
+        data = file.read()
+        upload_request.append({"file_name": incorrect_columns_ndt,
+                               "file": data,
+                               "file_type": "switch_to_switch",
+                               "sha-1": get_hash(data)})
+    make_request(POST, UPLOAD_METADATA, payload=json.dumps(upload_request))
+    response, request_string = make_request(POST, COMPARE)
+    assert_equal(request_string, get_code(response), 400, incorrect_columns_ndt)
+    assert_equal(request_string, get_response(response),
+                 {'error': ["No such column: 'StartPort', in line: 0"]}, incorrect_columns_ndt)
+    make_request(POST, DELETE, payload=json.dumps([{"file_name": incorrect_columns_ndt}]))
+
+
 def main():
     os.environ['PYTHONWARNINGS'] = 'ignore:Unverified HTTPS request'
     ndts_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "positive_flow_ndts")
     import urllib3
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-    # no_ndts_test()
+    no_ndts()
     upload_metadata(ndts_folder)
-    # instant_comparison()
-    # periodic_comparison()
-    # delete_ndts(ndts_folder)
+    instant_comparison()
+    periodic_comparison()
+    delete_ndts(ndts_folder)
+
+    ndts_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "negative_flow_ndts")
+    topo_diff(ndts_folder)
 
 
 if __name__ == "__main__":

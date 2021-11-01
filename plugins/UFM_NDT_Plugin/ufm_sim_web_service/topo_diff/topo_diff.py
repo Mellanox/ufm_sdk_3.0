@@ -5,8 +5,14 @@ import logging
 import json
 import syslog
 import re
+from enum import Enum
 
 SUCCESS_CODE = 200
+
+
+class PortType(Enum):
+    SOURCE = 1
+    DESTINATION = 2
 
 
 class Constants:
@@ -23,8 +29,9 @@ class Constants:
     destination_description_key = "destination_port_node_description"
     destination_port_key = "destination_port"
 
-    switch_to_switch_patterns = (r"^Port (\d+)$", r"(^Blade \d+_Port \d+/\d+$)")
-    switch_to_host_patterns = (r"^Port (\d+)$", r"(^SAT\d+ ibp.*$)")
+    patterns = (r"^Port (\d+)$", r"(^Blade \d+_Port \d+/\d+$)", r"(^SAT\d+ ibp.*$)")
+
+    internal_hdr_link = "Mellanox Technologies Aggregation Node"
 
 
 class Link:
@@ -46,17 +53,36 @@ class Link:
         return self.unique_key.__hash__()
 
 
-def parse_ndt_port(port_string, patterns):
-    for pattern in patterns:
-        match = re.match(pattern, port_string)
-        if match:
-            return match.group(1)
+def parse_ndt_port(row, index, port_type):
+    if port_type == PortType.SOURCE:
+        device_key = Constants.start_device_key
+        port_key = Constants.start_port_key
+    elif port_type == PortType.DESTINATION:
+        device_key = Constants.end_device_key
+        port_key = Constants.end_port_key
+    else:
+        return "", "", "Internal error: incorrect port_type"
 
-    return ""
+    device = row[device_key]
+    port = ""
+    for pattern in Constants.patterns:
+        match = re.match(pattern, row[port_key])
+        if match:
+            port = match.group(1)
+    if not port:
+        error_message = "Failed to parse {}: {}, in line: {}." \
+            .format(port_type,
+                    row[port_key],
+                    index)
+        logging.error(error_message)
+        return "", "", error_message
+    else:
+        return device, port, ""
 
 
 def parse_ndt_file(ndt_links, ndt_file, ndt_links_reversed=None):
     logging.debug("Reading from csv file:" + ndt_file)
+    error_response = []
     try:
         with open(ndt_file, 'r') as csvfile:
             dictreader = csv.DictReader(csvfile)
@@ -65,40 +91,33 @@ def parse_ndt_file(ndt_links, ndt_file, ndt_links_reversed=None):
             except TypeError as te:
                 error_message = "{} is empty or cannot be parsed: {}".format(ndt_file, te)
                 logging.error(error_message)
-                return error_message
-            if ndt_links_reversed is None:
-                patterns = Constants.switch_to_switch_patterns
-            else:
-                patterns = Constants.switch_to_host_patterns
+                return [error_message]
+            total_rows = 0
             for index, row in enumerate(dictreader):
                 logging.debug("Parsing NDT link: {}".format(row))
+                total_rows += 1
                 try:
-                    start_dev = row[Constants.start_device_key]
-                    start_port = parse_ndt_port(row[Constants.start_port_key], patterns)
-                    if not start_port:
-                        error_message = "Failed to parse start port: {}, in line: {}" \
-                            .format(row[Constants.start_port_key], index)
-                        logging.error(error_message)
-                        return error_message
-                    end_dev = row[Constants.end_device_key]
-                    end_port = parse_ndt_port(row[Constants.end_port_key], patterns)
-                    if not end_port:
-                        error_message = "Failed to parse end port: {}, in line: {}" \
-                            .format(row[Constants.end_port_key], index)
-                        logging.error(error_message)
-                        return error_message
-                    ndt_links.add(Link(start_dev, start_port, end_dev, end_port))
+                    start_device, start_port, error_message = parse_ndt_port(row, index, PortType.SOURCE)
+                    if error_message:
+                        error_response.append(error_message)
+                    end_device, end_port, error_message = parse_ndt_port(row, index, PortType.DESTINATION)
+                    if error_message:
+                        error_response.append(error_message)
+                    ndt_links.add(Link(start_device, start_port, end_device, end_port))
                     if ndt_links_reversed is not None:
-                        ndt_links_reversed.add(Link(end_dev, end_port, start_dev, start_port))
+                        ndt_links_reversed.add(Link(end_device, end_port, start_device, start_port))
                 except KeyError as ke:
                     error_message = "No such column: {}, in line: {}".format(ke, index)
                     logging.error(error_message)
-                    return error_message
-            return ""
+                    error_response.append(error_message)
+            if total_rows:
+                return error_response
+            else:
+                return ["{} is empty or cannot be parsed".format(ndt_file)]
     except FileNotFoundError as fnfe:
         error_message = "{} not found: {}".format(ndt_file, fnfe)
         logging.error(error_message)
-        return error_message
+        return [error_message]
 
 
 def parse_ndt_files(ndts_list_file):
@@ -108,6 +127,8 @@ def parse_ndt_files(ndts_list_file):
     # in case somebody deleted ndts.json - unhandled exception, server should be restarted
     with open(ndts_list_file, "r") as file:
         data = json.load(file)
+        if not data:
+            return {}, {}, ["No NDTs were uploaded for comparison"]
         for ndt_file_entry in data:
             # in case somebody manually changed ndts.json format - unhandled exception, server should be restarted
             ndt_file = ndt_file_entry["file"]
@@ -116,8 +137,9 @@ def parse_ndt_files(ndts_list_file):
                                            os.path.join(ndt_files_dir, ndt_file),
                                            ndt_links_reversed if ndt_type == "switch_to_host" else None)
             if error_message:
-                return {}, error_message
-        return ndt_links, ndt_links_reversed, ""
+                return {}, {}, error_message
+
+        return ndt_links, ndt_links_reversed, []
 
 
 def get_request(host_ip, protocol, resource, user, password, headers):
@@ -141,7 +163,16 @@ def get_ufm_links():
         return response.json, SUCCESS_CODE
 
 
-def parse_ufm_port(link, node_description, port):
+def parse_ufm_port(link, port_type):
+    if port_type == PortType.SOURCE:
+        node_description = Constants.source_description_key
+        port = Constants.source_port_key
+    elif port_type == PortType.DESTINATION:
+        node_description = Constants.destination_description_key
+        port = Constants.destination_port_key
+    else:
+        return "", "", "Internal error: incorrect port_type"
+
     dev_name_split = link[node_description].split(':')
     logging.debug("Parsing UFM {}: {}".format(node_description, dev_name_split))
     try:
@@ -176,22 +207,24 @@ def parse_ufm_links():
     if status_code != SUCCESS_CODE:
         error_message = "Failed to get links from UFM, status_code: {}".format(status_code)
         logging.error(error_message)
-        return {}, error_message
+        return {}, {}, error_message
 
     for link in links():
-        start_dev, start_port, error_message = parse_ufm_port(link,
-                                                              Constants.source_description_key,
-                                                              Constants.source_port_key)
-        if error_message:
-            return {}, error_message
-        end_dev, end_port, error_message = parse_ufm_port(link,
-                                                          Constants.destination_description_key,
-                                                          Constants.destination_port_key)
-        if error_message:
-            return {}, error_message
+        if Constants.internal_hdr_link in link[Constants.source_description_key] \
+                or Constants.internal_hdr_link in link[Constants.destination_description_key]:
+            # ignore links from the switches to the aggregation nodes as they are
+            # not part of the physical topology and can generate false difference
+            continue
 
-        ufm_links.add(Link(start_dev, start_port, end_dev, end_port))
-        ufm_links_reversed.add(Link(end_dev, end_port, start_dev, start_port))
+        start_device, start_port, error_message = parse_ufm_port(link, PortType.SOURCE)
+        if error_message:
+            return {}, {}, error_message
+        end_device, end_port, error_message = parse_ufm_port(link, PortType.DESTINATION)
+        if error_message:
+            return {}, {}, error_message
+
+        ufm_links.add(Link(start_device, start_port, end_device, end_port))
+        ufm_links_reversed.add(Link(end_device, end_port, start_device, start_port))
 
     return ufm_links, ufm_links_reversed, ""
 
@@ -230,7 +263,10 @@ def compare_topologies(timestamp, ndts_list_file):
             if links_miss_wired(ndt_link, ufm_link):
                 miss_wired.append({"expected": str(ndt_link),
                                    "actual": str(ufm_link)})
-                syslog.syslog("NDT: actual \"{}\" doesn't match expected \"{}\"".format(str(ufm_link), str(ndt_link)))
+                code = os.system("logger -u /host_dev/log NDT: actual \"{}\" doesn't match expected \"{}\""
+                                 .format(str(ufm_link), str(ndt_link)))
+                if code:
+                    logging.warning("Failed to write link to syslog")
                 ufm_unique.remove(ufm_link)
                 break
         else:
@@ -239,13 +275,16 @@ def compare_topologies(timestamp, ndts_list_file):
     while ndt_unique_wo_miss_wired:
         link = str(ndt_unique_wo_miss_wired.pop())
         missing_in_ufm.append(link)
-        syslog.syslog("NDT: missing in UFM \"{}\"".format(link))
+        code = os.system("logger -u /host_dev/log NDT: missing in UFM \"{}\"".format(link))
+        if code:
+            logging.warning("Failed to write link to syslog")
 
     while ufm_unique:
         link = str(ufm_unique.pop())
         missing_in_ndt.append(link)
-        syslog.syslog("NDT: missing in NDT \"{}\"".format(link))
-        syslog.openlog()
+        code = os.system("logger -u /host_dev/log NDT: missing in NDT \"{}\"".format(link))
+        if code:
+            logging.warning("Failed to write link to syslog")
 
     # put only last 10k into the report
     report = {"miss_wired": miss_wired[-10000:],

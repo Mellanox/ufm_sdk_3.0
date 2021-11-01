@@ -60,6 +60,7 @@ class UFMWebSim:
         self.app = Flask(__name__)
         self.api = Api(self.app)
         self.scheduler = BackgroundScheduler(daemon=True)
+        self.scheduler.start()
 
         self.parse_config()
         self.init_apis()

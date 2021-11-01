@@ -26,8 +26,8 @@ import hashlib
 
 
 class UFMResource(Resource):
-    # config_file_name = "/config/ndt.conf"
-    config_file_name = "../build/config/ndt.conf"
+    config_file_name = "/config/ndt.conf"
+    # config_file_name = "../build/config/ndt.conf"
 
     def __init__(self):
         self.response_file = ""
@@ -332,6 +332,8 @@ class Compare(UFMResource):
         logging.info("Run topology comparison")
         self.timestamp = self.get_timestamp()
         report_content = compare_topologies(self.timestamp, self.ndts_list_file)
+        if report_content["error"]:
+            return self.report_error(400, report_content["error"])
 
         response, status_code = self.update_reports_list(scope)
         if status_code != self.success:
@@ -350,7 +352,7 @@ class Compare(UFMResource):
             try:
                 self.interval = int(self.interval)
                 if self.interval < 5:
-                    return self.report_error(400, "Minimum interval value is 5 minutes")
+                    return self.report_error(400, "Minimal interval value is 5 minutes")
             except ValueError:
                 return self.report_error(400, "Interval '{}' is not valid".format(self.interval))
             self.datetime_start = datetime.strptime(start_time, self.datetime_format)
@@ -364,15 +366,14 @@ class Compare(UFMResource):
             return self.report_error(400, "Incorrect timestamp format: {}".format(ve))
 
     def start_scheduler(self):
-        while self.datetime_start <= self.datetime_end:
-            self.scheduler.add_job(func=self.compare, run_date=self.datetime_start)
-            self.datetime_start += timedelta(minutes=self.interval)
         try:
-            if self.scheduler.running:
+            if len(self.scheduler.get_jobs()):
                 return self.report_error(400, "Periodic comparison is already running")
             else:
-                self.scheduler.start()
-            return self.report_success()
+                while self.datetime_start <= self.datetime_end:
+                    self.scheduler.add_job(func=self.compare, run_date=self.datetime_start)
+                    self.datetime_start += timedelta(minutes=self.interval)
+                return self.report_success()
         except Exception as e:
             return self.report_error(400, "Periodic comparison failed to start: {}".format(e))
 
@@ -397,9 +398,8 @@ class Cancel(UFMResource):
 
     def post(self):
         try:
-            if self.scheduler.running:
+            if len(self.scheduler.get_jobs()):
                 self.scheduler.remove_all_jobs()
-                self.scheduler.shutdown()
                 return self.report_success()
             else:
                 return self.report_error(400, "Periodic comparison is not running")
