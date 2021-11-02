@@ -26,19 +26,22 @@ import hashlib
 
 
 class UFMResource(Resource):
-    config_file_name = "/config/ndt.conf"
-    # config_file_name = "../build/config/ndt.conf"
+    # config_file_name = "/config/ndt.conf"
+    config_file_name = "../build/config/ndt.conf"
 
     def __init__(self):
         self.response_file = ""
-        # self.reports_dir = "reports"
-        # self.ndts_dir = "ndts"
-        self.reports_dir = "/config/reports"
-        self.ndts_dir = "/config/ndts"
+        self.reports_dir = "reports"
+        self.ndts_dir = "ndts"
+        # self.reports_dir = "/config/reports"
+        # self.ndts_dir = "/config/ndts"
         self.reports_list_file = os.path.join(self.reports_dir, "reports_list.json")
         self.ndts_list_file = os.path.join(self.ndts_dir, "ndts_list.json")
         self.success = 200
         self.reports_to_save = 10
+        self.validation_enabled = True
+        self.switch_patterns = []
+        self.host_patterns = []
         self.datetime_format = "%Y-%m-%d %H:%M:%S"
 
         self.create_reports_file(self.reports_list_file)
@@ -49,8 +52,13 @@ class UFMResource(Resource):
         ndt_config = configparser.ConfigParser()
         if os.path.exists(self.config_file_name):
             ndt_config.read(self.config_file_name)
-            self.reports_to_save = ndt_config.getint("Common", "reports_to_save",
-                                                     fallback=10)
+            self.reports_to_save = ndt_config.getint("Common", "reports_to_save", fallback=10)
+            self.validation_enabled = ndt_config.getboolean("Validation", "enabled", fallback=True)
+            if self.validation_enabled:
+                switch_patterns_str = ndt_config.get("Validation", "switch_patterns")
+                self.switch_patterns = switch_patterns_str.split(',')
+                host_patterns_str = ndt_config.get("Validation", "host_patterns")
+                self.host_patterns = host_patterns_str.split(',')
 
     def get_ndt_path(self, file_name):
         return os.path.join(self.ndts_dir, file_name)
@@ -331,7 +339,8 @@ class Compare(UFMResource):
     def compare(self, scope="Periodic"):
         logging.info("Run topology comparison")
         self.timestamp = self.get_timestamp()
-        report_content = compare_topologies(self.timestamp, self.ndts_list_file)
+        report_content = compare_topologies(self.timestamp, self.ndts_list_file,
+                                            self.switch_patterns, self.host_patterns)
         if report_content["error"]:
             return self.report_error(400, report_content["error"])
 
