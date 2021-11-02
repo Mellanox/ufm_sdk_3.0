@@ -18,6 +18,7 @@ import configparser
 from flask import Flask
 from flask_restful import Api
 import logging
+from logging.handlers import RotatingFileHandler
 import os
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -33,12 +34,15 @@ class UFMWebSim:
         ndt_config = configparser.ConfigParser()
         if os.path.exists(UFMResource.config_file_name):
             ndt_config.read(UFMResource.config_file_name)
-            self.log_level = ndt_config.get("Common", "log_level",
-                                            fallback=logging.INFO)
-        # logging.basicConfig(filename="/tmp/ndt.log",
-        #                     level=logging.getLevelName(self.log_level))
-        logging.basicConfig(filename="/log/ndt.log",
-                            level=logging.getLevelName(self.log_level))
+            self.log_level = ndt_config.get("Common", "log_level")
+            self.log_file_path = ndt_config.get("Common", "log_file_path")
+            self.log_file_max_size = ndt_config.getint("Common", "log_file_max_size")
+            self.log_file_backup_count = ndt_config.getint("Common", "log_file_backup_count")
+
+            logging.basicConfig(handlers=[RotatingFileHandler(self.log_file_path,
+                                                              maxBytes=self.log_file_max_size,
+                                                              backupCount=self.log_file_backup_count)],
+                                level=logging.getLevelName(self.log_level))
 
     def init_apis(self):
         default_apis = {
@@ -56,6 +60,10 @@ class UFMWebSim:
 
     def __init__(self):
         self.log_level = logging.INFO
+        self.log_file_max_size = 10240000
+        self.log_file_path = "/tmp/ndt.log"
+        # self.log_file_name = "/log/ndt.log"
+        self.log_file_backup_count = 5
         self.port_number = 8980
         self.app = Flask(__name__)
         self.api = Api(self.app)
@@ -66,10 +74,10 @@ class UFMWebSim:
         self.init_apis()
 
     async def run(self):
-        # self.app.run(port=self.port_number, debug=True)
-        resource = WSGIResource(reactor, reactor.getThreadPool(), self.app)
-        reactor.listenTCP(self.port_number, server.Site(resource))
-        reactor.run()
+        self.app.run(port=self.port_number, debug=True)
+        # resource = WSGIResource(reactor, reactor.getThreadPool(), self.app)
+        # reactor.listenTCP(self.port_number, server.Site(resource))
+        # reactor.run()
 
     async def stop(self):
         pass

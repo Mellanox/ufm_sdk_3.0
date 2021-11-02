@@ -29,8 +29,6 @@ class Constants:
     destination_description_key = "destination_port_node_description"
     destination_port_key = "destination_port"
 
-    patterns = (r"^Port (\d+)$", r"(^Blade \d+_Port \d+/\d+$)", r"(^SAT\d+ ibp.*$)")
-
     internal_hdr_link = "Mellanox Technologies Aggregation Node"
 
 
@@ -53,7 +51,7 @@ class Link:
         return self.unique_key.__hash__()
 
 
-def parse_ndt_port(row, index, port_type):
+def parse_ndt_port(row, index, port_type, patterns):
     if port_type == PortType.SOURCE:
         device_key = Constants.start_device_key
         port_key = Constants.start_port_key
@@ -65,8 +63,15 @@ def parse_ndt_port(row, index, port_type):
 
     device = row[device_key]
     port = ""
-    for pattern in Constants.patterns:
-        match = re.match(pattern, row[port_key])
+    if patterns:
+        for pattern in patterns:
+            match = re.match(pattern, row[port_key])
+            if match:
+                port = match.group(1)
+    else:
+        port = row[port_key]
+        pattern = "^Port (\\d+)$"
+        match = re.match(pattern, port)
         if match:
             port = match.group(1)
     if not port:
@@ -80,7 +85,7 @@ def parse_ndt_port(row, index, port_type):
         return device, port, ""
 
 
-def parse_ndt_file(ndt_links, ndt_file, ndt_links_reversed=None):
+def parse_ndt_file(ndt_links, ndt_file, patterns, ndt_links_reversed=None):
     logging.debug("Reading from csv file:" + ndt_file)
     error_response = []
     try:
@@ -97,10 +102,10 @@ def parse_ndt_file(ndt_links, ndt_file, ndt_links_reversed=None):
                 logging.debug("Parsing NDT link: {}".format(row))
                 total_rows += 1
                 try:
-                    start_device, start_port, error_message = parse_ndt_port(row, index, PortType.SOURCE)
+                    start_device, start_port, error_message = parse_ndt_port(row, index, PortType.SOURCE, patterns)
                     if error_message:
                         error_response.append(error_message)
-                    end_device, end_port, error_message = parse_ndt_port(row, index, PortType.DESTINATION)
+                    end_device, end_port, error_message = parse_ndt_port(row, index, PortType.DESTINATION, patterns)
                     if error_message:
                         error_response.append(error_message)
                     ndt_links.add(Link(start_device, start_port, end_device, end_port))
@@ -120,7 +125,7 @@ def parse_ndt_file(ndt_links, ndt_file, ndt_links_reversed=None):
         return [error_message]
 
 
-def parse_ndt_files(ndts_list_file):
+def parse_ndt_files(ndts_list_file, switch_patterns, host_patterns):
     ndt_links = set()
     ndt_links_reversed = set()
     ndt_files_dir = os.path.dirname(ndts_list_file)
@@ -133,9 +138,18 @@ def parse_ndt_files(ndts_list_file):
             # in case somebody manually changed ndts.json format - unhandled exception, server should be restarted
             ndt_file = ndt_file_entry["file"]
             ndt_type = ndt_file_entry["file_type"]
-            error_message = parse_ndt_file(ndt_links,
-                                           os.path.join(ndt_files_dir, ndt_file),
-                                           ndt_links_reversed if ndt_type == "switch_to_host" else None)
+            if ndt_type == "switch_to_host":
+                error_message = parse_ndt_file(ndt_links,
+                                               os.path.join(ndt_files_dir, ndt_file),
+                                               switch_patterns + host_patterns,
+                                               ndt_links_reversed)
+            elif ndt_type == "switch_to_switch":
+                error_message = parse_ndt_file(ndt_links,
+                                               os.path.join(ndt_files_dir, ndt_file),
+                                               switch_patterns,
+                                               None)
+            else:
+                error_message = "Unknown file format"
             if error_message:
                 return {}, {}, error_message
 
@@ -236,8 +250,8 @@ def links_miss_wired(link_left, link_right):
                 or link_left.end_port == link_right.end_port)
 
 
-def compare_topologies(timestamp, ndts_list_file):
-    ndt_links, ndt_links_reversed, error_message = parse_ndt_files(ndts_list_file)
+def compare_topologies(timestamp, ndts_list_file, switch_patterns, host_patterns):
+    ndt_links, ndt_links_reversed, error_message = parse_ndt_files(ndts_list_file, switch_patterns, host_patterns)
     if error_message:
         return {"error": error_message,
                 "timestamp": timestamp}
