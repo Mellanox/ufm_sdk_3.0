@@ -3,7 +3,6 @@ import os
 import csv
 import logging
 import json
-import syslog
 import re
 from enum import Enum
 
@@ -156,21 +155,19 @@ def parse_ndt_files(ndts_list_file, switch_patterns, host_patterns):
         return ndt_links, ndt_links_reversed, []
 
 
-def get_request(host_ip, protocol, resource, user, password, headers):
+def get_request(host_ip, protocol, resource, headers):
     request = protocol + '://' + host_ip + resource
-    response = requests.get(request, verify=False, headers=headers, auth=(user, password))
+    response = requests.get(request, verify=False, headers=headers)
     logging.info("UFM API Request Status: {}, URL: {}".format(response.status_code, request))
     return response
 
 
-def get_ufm_links():
-    ufm_host = "127.0.0.1:8000"
+def get_ufm_links(ufm_port):
+    ufm_host = "127.0.0.1:{}".format(ufm_port)
     ufm_protocol = "http"
-    ufm_username = "ufmsystem"
     resource = "/resources/links"
-    ufm_password = ""
-    headers = {'X-Remote-User': ufm_username}
-    response = get_request(ufm_host, ufm_protocol, resource, ufm_username, ufm_password, headers)
+    headers = {'X-Remote-User': "ufmsystem"}
+    response = get_request(ufm_host, ufm_protocol, resource, headers)
     if response.status_code != SUCCESS_CODE:
         return {}, response.status_code
     else:
@@ -214,10 +211,10 @@ def parse_ufm_port(link, port_type):
         return "", "", error_message
 
 
-def parse_ufm_links():
+def parse_ufm_links(ufm_port):
     ufm_links = set()
     ufm_links_reversed = set()
-    links, status_code = get_ufm_links()
+    links, status_code = get_ufm_links(ufm_port)
     if status_code != SUCCESS_CODE:
         error_message = "Failed to get links from UFM, status_code: {}".format(status_code)
         logging.error(error_message)
@@ -250,14 +247,22 @@ def links_miss_wired(link_left, link_right):
                 or link_left.end_port == link_right.end_port)
 
 
-def compare_topologies(timestamp, ndts_list_file, switch_patterns, host_patterns):
+def write_to_syslog(message):
+    syslog_socket = "/host_dev/log"
+    if os.path.exists(syslog_socket):
+        code = os.system("logger -u {} NDT: {}".format(syslog_socket, message))
+        if code:
+            logging.warning("Failed to write link to syslog")
+
+
+def compare_topologies(timestamp, ndts_list_file, switch_patterns, host_patterns, ufm_port):
     ndt_links, ndt_links_reversed, error_message = parse_ndt_files(ndts_list_file, switch_patterns, host_patterns)
     if error_message:
         return {"error": error_message,
                 "timestamp": timestamp}
     if not ndt_links:
         logging.warning("List of NDT links is empty")
-    ufm_links, ufm_links_reversed, error_message = parse_ufm_links()
+    ufm_links, ufm_links_reversed, error_message = parse_ufm_links(ufm_port)
     if error_message:
         return {"error": error_message,
                 "timestamp": timestamp}
@@ -277,10 +282,7 @@ def compare_topologies(timestamp, ndts_list_file, switch_patterns, host_patterns
             if links_miss_wired(ndt_link, ufm_link):
                 miss_wired.append({"expected": str(ndt_link),
                                    "actual": str(ufm_link)})
-                code = os.system("logger -u /host_dev/log NDT: actual \"{}\" doesn't match expected \"{}\""
-                                 .format(str(ufm_link), str(ndt_link)))
-                if code:
-                    logging.warning("Failed to write link to syslog")
+                write_to_syslog("Actual \"{}\" doesn't match expected \"{}\"".format(str(ufm_link), str(ndt_link)))
                 ufm_unique.remove(ufm_link)
                 break
         else:
@@ -289,16 +291,12 @@ def compare_topologies(timestamp, ndts_list_file, switch_patterns, host_patterns
     while ndt_unique_wo_miss_wired:
         link = str(ndt_unique_wo_miss_wired.pop())
         missing_in_ufm.append(link)
-        code = os.system("logger -u /host_dev/log NDT: missing in UFM \"{}\"".format(link))
-        if code:
-            logging.warning("Failed to write link to syslog")
+        write_to_syslog("missing in UFM \"{}\"".format(link))
 
     while ufm_unique:
         link = str(ufm_unique.pop())
         missing_in_ndt.append(link)
-        code = os.system("logger -u /host_dev/log NDT: missing in NDT \"{}\"".format(link))
-        if code:
-            logging.warning("Failed to write link to syslog")
+        write_to_syslog("missing in NDT \"{}\"".format(link))
 
     # put only last 10k into the report
     report = {"miss_wired": miss_wired[-10000:],
