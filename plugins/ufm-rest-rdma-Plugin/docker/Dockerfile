@@ -37,6 +37,8 @@ ADD src/common /tmp/common
 
 
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+RUN mkdir -p /opt/ufm/files/conf
+COPY src/ufm_rdma/ufm_rdma.ini /tmp/ufm_rdma.ini
 COPY docker_init.sh /usr/sbin/docker_init.sh
 
 # Install OFED
