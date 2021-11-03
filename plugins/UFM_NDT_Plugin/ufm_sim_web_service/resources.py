@@ -26,15 +26,15 @@ import hashlib
 
 
 class UFMResource(Resource):
-    # config_file_name = "/config/ndt.conf"
-    config_file_name = "../build/config/ndt.conf"
+    config_file_name = "/config/ndt.conf"
+    # config_file_name = "../build/config/ndt.conf"
 
     def __init__(self):
         self.response_file = ""
-        self.reports_dir = "reports"
-        self.ndts_dir = "ndts"
-        # self.reports_dir = "/config/reports"
-        # self.ndts_dir = "/config/ndts"
+        # self.reports_dir = "reports"
+        # self.ndts_dir = "ndts"
+        self.reports_dir = "/config/reports"
+        self.ndts_dir = "/config/ndts"
         self.reports_list_file = os.path.join(self.reports_dir, "reports_list.json")
         self.ndts_list_file = os.path.join(self.ndts_dir, "ndts_list.json")
         self.success = 200
@@ -43,6 +43,7 @@ class UFMResource(Resource):
         self.switch_patterns = []
         self.host_patterns = []
         self.datetime_format = "%Y-%m-%d %H:%M:%S"
+        self.ufm_port = 8000
 
         self.create_reports_file(self.reports_list_file)
         self.create_reports_file(self.ndts_list_file)
@@ -53,6 +54,7 @@ class UFMResource(Resource):
         if os.path.exists(self.config_file_name):
             ndt_config.read(self.config_file_name)
             self.reports_to_save = ndt_config.getint("Common", "reports_to_save", fallback=10)
+            self.ufm_port = ndt_config.getint("Common", "ufm_port", fallback=8000)
             self.validation_enabled = ndt_config.getboolean("Validation", "enabled", fallback=True)
             if self.validation_enabled:
                 switch_patterns_str = ndt_config.get("Validation", "switch_patterns")
@@ -340,7 +342,8 @@ class Compare(UFMResource):
         logging.info("Run topology comparison")
         self.timestamp = self.get_timestamp()
         report_content = compare_topologies(self.timestamp, self.ndts_list_file,
-                                            self.switch_patterns, self.host_patterns)
+                                            self.switch_patterns, self.host_patterns,
+                                            self.ufm_port)
         if report_content["error"]:
             return self.report_error(400, report_content["error"])
 
