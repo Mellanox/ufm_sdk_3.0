@@ -27,6 +27,9 @@ with warnings.catch_warnings():
 
 SERVICE_NAME = b"ufm_rest_service"
 DEFAULT_CONFIG_FILE_NAME = "ufm_rdma.ini"
+HOSTS_FILE_PATH="/etc/hosts"
+UFM_CONFIG_FILE_PATH = "/opt/ufm/files/conf/gv.cfg"
+CLIENT_CERT_DB_FILE_PATH = "/opt/ufm/files/conf/webclient/ufm_client_authen.db"
 DEFAULT_LOG_FILE_NAME = "ufm_rdma.log"
 DEFAULT_HOST_NAME = "localhost"
 PLUGIN_CONF_FILE = "/config/ufm-rest.conf"
@@ -1034,6 +1037,8 @@ def main_server(request_arguments):
     Main Server flow
     :param request_arguments:
     """
+    # if need - update /etc/hosts
+    update_etc_hosts_for_client_certificate()
     # register server record
     device_name = request_arguments['interface']
     if not device_name or device_name == "None":
@@ -1273,6 +1278,119 @@ def extract_request_args(arguments):
     """
     return dict([(arg, arguments.pop(arg))
                  for arg in REQUEST_ARGS])
+
+def check_update_record_in_file(ip_address, servers_names):
+    '''
+    check if record with ip and host names already in /etc/hosts
+    :param ip:
+    :param server_name:
+    '''
+    # will check if /etc/hosts exists in system???
+    # if not exists - will create
+    if not os.path.isfile(HOSTS_FILE_PATH):
+        # just write ip and hosts
+        update_etc_hosts_file(ip_address, servers_names)
+    else: # file exist
+        # need to check if records already in file.
+        # if not - to write
+        hosts_names_to_update = []
+        with open(HOSTS_FILE_PATH) as etc_hosts_file:
+            datafile = etc_hosts_file.readlines()
+            for cert_server_name in servers_names:
+                exist_count = 0
+                for line in datafile:
+                    if cert_server_name in line and ip_address in line:
+                        exist_count += 1
+                        break
+                if exist_count == 0:
+                    hosts_names_to_update.append(cert_server_name)
+        update_etc_hosts_file(ip_address, hosts_names_to_update)
+
+def update_etc_hosts_file(ip_address, servers_names):
+    '''
+    Update /etc/hosts file
+    :param ip:
+    :param server_name:
+    '''
+    with open(HOSTS_FILE_PATH, 'a') as etc_hosts_file:
+        for cert_host_name in servers_names:
+            etc_hosts_file.write('%s    %s\n' % (ip_address, cert_host_name))
+
+def get_client_cert_servers_names():
+    '''
+    return list with names of client certificate servers
+    '''
+    # read file and convert to json
+    hosts_names = []
+    try:
+        with open(CLIENT_CERT_DB_FILE_PATH) as client_cert_db:
+            data = json.load(client_cert_db)
+            hosts_names = data['cert_info']['ssl_cert_hostnames']
+    except Exception as e:
+        err_msg = "Failed to read certificate hosts named from %s file: %s" % (CLIENT_CERT_DB_FILE_PATH, e)
+        logging.error(err_msg)
+    return hosts_names
+
+def get_ip_address_for_interface(ifname):
+    '''
+    return ip for requested interface name
+    :param ifname:
+    '''
+    cmd = 'ip a s %s | grep inet | head -1 | cut -d" " -f6 | cut -d"/" -f1' % ifname
+    f_descriptor = os.popen(cmd)
+    ip_addr=f_descriptor.read()
+    return ip_addr.strip()
+
+def get_mgmnt_interface_ip():
+    '''
+    function return ip of management interface - eth0 for applience
+    '''
+    mgmnt_if_name = rdma_rest_config.get("Server", "mgmnt_iface_name",
+                                     fallback="eth0")
+    return get_ip_address_for_interface(mgmnt_if_name)
+
+
+def update_etc_hosts_for_client_certificate():
+    '''
+    If running on applience and in server mode need to add to /etc/hosts
+    ip address of server and name of server that client certificate defined for
+    1. check if client certificate is in use for this server
+    in gv.cfg
+    client_cert_authentication = true
+    if set to true - from /opt/ufm/files/conf/webclient/ufm_client_authen.db take
+    the name of server and get address of eth0 interface.
+    Then if need - update /etc/hosts
+    '''
+    # check if config file exist
+    if os.path.isfile(UFM_CONFIG_FILE_PATH):
+        ufm_config = configparser.ConfigParser()
+        try:
+            ufm_config.read(UFM_CONFIG_FILE_PATH)
+        except Exception as e:
+            error_message = "Failed to read UFM configuration file %s: %s" % (UFM_CONFIG_FILE_PATH, e)
+            logging.error(error_message)
+            return
+        # check if client certificate set to true
+        client_cert_flag = ufm_config.get("Server", "client_cert_authentication",
+                                     fallback="true")
+        if client_cert_flag.lower() == "true":
+            # need to update /etc/hosts
+            if os.path.isfile(CLIENT_CERT_DB_FILE_PATH):
+                certificate_client_servers_names = get_client_cert_servers_names()
+                mgmnt_interface_ip = get_mgmnt_interface_ip()
+                try:
+                    check_update_record_in_file(mgmnt_interface_ip, certificate_client_servers_names)
+                except Exception as e:
+                    error_message = ("Filed to update /etc/hosts with client "
+                            " certificate related configuration: %s" % e)
+                    logging.error(error_message)
+                    return
+            else:
+                error_message = ("File %s not found. /etc/hosts will not be "
+                            "updated with client certificate related data" %\
+                               CLIENT_CERT_DB_FILE_PATH)
+                logging.error(error_message)
+                return
 
 def set_env_variables():
     '''
