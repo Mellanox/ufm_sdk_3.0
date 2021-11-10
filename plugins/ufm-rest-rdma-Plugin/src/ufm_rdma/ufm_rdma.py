@@ -637,7 +637,6 @@ async def receive_rest_request(recv_tag):
         action_type = action = url = payload = username = password = host = None
         arr = np.chararray((9, 2), itemsize=DEFAULT_N_BYTES)
         await ucp.recv(arr, tag=recv_tag)
-        logging.debug("Server: Received NumPy request array: %s" % str(arr))
         action_type = arr[0][1].decode()
         action = arr[1][1].decode()
         url = arr[2][1].decode()
@@ -647,6 +646,11 @@ async def receive_rest_request(recv_tag):
         host = arr[6][1].decode()
         client_certificate = arr[7][1].decode()
         token = arr[8][1].decode()
+        logging.debug("Server: Received NumPy request array:")
+        logging.debug("action_type: %s, action: %s, url: %s, payload: %s, "
+                      "host: %s, client_certificate: %s ,token: %s" %\
+                      (action_type, action, url, payload, host, 
+                       client_certificate, token))
     except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError,
             ucp.exceptions.UCXError) as e:
         error_msg = "Server: Failed to receive rest request from client. UCP error"
@@ -755,7 +759,7 @@ async def send_rest_request(real_url, action, payload, username, password):
     :param client_certificate:
     """
     logging.debug("Username and password: real_url %s, action %s, payload %s, username %s, password %s" %
-                                (real_url, action, payload, username, password))
+                                (real_url, action, payload, "******", "******"))
     if payload and payload != 'None':
         send_payload = json.loads(payload)
     else:
@@ -1163,8 +1167,12 @@ def main_client(request_arguments):
         ########################################################################
         # Init the request and send it to server
         ########################################################################
-        logging.debug("Client: Initialize chararray to sent request to client %s" %
-                                                          str(request_arguments))
+        logging.debug("Client: Initialize chararray to sent request to client: "
+                      "type %s, rest_action %s, rest_url %s, url_payload %s, ufm_server_ip %s" %
+           (request_arguments['type'], request_arguments['rest_action'],
+            request_arguments['rest_url'], request_arguments['url_payload'],
+            request_arguments['ufm_server_ip']))
+           
         try:
             charar = np.chararray((9, 2), itemsize=DEFAULT_N_BYTES)
             initialize_request_array(charar, request_arguments)
