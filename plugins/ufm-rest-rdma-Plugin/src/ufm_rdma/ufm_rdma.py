@@ -9,6 +9,8 @@ from logging.handlers import RotatingFileHandler
 import os
 import struct
 import sys
+import fcntl
+import socket
 from threading import Thread, Timer
 import time
 import warnings
@@ -1339,7 +1341,7 @@ def get_client_cert_servers_names():
         logging.error(err_msg)
     return hosts_names
 
-def get_ip_address_for_interface(ifname):
+def get_ip_address_for_interface_bash(ifname):
     '''
     return ip for requested interface name
     :param ifname:
@@ -1348,6 +1350,21 @@ def get_ip_address_for_interface(ifname):
     f_descriptor = os.popen(cmd)
     ip_addr=f_descriptor.read()
     return ip_addr.strip()
+
+def get_ip_address_for_interface(interface):
+    '''
+    return IP addres for requested interface
+    :param interface:
+    '''
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        packed_iface = struct.pack('256s', interface.encode('utf_8'))
+        packed_addr = fcntl.ioctl(sock.fileno(), 0x8915, packed_iface)[20:24]
+        return socket.inet_ntoa(packed_addr)
+    except Exception as e:
+        error_message = "Failed to get ip address for %s: %s" % (interface, e)
+        logging.error(error_message)
+        return None
 
 def get_mgmnt_interface_ip():
     '''
@@ -1386,10 +1403,16 @@ def update_etc_hosts_for_client_certificate():
             if os.path.isfile(CLIENT_CERT_DB_FILE_PATH):
                 certificate_client_servers_names = get_client_cert_servers_names()
                 mgmnt_interface_ip = get_mgmnt_interface_ip()
+                if mgmnt_interface_ip is None:
+                    error_message = ("Faile to get mgmnt interface ip address."
+                                     " /etc/hosts will not be "
+                            "updated with client certificate related data")
+                    logging.error(error_message)
+                    return
                 try:
                     check_update_record_in_file(mgmnt_interface_ip, certificate_client_servers_names)
                 except Exception as e:
-                    error_message = ("Filed to update /etc/hosts with client "
+                    error_message = ("Failed to update /etc/hosts with client "
                             " certificate related configuration: %s" % e)
                     logging.error(error_message)
                     return
