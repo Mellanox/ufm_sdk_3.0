@@ -25,6 +25,7 @@ class UFMWebSimProc:
     """
 
     def __init__(self):
+        print("Starting NDT web server", flush=True)
         self.web_server = UFMWebSim()
 
     def _start_web_server(self):
@@ -38,7 +39,6 @@ class UFMWebSimProc:
         await self.web_server.stop()
 
     def shutdown(self, *_args):
-        print("%s.shutdown", self.__class__.__name__)
         raise KeyboardInterrupt
 
 
@@ -52,6 +52,6 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         pass
     finally:
-        print("UFM web sim stopping...")
+        print("Stopping NDT web server", flush=True)
         _loop.run_until_complete(ufm_web_sim.cleanup())
         _loop.stop()

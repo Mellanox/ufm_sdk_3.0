@@ -26,7 +26,7 @@ from twisted.web.wsgi import WSGIResource
 from twisted.internet import reactor
 from twisted.web import server
 
-from resources import UFMResource, Compare, Ndts, Reports, ReportId, UploadMetadata, Delete, Cancel
+from resources import UFMResource, Compare, Ndts, Reports, ReportId, UploadMetadata, Delete, Cancel, Dummy
 
 
 class UFMWebSim:
@@ -35,14 +35,15 @@ class UFMWebSim:
         if os.path.exists(UFMResource.config_file_name):
             ndt_config.read(UFMResource.config_file_name)
             self.log_level = ndt_config.get("Common", "log_level")
-            self.log_file_path = ndt_config.get("Common", "log_file_path")
             self.log_file_max_size = ndt_config.getint("Common", "log_file_max_size")
             self.log_file_backup_count = ndt_config.getint("Common", "log_file_backup_count")
 
+            log_format = '%(asctime)-15s %(levelname)s %(message)s'
             logging.basicConfig(handlers=[RotatingFileHandler(self.log_file_path,
                                                               maxBytes=self.log_file_max_size,
                                                               backupCount=self.log_file_backup_count)],
-                                level=logging.getLevelName(self.log_level))
+                                level=logging.getLevelName(self.log_level),
+                                format=log_format)
 
     def init_apis(self):
         default_apis = {
@@ -51,6 +52,7 @@ class UFMWebSim:
             Delete: "/delete",
             UploadMetadata: "/upload_metadata",
             ReportId: "/reports/<report_id>",
+            Dummy: "/dummy",
         }
         for resource, path in default_apis.items():
             self.api.add_resource(resource, path)
