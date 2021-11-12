@@ -14,7 +14,7 @@ def get_hash(file_content):
     return sha1.hexdigest()
 
 
-HOST_IP = "swx-tol"
+HOST_IP = "r-ufm247"
 DEFAULT_PASSWORD = "123456"
 # HOST_IP = "r-ufm235"
 # DEFAULT_PASSWORD = "admin"
@@ -259,7 +259,7 @@ def instant_comparison():
 def periodic_comparison():
     print("Periodic comparison")
 
-    datetime_end = datetime_start = datetime.now() - timedelta(hours=2) + timedelta(seconds=1)
+    datetime_end = datetime_start = datetime.now() + timedelta(seconds=1)
 
     test_name = "incorrect request"
     payload = {"asd": "asd"}
@@ -312,7 +312,7 @@ def periodic_comparison():
         check_comparison_report("Periodic")
 
     test_name = "start scheduler twice"
-    datetime_start = datetime.now() - timedelta(hours=2) + timedelta(seconds=1)
+    datetime_start = datetime.now() + timedelta(seconds=1)
     datetime_end = datetime_start + timedelta(minutes=10)
     payload = {
         "run": {

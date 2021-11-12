@@ -166,7 +166,7 @@ def get_ufm_links(ufm_port):
     ufm_host = "127.0.0.1:{}".format(ufm_port)
     ufm_protocol = "http"
     resource = "/resources/links"
-    headers = {'X-Remote-User': "ufmsystem"}
+    headers = {"X-Remote-User": "ufmsystem"}
     response = get_request(ufm_host, ufm_protocol, resource, headers)
     if response.status_code != SUCCESS_CODE:
         return {}, response.status_code
@@ -252,7 +252,7 @@ def write_to_syslog(message):
     if os.path.exists(syslog_socket):
         code = os.system("logger -u {} NDT: {}".format(syslog_socket, message))
         if code:
-            logging.warning("Failed to write link to syslog")
+            logging.warning("Failed to write link to syslog, logger code: {}".format(code))
 
 
 def compare_topologies(timestamp, ndts_list_file, switch_patterns, host_patterns, ufm_port):
@@ -275,34 +275,56 @@ def compare_topologies(timestamp, ndts_list_file, switch_patterns, host_patterns
 
     ndt_unique = ndt_links - ufm_links - ufm_links_reversed
     ufm_unique = ufm_links - ndt_links - ndt_links_reversed
-    ndt_unique_wo_miss_wired = set()
-    while ndt_unique:
-        ndt_link = ndt_unique.pop()
-        for ufm_link in ufm_unique:
-            if links_miss_wired(ndt_link, ufm_link):
-                miss_wired.append({"expected": str(ndt_link),
-                                   "actual": str(ufm_link)})
-                write_to_syslog("Actual \"{}\" doesn't match expected \"{}\"".format(str(ufm_link), str(ndt_link)))
-                ufm_unique.remove(ufm_link)
-                break
-        else:
-            ndt_unique_wo_miss_wired.add(ndt_link)
 
-    while ndt_unique_wo_miss_wired:
-        link = str(ndt_unique_wo_miss_wired.pop())
+    ndt_dict = {(link.start_dev, link.end_dev, link.start_port): link for link in ndt_unique}
+    ufm_dict = {(link.start_dev, link.end_dev, link.start_port): link for link in ufm_unique}
+
+    # start port miss-wired
+    for start_port, link_ndt in ndt_dict.items():
+        link_ufm = ufm_dict.get(start_port)
+        if link_ufm:
+            miss_wired.append({"expected": str(link_ndt),
+                               "actual": str(link_ufm)})
+            write_to_syslog("actual \"{}\" does not match expected \"{}\"".format(link_ndt, link_ufm))
+            # print("NDT: actual \"{}\" does not match expected \"{}\"".format(link_ndt, link_ufm), flush=True)
+
+            ndt_unique.remove(link_ndt)
+            ufm_unique.remove(link_ufm)
+
+    ndt_dict = {(link.start_dev, link.end_dev, link.end_port): link for link in ndt_unique}
+    ufm_dict = {(link.start_dev, link.end_dev, link.end_port): link for link in ufm_unique}
+
+    # end port miss-wired
+    for end_port, link_ndt in ndt_dict.items():
+        link_ufm = ufm_dict.get(end_port)
+        if link_ufm:
+            miss_wired.append({"expected": str(link_ndt),
+                               "actual": str(link_ufm)})
+            write_to_syslog("actual \"{}\" does not match expected \"{}\"".format(link_ndt, link_ufm))
+            # print("NDT: actual \"{}\" does not match expected \"{}\"".format(link_ndt, link_ufm), flush=True)
+            ndt_unique.remove(link_ndt)
+            ufm_unique.remove(link_ufm)
+
+    while ndt_unique:
+        link = str(ndt_unique.pop())
         missing_in_ufm.append(link)
         write_to_syslog("missing in UFM \"{}\"".format(link))
+        # print("NDT: missing in UFM \"{}\"".format(link), flush=True)
 
     while ufm_unique:
         link = str(ufm_unique.pop())
         missing_in_ndt.append(link)
         write_to_syslog("missing in NDT \"{}\"".format(link))
+        # print("NDT: missing in NDT \"{}\"".format(link), flush=True)
 
     # put only last 10k into the report
     report = {"miss_wired": miss_wired[-10000:],
               "missing_in_ufm": missing_in_ufm[-10000:],
               "missing_in_ndt": missing_in_ndt[-10000:]}
-    response = {"error": "",
+    error = ""
+    if not miss_wired and not missing_in_ufm and not missing_in_ndt:
+        error = "NDT and UFM are fully match"
+    response = {"error": error,
                 "timestamp": timestamp,
                 "report": report}
 

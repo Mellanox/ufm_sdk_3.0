@@ -86,8 +86,8 @@ class UFMResource(Resource):
 
     @staticmethod
     def create_reports_file(file_name):
-        logging.info("Creating {}".format(file_name))
         if not os.path.exists(file_name):
+            logging.info("Creating {}".format(file_name))
             with open(file_name, "w") as file:
                 json.dump([], file)
 
@@ -302,7 +302,7 @@ class Compare(UFMResource):
         return self.report_error(405, "Method is not allowed")
 
     def update_reports_list(self, scope):
-        with open(self.reports_list_file, "r+") as reports_list_file:
+        with open(self.reports_list_file, "r") as reports_list_file:
             # unhandled exception in case reports file was changed manually
             data = json.load(reports_list_file)
             self.report_number = len(data) + 1
@@ -322,10 +322,10 @@ class Compare(UFMResource):
                               self.get_report_path("report_{}.json".format(report["report_id"])))
                 self.report_number -= 1
                 entry["report_id"] = self.report_number
-
             data.append(entry)
-            reports_list_file.seek(0)
+        with open(self.reports_list_file, "w") as reports_list_file:
             json.dump(data, reports_list_file)
+
         return self.report_success()
 
     def save_report(self, file_content):
@@ -340,6 +340,8 @@ class Compare(UFMResource):
 
     def compare(self, scope="Periodic"):
         logging.info("Run topology comparison")
+        if scope == 'Periodic':
+            self.parse_config()
         self.timestamp = self.get_timestamp()
         report_content = compare_topologies(self.timestamp, self.ndts_list_file,
                                             self.switch_patterns, self.host_patterns,
@@ -465,6 +467,16 @@ class Ndts(UFMResource):
         logging.info("GET /plugin/ndt/list")
         super().__init__()
         self.response_file = self.ndts_list_file
+
+    def post(self):
+        return self.report_error(405, "Method is not allowed")
+
+
+class Dummy(UFMResource):
+    def get(self):
+        logging.info("GET /plugin/ndt/dummy")
+        print("Hello from dummy resource!", flush=True)
+        return self.report_success()
 
     def post(self):
         return self.report_error(405, "Method is not allowed")
