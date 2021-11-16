@@ -240,6 +240,32 @@ def parse_ufm_links(ufm_port):
     return ufm_links, ufm_links_reversed, ""
 
 
+def get_port(link, port_type):
+    if port_type == PortType.SOURCE:
+        return link.start_port.upper()
+    elif port_type == PortType.DESTINATION:
+        return link.end_port.upper()
+    else:
+        return ""
+
+
+def check_miswired(port_type, ndt_unique, ufm_unique, miss_wired):
+    ndt_dict = {(link.start_dev.upper(), link.end_dev.upper(), get_port(link, port_type))
+                : link for link in ndt_unique}
+    ufm_dict = {(link.start_dev.upper(), link.end_dev.upper(), get_port(link, port_type))
+                : link for link in ufm_unique}
+
+    for start_port, link_ndt in ndt_dict.items():
+        link_ufm = ufm_dict.get(start_port)
+        if link_ufm:
+            miss_wired.append({"expected": str(link_ufm),
+                               "actual": str(link_ndt)})
+            print("NDT: actual \"{}\" does not match expected \"{}\"".format(link_ndt, link_ufm), flush=True)
+
+            ndt_unique.remove(link_ndt)
+            ufm_unique.remove(link_ufm)
+
+
 def compare_topologies(timestamp, ndts_list_file, switch_patterns, host_patterns, ufm_port):
     ndt_links, ndt_links_reversed, error_message = parse_ndt_files(ndts_list_file, switch_patterns, host_patterns)
     if error_message:
@@ -261,32 +287,8 @@ def compare_topologies(timestamp, ndts_list_file, switch_patterns, host_patterns
     ndt_unique = ndt_links - ufm_links - ufm_links_reversed
     ufm_unique = ufm_links - ndt_links - ndt_links_reversed
 
-    ndt_dict = {(link.start_dev, link.end_dev, link.start_port): link for link in ndt_unique}
-    ufm_dict = {(link.start_dev, link.end_dev, link.start_port): link for link in ufm_unique}
-
-    # start port miss-wired
-    for start_port, link_ndt in ndt_dict.items():
-        link_ufm = ufm_dict.get(start_port)
-        if link_ufm:
-            miss_wired.append({"expected": str(link_ufm),
-                               "actual": str(link_ndt)})
-            print("NDT: actual \"{}\" does not match expected \"{}\"".format(link_ndt, link_ufm), flush=True)
-
-            ndt_unique.remove(link_ndt)
-            ufm_unique.remove(link_ufm)
-
-    ndt_dict = {(link.start_dev, link.end_dev, link.end_port): link for link in ndt_unique}
-    ufm_dict = {(link.start_dev, link.end_dev, link.end_port): link for link in ufm_unique}
-
-    # end port miss-wired
-    for end_port, link_ndt in ndt_dict.items():
-        link_ufm = ufm_dict.get(end_port)
-        if link_ufm:
-            miss_wired.append({"expected": str(link_ndt),
-                               "actual": str(link_ufm)})
-            print("NDT: actual \"{}\" does not match expected \"{}\"".format(link_ndt, link_ufm), flush=True)
-            ndt_unique.remove(link_ndt)
-            ufm_unique.remove(link_ufm)
+    check_miswired(PortType.SOURCE, ndt_unique, ufm_unique, miss_wired)
+    check_miswired(PortType.DESTINATION, ndt_unique, ufm_unique, miss_wired)
 
     while ndt_unique:
         link = str(ndt_unique.pop())

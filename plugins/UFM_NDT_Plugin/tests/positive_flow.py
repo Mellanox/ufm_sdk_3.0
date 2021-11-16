@@ -1,4 +1,5 @@
 import json
+import subprocess
 import time
 
 import requests
@@ -142,7 +143,7 @@ def upload_metadata(ndts_folder):
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response),
                  {'error': ["Incorrect file type. Possible file types: {}."
-                            .format(",".join(possible_file_types))]}, test_name)
+                 .format(",".join(possible_file_types))]}, test_name)
     upload_request[0]["file_type"] = good_file_type
 
     good_file_name = upload_request[0]["file_name"]
@@ -190,6 +191,27 @@ def upload_metadata(ndts_folder):
                                                                     "'file_name'"]}, test_name)
 
 
+def get_actual_report_len(report):
+    if report:
+        return len(report["report"]["miss_wired"]),\
+               len(report["report"]["missing_in_ndt"]),\
+               len(report["report"]["missing_in_ufm"])
+    else:
+        return 0, 0, 0
+
+
+def get_expected_report_len():
+    expected_report = os.path.join(os.path.dirname(os.path.abspath(__file__)), "expected_report.json")
+    with open(expected_report, "r") as file:
+        expected_response = json.load(file)
+        if expected_response:
+            return len(expected_response["report"]["miss_wired"]),\
+                   len(expected_response["report"]["missing_in_ndt"]),\
+                   len(expected_response["report"]["missing_in_ufm"])
+        else:
+            return 0, 0, 0
+
+
 def check_comparison_report(comparison_type):
     print("{} report content test".format(comparison_type))
 
@@ -216,16 +238,16 @@ def check_comparison_report(comparison_type):
     response, request_string = make_request(GET, REPORT_ID.format(reports_number))
     assert_equal(request_string, get_code(response), 200, test_name)
     report = get_response(response)
-    report_len = 0
-    if report:
-        report_len = len(report["report"]["missing_in_ndt"])
+    miss_wired_len, missing_in_ndt_len, missing_in_ufm_len = get_actual_report_len(report)
     expected_report = os.path.join(os.path.dirname(os.path.abspath(__file__)), "expected_report.json")
     with open(expected_report, "r") as file:
         expected_response = json.load(file)
-        expected_report_len = 0
         if expected_response:
-            expected_report_len = len(expected_response["report"]["missing_in_ndt"])
-        assert_equal(request_string, str(report_len), str(expected_report_len), test_name)
+            expected_miss_wired_len, expected_missing_in_ndt_len, expected_missing_in_ufm_len,\
+                = get_expected_report_len()
+        assert_equal(request_string, str(missing_in_ndt_len), str(expected_missing_in_ndt_len), test_name)
+        assert_equal(request_string, str(missing_in_ufm_len), str(expected_missing_in_ufm_len), test_name)
+        assert_equal(request_string, str(miss_wired_len), str(expected_miss_wired_len), test_name)
 
     test_name = "report doesn't exist"
     response, request_string = make_request(GET, REPORT_ID.format(reports_number + 1))
@@ -239,9 +261,37 @@ def check_comparison_report(comparison_type):
     assert_equal(request_string, get_response(response), {'error': 'Report id \'{}\' is not valid'.format("x")},
                  test_name)
 
+# TODO: add ssh?
+def syslog_message_count(message):
+    syslog_proc = subprocess.Popen(["cat", "/var/log/messages"],
+                                   stdout=subprocess.PIPE)
+    grep_proc = subprocess.run(['grep', message], stdin=syslog_proc.stdout,
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.splitlines()
+    return len(grep_proc)
+
+
+def check_syslog(miswired_syslog, mufm_syslog, mndt_syslog):
+    miswired_diff = syslog_message_count("NDT: actual") - miswired_syslog
+    mufm_diff = syslog_message_count("NDT: missing in UFM") - mufm_syslog
+    mndt_diff = syslog_message_count("NDT: missing in NDT") - mndt_syslog
+
+    miswired_expected, mndt_expected, mufm_expected = get_expected_report_len()
+
+    if miswired_diff != miswired_expected:
+        print("    - miswired syslog -- FAIL (expected: {}, actual: {})".format(2, miswired_diff))
+    if mufm_diff != mufm_expected:
+        print("    - missing in UFM syslog -- FAIL (expected: {}, actual: {})".format(mufm_expected, mufm_diff))
+    if mndt_diff != mndt_expected:
+        print("    - missing in NDT syslog -- FAIL (expected: {}, actual: {})".format(mndt_expected, mndt_diff))
+
 
 def instant_comparison():
     print("Simple compare test")
+
+    miswired_syslog = syslog_message_count("NDT: actual")
+    mufm_syslog = syslog_message_count("NDT: missing in UFM")
+    mndt_syslog = syslog_message_count("NDT: missing in NDT")
+
     response, request_string = make_request(POST, COMPARE)
     assert_equal(request_string, get_code(response), 200)
     assert_equal(request_string, get_response(response), {})
@@ -253,6 +303,7 @@ def instant_comparison():
     assert_equal(request_string, get_response(response), {'error': 'Method is not allowed'}, test_name)
 
     if comparison_status_code == 200:
+        check_syslog(miswired_syslog, mufm_syslog, mndt_syslog)
         check_comparison_report("Instant")
 
 

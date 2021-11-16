@@ -26,17 +26,17 @@ import hashlib
 
 
 class UFMResource(Resource):
-    config_file_name = "../build/config/ndt.conf"
-    periodic_request_file = "../build/config/periodic_request.json"
-    # config_file_name = "/config/ndt.conf"
-    # periodic_request_file = "/config/periodic_request.json"
+    # config_file_name = "../build/config/ndt.conf"
+    # periodic_request_file = "../build/config/periodic_request.json"
+    config_file_name = "/config/ndt.conf"
+    periodic_request_file = "/config/periodic_request.json"
 
     def __init__(self):
         self.response_file = ""
-        self.reports_dir = "reports"
-        self.ndts_dir = "ndts"
-        # self.reports_dir = "/config/reports"
-        # self.ndts_dir = "/config/ndts"
+        # self.reports_dir = "reports"
+        # self.ndts_dir = "ndts"
+        self.reports_dir = "/config/reports"
+        self.ndts_dir = "/config/ndts"
         self.reports_list_file = os.path.join(self.reports_dir, "reports_list.json")
         self.ndts_list_file = os.path.join(self.ndts_dir, "ndts_list.json")
         self.success = 200
@@ -46,10 +46,10 @@ class UFMResource(Resource):
         self.host_patterns = []
         self.datetime_format = "%Y-%m-%d %H:%M:%S"
         self.ufm_port = 8000
-        self.version_file = "release.json"
-        self.help_file = "help.json"
-        # self.version_file = "/opt/ufm/ufm_plugin_ndt/ufm_sim_web_service/release.json"
-        # self.help_file = "/opt/ufm/ufm_plugin_ndt/ufm_sim_web_service/help.json"
+        # self.version_file = "release.json"
+        # self.help_file = "help.json"
+        self.version_file = "/opt/ufm/ufm_plugin_ndt/ufm_sim_web_service/release.json"
+        self.help_file = "/opt/ufm/ufm_plugin_ndt/ufm_sim_web_service/help.json"
 
         self.create_reports_file(self.reports_list_file)
         self.create_reports_file(self.ndts_list_file)
@@ -424,6 +424,8 @@ class Cancel(UFMResource):
 
     def post(self):
         try:
+            if os.path.exists(UFMResource.periodic_request_file):
+                os.remove(UFMResource.periodic_request_file)
             if len(self.scheduler.get_jobs()):
                 self.scheduler.remove_all_jobs()
                 return self.report_success()
