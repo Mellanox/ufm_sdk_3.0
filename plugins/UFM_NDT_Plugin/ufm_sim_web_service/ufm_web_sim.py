@@ -15,6 +15,8 @@
 """
 
 import configparser
+import json
+
 from flask import Flask
 from flask_restful import Api
 import logging
@@ -26,7 +28,8 @@ from twisted.web.wsgi import WSGIResource
 from twisted.internet import reactor
 from twisted.web import server
 
-from resources import UFMResource, Compare, Ndts, Reports, ReportId, UploadMetadata, Delete, Cancel, Dummy
+from resources import UFMResource, Compare, Ndts, Reports, ReportId,\
+    UploadMetadata, Delete, Cancel, Version, Help, Dummy
 
 
 class UFMWebSim:
@@ -37,6 +40,7 @@ class UFMWebSim:
             self.log_level = ndt_config.get("Common", "log_level")
             self.log_file_max_size = ndt_config.getint("Common", "log_file_max_size")
             self.log_file_backup_count = ndt_config.getint("Common", "log_file_backup_count")
+            mode = ndt_config.get("Common", "mode")
 
             log_format = '%(asctime)-15s %(levelname)s %(message)s'
             logging.basicConfig(handlers=[RotatingFileHandler(self.log_file_path,
@@ -52,6 +56,8 @@ class UFMWebSim:
             Delete: "/delete",
             UploadMetadata: "/upload_metadata",
             ReportId: "/reports/<report_id>",
+            Version: "/version",
+            Help: "/help",
             Dummy: "/dummy",
         }
         for resource, path in default_apis.items():
@@ -60,19 +66,28 @@ class UFMWebSim:
         self.api.add_resource(Cancel, "/cancel", resource_class_kwargs={'scheduler': self.scheduler})
         self.api.add_resource(Compare, "/compare", resource_class_kwargs={'scheduler': self.scheduler})
 
+    def restart_periodic_comparison(self):
+        if not os.path.exists(UFMResource.periodic_request_file):
+            return
+        compare = Compare(self.scheduler)
+        with open(UFMResource.periodic_request_file, "r") as file:
+            compare.parse_request(json.load(file))
+        compare.start_scheduler()
+
     def __init__(self):
         self.log_level = logging.INFO
         self.log_file_max_size = 10240000
-        # self.log_file_path = "/tmp/ndt.log"
-        self.log_file_path = "/log/ndt.log"
+        self.log_file_path = "/tmp/ndt.log"
+        # self.log_file_path = "/log/ndt.log"
         self.log_file_backup_count = 5
         self.port_number = 8980
         self.app = Flask(__name__)
         self.api = Api(self.app)
-        self.scheduler = BackgroundScheduler(daemon=True)
-        self.scheduler.start()
 
         self.parse_config()
+        self.scheduler = BackgroundScheduler()
+        self.scheduler.start()
+        self.restart_periodic_comparison()
         self.init_apis()
 
     async def run(self):

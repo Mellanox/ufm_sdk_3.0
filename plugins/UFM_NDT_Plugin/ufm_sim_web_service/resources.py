@@ -26,15 +26,17 @@ import hashlib
 
 
 class UFMResource(Resource):
-    config_file_name = "/config/ndt.conf"
-    # config_file_name = "../build/config/ndt.conf"
+    config_file_name = "../build/config/ndt.conf"
+    periodic_request_file = "../build/config/periodic_request.json"
+    # config_file_name = "/config/ndt.conf"
+    # periodic_request_file = "/config/periodic_request.json"
 
     def __init__(self):
         self.response_file = ""
-        # self.reports_dir = "reports"
-        # self.ndts_dir = "ndts"
-        self.reports_dir = "/config/reports"
-        self.ndts_dir = "/config/ndts"
+        self.reports_dir = "reports"
+        self.ndts_dir = "ndts"
+        # self.reports_dir = "/config/reports"
+        # self.ndts_dir = "/config/ndts"
         self.reports_list_file = os.path.join(self.reports_dir, "reports_list.json")
         self.ndts_list_file = os.path.join(self.ndts_dir, "ndts_list.json")
         self.success = 200
@@ -44,6 +46,10 @@ class UFMResource(Resource):
         self.host_patterns = []
         self.datetime_format = "%Y-%m-%d %H:%M:%S"
         self.ufm_port = 8000
+        self.version_file = "release.json"
+        self.help_file = "help.json"
+        # self.version_file = "/opt/ufm/ufm_plugin_ndt/ufm_sim_web_service/release.json"
+        # self.help_file = "/opt/ufm/ufm_plugin_ndt/ufm_sim_web_service/help.json"
 
         self.create_reports_file(self.reports_list_file)
         self.create_reports_file(self.ndts_list_file)
@@ -79,7 +85,7 @@ class UFMResource(Resource):
 
     @staticmethod
     def read_json_file(file_name):
-        with open(file_name) as file:
+        with open(file_name, "r", encoding="utf-8") as file:
             # unhandled exception in case some of the files was changed manually
             data = json.load(file)
         return data
@@ -177,7 +183,7 @@ class UploadMetadata(UFMResource):
     def post(self):
         logging.info("POST /plugin/ndt/upload_metadata")
         error_status_code, error_response = self.success, []
-        if not request.data:
+        if not request.json:
             return self.report_error(400, "Upload request is empty")
         else:
             json_data = request.get_json(force=True)
@@ -239,7 +245,7 @@ class Delete(UFMResource):
 
     def update_ndts_list(self, json_data):
         error_response = []
-        with open(self.ndts_list_file, "r") as file:
+        with open(self.ndts_list_file, "r", encoding="utf-8") as file:
             # unhandled exception in case ndts file was changed manually
             data = json.load(file)
             for ndt_dict in json_data:
@@ -267,7 +273,7 @@ class Delete(UFMResource):
 
     def post(self):
         logging.info("POST /plugin/ndt/delete")
-        if not request.data:
+        if not request.json:
             return self.report_error(400, "Upload request is empty")
         else:
             error_status_code, error_response = self.success, []
@@ -302,7 +308,7 @@ class Compare(UFMResource):
         return self.report_error(405, "Method is not allowed")
 
     def update_reports_list(self, scope):
-        with open(self.reports_list_file, "r") as reports_list_file:
+        with open(self.reports_list_file, "r", encoding="utf-8") as reports_list_file:
             # unhandled exception in case reports file was changed manually
             data = json.load(reports_list_file)
             self.report_number = len(data) + 1
@@ -369,8 +375,13 @@ class Compare(UFMResource):
                     return self.report_error(400, "Minimal interval value is 5 minutes")
             except ValueError:
                 return self.report_error(400, "Interval '{}' is not valid".format(self.interval))
+            timestamp = datetime.strptime(self.get_timestamp(), self.datetime_format)
             self.datetime_start = datetime.strptime(start_time, self.datetime_format)
+            while timestamp > self.datetime_start:
+                self.datetime_start += timedelta(minutes=self.interval)
             self.datetime_end = datetime.strptime(end_time, self.datetime_format)
+            if self.datetime_end < timestamp:
+                return self.report_error(400, "End time is less than current time")
             return self.report_success()
         except KeyError as ke:
             return self.report_error(400, "Incorrect format, no expected key in request: {}".format(ke))
@@ -381,20 +392,21 @@ class Compare(UFMResource):
 
     def start_scheduler(self):
         try:
-            if len(self.scheduler.get_jobs()):
-                return self.report_error(400, "Periodic comparison is already running")
-            else:
-                while self.datetime_start <= self.datetime_end:
-                    self.scheduler.add_job(func=self.compare, run_date=self.datetime_start)
-                    self.datetime_start += timedelta(minutes=self.interval)
-                return self.report_success()
+            while self.datetime_start <= self.datetime_end:
+                self.scheduler.add_job(func=self.compare, run_date=self.datetime_start)
+                self.datetime_start += timedelta(minutes=self.interval)
+            return self.report_success()
         except Exception as e:
             return self.report_error(400, "Periodic comparison failed to start: {}".format(e))
 
     def post(self):
         logging.info("POST /plugin/ndt/compare")
-        if request.data:
+        if request.json:
+            if len(self.scheduler.get_jobs()):
+                return self.report_error(400, "Periodic comparison is already running")
             json_data = request.get_json(force=True)
+            with open(UFMResource.periodic_request_file, "w") as file:
+                json.dump(json_data, file)
             logging.debug("Parsing JSON request: {}".format(json_data))
             response, status_code = self.parse_request(json_data)
             if status_code != self.success:
@@ -428,7 +440,7 @@ class ReportId(UFMResource):
     def __init__(self):
         super().__init__()
         # unhandled exception in case reports file was deleted manually
-        with open(self.reports_list_file, "r") as file:
+        with open(self.reports_list_file, "r", encoding="utf-8") as file:
             self.data = json.load(file)
 
     def post(self, report_id):
@@ -467,6 +479,26 @@ class Ndts(UFMResource):
         logging.info("GET /plugin/ndt/list")
         super().__init__()
         self.response_file = self.ndts_list_file
+
+    def post(self):
+        return self.report_error(405, "Method is not allowed")
+
+
+class Version(UFMResource):
+    def __init__(self):
+        logging.info("GET /plugin/ndt/version")
+        super().__init__()
+        self.response_file = self.version_file
+
+    def post(self):
+        return self.report_error(405, "Method is not allowed")
+
+
+class Help(UFMResource):
+    def __init__(self):
+        logging.info("GET /plugin/ndt/version")
+        super().__init__()
+        self.response_file = self.help_file
 
     def post(self):
         return self.report_error(405, "Method is not allowed")
