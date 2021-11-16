@@ -13,6 +13,8 @@
 # This script prepares and checks NDT docker container Environment
 # ================================================================
 
+set -eE
+
 # removing log file
 rm /log/ndt.log
 

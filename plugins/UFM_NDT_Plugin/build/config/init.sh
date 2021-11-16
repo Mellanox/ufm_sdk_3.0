@@ -13,6 +13,8 @@
 # This script prepares and checks NDT docker container Environment
 # ================================================================
 
+set -eE
+
 # Updating /config folder
 mv /opt/ufm/ufm_plugin_ndt/ndt.conf /config
 mv /opt/ufm/ufm_plugin_ndt/ndt_httpd_proxy.conf /config

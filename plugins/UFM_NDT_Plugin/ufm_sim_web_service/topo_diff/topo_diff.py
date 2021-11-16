@@ -129,7 +129,7 @@ def parse_ndt_files(ndts_list_file, switch_patterns, host_patterns):
     ndt_links_reversed = set()
     ndt_files_dir = os.path.dirname(ndts_list_file)
     # in case somebody deleted ndts.json - unhandled exception, server should be restarted
-    with open(ndts_list_file, "r") as file:
+    with open(ndts_list_file, "r", encoding="utf-8") as file:
         data = json.load(file)
         if not data:
             return {}, {}, ["No NDTs were uploaded for comparison"]
@@ -240,21 +240,6 @@ def parse_ufm_links(ufm_port):
     return ufm_links, ufm_links_reversed, ""
 
 
-def links_miss_wired(link_left, link_right):
-    return link_left.start_dev == link_right.start_dev \
-           and link_left.end_dev == link_right.end_dev \
-           and (link_left.start_port == link_right.start_port
-                or link_left.end_port == link_right.end_port)
-
-
-def write_to_syslog(message):
-    syslog_socket = "/host_dev/log"
-    if os.path.exists(syslog_socket):
-        code = os.system("logger -u {} NDT: {}".format(syslog_socket, message))
-        if code:
-            logging.warning("Failed to write link to syslog, logger code: {}".format(code))
-
-
 def compare_topologies(timestamp, ndts_list_file, switch_patterns, host_patterns, ufm_port):
     ndt_links, ndt_links_reversed, error_message = parse_ndt_files(ndts_list_file, switch_patterns, host_patterns)
     if error_message:
@@ -283,10 +268,9 @@ def compare_topologies(timestamp, ndts_list_file, switch_patterns, host_patterns
     for start_port, link_ndt in ndt_dict.items():
         link_ufm = ufm_dict.get(start_port)
         if link_ufm:
-            miss_wired.append({"expected": str(link_ndt),
-                               "actual": str(link_ufm)})
-            write_to_syslog("actual \"{}\" does not match expected \"{}\"".format(link_ndt, link_ufm))
-            # print("NDT: actual \"{}\" does not match expected \"{}\"".format(link_ndt, link_ufm), flush=True)
+            miss_wired.append({"expected": str(link_ufm),
+                               "actual": str(link_ndt)})
+            print("NDT: actual \"{}\" does not match expected \"{}\"".format(link_ndt, link_ufm), flush=True)
 
             ndt_unique.remove(link_ndt)
             ufm_unique.remove(link_ufm)
@@ -300,22 +284,19 @@ def compare_topologies(timestamp, ndts_list_file, switch_patterns, host_patterns
         if link_ufm:
             miss_wired.append({"expected": str(link_ndt),
                                "actual": str(link_ufm)})
-            write_to_syslog("actual \"{}\" does not match expected \"{}\"".format(link_ndt, link_ufm))
-            # print("NDT: actual \"{}\" does not match expected \"{}\"".format(link_ndt, link_ufm), flush=True)
+            print("NDT: actual \"{}\" does not match expected \"{}\"".format(link_ndt, link_ufm), flush=True)
             ndt_unique.remove(link_ndt)
             ufm_unique.remove(link_ufm)
 
     while ndt_unique:
         link = str(ndt_unique.pop())
         missing_in_ufm.append(link)
-        write_to_syslog("missing in UFM \"{}\"".format(link))
-        # print("NDT: missing in UFM \"{}\"".format(link), flush=True)
+        print("NDT: missing in UFM \"{}\"".format(link), flush=True)
 
     while ufm_unique:
         link = str(ufm_unique.pop())
         missing_in_ndt.append(link)
-        write_to_syslog("missing in NDT \"{}\"".format(link))
-        # print("NDT: missing in NDT \"{}\"".format(link), flush=True)
+        print("NDT: missing in NDT \"{}\"".format(link), flush=True)
 
     # put only last 10k into the report
     report = {"miss_wired": miss_wired[-10000:],

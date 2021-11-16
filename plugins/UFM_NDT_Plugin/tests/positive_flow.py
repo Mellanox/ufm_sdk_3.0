@@ -57,7 +57,7 @@ def make_request(request_type, resource, payload=None, user="admin", password=DE
     request = "https://{}/ufmRest{}/plugin/ndt/{}".format(HOST_IP, rest_version, resource)
     response = None
     if request_type == POST:
-        response = requests.post(request, verify=False, headers=headers, auth=(user, password), data=payload)
+        response = requests.post(request, verify=False, headers=headers, auth=(user, password), json=payload)
     elif request_type == GET:
         response = requests.get(request, verify=False, headers=headers, auth=(user, password))
     else:
@@ -130,7 +130,7 @@ def upload_metadata(ndts_folder):
                                        "file_type": file_type})
 
     test_name = "not allowed"
-    response, request_string = make_request(GET, UPLOAD_METADATA, payload=json.dumps(upload_request))
+    response, request_string = make_request(GET, UPLOAD_METADATA, payload=upload_request)
     assert_equal(request_string, get_code(response), 405, test_name)
     assert_equal(request_string, get_response(response), {'error': 'Method is not allowed'}, test_name)
 
@@ -138,7 +138,7 @@ def upload_metadata(ndts_folder):
     test_name = "incorrect file type"
     good_file_type = upload_request[0]["file_type"]
     upload_request[0]["file_type"] = "asd"
-    response, request_string = make_request(POST, UPLOAD_METADATA, payload=json.dumps(upload_request))
+    response, request_string = make_request(POST, UPLOAD_METADATA, payload=upload_request)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response),
                  {'error': ["Incorrect file type. Possible file types: {}."
@@ -148,7 +148,7 @@ def upload_metadata(ndts_folder):
     good_file_name = upload_request[0]["file_name"]
     upload_request[0]["file_name"] = ""
     test_name = "empty file name"
-    response, request_string = make_request(POST, UPLOAD_METADATA, payload=json.dumps(upload_request))
+    response, request_string = make_request(POST, UPLOAD_METADATA, payload=upload_request)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response), {'error': ['File name is empty']}, test_name)
     upload_request[0]["file_name"] = good_file_name
@@ -156,7 +156,7 @@ def upload_metadata(ndts_folder):
     test_name = "wrong sha-1"
     good_sha = upload_request[0]["sha-1"]
     upload_request[0]["sha-1"] = "xyz"
-    response, request_string = make_request(POST, UPLOAD_METADATA, payload=json.dumps(upload_request))
+    response, request_string = make_request(POST, UPLOAD_METADATA, payload=upload_request)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response),
                  {"error": ["Provided sha-1 {} for {} is different from actual one {}"
@@ -168,7 +168,7 @@ def upload_metadata(ndts_folder):
 
     test_name = "update ndts"
     upload_request[0]["sha-1"] = good_sha
-    response, request_string = make_request(POST, UPLOAD_METADATA, payload=json.dumps(upload_request))
+    response, request_string = make_request(POST, UPLOAD_METADATA, payload=upload_request)
     assert_equal(request_string, get_code(response), 200, test_name)
     assert_equal(request_string, get_response(response), {}, test_name)
 
@@ -178,13 +178,13 @@ def upload_metadata(ndts_folder):
 
     test_name = "incorrect request"
     upload_request = {"asd": "asd"}
-    response, request_string = make_request(POST, UPLOAD_METADATA, payload=json.dumps(upload_request))
+    response, request_string = make_request(POST, UPLOAD_METADATA, payload=upload_request)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response), {"error": ["Request format is incorrect"]}, test_name)
 
     test_name = "incorrect key"
     upload_request = [{"name_of_the_file": "ndt"}]
-    response, request_string = make_request(POST, UPLOAD_METADATA, payload=json.dumps(upload_request))
+    response, request_string = make_request(POST, UPLOAD_METADATA, payload=upload_request)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response), {"error": ["Incorrect format, no expected key in request: "
                                                                     "'file_name'"]}, test_name)
@@ -259,11 +259,11 @@ def instant_comparison():
 def periodic_comparison():
     print("Periodic comparison")
 
-    datetime_end = datetime_start = datetime.now() + timedelta(seconds=1)
+    datetime_end = datetime_start = datetime.now() + timedelta(seconds=2)
 
     test_name = "incorrect request"
     payload = {"asd": "asd"}
-    response, request_string = make_request(POST, COMPARE, payload=json.dumps(payload))
+    response, request_string = make_request(POST, COMPARE, payload=payload)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response),
                  {'error': "Incorrect format, no expected key in request: 'run'"}, test_name)
@@ -276,7 +276,7 @@ def periodic_comparison():
             "interval": 10
         }
     }
-    response, request_string = make_request(POST, COMPARE, payload=json.dumps(payload))
+    response, request_string = make_request(POST, COMPARE, payload=payload)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response),
                  {'error': "Incorrect timestamp format: time data '{}' does not match format '%Y-%m-%d %H:%M:%S'"
@@ -291,11 +291,25 @@ def periodic_comparison():
             "interval": 1
         }
     }
-    response, request_string = make_request(POST, COMPARE, payload=json.dumps(payload))
+    response, request_string = make_request(POST, COMPARE, payload=payload)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response), {'error': 'Minimal interval value is 5 minutes'},
                  test_name)
 
+    test_name = "end time less than start time"
+    payload = {
+        "run": {
+            "startTime": datetime_start.strftime("%Y-%m-%d %H:%M:%S"),
+            "endTime": (datetime_end - timedelta(seconds=2)).strftime("%Y-%m-%d %H:%M:%S"),
+            "interval": 5
+        }
+    }
+    response, request_string = make_request(POST, COMPARE, payload=payload)
+    assert_equal(request_string, get_code(response), 400, test_name)
+    assert_equal(request_string, get_response(response), {'error': 'End time is less than current time'},
+                 test_name)
+
+    datetime_end = datetime_start = datetime.now() + timedelta(seconds=1)
     good_payload = {
         "run": {
             "startTime": datetime_start.strftime("%Y-%m-%d %H:%M:%S"),
@@ -303,7 +317,7 @@ def periodic_comparison():
             "interval": 10
         }
     }
-    response, request_string = make_request(POST, COMPARE, payload=json.dumps(good_payload))
+    response, request_string = make_request(POST, COMPARE, payload=good_payload)
     assert_equal(request_string, get_code(response), 200)
     assert_equal(request_string, get_response(response), {})
 
@@ -321,8 +335,8 @@ def periodic_comparison():
             "interval": 5
         }
     }
-    make_request(POST, COMPARE, payload=json.dumps(payload))
-    response, request_string = make_request(POST, COMPARE, payload=json.dumps(payload))
+    make_request(POST, COMPARE, payload=payload)
+    response, request_string = make_request(POST, COMPARE, payload=payload)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response), {'error': 'Periodic comparison is already running'}, test_name)
 
@@ -349,26 +363,26 @@ def delete_ndts(ndts_folder):
 
     test_name = "empty file name"
     upload_request = [{"file_name": ""}]
-    response, request_string = make_request(POST, DELETE, payload=json.dumps(upload_request))
+    response, request_string = make_request(POST, DELETE, payload=upload_request)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response), {'error': ['File name is empty']}, test_name)
 
     test_name = "incorrect request"
     upload_request = {"asd": "asd"}
-    response, request_string = make_request(POST, DELETE, payload=json.dumps(upload_request))
+    response, request_string = make_request(POST, DELETE, payload=upload_request)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response), {"error": ["Request format is incorrect"]}, test_name)
 
     test_name = "incorrect key"
     upload_request = [{"name_of_the_file": "ndt"}]
-    response, request_string = make_request(POST, DELETE, payload=json.dumps(upload_request))
+    response, request_string = make_request(POST, DELETE, payload=upload_request)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response), {"error": ["Incorrect format, no expected key in request: "
                                                                     "'file_name'"]}, test_name)
 
     test_name = "wrong ndt name"
     wrong_name_request = [delete_request[0], {"file_name": "xyz"}]
-    response, request_string = make_request(POST, DELETE, payload=json.dumps(wrong_name_request))
+    response, request_string = make_request(POST, DELETE, payload=wrong_name_request)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response),
                  {"error": ["Cannot remove {}: file not found".format("xyz")]}, test_name)
@@ -381,7 +395,7 @@ def delete_ndts(ndts_folder):
     assert_equal(request_string, str(ndts_len), str(1), test_name)
 
     response, request_string = make_request(POST, DELETE,
-                                            payload=json.dumps([{"file_name": delete_request[1]["file_name"]}]))
+                                            payload=[{"file_name": delete_request[1]["file_name"]}])
     assert_equal(request_string, get_code(response), 200)
     assert_equal(request_string, get_response(response), {})
 
@@ -406,12 +420,12 @@ def topo_diff(ndts_folder):
                                "file": data,
                                "file_type": "switch_to_switch",
                                "sha-1": get_hash(data)})
-    make_request(POST, UPLOAD_METADATA, payload=json.dumps(upload_request))
+    make_request(POST, UPLOAD_METADATA, payload=upload_request)
     response, request_string = make_request(POST, COMPARE)
     assert_equal(request_string, get_code(response), 400, garbage_ndt)
     assert_equal(request_string, get_response(response),
                  {'error': ['ndts/garbage.ndt is empty or cannot be parsed']}, garbage_ndt)
-    make_request(POST, DELETE, payload=json.dumps([{"file_name": garbage_ndt}]))
+    make_request(POST, DELETE, payload=[{"file_name": garbage_ndt}])
 
     incorrect_ports_ndt = "incorrect_ports.ndt"
     upload_request.clear()
@@ -421,7 +435,7 @@ def topo_diff(ndts_folder):
                                "file": data,
                                "file_type": "switch_to_switch",
                                "sha-1": get_hash(data)})
-    make_request(POST, UPLOAD_METADATA, payload=json.dumps(upload_request))
+    make_request(POST, UPLOAD_METADATA, payload=upload_request)
     response, request_string = make_request(POST, COMPARE)
     assert_equal(request_string, get_code(response), 400, incorrect_ports_ndt)
     # patterns = (r"^Port (\d+)$", r"(^Blade \d+_Port \d+/\d+$)", r"(^SAT\d+ ibp.*$)")
@@ -429,7 +443,7 @@ def topo_diff(ndts_folder):
                  {'error': ['Failed to parse PortType.SOURCE: abra, in line: 0.',
                             'Failed to parse PortType.DESTINATION: cadabra, in line: 0.']},
                  incorrect_ports_ndt)
-    make_request(POST, DELETE, payload=json.dumps([{"file_name": incorrect_ports_ndt}]))
+    make_request(POST, DELETE, payload=[{"file_name": incorrect_ports_ndt}])
 
     incorrect_columns_ndt = "incorrect_columns.ndt"
     upload_request.clear()
@@ -439,12 +453,12 @@ def topo_diff(ndts_folder):
                                "file": data,
                                "file_type": "switch_to_switch",
                                "sha-1": get_hash(data)})
-    make_request(POST, UPLOAD_METADATA, payload=json.dumps(upload_request))
+    make_request(POST, UPLOAD_METADATA, payload=upload_request)
     response, request_string = make_request(POST, COMPARE)
     assert_equal(request_string, get_code(response), 400, incorrect_columns_ndt)
     assert_equal(request_string, get_response(response),
                  {'error': ["No such column: 'StartPort', in line: 0"]}, incorrect_columns_ndt)
-    make_request(POST, DELETE, payload=json.dumps([{"file_name": incorrect_columns_ndt}]))
+    make_request(POST, DELETE, payload=[{"file_name": incorrect_columns_ndt}])
 
 
 def main():
