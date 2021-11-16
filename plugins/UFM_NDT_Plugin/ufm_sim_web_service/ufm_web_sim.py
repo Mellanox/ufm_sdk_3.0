@@ -77,8 +77,8 @@ class UFMWebSim:
     def __init__(self):
         self.log_level = logging.INFO
         self.log_file_max_size = 10240000
-        self.log_file_path = "/tmp/ndt.log"
-        # self.log_file_path = "/log/ndt.log"
+        # self.log_file_path = "/tmp/ndt.log"
+        self.log_file_path = "/log/ndt.log"
         self.log_file_backup_count = 5
         self.port_number = 8980
         self.app = Flask(__name__)
