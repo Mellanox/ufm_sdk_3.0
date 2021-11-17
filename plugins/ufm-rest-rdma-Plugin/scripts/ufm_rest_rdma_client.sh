@@ -6,8 +6,8 @@ ufm_rdma_utility_name=/opt/ufm/ufm-plugin-ufm-rest/src/ufm_rdma.py
 usage() {
     echo "Usage: "
     echo -e "    Run $basename to start  \n"
-    echo -e " -i     port name (ib0, ib1 ...) - to be used for data transfer"
-    echo -e " -s     name or IP addres of UFM server (optional - if not set - localhost will be used)"
+    echo -e " -i     ib device name (mlx5_0, mls5_1 ...) - to be used for data transfer"
+    echo -e " -s     name or IP addres of UFM server (optional - if not set - localhost will be used. Must for client certificate.)"
     echo -e " -t     requested action type (simple, ibdiagnet, complicated)"
     echo -e " -a     REST action (GET,POST,PUT,PATCH,DELETE)"
     echo -e " -u     username to connect UFM server"
