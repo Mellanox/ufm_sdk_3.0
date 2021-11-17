@@ -60,6 +60,7 @@ UCX_RECEIVE_ERROR_MSG = "REST RDMA server failed to receive request from client.
 DEFAULT_CLIENT_PEM_KEY = "/tmp/ufm-client.key"
 DEFAULT_CLIENT_PEM_CERT = "/tmp/ufm-client.crt"
 LOG_FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
+EMPTY_RESPOND_MESSAGE = "Empty respond message"
 # load the service record lib
 try:
     sr_lib = ctypes.CDLL(SR_LIB_PATH)
@@ -595,7 +596,7 @@ async def receive_rest_respond_from_server(recv_tag):
             as_string = resp[0].decode()
             ready_string = as_string.replace("N\\/A", "NA")
         else:
-            ready_string = ""
+            ready_string = EMPTY_RESPOND_MESSAGE
     except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError,
             ucp.exceptions.UCXError) as e:
         error_msg = "Client: Failed to receive respond over rdma. UCP related error"
@@ -1225,6 +1226,8 @@ def main_client(request_arguments):
                 print(error_mesg)
         else:  # Succeed
             try:
+                if resp_string == EMPTY_RESPOND_MESSAGE:
+                    pass
                 parsed_respond = json.loads(resp_string.strip())
                 if request_arguments['type'] == ActionType.IBDIAGNET.value:
                     # need to get from respond the name of ibdiagnet job
