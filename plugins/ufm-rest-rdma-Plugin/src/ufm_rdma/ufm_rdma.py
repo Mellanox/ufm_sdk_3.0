@@ -33,6 +33,7 @@ HOSTS_FILE_PATH="/etc/hosts"
 UFM_CONFIG_FILE_PATH = "/opt/ufm/files/conf/gv.cfg"
 CLIENT_CERT_DB_FILE_PATH = "/opt/ufm/files/conf/webclient/ufm_client_authen.db"
 DEFAULT_LOG_FILE_NAME = "ufm_rdma.log"
+DEFAULT_SR_LOG_FILE_NAME = "sr_lib.log"
 DEFAULT_HOST_NAME = "localhost"
 PLUGIN_CONF_FILE = "/config/ufm-rest.conf"
 UCX_NET_DEVICES_NAME = "ucx_net_devices"
@@ -45,12 +46,14 @@ WORKING_DIR_NAME = os.path.dirname(os.path.realpath(__file__))
 SR_LIB_NAME = "libservice_record_wrapper.so"
 SR_LIB_PATH = os.path.join(WORKING_DIR_NAME, SR_LIB_NAME)
 DEFAULT_LOG_FILE_PATH = os.path.join(WORKING_DIR_NAME, DEFAULT_LOG_FILE_NAME)
+DEFAULT_SR_LIB_LOG_FILE_PATH = os.path.join(WORKING_DIR_NAME, DEFAULT_SR_LOG_FILE_NAME)
 SUCCESS_REST_CODE = (200, 201, 202, 203, 204)
 ERROR_REST_CODE = (500, 501, 502, 503, 504, 505)
 ADDRESS_SR_HOLDER_SIZE = 56
 GENERAL_ERROR_NUM = 500
 DEFAULT_LOG_FILE_SIZE = 10240000
 DEFAULT_LOG_FILE_BACKUP_COUNT = 5
+DEFAULTR_SR_LIB_DEBUG_LEVEL = 3
 DEFAULT_SERVICE_RECORD_ID = "0x100002c900000003"
 GENERAL_ERROR_MSG = "REST RDMA server failed to send request to UFM Server. Check log file for details."
 UCX_RECEIVE_ERROR_MSG = "REST RDMA server failed to receive request from client. Check log file for details."
@@ -95,6 +98,12 @@ sr_lib.sr_wrapper_unregister.argtypes = [ctypes.c_void_p]
 sr_lib.sr_wrapper_query.restype = ctypes.c_size_t
 # Function gets arguments
 sr_lib.sr_wrapper_query.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_size_t]
+
+#bool clx_init_file_logger(const char* file_mame, clx_log_level_t level);
+# Function return
+sr_lib.clx_init_file_logger.restype = ctypes.c_bool
+# Function gets arguments
+sr_lib.clx_init_file_logger.argtypes = [ctypes.c_char_p, ctypes.c_int]
 
 # ---------------------------------------------------------------------------------
 REQUEST_ARGS = ["type", "rest_action", "ufm_server_ip", "run_mode", "rest_url", "url_payload", "interface",
@@ -582,8 +591,11 @@ async def receive_rest_respond_from_server(recv_tag):
         # receive response itself
         await ucp.recv(resp, tag=recv_tag)  # receive the echo
         request_status = status_array[0]
-        as_string = resp[0].decode()
-        ready_string = as_string.replace("N\\/A", "NA")
+        if resp[0]:
+            as_string = resp[0].decode()
+            ready_string = as_string.replace("N\\/A", "NA")
+        else:
+            ready_string = ""
     except (ucp.exceptions.UCXCanceled, ucp.exceptions.UCXCloseError,
             ucp.exceptions.UCXError) as e:
         error_msg = "Client: Failed to receive respond over rdma. UCP related error"
@@ -1494,6 +1506,15 @@ def main():
                               ],
                         level=logging._nameToLevel[log_level],
                         format=LOG_FORMAT)
+    #sr lib logger configuration
+    sr_lib_logging_level = int(rdma_rest_config.get("Common", "sr_lib_debug_level",
+                                     fallback=DEFAULTR_SR_LIB_DEBUG_LEVEL))
+    sr_lib_log_file_path = rdma_rest_config.get("Common", "sr_lib_log_file_path",
+                                     fallback=DEFAULT_SR_LIB_LOG_FILE_PATH)
+
+    sr_log_file_name = ctypes.c_char_p(sr_lib_log_file_path.encode())
+    sr_log_level = ctypes.c_int(sr_lib_logging_level)
+    sr_lib.clx_init_file_logger(sr_log_file_name, sr_log_level)
     if run_mode == SERVER_MODE_RUN:  # run as server
         logging.info("Running in Server mode")
         main_server(request_arguments)
