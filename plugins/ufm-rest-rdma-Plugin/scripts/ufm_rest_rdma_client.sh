@@ -6,7 +6,7 @@ ufm_rdma_utility_name=/opt/ufm/ufm-plugin-ufm-rest/src/ufm_rdma.py
 usage() {
     echo "Usage: "
     echo -e "    Run $basename to start  \n"
-    echo -e " -i     ib device name (mlx5_0, mls5_1 ...) - to be used for data transfer"
+    echo -e " -i     ib device name (mlx5_0, mlx5_1 ...) - to be used for data transfer"
     echo -e " -s     name or IP addres of UFM server (optional - if not set - localhost will be used. Must for client certificate.)"
     echo -e " -t     requested action type (simple, ibdiagnet, complicated)"
     echo -e " -a     REST action (GET,POST,PUT,PATCH,DELETE)"
@@ -19,10 +19,10 @@ usage() {
     echo -e " -k     Token for authentication."
     echo -e " -h     Show help"
     echo -e "\nExamples:"
-    echo -e "     $0 -u admin -p 123456 -t ibdiagnet -a POST -w ufmRest/reports/ibdiagnetPeriodic -l '{"general": {"name": "IBDiagnet_CMD_1234567890_199", "location": "local", "running_mode": "once"}, "command_flags": {"--pc": ""}}'"
-    echo -e "     $0 -u admin -p 123456 -t simple -a GET -w ufmRest/resources/systems"
-    echo -e "     $0 -k OGUY7TwLvTmFkXyTkcsEWD9KKNvq6f -t simple -a GET -w ufmRestV3/app/ufm_version"
-    echo -e "     $0 -s ufm.azurehpc.core.azure-test.net -d /ufm-client.pfx -t simple -a GET -w ufmRest3/app/ufm_version"
+    echo -e "     $0 -u username -p password -t ibdiagnet -a POST -w ufmRest/reports/ibdiagnetPeriodic -l '{"general": {"name": "IBDiagnet_CMD_1234567890_199", "location": "local", "running_mode": "once"}, "command_flags": {"--pc": ""}}'"
+    echo -e "     $0 -u username -p password -t simple -a GET -w ufmRest/resources/systems"
+    echo -e "     $0 -k [token string] -t simple -a GET -w ufmRestV3/app/ufm_version"
+    echo -e "     $0 -s [defined for client certificate host name] -d [path to client certificate pfx file] -t simple -a GET -w ufmRest3/app/ufm_version"
     echo
 }
 
@@ -85,7 +85,7 @@ fi
 
 parse_args "$@"
 
-command_line="docker exec ufm-plugin-ufm-rest python3 $ufm_rdma_utility_name -r client -t $action_type -a $action -w $rest_url"
+command_line="docker exec ufm-plugin-ufm-rest $ufm_rdma_utility_name -r client -t $action_type -a $action -w $rest_url"
 if [ ! -z $token ];
 then
     command_line+=" -k $token"
