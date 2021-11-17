@@ -7,7 +7,7 @@ usage() {
     echo "Usage: "
     echo -e "    Run $basename to start  \n"
     echo -e " -i     ib device name (mlx5_0, mlx5_1 ...) - to be used for data transfer"
-    echo -e " -s     name or IP addres of UFM server (optional - if not set - localhost will be used. Must for client certificate.)"
+    echo -e " -s     name or IP address of UFM server (optional - if not set - localhost will be used. Must for client certificate.)"
     echo -e " -t     requested action type (simple, ibdiagnet, complicated)"
     echo -e " -a     REST action (GET,POST,PUT,PATCH,DELETE)"
     echo -e " -u     username to connect UFM server"
