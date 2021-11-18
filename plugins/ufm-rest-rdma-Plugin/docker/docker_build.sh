@@ -52,7 +52,7 @@ function build_docker_image()
     if [ "${IMAGE_VERSION}" == "0.0.00-0" ]; then
         full_image_version="${image_name}_${image_version}-${random_hash}"
     else
-        full_image_version="${image_name}"
+        full_image_version="${image_name}_${image_version}"
     fi
 
     echo "  full_image_version    : [${full_image_version}]"

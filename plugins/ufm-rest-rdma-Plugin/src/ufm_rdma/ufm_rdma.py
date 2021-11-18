@@ -1226,19 +1226,18 @@ def main_client(request_arguments):
                 error_mesg = resp_string if resp_string else "Client. Failed to receive response from server."
                 print(error_mesg)
         else:  # Succeed
-            try:
-                if resp_string == EMPTY_RESPOND_MESSAGE:
-                    pass
-                parsed_respond = json.loads(resp_string.strip())
-                if request_arguments['type'] == ActionType.IBDIAGNET.value:
-                    # need to get from respond the name of ibdiagnet job
-                    await handle_ibdiagnet_respond(ep, recv_tag, send_tag, request_arguments)
-                elif request_arguments['type'] == ActionType.COMPLICATED.value:
-                    await handle_complicated_respond(parsed_respond)
-                else:
-                    print(json.dumps(parsed_respond, indent=4, sort_keys=True))
-            except Exception as e:
-                logging.error("Client: Got respond: %s Error %s " % (resp_string, e))
+            if resp_string != EMPTY_RESPOND_MESSAGE:
+                try:
+                    parsed_respond = json.loads(resp_string.strip())
+                    if request_arguments['type'] == ActionType.IBDIAGNET.value:
+                        # need to get from respond the name of ibdiagnet job
+                        await handle_ibdiagnet_respond(ep, recv_tag, send_tag, request_arguments)
+                    elif request_arguments['type'] == ActionType.COMPLICATED.value:
+                        await handle_complicated_respond(parsed_respond)
+                    else:
+                        print(json.dumps(parsed_respond, indent=4, sort_keys=True))
+                except Exception as e:
+                    logging.error("Client: Got respond: %s Error %s " % (resp_string, e))
 
     asyncio.get_event_loop().run_until_complete(run(request_arguments))
 
