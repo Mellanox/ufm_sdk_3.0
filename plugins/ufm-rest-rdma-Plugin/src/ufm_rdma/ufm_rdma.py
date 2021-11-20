@@ -17,6 +17,7 @@ import time
 import warnings
 import numpy as np
 import requests
+import subprocess
 import ucp
 from ucp._libs.arr import Array
 from ucp._libs.utils_test import (
@@ -55,6 +56,7 @@ GENERAL_ERROR_NUM = 500
 DEFAULT_LOG_FILE_SIZE = 10240000
 DEFAULT_LOG_FILE_BACKUP_COUNT = 5
 DEFAULTR_SR_LIB_DEBUG_LEVEL = 3
+DEFAULT_REST_REQUEST_TIMEOUT = 300
 DEFAULT_SERVICE_RECORD_ID = "0x100002c900000003"
 GENERAL_ERROR_MSG = "REST RDMA server failed to send request to UFM Server. Check log file for details."
 UCX_RECEIVE_ERROR_MSG = "REST RDMA server failed to receive request from client. Check log file for details."
@@ -689,6 +691,8 @@ async def send_rest_request_token_authentication(real_url, action, payload, toke
     """
     logging.debug("Token authentication: real_url %s, action %s, payload %s, token %s" %
                     (real_url, action, payload, token))
+    rest_timeout = int(rdma_rest_config.get("Server", "rest_request_timeout",
+                                    fallback=DEFAULT_REST_REQUEST_TIMEOUT))
     access_token = "Basic %s" % token
     head={"Authorization": access_token}
     if payload and payload != 'None':
@@ -698,19 +702,23 @@ async def send_rest_request_token_authentication(real_url, action, payload, toke
     try:
         if action == UFMRestAction.GET.value:
             rest_respond = requests.get(real_url, headers=head,
-                                                  verify=False)
+                                        verify=False, timeout=rest_timeout)
         elif action == UFMRestAction.PUT.value:
             rest_respond = requests.put(real_url, headers=head,
-                                        json=send_payload, verify=False)
+                                        json=send_payload, verify=False,
+                                        timeout=rest_timeout)
         elif action == UFMRestAction.PATCH.value:
             rest_respond = requests.patch(real_url, headers=head,
-                                        json=send_payload, verify=False)
+                                        json=send_payload, verify=False,
+                                        timeout=rest_timeout)
         elif action == UFMRestAction.POST.value:
             rest_respond = requests.post(real_url, headers=head,
-                                         json=send_payload, verify=False)
+                                        json=send_payload, verify=False,
+                                        timeout=rest_timeout)
         elif action == UFMRestAction.DELETE.value:
             rest_respond = requests.delete(real_url, headers=head,
-                                         json=send_payload, verify=False)
+                                        json=send_payload, verify=False,
+                                        timeout=rest_timeout)
         else:
             # unknown - probably error
             logging.error("Server: Unknown action %s received. Escape." % action)
@@ -734,6 +742,8 @@ async def send_rest_request_client_certificate(real_url, action, payload,
     """
     logging.debug("Client certificate: real_url %s, action %s, payload %s, sert file path %s, key file path %s" %
                     (real_url, action, payload, cert_file_path, key_file_path))
+    rest_timeout = int(rdma_rest_config.get("Server", "rest_request_timeout",
+                                     fallback=DEFAULT_REST_REQUEST_TIMEOUT))
     if payload and payload != 'None':
         send_payload = json.loads(payload)
     else:
@@ -742,6 +752,7 @@ async def send_rest_request_client_certificate(real_url, action, payload,
     session = requests.Session()
     session.cert = cert
     session.verify = False
+    session.timeout = rest_timeout
     session.headers.update({'Content-Type': 'application/json; charset=utf-8'})
     try:
         if action == UFMRestAction.GET.value:
@@ -776,6 +787,8 @@ async def send_rest_request(real_url, action, payload, username, password):
     """
     logging.debug("Username and password: real_url %s, action %s, payload %s, username %s, password %s" %
                                 (real_url, action, payload, "******", "******"))
+    rest_timeout = int(rdma_rest_config.get("Server", "rest_request_timeout",
+                                     fallback=DEFAULT_REST_REQUEST_TIMEOUT))
     if payload and payload != 'None':
         send_payload = json.loads(payload)
     else:
@@ -783,19 +796,23 @@ async def send_rest_request(real_url, action, payload, username, password):
     try:
         if action == UFMRestAction.GET.value:
             rest_respond = requests.get(real_url, auth=(username, password),
-                                        verify=False)
+                                        verify=False, timeout=rest_timeout)
         elif action == UFMRestAction.PUT.value:
             rest_respond = requests.put(real_url, auth=(username, password),
-                                        json=send_payload, verify=False)
+                                        json=send_payload, verify=False,
+                                        timeout=rest_timeout)
         elif action == UFMRestAction.PATCH.value:
             rest_respond = requests.patch(real_url, auth=(username, password),
-                                        json=send_payload, verify=False)
+                                        json=send_payload, verify=False,
+                                        timeout=rest_timeout)
         elif action == UFMRestAction.POST.value:
             rest_respond = requests.post(real_url, auth=(username, password),
-                                         json=send_payload, verify=False)
+                                         json=send_payload, verify=False,
+                                         timeout=rest_timeout)
         elif action == UFMRestAction.DELETE.value:
             rest_respond = requests.delete(real_url, auth=(username, password),
-                                         json=send_payload, verify=False)
+                                         json=send_payload, verify=False,
+                                         timeout=rest_timeout)
         else:
             # unknown - probably error
             logging.error("Server: Unknown action %s received. Escape." % action)
@@ -1438,6 +1455,15 @@ def update_etc_hosts_for_client_certificate():
                 logging.error(error_message)
                 return
 
+def check_opensm_running():
+    '''
+    Check if opensm running
+    return true or false
+    '''
+    check_sm_cmd = "sminfo"
+    result = subprocess.run(check_sm_cmd, stdout=subprocess.PIPE)
+    return result.returncode == 0
+
 def set_env_variables():
     '''
     export defined environment variables
@@ -1509,6 +1535,11 @@ def main():
                               ],
                         level=logging._nameToLevel[log_level],
                         format=LOG_FORMAT)
+    # check if opensm is running - if not - print error and exit
+    if not check_opensm_running():
+        err_message = "OpenSM is not running on this fabric. Please start opensm."
+        logging.critical(err_message)
+        sys.exit(err_message)
     #sr lib logger configuration
     sr_lib_logging_level = int(rdma_rest_config.get("Common", "sr_lib_debug_level",
                                      fallback=DEFAULTR_SR_LIB_DEBUG_LEVEL))
