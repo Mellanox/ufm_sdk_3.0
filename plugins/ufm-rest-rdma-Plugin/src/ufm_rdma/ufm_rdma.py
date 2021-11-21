@@ -498,7 +498,7 @@ async def handle_ibdiagnet_respond(end_point, recv_tag, send_tag, ibdiag_request
     logging.debug("Client: Initialize request for get array")
     # let's say it was OK - start sending requests if completed
     # loop to verify if job completed succesfully  
-    num_of_retries = int(rdma_rest_config.get("Client", "ibdiagnet_wait_intetrval",
+    num_of_retries = int(rdma_rest_config.get("Client", "ibdiagnet_wait_interval",
                                               fallback=300))
     retry_interval = int(rdma_rest_config.get("Client", "ibdiagnet_retry_intetrval",
                                               fallback=1))
