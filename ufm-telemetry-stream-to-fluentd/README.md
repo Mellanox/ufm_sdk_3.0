@@ -54,12 +54,13 @@ Run
 
 | Argument | Corresponding Config Value | Required | Description |
 | :---: | :---: |:---: |:---: |
-| --fluentd_host <fluentd_host> | [fluentd-endpoint.host](ufm-telemetry-stream-to-fluentd.sample.cfg#L6) | True |  Hostname or IP for FluentD endpoint
-| --fluentd_port <fluentd_port> | [fluentd-endpoint.port](ufm-telemetry-stream-to-fluentd.sample.cfg#L7) | True | Port for FluentD endpoint
-| --fluentd_timeout <fluentd_timeout> | [fluentd-endpoint.timeout](ufm-telemetry-stream-to-fluentd.sample.cfg#L8) | True | Timeout for FluentD endpoint streaming [Default is 120 seconds]
+| --fluentd_host <fluentd_host> | [fluentd-endpoint.host](ufm-telemetry-stream-to-fluentd.sample.cfg#L7) | True |  Hostname or IP for FluentD endpoint
+| --fluentd_port <fluentd_port> | [fluentd-endpoint.port](ufm-telemetry-stream-to-fluentd.sample.cfg#L8) | True | Port for FluentD endpoint
+| --fluentd_timeout <fluentd_timeout> | [fluentd-endpoint.timeout](ufm-telemetry-stream-to-fluentd.sample.cfg#L9) | True | Timeout for FluentD endpoint streaming [Default is 120 seconds]
 | --fluentd_message_tag_name <fluentd_message_tag_name> | [fluentd-endpoint.message_tag_name](ufm-telemetry-stream-to-fluentd.sample.cfg#L10) | False | Message Tag Name for FluentD endpoint message [Default is the ufm_telemetry_host]
 | --ufm_telemetry_host <ufm_telemetry_host> | [ufm-telemetry-endpoint.host](ufm-telemetry-stream-to-fluentd.sample.cfg#L2) | True | Hostname or IP for The UFM Telemetry Endpoint
 | --ufm_telemetry_port <ufm_telemetry_port> | [ufm-telemetry-endpoint.port](ufm-telemetry-stream-to-fluentd.sample.cfg#L3) | True | Port for The UFM Telemetry Endpoint [Default is 9001]
+| --ufm_telemetry_url <ufm_telemetry_url> | [ufm-telemetry-endpoint.url](ufm-telemetry-stream-to-fluentd.sample.cfg#L4) | True | URL for The UFM Telemetry Endpoint [Default is 'enterprise']
 | --logs_file_name <logs_file_name> | [logs-config.logs_file_name](../conf/ufm-sdk.sample.cfg#L11) | False | Log file name [Default = 'console.log']
 | --logs_level <logs_level> | [logs-config.logs_level](../conf/ufm-sdk.sample.cfg#L14) | False | Default is 'info'
 

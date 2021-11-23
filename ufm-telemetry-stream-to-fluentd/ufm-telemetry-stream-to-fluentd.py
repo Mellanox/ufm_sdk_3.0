@@ -35,7 +35,6 @@ except ModuleNotFoundError as e:
 
 class UFMTelemetryConstants:
     PLUGIN_NAME = "UFM_Telemetry_Streaming"
-    TELEMETRY_PROMETHEUS_METRICS = "labels/metrics"
 
     args_list = [
         {
@@ -44,6 +43,9 @@ class UFMTelemetryConstants:
         },{
             "name": '--ufm_telemetry_port',
             "help": "Port of UFM Telemetry endpoint"
+        },{
+            "name": '--ufm_telemetry_url',
+            "help": "URL of UFM Telemetry endpoint"
         },{
             "name": '--fluentd_host',
             "help": "Host name or IP of fluentd endpoint"
@@ -66,6 +68,7 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
     UFM_TELEMETRY_ENDPOINT_SECTION = "ufm-telemetry-endpoint"
     UFM_TELEMETRY_ENDPOINT_SECTION_HOST = "host"
     UFM_TELEMETRY_ENDPOINT_SECTION_PORT = "port"
+    UFM_TELEMETRY_ENDPOINT_SECTION_URL = "url"
 
     FLUENTD_ENDPOINT_SECTION = "fluentd-endpoint"
     FLUENTD_ENDPOINT_SECTION_HOST = "host"
@@ -87,6 +90,13 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
                                  self.UFM_TELEMETRY_ENDPOINT_SECTION,
                                  self.UFM_TELEMETRY_ENDPOINT_SECTION_PORT,
                                  9001)
+
+    def get_telemetry_url(self):
+        return self.get_config_value(self.args.ufm_telemetry_url,
+                                     self.UFM_TELEMETRY_ENDPOINT_SECTION,
+                                     self.UFM_TELEMETRY_ENDPOINT_SECTION_URL,
+                                     "enterprise")
+
 
     def get_fluentd_host(self):
         return self.get_config_value(self.args.fluentd_host,
@@ -114,8 +124,8 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
 class UFMTelemetryStreaming:
 
     @staticmethod
-    def get_metrics(host, port):
-        url = f'http://{host}:{port}/{UFMTelemetryConstants.TELEMETRY_PROMETHEUS_METRICS}'
+    def get_metrics(host, port, url):
+        url = f'http://{host}:{port}/{url}'
         logging.info(f'Send UFM Telemetry Endpoint Request, Method: GET, URL: {url}')
         try:
             response = requests.get(url)
@@ -161,6 +171,7 @@ if __name__ == "__main__":
 
     ufm_telemetry_host = config_parser.get_telemetry_host()
     ufm_telemetry_port = config_parser.get_telemetry_port()
+    ufm_telemetry_url = config_parser.get_telemetry_url()
 
     fluentd_host = config_parser.get_fluentd_host()
     fluentd_port = config_parser.get_fluentd_port()
@@ -169,7 +180,8 @@ if __name__ == "__main__":
 
 
     metrics = UFMTelemetryStreaming.get_metrics(ufm_telemetry_host,
-                                                ufm_telemetry_port)
+                                                ufm_telemetry_port,
+                                                ufm_telemetry_url)
 
     UFMTelemetryStreaming.stream_data_to_fluentd(fluentd_host, fluentd_port, fluentd_msg_tag,
                                                  fluentd_timeout, metrics)
