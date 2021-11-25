@@ -10,13 +10,13 @@ once completed - docker image ufm-plugin-ufm-rest_[version].tar.gz
 will be located at / of your build server
 
 to load image run
-`docker load < ufm-plugin-ufm-rest.tar.gz`
+`docker load < ufm-plugin-ufm-rest-[version].tar.gz`
 
 to start container as server run
-`docker run -d --network=host --privileged --name=ufm-plugin-ufm-rest --rm -v /opt/ufm/files/periodicIbdiagnet:/opt/ufm/files/periodicIbdiagnet -v /opt/ufm/files/log:/opt/ufm/files/log -v /opt/ufm/files/conf:/opt/ufm/files/conf ufm-plugin-ufm-rest`
+`docker run -d --network=host --privileged --name=ufm-plugin-ufm-rest --rm -v /opt/ufm/files/periodicIbdiagnet:/opt/ufm/files/periodicIbdiagnet -v /opt/ufm/files/log:/opt/ufm/files/log -v /opt/ufm/files/conf:/opt/ufm/files/conf ufm-plugin-ufm-rest_[version]`
 
 to start container as client run
-`docker run -d --network=host --privileged --name=ufm-plugin-ufm-rest --rm ufm-plugin-ufm-rest client`
+`docker run -d --network=host --privileged --name=ufm-plugin-ufm-rest --rm ufm-plugin-ufm-rest_[version] client`
 
 to enter docker container run
 `docker exec -it ufm-plugin-ufm-rest bash`
