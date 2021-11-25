@@ -96,6 +96,7 @@ cp Dockerfile ${BUILD_DIR}
 cp supervisord.conf ${BUILD_DIR}
 cp docker_init.sh ${BUILD_DIR}
 cp -r ../src ${BUILD_DIR}
+cp -r ../scripts ${BUILD_DIR}
 cp -r whl ${BUILD_DIR}
 cp init.sh ${BUILD_DIR}
 cp install_deps.sh ${BUILD_DIR}
