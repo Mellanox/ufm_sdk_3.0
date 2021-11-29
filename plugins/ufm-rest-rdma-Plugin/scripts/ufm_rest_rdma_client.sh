@@ -15,14 +15,14 @@ usage() {
     echo -e " -w     reqested REST URL"
     echo -e " -l     reqested REST payload"
     echo -e " -c     Path to the config file name."
-    echo -e " -d     Path to the client certificate file name."
+    echo -e " -d     Path to the client certificate file name (located inside docker container)."
     echo -e " -k     Token for authentication."
     echo -e " -h     Show help"
     echo -e "\nExamples:"
     echo -e "     $0 -u username -p password -t ibdiagnet -a POST -w ufmRest/reports/ibdiagnetPeriodic -l '{"general": {"name": "IBDiagnet_CMD_1234567890_199", "location": "local", "running_mode": "once"}, "command_flags": {"--pc": ""}}'"
     echo -e "     $0 -u username -p password -t simple -a GET -w ufmRest/resources/systems"
     echo -e "     $0 -k [token string] -t simple -a GET -w ufmRestV3/app/ufm_version"
-    echo -e "     $0 -s [defined for client certificate host name] -d [path to client certificate pfx file] -t simple -a GET -w ufmRest3/app/ufm_version"
+    echo -e "     $0 -s [defined for client certificate host name] -d [path to client certificate pfx file] -t simple -a GET -w ufmRest/app/ufm_version"
     echo
 }
 
