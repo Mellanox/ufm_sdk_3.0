@@ -18,6 +18,7 @@ set -eE
 # Updating /config folder
 mv /opt/ufm/ufm_plugin_ndt/ndt.conf /config
 mv /opt/ufm/ufm_plugin_ndt/ndt_httpd_proxy.conf /config
+mv /opt/ufm/ufm_plugin_ndt/ufm_plugin_ndt_httpd.conf /config
 touch /config/ndt_shared_volumes.conf
 touch /config/ndt_cmdline_args.conf
 

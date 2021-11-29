@@ -16,6 +16,9 @@
 set -eE
 
 # removing log file
-rm /log/ndt.log
+LOG_FILE=/log/ndt.log
+if test -f "$LOG_FILE"; then
+    rm "$LOG_FILE"
+fi
 
 exit 0

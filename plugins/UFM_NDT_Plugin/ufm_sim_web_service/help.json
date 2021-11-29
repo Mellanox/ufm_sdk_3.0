@@ -1,11 +1,11 @@
 {
     "API": ["GET /version", "GET /list", "POST /upload_metadata", "POST /compare", "POST /cancel", "GET /reports", "GET /reports/<report_id>", "POST /delete"],
-    "GET /version": "Returns a release version of UFM NDT plugin",
     "GET /list":
     {
         "Description": "Get list of uploaded NDT files",
         "URL": "GET ufmRestV2/plugin/ndt/list",
         "Request Data": "N/A",
+        "Response Content Type": "Application/json",
         "Response":
         [
             {
@@ -83,6 +83,7 @@
         "Description": "Get reports list",
         "URL": "GET ufmRestV2/plugin/ndt/reports",
         "Request Data": "N/A",
+        "Response Content Type": "Application/json",
         "Response":
         [
             {
@@ -108,9 +109,10 @@
         "Description": "Get a specific report",
         "URL": "GET ufmRestV2/plugin/ndt/reports/<id>",
         "Request Data": "N/A",
+        "Response Content Type": "Application/json",
         "Response":
         {
-            "errors": "",
+            "error": "",
             "timestamp": "2020-09-13 10:57:09",
             "report":
             {
@@ -139,8 +141,13 @@
         },
         "Failed report response":
         {
-            "errors": "Failed to parse file topo1.ndt",
+            "error": "Failed to parse file topo1.ndt",
             "timestamp": "2020-09-13 10:57:09"
+        },
+        "Fully match topologies report response":
+        {
+            "timestamp": "2020-09-13 10:57:09",
+            "response": "NDT and UFM topologies are fully match"
         },
         "Status Codes": ["200 - Ok", "400 - bad request (bad or missing parameters)"],
         "Notes":
@@ -168,5 +175,21 @@
         ],
         "Response": "N/A",
         "Status Codes": ["200 - Ok", "400 - bad request (bad or missing parameters)", "404 - not found"]
+    },
+    "GET /version":
+    {
+        "Description": "Returns a release version of UFM NDT plugin",
+        "URL": "POST ufmRestV2/plugin/ndt/version",
+        "Request Data": "N/A",
+        "Response": "N/A",
+        "Status Codes": ["200 - Ok", "400 - bad request (bad or missing parameters)"]
+    },
+    "GET /help":
+    {
+        "Description": "Returns help message",
+        "URL": "POST ufmRestV2/plugin/ndt/help",
+        "Request Data": "N/A",
+        "Response": "N/A",
+        "Status Codes": ["200 - Ok", "400 - bad request (bad or missing parameters)"]
     }
 }

@@ -67,6 +67,9 @@ class UFMResource(Resource):
                 self.switch_patterns = switch_patterns_str.split(',')
                 host_patterns_str = ndt_config.get("Validation", "host_patterns")
                 self.host_patterns = host_patterns_str.split(',')
+            else:
+                self.switch_patterns = []
+                self.host_patterns = []
 
     def get_ndt_path(self, file_name):
         return os.path.join(self.ndts_dir, file_name)
@@ -316,11 +319,9 @@ class Compare(UFMResource):
                      "report_scope": scope,
                      "timestamp": self.timestamp}
             if self.report_number > self.reports_to_save:
-                try:
-                    oldest_report = self.get_report_path("report_1.json")
-                    os.remove(oldest_report)
-                except FileNotFoundError:
-                    return self.report_error(400, "Cannot remove {}: file not found".format(oldest_report))
+                oldest_report = self.get_report_path("report_1.json")
+                # unhandled exception in case report was deleted or renamed manually
+                os.remove(oldest_report)
                 data.remove(data[0])
                 for report in data:
                     report["report_id"] -= 1
@@ -344,6 +345,15 @@ class Compare(UFMResource):
         except OSError as oe:
             return self.report_error(500, "Cannot save report {}: {}".format(report, oe))
 
+    def create_report(self, scope, report_content):
+        response, status_code = self.update_reports_list(scope)
+        if status_code != self.success:
+            return response, status_code
+        response, status_code = self.save_report(report_content)
+        if status_code != self.success:
+            return response, status_code
+        return self.report_success()
+
     def compare(self, scope="Periodic"):
         logging.info("Run topology comparison")
         if scope == 'Periodic':
@@ -352,13 +362,21 @@ class Compare(UFMResource):
         report_content = compare_topologies(self.timestamp, self.ndts_list_file,
                                             self.switch_patterns, self.host_patterns,
                                             self.ufm_port)
+
         if report_content["error"]:
+            response, status_code = self.create_report(scope, report_content)
+            if status_code != self.success:
+                return response, status_code
             return self.report_error(400, report_content["error"])
 
-        response, status_code = self.update_reports_list(scope)
-        if status_code != self.success:
-            return response, status_code
-        response, status_code = self.save_report(report_content)
+        if not report_content["report"]["miss_wired"]\
+                and not report_content["report"]["missing_in_ufm"]\
+                and not report_content["report"]["missing_in_ndt"]:
+            report_content["response"] = "NDT and UFM are fully match"
+            report_content.pop("error")
+            report_content.pop("report")
+
+        response, status_code = self.create_report(scope, report_content)
         if status_code != self.success:
             return response, status_code
         return self.report_success()
@@ -390,7 +408,7 @@ class Compare(UFMResource):
         except ValueError as ve:
             return self.report_error(400, "Incorrect timestamp format: {}".format(ve))
 
-    def start_scheduler(self):
+    def add_scheduler_jobs(self):
         try:
             while self.datetime_start <= self.datetime_end:
                 self.scheduler.add_job(func=self.compare, run_date=self.datetime_start)
@@ -411,7 +429,7 @@ class Compare(UFMResource):
             response, status_code = self.parse_request(json_data)
             if status_code != self.success:
                 return response, status_code
-            return self.start_scheduler()
+            return self.add_scheduler_jobs()
         else:
             logging.info("Running instant topology comparison")
             return self.compare("Instant")
