@@ -41,6 +41,7 @@ function build_docker_image()
     random_hash=$4
     out_dir=$5
     keep_image=$6
+    prefix="mellanox"
 
     echo "build_docker_image"
     echo "  build_dir     : [${build_dir}]"
@@ -49,6 +50,7 @@ function build_docker_image()
     echo "  random_hash   : [${random_hash}]"
     echo "  out_dir       : [${out_dir}]"
     echo "  keep_image    : [${keep_image}]"
+    echo "  prefix        : [${prefix}]"
     echo " "
     if [ "${IMAGE_VERSION}" == "0.0.00-0" ]; then
         full_image_version="${image_name}_${image_version}-${random_hash}"
@@ -58,10 +60,12 @@ function build_docker_image()
 
     echo "  full_image_version    : [${full_image_version}]"
 
-    pushd ${build_dir}
-    echo "docker build --network host --no-cache --pull -t ${full_image_version} . --compress"
+    image_with_prefix="${prefix}/${image_name}"
 
-    docker build --network host --no-cache --pull -t ${full_image_version} . --compress
+    pushd ${build_dir}
+    echo "docker build --network host --no-cache --pull -t ${image_with_prefix} . --compress"
+
+    docker build --network host --no-cache --pull -t ${image_with_prefix} . --compress
     exit_code=$?
     popd
     if [ $exit_code -ne 0 ]; then
@@ -70,19 +74,19 @@ function build_docker_image()
     fi
 
     printf "\n\n\n"
-    echo "docker images | grep ufm-plugin-ndt"
-    docker images | grep ufm-plugin-ndt
+    echo "docker images | grep ${image_with_prefix}"
+    docker images | grep ${image_with_prefix}
     printf "\n\n\n"
 
-    echo "docker save ${full_image_version}:latest | gzip > ${out_dir}/${full_image_version}.tar.gz"
-    docker save ${full_image_version}:latest | gzip > ${out_dir}/${full_image_version}.tar.gz
+    echo "docker save ${image_with_prefix}:latest | gzip > ${out_dir}/${full_image_version}-docker.img.gz"
+    docker save ${image_with_prefix}:latest | gzip > ${out_dir}/${full_image_version}-docker.img.gz
     exit_code=$?
     if [ $exit_code -ne 0 ]; then
         echo "Failed to save image"
         return $exit_code
     fi
     if [ "$keep_image" != "y" -a "$keep_image" != "Y" ]; then
-        docker image rm -f ${full_image_version}
+        docker image rm -f ${image_with_prefix}
     fi
     return 0
 }

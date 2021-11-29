@@ -40,7 +40,6 @@ class UFMWebSim:
             self.log_level = ndt_config.get("Common", "log_level")
             self.log_file_max_size = ndt_config.getint("Common", "log_file_max_size")
             self.log_file_backup_count = ndt_config.getint("Common", "log_file_backup_count")
-            mode = ndt_config.get("Common", "mode")
 
             log_format = '%(asctime)-15s %(levelname)s %(message)s'
             logging.basicConfig(handlers=[RotatingFileHandler(self.log_file_path,
@@ -48,6 +47,7 @@ class UFMWebSim:
                                                               backupCount=self.log_file_backup_count)],
                                 level=logging.getLevelName(self.log_level),
                                 format=log_format)
+            logging.getLogger('apscheduler').setLevel(logging.ERROR)
 
     def init_apis(self):
         default_apis = {
@@ -72,7 +72,7 @@ class UFMWebSim:
         compare = Compare(self.scheduler)
         with open(UFMResource.periodic_request_file, "r") as file:
             compare.parse_request(json.load(file))
-        compare.start_scheduler()
+        compare.add_scheduler_jobs()
 
     def __init__(self):
         self.log_level = logging.INFO

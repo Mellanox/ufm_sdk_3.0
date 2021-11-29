@@ -3,7 +3,6 @@ import subprocess
 import time
 
 import requests
-import logging
 import os
 import hashlib
 from datetime import datetime, timedelta
@@ -62,8 +61,7 @@ def make_request(request_type, resource, payload=None, user="admin", password=DE
     elif request_type == GET:
         response = requests.get(request, verify=False, headers=headers, auth=(user, password))
     else:
-        logging.error("Request {} is not supported".format(request_type))
-    logging.info("UFM API Request Status [" + str(response.status_code) + "], URL " + request)
+        print("Request {} is not supported".format(request_type))
     return response, "{} /{}".format(request_type, resource)
 
 
@@ -475,7 +473,7 @@ def topo_diff(ndts_folder):
     response, request_string = make_request(POST, COMPARE)
     assert_equal(request_string, get_code(response), 400, garbage_ndt)
     assert_equal(request_string, get_response(response),
-                 {'error': ['ndts/garbage.ndt is empty or cannot be parsed']}, garbage_ndt)
+                 {'error': ['/config/ndts/garbage.ndt is empty or cannot be parsed']}, garbage_ndt)
     make_request(POST, DELETE, payload=[{"file_name": garbage_ndt}])
 
     incorrect_ports_ndt = "incorrect_ports.ndt"
@@ -491,8 +489,8 @@ def topo_diff(ndts_folder):
     assert_equal(request_string, get_code(response), 400, incorrect_ports_ndt)
     # patterns = (r"^Port (\d+)$", r"(^Blade \d+_Port \d+/\d+$)", r"(^SAT\d+ ibp.*$)")
     assert_equal(request_string, get_response(response),
-                 {'error': ['Failed to parse PortType.SOURCE: abra, in line: 0.',
-                            'Failed to parse PortType.DESTINATION: cadabra, in line: 0.']},
+                 {'error': ['Failed to parse PortType.SOURCE: abra, in file: incorrect_ports.ndt, line: 0.',
+                            'Failed to parse PortType.DESTINATION: cadabra, in file: incorrect_ports.ndt, line: 0.']},
                  incorrect_ports_ndt)
     make_request(POST, DELETE, payload=[{"file_name": incorrect_ports_ndt}])
 
@@ -513,7 +511,6 @@ def topo_diff(ndts_folder):
 
 
 def main():
-    os.environ['PYTHONWARNINGS'] = 'ignore:Unverified HTTPS request'
     ndts_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "positive_flow_ndts")
     import urllib3
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -529,6 +526,4 @@ def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(filename=os.path.join(os.path.dirname(os.path.abspath(__file__)), "positive.log"),
-                        level=logging.ERROR)
     main()

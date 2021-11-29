@@ -16,8 +16,8 @@ class PortType(Enum):
 
 class Constants:
     # NDT keys
-    start_device_key = "#StartDevice"  # Nvidia case
-    # start_device_key = "#Fields:StartDevice"  # Microsoft Case
+    start_device_key_nvidia = "#StartDevice"  # Nvidia case
+    start_device_key_msft = "#Fields:StartDevice"  # Microsoft Case
     start_port_key = "StartPort"
     end_device_key = "EndDevice"
     end_port_key = "EndPort"
@@ -50,9 +50,11 @@ class Link:
         return self.unique_key.__hash__()
 
 
-def parse_ndt_port(row, index, port_type, patterns):
+def parse_ndt_port(file, row, index, port_type, patterns):
     if port_type == PortType.SOURCE:
-        device_key = Constants.start_device_key
+        device_key = Constants.start_device_key_nvidia
+        if not row.get(device_key):
+            device_key = Constants.start_device_key_msft
         port_key = Constants.start_port_key
     elif port_type == PortType.DESTINATION:
         device_key = Constants.end_device_key
@@ -60,7 +62,15 @@ def parse_ndt_port(row, index, port_type, patterns):
     else:
         return "", "", "Internal error: incorrect port_type"
 
-    device = row[device_key]
+    try:
+        device = row[device_key]
+    except KeyError as ke:
+        error_message = "Failed to parse {}: {}, in file: {}, line: {}. KeyError: {}" \
+            .format(port_type,
+                    row[port_key],
+                    index, file, ke)
+        logging.error(error_message)
+        return "", "", error_message
     port = ""
     if patterns:
         for pattern in patterns:
@@ -74,10 +84,10 @@ def parse_ndt_port(row, index, port_type, patterns):
         if match:
             port = match.group(1)
     if not port:
-        error_message = "Failed to parse {}: {}, in line: {}." \
+        error_message = "Failed to parse {}: {}, in file: {}, line: {}." \
             .format(port_type,
                     row[port_key],
-                    index)
+                    file, index)
         logging.error(error_message)
         return "", "", error_message
     else:
@@ -101,10 +111,12 @@ def parse_ndt_file(ndt_links, ndt_file, patterns, ndt_links_reversed=None):
                 logging.debug("Parsing NDT link: {}".format(row))
                 total_rows += 1
                 try:
-                    start_device, start_port, error_message = parse_ndt_port(row, index, PortType.SOURCE, patterns)
+                    start_device, start_port, error_message =\
+                        parse_ndt_port(os.path.basename(ndt_file), row, index, PortType.SOURCE, patterns)
                     if error_message:
                         error_response.append(error_message)
-                    end_device, end_port, error_message = parse_ndt_port(row, index, PortType.DESTINATION, patterns)
+                    end_device, end_port, error_message =\
+                        parse_ndt_port(os.path.basename(ndt_file), row, index, PortType.DESTINATION, patterns)
                     if error_message:
                         error_response.append(error_message)
                     ndt_links.add(Link(start_device, start_port, end_device, end_port))
@@ -125,6 +137,7 @@ def parse_ndt_file(ndt_links, ndt_file, patterns, ndt_links_reversed=None):
 
 
 def parse_ndt_files(ndts_list_file, switch_patterns, host_patterns):
+    error_response = []
     ndt_links = set()
     ndt_links_reversed = set()
     ndt_files_dir = os.path.dirname(ndts_list_file)
@@ -138,19 +151,19 @@ def parse_ndt_files(ndts_list_file, switch_patterns, host_patterns):
             ndt_file = ndt_file_entry["file"]
             ndt_type = ndt_file_entry["file_type"]
             if ndt_type == "switch_to_host":
-                error_message = parse_ndt_file(ndt_links,
-                                               os.path.join(ndt_files_dir, ndt_file),
-                                               switch_patterns + host_patterns,
-                                               ndt_links_reversed)
+                error_response.extend(parse_ndt_file(ndt_links,
+                                                     os.path.join(ndt_files_dir, ndt_file),
+                                                     switch_patterns + host_patterns,
+                                                     ndt_links_reversed))
             elif ndt_type == "switch_to_switch":
-                error_message = parse_ndt_file(ndt_links,
-                                               os.path.join(ndt_files_dir, ndt_file),
-                                               switch_patterns,
-                                               None)
+                error_response.extend(parse_ndt_file(ndt_links,
+                                                     os.path.join(ndt_files_dir, ndt_file),
+                                                     switch_patterns,
+                                                     None))
             else:
-                error_message = "Unknown file format"
-            if error_message:
-                return {}, {}, error_message
+                error_response.append("Unknown file format")
+        if error_response:
+            return {}, {}, error_response
 
         return ndt_links, ndt_links_reversed, []
 
@@ -258,9 +271,9 @@ def check_miswired(port_type, ndt_unique, ufm_unique, miss_wired):
     for start_port, link_ndt in ndt_dict.items():
         link_ufm = ufm_dict.get(start_port)
         if link_ufm:
-            miss_wired.append({"expected": str(link_ufm),
-                               "actual": str(link_ndt)})
-            print("NDT: actual \"{}\" does not match expected \"{}\"".format(link_ndt, link_ufm), flush=True)
+            miss_wired.append({"expected": str(link_ndt),
+                               "actual": str(link_ufm)})
+            print("NDT: actual \"{}\" does not match expected \"{}\"".format(link_ufm, link_ndt), flush=True)
 
             ndt_unique.remove(link_ndt)
             ufm_unique.remove(link_ufm)
@@ -304,10 +317,8 @@ def compare_topologies(timestamp, ndts_list_file, switch_patterns, host_patterns
     report = {"miss_wired": miss_wired[-10000:],
               "missing_in_ufm": missing_in_ufm[-10000:],
               "missing_in_ndt": missing_in_ndt[-10000:]}
-    error = ""
-    if not miss_wired and not missing_in_ufm and not missing_in_ndt:
-        error = "NDT and UFM are fully match"
-    response = {"error": error,
+
+    response = {"error": "",
                 "timestamp": timestamp,
                 "report": report}
 
