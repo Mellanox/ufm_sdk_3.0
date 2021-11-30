@@ -1398,11 +1398,11 @@ def get_ip_address_for_interface(interface):
         logging.error(error_message)
         return None
 
-def get_mgmnt_interface_ip(mgmnt_if_name):
+def get_mgmt_interface_ip(mgmt_if_name):
     '''
     function return ip of management interface - eth0 for applience
     '''
-    return get_ip_address_for_interface(mgmnt_if_name)
+    return get_ip_address_for_interface(mgmt_if_name)
 
 
 def update_etc_hosts_for_client_certificate():
@@ -1432,17 +1432,17 @@ def update_etc_hosts_for_client_certificate():
             # need to update /etc/hosts
             if os.path.isfile(CLIENT_CERT_DB_FILE_PATH):
                 certificate_client_servers_names = get_client_cert_servers_names()
-                mgmnt_if_name = ufm_config.get("Server", "mgmt_interface",
+                mgmt_if_name = ufm_config.get("Server", "mgmt_interface",
                                                                 fallback="eth0")
-                mgmnt_interface_ip = get_mgmnt_interface_ip(mgmnt_if_name)
-                if mgmnt_interface_ip is None:
-                    error_message = ("Faile to get mgmnt interface ip address."
+                mgmt_interface_ip = get_mgmt_interface_ip(mgmt_if_name)
+                if mgmt_interface_ip is None:
+                    error_message = ("Failed to get management interface ip address."
                                      " /etc/hosts will not be "
                             "updated with client certificate related data")
                     logging.error(error_message)
                     return
                 try:
-                    check_update_record_in_file(mgmnt_interface_ip, certificate_client_servers_names)
+                    check_update_record_in_file(mgmt_interface_ip, certificate_client_servers_names)
                 except Exception as e:
                     error_message = ("Failed to update /etc/hosts with client "
                             " certificate related configuration: %s" % e)
