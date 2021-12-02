@@ -508,6 +508,7 @@ async def handle_ibdiagnet_respond(end_point, recv_tag, send_tag, ibdiag_request
         ib_diag_job_url = IBDIAG_JOB_URL_TOKEN
     else:
         ib_diag_job_url = IBDIAG_JOB_URL
+    spinning_coursor = ('-','\\','|','/')
     while num_of_retries > 0:
         get_charar = np.empty_like(req_charar)
         request_url_path = "%s%s" % (ib_diag_job_url, job_name)
@@ -530,6 +531,8 @@ async def handle_ibdiagnet_respond(end_point, recv_tag, send_tag, ibdiag_request
                 if task_status != 'Successful':
                     logging.debug("Client: Request for ibdiagnet status again")
                     num_of_retries -= 1
+                    # print spin the wheel
+                    print('\r', spinning_coursor[num_of_retries%4], sep='', end='', flush=True)
                     time.sleep(retry_interval)
                 else:
                     # take path of tarball file
