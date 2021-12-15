@@ -62,9 +62,9 @@ function build_docker_image()
     echo "  full_image_version    : [${full_image_version}]"
 
     pushd ${build_dir}
-    echo "docker build --network host --no-cache --pull -t ${full_image_version} . --compress"
+    echo "docker build --network host --no-cache --pull -t mellanox/ufm-plugin-rest-rdma:${image_version} . --compress"
 
-    docker build --network host --no-cache --pull -t ${full_image_version} . --compress
+    docker build --network host --no-cache --pull -t mellanox/ufm-plugin-rest-rdma:${image_version} . --compress
     exit_code=$?
     popd
     if [ $exit_code -ne 0 ]; then
@@ -77,15 +77,15 @@ function build_docker_image()
     docker images | grep ufm-plugin-rest-rdma
     printf "\n\n\n"
 
-    echo "docker save ${image_name}:latest | gzip > ${out_dir}/${full_image_version}.tar.gz"
-    docker save ${image_name}:latest | gzip > ${out_dir}/${full_image_version}.tar.gz
+    echo "docker save mellanox/ufm-plugin-rest-rdma:${image_version} | gzip > ${out_dir}/${full_image_version}.tar.gz"
+    docker save mellanox/ufm-plugin-rest-rdma:${image_version} | gzip > ${out_dir}/${full_image_version}.tar.gz
     exit_code=$?
     if [ $exit_code -ne 0 ]; then
         echo "Failed to save image"
         return $exit_code
     fi
     if [ "$keep_image" != "y" -a "$keep_image" != "Y" ]; then
-        docker image rm -f ${full_image_version}
+        docker image rm -f mellanox/ufm-plugin-rest-rdma:${image_version}
     fi
     return 0
 }

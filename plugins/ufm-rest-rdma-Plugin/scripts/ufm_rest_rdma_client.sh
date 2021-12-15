@@ -28,7 +28,7 @@ usage() {
 }
 
 get_version() {
-    command_line="docker exec ufm-plugin-ufm-rest $ufm_rdma_utility_name -v"
+    command_line="docker exec ufm-plugin-rest-rdma $ufm_rdma_utility_name -v"
     eval $command_line
 }
 
@@ -95,7 +95,7 @@ fi
 
 parse_args "$@"
 
-command_line="docker exec ufm-plugin-ufm-rest $ufm_rdma_utility_name -r client -t $action_type -a $action -w $rest_url"
+command_line="docker exec ufm-plugin-rest-rdma $ufm_rdma_utility_name -r client -t $action_type -a $action -w $rest_url"
 if [ ! -z $token ];
 then
     command_line+=" -k $token"

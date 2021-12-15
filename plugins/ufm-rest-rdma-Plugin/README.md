@@ -41,7 +41,7 @@ Check that plugin is up and running with
 `ufm plugin show`
 
 to start container as client run
-`docker run -d --network=host --privileged --name=ufm-plugin-rest-rdma --rm ufm-plugin-rest-rdma_[version] client`
+`docker run -d --network=host --privileged --name=ufm-plugin-rest-rdma --rm mellanox/ufm-plugin-rest-rdma:[version] client`
 
 to enter docker container run
 `docker exec -it ufm-plugin-ufm-rest bash`
