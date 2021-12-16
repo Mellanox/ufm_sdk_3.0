@@ -11,37 +11,40 @@ once completed - docker image ufm-plugin-rest-rdma_[version].tar.gz
 will be located at / of your build server
 
 #To deploy the plugin on UFM Appliance:
-login as admin;
-run enable;
-run config terminal;
-make sure that UFM is running with show ufm status;
-if UFM is down then run it with ufm start;
-make sure that NDT plugin is disabled with show ufm plugin;
+login as admin
+run enable
+run config terminal
+make sure that UFM is running using 
+`show ufm status`
+if UFM is down then run it using 
+`ufm start`
+make sure that rest-rdma plugin is disabled using 
+`show ufm plugin`
 pull the plugin container with 
 `docker pull mellanox/ufm-plugin-rest-rdmа`
 run 
 `ufm plugin ufm-plugin-rest-rdma add`
-to enable the plugin;
+to enable the plugin
 
-check that plugin is up and running with 
+check that plugin is up and running using 
 `ufm plugin show`
 
 #To deploy the plugin with UFM (SA or HA), you should:
-install the latest version of UFM;
+install the latest version of UFM
 run UFM with
-`/etc/init.d/ufmd start`;
-pull the plugin container with 
+`/etc/init.d/ufmd start`
+pull the plugin container using 
 `docker pull mellanox/ufm-plugin-rest-rdma`
-run 
-`/opt/ufm/scripts/manage_ufm_plugins.py add -p rest-rdma` to enable the plugin;
-check that plugin is up and running with 
+to enable the plugin run 
+`/opt/ufm/scripts/manage_ufm_plugins.py add -p rest-rdma`;
+check that plugin is up and running using 
 `docker ps`
 Log file ufm_rest_over_rdma.log is located in /opt/ufm/files/log on the host.
-Check that plugin is up and running with 
+Check that plugin is up and running using 
 `ufm plugin show`
 
 to start container as client run
-`docker run -d --network=host --privileged --name=ufm-plugin-rest-rdma --rm mellanox/ufm-plugin-rest-rdma:[version] client`
+`docker run -d --network=host --privileged --name=ufm-plugin-rest-rdma --rm -v /tmp/ibdiagnet:/tmp/ibdiagnet mellanox/ufm-plugin-rest-rdma:[version] client`
 
 to enter docker container run
 `docker exec -it ufm-plugin-ufm-rest bash`
@@ -51,11 +54,13 @@ From inside the docker or using custom script from the hosting server.
 1. From inside the docker:
  Enter to the docker and
  cd /opt/ufm/src/ufm-plugin-rest-rdma
- How to run client - use help option to see available parameters
+ How to run client - use -h help option to see available parameters
 `./ufm_rdma.py -h`
 2. From hosting server
 It is a script located at /opt/ufm/ufm-plugin-ufm-rest/ufm_rest_rdma_client.sh inside docker,
-that could be copied from docker to client host and could be used to run REST requests
+that could be copied using command
+`cp <containerId>:/opt/ufm/ufm-plugin-ufm-rest/ufm_rest_rdma_client.sh /host/path/target`
+from docker to client host and could be used to run REST requests
 directly from the host with no need to enter to the client docker container
 
 ## Example:
