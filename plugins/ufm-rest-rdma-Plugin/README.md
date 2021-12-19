@@ -14,15 +14,15 @@ will be located at / of your build server
 login as admin
 run enable
 run config terminal
-make sure that UFM is running using 
+make sure that UFM is running using
 `show ufm status`
-if UFM is down then run it using 
+if UFM is down then run it using
 `ufm start`
-make sure that rest-rdma plugin is disabled using 
+make sure that rest-rdma plugin is disabled using
 `show ufm plugin`
-pull the plugin container with 
+pull the plugin container with
 `docker pull mellanox/ufm-plugin-rest-rdmа`
-run 
+run
 `ufm plugin ufm-plugin-rest-rdma add`
 to enable the plugin
 
@@ -33,14 +33,14 @@ check that plugin is up and running using
 install the latest version of UFM
 run UFM with
 `/etc/init.d/ufmd start`
-pull the plugin container using 
+pull the plugin container using
 `docker pull mellanox/ufm-plugin-rest-rdma`
-to enable the plugin run 
+to enable the plugin run
 `/opt/ufm/scripts/manage_ufm_plugins.py add -p rest-rdma`;
-check that plugin is up and running using 
+check that plugin is up and running using
 `docker ps`
 Log file ufm_rest_over_rdma.log is located in /opt/ufm/files/log on the host.
-Check that plugin is up and running using 
+Check that plugin is up and running using
 `ufm plugin show`
 
 to start container as client run

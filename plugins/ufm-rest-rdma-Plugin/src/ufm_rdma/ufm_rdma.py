@@ -1084,7 +1084,7 @@ def main_server(request_arguments):
     device_name = request_arguments['interface']
     if not device_name or device_name == "None":
         device_name = (rdma_rest_config.get("Common",
-                                            "ucx_net_device",
+                                            UCX_NET_DEVICES_NAME,
                                 fallback=DEFAULT_UCX_NET_DEVICES)).split(":")[0]
     refister_sr = register_local_address_in_service_record(device_name)
     if not refister_sr:
