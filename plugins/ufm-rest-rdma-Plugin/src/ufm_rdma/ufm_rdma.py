@@ -1146,7 +1146,7 @@ def main_client(request_arguments):
     async def run(request_arguments):
         device_name = request_arguments['interface']
         if not device_name or device_name == "None":
-            device_name = (rdma_rest_config.get("Common", "ucx_net_device",
+            device_name = (rdma_rest_config.get("Common", UCX_NET_DEVICES_NAME,
                                 fallback=DEFAULT_UCX_NET_DEVICES)).split(":")[0]
         sr_service_name = ctypes.c_char_p(SERVICE_NAME)
         sr_device_name = ctypes.c_char_p(str.encode(device_name))
