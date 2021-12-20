@@ -1407,7 +1407,19 @@ def get_mgmt_interface_ip(mgmt_if_name):
     '''
     return get_ip_address_for_interface(mgmt_if_name)
 
-
+def get_verify_active_interface(initial_ib_interface_name):
+    '''
+    Receive defined interface name and verify it is up.
+    If not up - return first ib interface that is active
+    :param initial_interface_name:
+    initial_ib_interface_name  = mlx5_0:1
+    #ibdev2netdev | grep [ mlx5_0 port 1 ] | grep "Up" > /dev/null
+    if ret code 0 - return what received, else - check for next active
+    #ibdev2netdev | grep "Up" | head -1
+    then in Python take device name and port number
+    '''
+    pass
+    
 def update_etc_hosts_for_client_certificate():
     '''
     If running on applience and in server mode need to add to /etc/hosts
