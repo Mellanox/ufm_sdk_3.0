@@ -7,7 +7,7 @@ Build version should be updated in release_info file under docker directory
 to build docker image, enter docker directory and run
 `docker_build.sh`
 
-once completed - docker image ufm-plugin-rest-rdma_[version].tar.gz
+Once completed - docker image ufm-plugin-rest-rdma_[version].tar.gz
 will be located at / of your build server
 
 #To deploy the plugin on UFM Appliance:
@@ -39,8 +39,10 @@ to enable the plugin run
 check that plugin is up and running using
 `docker ps`
 Log file ufm_rest_over_rdma.log is located in /opt/ufm/files/log on the host.
-Check that plugin is up and running using
-`ufm plugin show`
+
+#To deploy docker on client server
+pull image with
+docker pull mellanox/ufm-plugin-rest-rdma:[version]`
 
 to start container as client run
 `docker run -d --network=host --privileged --name=ufm-plugin-rest-rdma --rm -v /tmp/ibdiagnet:/tmp/ibdiagnet mellanox/ufm-plugin-rest-rdma:[version] client`
@@ -48,7 +50,7 @@ to start container as client run
 to enter docker container run
 `docker exec -it ufm-plugin-ufm-rest bash`
 
-If container used as client. There are two options to run client:
+If container used as client. There are three options to run client:
 From inside the docker or using custom script from the hosting server.
 1. From inside the docker:
  Enter to the docker and
@@ -61,7 +63,6 @@ that could be copied using command
 `cp <containerId>:/opt/ufm/ufm-plugin-ufm-rest/ufm_rest_rdma_client.sh /host/path/target`
 from docker to client host and could be used to run REST requests
 directly from the host with no need to enter to the client docker container
-
 ## Example:
 ```
 ./ufm_rest_rdma_client.sh -u admin -p 123456 -t simple -a GET -w ufmRest/app/ufm_version
@@ -69,8 +70,16 @@ directly from the host with no need to enter to the client docker container
 To see available options run
 `./ufm_rest_rdma_client.sh -h`
 
+3. From hosting server using docker exec command
+thesame as to run it from inside docker, but need to run
+docker exec ufm-plugin-rest-rdma prior to command:
+##Example
+```
+docker exec ufm-plugin-rest-rdma /opt/ufm/ufm-plugin-ufm-rest/src/ufm_rdma.py -r client -u admin -p 123456 -t simple -a GET -w ufmRest/app/ufm_version
+```
 
-## Examples:
+
+##Usage Examples:
 ```
 ### user name password authentication
 
