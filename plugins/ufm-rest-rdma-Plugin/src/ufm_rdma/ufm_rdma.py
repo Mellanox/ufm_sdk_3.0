@@ -1080,15 +1080,7 @@ def main_server(request_arguments):
     # if need - update /etc/hosts
     update_etc_hosts_for_client_certificate()
     # register server record
-    ucx_device_name = request_arguments['interface']
-    if not ucx_device_name  or ucx_device_name  == "None":
-        ucx_device_name  = (rdma_rest_config.get("Common",UCX_NET_DEVICES_NAME,
-                                fallback=DEFAULT_UCX_NET_DEVICES))
-    ucx_device_name  = get_verify_active_interface(ucx_device_name)
-    if not ucx_device_name:
-        logging.critical("Failed to find active ib device. Exit.")
-        sys.exit(1)
-    device_name = ucx_device_name.split(":")[0]
+    device_name = get_ucx_device_name(request_arguments)
     refister_sr = register_local_address_in_service_record(device_name)
     if not refister_sr:
         logging.critical("Failed to register SR. Exit.")
@@ -1147,15 +1139,7 @@ def main_client(request_arguments):
     """
 
     async def run(request_arguments):
-        ucx_device_name = request_arguments['interface']
-        if not ucx_device_name or ucx_device_name == "None":
-            ucx_device_name = (rdma_rest_config.get("Common", UCX_NET_DEVICES_NAME,
-                                fallback=DEFAULT_UCX_NET_DEVICES))
-        ucx_device_name = get_verify_active_interface(ucx_device_name)
-        if not ucx_device_name:
-            logging.critical("Failed to find active ib device. Exit.")
-            sys.exit(1)
-        device_name = ucx_device_name.split(":")[0]
+        device_name = get_ucx_device_name(request_arguments)
         sr_service_name = ctypes.c_char_p(SERVICE_NAME)
         sr_device_name = ctypes.c_char_p(str.encode(device_name))
         sid = int(rdma_rest_config.get("Common", "service_record_id",
@@ -1415,6 +1399,22 @@ def get_mgmt_interface_ip(mgmt_if_name):
     function return ip of management interface - eth0 for applience
     '''
     return get_ip_address_for_interface(mgmt_if_name)
+
+def get_ucx_device_name(request_arguments):
+    '''
+    Return real ucx device name - the active one
+    '''
+    ucx_device_name = request_arguments['interface']
+    if not ucx_device_name  or ucx_device_name  == "None":
+        ucx_device_name  = (rdma_rest_config.get("Common",UCX_NET_DEVICES_NAME,
+                                fallback=DEFAULT_UCX_NET_DEVICES))
+    ucx_device_name  = get_verify_active_interface(ucx_device_name)
+    if not ucx_device_name:
+        logging.critical("Failed to find active ib device. Exit.")
+        sys.exit(1)
+    device_name = ucx_device_name.split(":")[0]
+    return device_name
+
 
 def get_verify_active_interface(initial_ib_interface_name):
     '''
