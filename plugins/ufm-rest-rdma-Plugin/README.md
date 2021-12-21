@@ -21,10 +21,9 @@ if UFM is down then run it using
 make sure that rest-rdma plugin is disabled using
 `show ufm plugin`
 pull the plugin container with
-`docker pull mellanox/ufm-plugin-rest-rdmа`
-run
-`ufm plugin ufm-plugin-rest-rdma add`
-to enable the plugin
+`docker pull mellanox/ufm-plugin-rest-rdma:[version]`
+to enable the plugin run
+`ufm plugin ufm-plugin-rest-rdma add tag [version]`
 
 check that plugin is up and running using 
 `ufm plugin show`
@@ -34,7 +33,7 @@ install the latest version of UFM
 run UFM with
 `/etc/init.d/ufmd start`
 pull the plugin container using
-`docker pull mellanox/ufm-plugin-rest-rdma`
+`docker pull mellanox/ufm-plugin-rest-rdma:[version]`
 to enable the plugin run
 `/opt/ufm/scripts/manage_ufm_plugins.py add -p rest-rdma`;
 check that plugin is up and running using
@@ -87,7 +86,6 @@ need to pass path to client certificate file and name of UFM server machine:
 
 ### if to use token:
 nedd to pass it for authentication
-
 ./ufm_rdma.py -r client -k OGUY7TwLvTmFkXyTkcsEWD9KKNvq6f -t simple -a GET -w ufmRestV3/app/ufm_version
 ```
 
