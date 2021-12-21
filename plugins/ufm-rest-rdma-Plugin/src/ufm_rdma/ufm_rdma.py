@@ -1080,15 +1080,19 @@ def main_server(request_arguments):
     # if need - update /etc/hosts
     update_etc_hosts_for_client_certificate()
     # register server record
-    device_name = request_arguments['interface']
-    if not device_name or device_name == "None":
-        device_name = (rdma_rest_config.get("Common",
-                                            "ucx_net_device",
-                                fallback=DEFAULT_UCX_NET_DEVICES)).split(":")[0]
+    ucx_device_name = request_arguments['interface']
+    if not ucx_device_name  or ucx_device_name  == "None":
+        ucx_device_name  = (rdma_rest_config.get("Common",UCX_NET_DEVICES_NAME,
+                                fallback=DEFAULT_UCX_NET_DEVICES))
+    ucx_device_name  = get_verify_active_interface(ucx_device_name)
+    if not ucx_device_name:
+        logging.critical("Failed to find active ib device. Exit.")
+        sys.exit(1)
+    device_name = ucx_device_name.split(":")[0]
     refister_sr = register_local_address_in_service_record(device_name)
     if not refister_sr:
         logging.critical("Failed to register SR. Exit.")
-        os._exit()
+        os._exit(1)
     # dictionary with connection info in {address: (recv_tag, send_tag)} format
     connection_info = {}
 
@@ -1143,10 +1147,15 @@ def main_client(request_arguments):
     """
 
     async def run(request_arguments):
-        device_name = request_arguments['interface']
-        if not device_name or device_name == "None":
-            device_name = (rdma_rest_config.get("Common", "ucx_net_device",
-                                fallback=DEFAULT_UCX_NET_DEVICES)).split(":")[0]
+        ucx_device_name = request_arguments['interface']
+        if not ucx_device_name or ucx_device_name == "None":
+            ucx_device_name = (rdma_rest_config.get("Common", UCX_NET_DEVICES_NAME,
+                                fallback=DEFAULT_UCX_NET_DEVICES))
+        ucx_device_name = get_verify_active_interface(ucx_device_name)
+        if not ucx_device_name:
+            logging.critical("Failed to find active ib device. Exit.")
+            sys.exit(1)
+        device_name = ucx_device_name.split(":")[0]
         sr_service_name = ctypes.c_char_p(SERVICE_NAME)
         sr_device_name = ctypes.c_char_p(str.encode(device_name))
         sid = int(rdma_rest_config.get("Common", "service_record_id",
@@ -1413,13 +1422,42 @@ def get_verify_active_interface(initial_ib_interface_name):
     If not up - return first ib interface that is active
     :param initial_interface_name:
     initial_ib_interface_name  = mlx5_0:1
-    #ibdev2netdev | grep [ mlx5_0 port 1 ] | grep "Up" > /dev/null
-    if ret code 0 - return what received, else - check for next active
-    #ibdev2netdev | grep "Up" | head -1
-    then in Python take device name and port number
+    ibstat -l - will get list of devices
+    mlx5_0
+    mlx5_1
+    ibstat  mlx5_0 1 | grep State | cut -d" " -f2
+    Active
+    if not Active - take next from list and check status - if Active - return it
     '''
-    pass
-    
+    interface_name, port = initial_ib_interface_name.split(":")
+    check_device_cmd = ('ibstat  %s %s | grep State | cut -d\" \" -f2 | grep -i Active' %
+                                                          (interface_name, port))
+    result = subprocess.run(check_device_cmd, stdout=subprocess.PIPE, shell=True)
+    if result.returncode == 0:
+        return initial_ib_interface_name
+    # get list of all the devices and find active one
+    logging.error("Device %s is not active. Will be taken next active device" %
+                  initial_ib_interface_name)
+    available_devices = subprocess.check_output(["ibstat", "-l"])
+    available_devices_list = available_devices.decode("utf-8").splitlines()
+    for dev_name in available_devices_list:
+        # get list of ports of this device
+        get_ports_cmd = "/usr/sbin/ibstat %s | grep Port | grep -v GUID" % dev_name
+        ports_output = subprocess.check_output(get_ports_cmd, shell=True)
+        available_ports = ports_output.decode("utf-8").splitlines()
+        for port in available_ports:
+            port_num = (port.strip()).split()[1][:-1]
+            check_device_cmd = ("ibstat  %s %s | grep State | cut -d\" \" -f2 | grep -i Active" %
+                                                          (dev_name, port_num))
+            result = subprocess.run(check_device_cmd, stdout=subprocess.PIPE, shell=True)
+            if result.returncode == 0:
+                logging.error("Device %s not active. Will be taken %s:%s" %
+                             (initial_ib_interface_name, dev_name, port_num))
+                return "%s:%s" % (dev_name, port_num)
+    error_message = "% device is not active. Could not find active devices" % initial_ib_interface_name
+    logging.error(error_message)
+    return None
+
 def update_etc_hosts_for_client_certificate():
     '''
     If running on applience and in server mode need to add to /etc/hosts
@@ -1494,10 +1532,13 @@ def set_env_variables():
         with open(PLUGIN_CONF_FILE) as conf_file:
             for line in conf_file:
                 var_name, var_value = (line.rstrip().split("="))
+                if var_name == UCX_NET_DEVICES_ENV_VAR_NAME:
+                    var_value = get_verify_active_interface(var_value)
                 os.environ[var_name] = var_value
     else:
         ucx_net_devices = rdma_rest_config.get("Common", UCX_NET_DEVICES_NAME,
                                      fallback=DEFAULT_UCX_NET_DEVICES)
+        ucx_net_devices = get_verify_active_interface(ucx_net_devices)
         os.environ[UCX_NET_DEVICES_ENV_VAR_NAME] = ucx_net_devices
         ucx_tls = rdma_rest_config.get("Common", UCX_TLS_NAME,
                                      fallback=DEFAULT_UCX_TLS)
