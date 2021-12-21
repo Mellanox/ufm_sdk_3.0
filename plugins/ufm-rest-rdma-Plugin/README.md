@@ -51,7 +51,7 @@ to enter docker container run
 `docker exec -it ufm-plugin-ufm-rest bash`
 
 If container used as client. There are three options to run client:
-From inside the docker or using custom script from the hosting server.
+From inside the docker, using custom script from the hosting server or using docker exec command from hosting server.
 1. From inside the docker:
  Enter to the docker and
  cd /opt/ufm/src/ufm-plugin-rest-rdma
@@ -71,7 +71,7 @@ To see available options run
 `./ufm_rest_rdma_client.sh -h`
 
 3. From hosting server using docker exec command
-thesame as to run it from inside docker, but need to run
+the same as to run it from inside docker, but need to run
 docker exec ufm-plugin-rest-rdma prior to command:
 ##Example
 ```
