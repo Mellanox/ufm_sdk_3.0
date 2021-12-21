@@ -23,7 +23,7 @@ touch /config/ufm-rest_cmdline_args.conf
 # define docker shared dirs
 echo /opt/ufm/files/periodicIbdiagnet:/opt/ufm/files/periodicIbdiagnet > /config/ufm-rest_shared_volumes.conf
 echo /opt/ufm/files/log:/opt/ufm/files/log >> /config/ufm-rest_shared_volumes.conf
-echo /opt/ufm/files/conf:/opt/ufm/files/conf >> /config/ufm-rest_shared_volumes.conf
+echo /opt/ufm/files/conf:/opt/ufm/files/conf  >> /config/ufm-rest_shared_volumes.conf
 # define application devault envitonment variables
 echo "UCX_NET_DEVICES=mlx5_0:1" >> /config/ufm-rest.conf
 echo "UCX_TLS=rc_x" >> /config/ufm-rest.conf
