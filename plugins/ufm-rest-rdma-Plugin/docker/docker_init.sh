@@ -10,8 +10,8 @@ then
     fi
 else
     # copy config file into conf directory
-    if [ ! -f /opt/ufm/files/conf/ufm_rdma.ini ]; then
-        cp /tmp/ufm_rdma.ini /opt/ufm/files/conf/ufm_rdma.ini
+    if [ ! -f /config/ufm_rdma.ini ]; then
+        cp /tmp/ufm_rdma.ini /config/ufm_rdma.ini
     fi
     /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
 fi

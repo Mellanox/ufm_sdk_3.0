@@ -104,6 +104,7 @@ cp -r ../src ${BUILD_DIR}
 cp -r ../scripts ${BUILD_DIR}
 cp -r whl ${BUILD_DIR}
 cp init.sh ${BUILD_DIR}
+cp deinit.sh ${BUILD_DIR}
 cp install_deps.sh ${BUILD_DIR}
 
 
