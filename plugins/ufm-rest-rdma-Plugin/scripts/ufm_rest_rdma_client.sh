@@ -17,6 +17,7 @@ usage() {
     echo -e " -c     Path to the config file name."
     echo -e " -d     Path to the client certificate file name (located inside docker container)."
     echo -e " -k     Token for authentication."
+    echo -e " -v     Get utility version."
     echo -e " -h     Show help"
     echo -e "\nExamples:"
     echo -e "     $0 -u username -p password -t ibdiagnet -a POST -w ufmRest/reports/ibdiagnetPeriodic -l '{"general": {"name": "IBDiagnet_CMD_1234567890_199", "location": "local", "running_mode": "once"}, "command_flags": {"--pc": ""}}'"
@@ -26,9 +27,14 @@ usage() {
     echo
 }
 
+get_version() {
+    command_line="docker exec ufm-plugin-rest-rdma $ufm_rdma_utility_name -v"
+    eval $command_line
+}
+
 # #--------------------------------------------------------------------------------------
 parse_args() {
-    while getopts :h:i:u:p:a:t:w:l:s:c:d:k opt 
+    while getopts :h:i:u:p:a:t:w:l:s:c:d:k:v opt 
         do
         #echo $opt, "-----------------------------------------------------------"
         case "$opt" in
@@ -65,9 +71,13 @@ parse_args() {
         k)
             token=${OPTARG}
             ;;
+        v)
+            get_version
+            exit 0
+            ;;
         h)
             usage
-            exit O
+            exit 0
             ;;
         *)
             usage
@@ -85,7 +95,7 @@ fi
 
 parse_args "$@"
 
-command_line="docker exec ufm-plugin-ufm-rest $ufm_rdma_utility_name -r client -t $action_type -a $action -w $rest_url"
+command_line="docker exec ufm-plugin-rest-rdma $ufm_rdma_utility_name -r client -t $action_type -a $action -w $rest_url"
 if [ ! -z $token ];
 then
     command_line+=" -k $token"

@@ -31,6 +31,7 @@ with warnings.catch_warnings():
 
 SERVICE_NAME = b"ufm_rest_service"
 DEFAULT_CONFIG_FILE_NAME = "ufm_rdma.ini"
+RELEASE_FILE_NAME="release_info"
 HOSTS_FILE_PATH="/etc/hosts"
 UFM_CONFIG_FILE_PATH = "/opt/ufm/files/conf/gv.cfg"
 CLIENT_CERT_DB_FILE_PATH = "/opt/ufm/files/conf/webclient/ufm_client_authen.db"
@@ -1083,7 +1084,7 @@ def main_server(request_arguments):
     device_name = request_arguments['interface']
     if not device_name or device_name == "None":
         device_name = (rdma_rest_config.get("Common",
-                                            "ucx_net_device",
+                                            UCX_NET_DEVICES_NAME,
                                 fallback=DEFAULT_UCX_NET_DEVICES)).split(":")[0]
     refister_sr = register_local_address_in_service_record(device_name)
     if not refister_sr:
@@ -1145,7 +1146,7 @@ def main_client(request_arguments):
     async def run(request_arguments):
         device_name = request_arguments['interface']
         if not device_name or device_name == "None":
-            device_name = (rdma_rest_config.get("Common", "ucx_net_device",
+            device_name = (rdma_rest_config.get("Common", UCX_NET_DEVICES_NAME,
                                 fallback=DEFAULT_UCX_NET_DEVICES)).split(":")[0]
         sr_service_name = ctypes.c_char_p(SERVICE_NAME)
         sr_device_name = ctypes.c_char_p(str.encode(device_name))
@@ -1271,7 +1272,7 @@ def create_base_parser():
     return parser
 
 
-def allocate_request_args(parser):
+def allocate_request_args(parser, release_version):
     """
     Definition of arguments
     :param parser:
@@ -1315,6 +1316,7 @@ def allocate_request_args(parser):
                          default=None, required=None,
                          choices=None,
                          help="REST payload")
+    request.add_argument("-v", "--version", action="version", version = release_version)
 
 
 def extract_request_args(arguments):
@@ -1495,7 +1497,15 @@ def main():
     # arguments parser
     global rdma_rest_config
     parser = create_base_parser()
-    allocate_request_args(parser)
+    # get version
+    release_file_name = os.path.join(WORKING_DIR_NAME,
+                                    RELEASE_FILE_NAME)
+    if os.path.isfile(release_file_name):
+        with open(release_file_name) as f:
+            release_version = f.readline()
+    else:
+        release_version = "Unknown"
+    allocate_request_args(parser, release_version)
     arguments = vars(parser.parse_args())
     request_arguments = extract_request_args(arguments)
     run_mode = request_arguments['run_mode']
