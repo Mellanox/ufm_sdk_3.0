@@ -18,7 +18,7 @@ echo "Running init.sh"
 # Updating /config folder
 touch /config/rest-rdma.conf
 touch /config/rest-rdma_shared_volumes.conf
-touch /config/rest-rdmal_cmdline_args.conf
+touch /config/rest-rdma_cmdline_args.conf
 # define docker shared dirs
 echo /opt/ufm/files/periodicIbdiagnet:/opt/ufm/files/periodicIbdiagnet > /config/rest-rdma_shared_volumes.conf
 echo /opt/ufm/files/log:/opt/ufm/files/log >> /config/rest-rdma_shared_volumes.conf
