@@ -6,10 +6,10 @@ if [ "$EUID" -ne 0 ]
   then echo "Please run the script as root"
   exit
 fi
-
+RELEASE_FILE_NAME="release_info"
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 IMAGE_VERSION=$1
-IMAGE_NAME=ufm-plugin-ufm-rest
+IMAGE_NAME=ufm-plugin-rest-rdma
 OUT_DIR=$2
 RANDOM_HASH=$3
 
@@ -24,6 +24,10 @@ echo " "
 if [ -z "${OUT_DIR}" ]; then
     OUT_DIR="."
 fi
+if [ -z "${IMAGE_VERSION}" ]; then
+    IMAGE_VERSION=`cat $RELEASE_FILE_NAME`
+fi
+
 
 function create_out_dir()
 {
@@ -58,9 +62,9 @@ function build_docker_image()
     echo "  full_image_version    : [${full_image_version}]"
 
     pushd ${build_dir}
-    echo "docker build --network host --no-cache --pull -t ${full_image_version} . --compress"
+    echo "docker build --network host --no-cache --pull -t mellanox/ufm-plugin-rest-rdma:${image_version} . --compress"
 
-    docker build --network host --no-cache --pull -t ${full_image_version} . --compress
+    docker build --network host --no-cache --pull -t mellanox/ufm-plugin-rest-rdma:${image_version} . --compress
     exit_code=$?
     popd
     if [ $exit_code -ne 0 ]; then
@@ -69,19 +73,19 @@ function build_docker_image()
     fi
 
     printf "\n\n\n"
-    echo "docker images | grep ufm-plugin-ufm-plugin-ufm-rest"
-    docker images | grep ufm-plugin-ufm-rest
+    echo "docker images | grep ufm-plugin-rest-rdma"
+    docker images | grep ufm-plugin-rest-rdma
     printf "\n\n\n"
 
-    echo "docker save ${full_image_version}:latest | gzip > ${out_dir}/${full_image_version}.tar.gz"
-    docker save ${full_image_version}:latest | gzip > ${out_dir}/${full_image_version}.tar.gz
+    echo "docker save mellanox/ufm-plugin-rest-rdma:${image_version} | gzip > ${out_dir}/${full_image_version}.tar.gz"
+    docker save mellanox/ufm-plugin-rest-rdma:${image_version} | gzip > ${out_dir}/${full_image_version}.tar.gz
     exit_code=$?
     if [ $exit_code -ne 0 ]; then
         echo "Failed to save image"
         return $exit_code
     fi
     if [ "$keep_image" != "y" -a "$keep_image" != "Y" ]; then
-        docker image rm -f ${full_image_version}
+        docker image rm -f mellanox/ufm-plugin-rest-rdma:${image_version}
     fi
     return 0
 }
@@ -93,6 +97,7 @@ cp ../.ci/install_deps.sh ${SCRIPT_DIR}
 BUILD_DIR=$(create_out_dir)
 
 cp Dockerfile ${BUILD_DIR}
+cp $RELEASE_FILE_NAME ${BUILD_DIR}
 cp supervisord.conf ${BUILD_DIR}
 cp docker_init.sh ${BUILD_DIR}
 cp -r ../src ${BUILD_DIR}

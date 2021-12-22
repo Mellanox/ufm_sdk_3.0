@@ -1,6 +1,6 @@
 FROM ubuntu:18.04 AS ufm_rest_base_ubuntu18
 
-ARG MOFED_VER=5.4-1.0.3.0
+ARG MOFED_VER=5.5-1.0.3.2
 ARG MOFED_DIR=MLNX_OFED_LINUX-${MOFED_VER}-ubuntu18.04-x86_64
 ARG BASE_PATH=/opt/ufm/ufm-plugin-ufm-rest
 
@@ -37,6 +37,7 @@ ADD src/common /tmp/common
 
 
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY release_info ${BASE_PATH}/src
 RUN mkdir -p /opt/ufm/files/conf
 COPY src/ufm_rdma/ufm_rdma.ini /tmp/ufm_rdma.ini
 COPY docker_init.sh /usr/sbin/docker_init.sh
