@@ -10,8 +10,6 @@ kubernetes:
 
 volumes:
   - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
-  - {mountPath: /project/sw/ufm/cyberai, hostPath: /project/sw/ufm/cyberai} ##- {mountPath: /project/sw/ufm/rest-rdma, hostPath: /project/sw/ufm/res-rdma}
-
 runs_on_dockers:
    - {file: '.ci/Dockerfile_static_tests_ub2004', arch: 'x86_64', name: 'swx_static', tag: 'latest'}
   #- {name: 'swx_static', url: 'harbor.mellanox.com/collectx/x86_64/swx_static_tests:latest', category: 'tool', arch: 'x86_64'}
@@ -60,6 +58,31 @@ steps:
       fi
     parallel: true
     archiveArtifacts: 'logs/*'
+
+
+
+  - name: Install Plugin
+    shell: '#!/bin/bash -x'
+    run: |
+      [[ ! -f $(which ipmitool) ]] && sudo yum install -y sshpass
+      sshpass -p 3tango ssh -o StrictHostKeyChecking=no root@r-dcs63
+      cd docker
+      ./docker_build.sh > /dev/null
+      docker load < /ufm-plugin-rest-rdma_* > /dev/null
+      docker run -d --network=host --privileged --name=ufm-plugin-rest-rdma --rm -v /tmp/ibdiagnet:/tmp/ibdiagnet mellanox/ufm-plugin-rest-rdma:* client
+      cd /tmp/client_cert/
+      docker cp
+      docker cp ufm-client.pfx ufm-plugin-rest-rdma:/tmp
+      docker exec -it ufm-plugin-rest-rdma bash
+      cd /opt/ufm/ufm-plugin-ufm-rest/src/
+      python3 ufm_rdma.py -r client -t simple -a GET -w 'ufmRest/actions/get_all_pkeys?guids_data=true&pkey_api_only=False' -d /tmp/ufm-client.pfx -s ufm.azurehpc.core.azure-test.net
+      exit $?
+      
+
+
+
+
+
 
 
 
