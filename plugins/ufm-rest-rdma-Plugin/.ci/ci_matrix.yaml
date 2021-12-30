@@ -63,11 +63,13 @@ steps:
 
   - name: Install Plugin
     shell: '#!/bin/bash -x'
+    agentSelector: "{nodeLabel: 'r-dcs63'}"
     run: |
-      [[ ! -f $(which sshpass) ]] && sudo yum install -y sshpass
-      sshpass -p 3tango ssh -o StrictHostKeyChecking=no root@r-dcs63
+      # [[ ! -f $(which sshpass) ]] && sudo yum install -y sshpass
+      # sshpass -p 3tango ssh -o StrictHostKeyChecking=no root@r-dcs63
       cd docker
-      pwd
+      pwd 
+      ls
       ./docker_build.sh > /dev/null
       docker load < /ufm-plugin-rest-rdma_* > /dev/null
       docker run -d --network=host --privileged --name=ufm-plugin-rest-rdma --rm -v /tmp/ibdiagnet:/tmp/ibdiagnet mellanox/ufm-plugin-rest-rdma:* client
@@ -78,7 +80,7 @@ steps:
       cd /opt/ufm/ufm-plugin-ufm-rest/src/
       python3 ufm_rdma.py -r client -t simple -a GET -w 'ufmRest/actions/get_all_pkeys?guids_data=true&pkey_api_only=False' -d /tmp/ufm-client.pfx -s ufm.azurehpc.core.azure-test.net
       exit $?
-      
+    parallel: true
 
 
 
