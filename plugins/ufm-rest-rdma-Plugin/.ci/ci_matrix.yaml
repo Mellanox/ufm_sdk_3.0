@@ -64,9 +64,10 @@ steps:
   - name: Install Plugin
     shell: '#!/bin/bash -x'
     run: |
-      [[ ! -f $(which ipmitool) ]] && sudo yum install -y sshpass
+      [[ ! -f $(which sshpass) ]] && sudo yum install -y sshpass
       sshpass -p 3tango ssh -o StrictHostKeyChecking=no root@r-dcs63
       cd docker
+      pwd
       ./docker_build.sh > /dev/null
       docker load < /ufm-plugin-rest-rdma_* > /dev/null
       docker run -d --network=host --privileged --name=ufm-plugin-rest-rdma --rm -v /tmp/ibdiagnet:/tmp/ibdiagnet mellanox/ufm-plugin-rest-rdma:* client
