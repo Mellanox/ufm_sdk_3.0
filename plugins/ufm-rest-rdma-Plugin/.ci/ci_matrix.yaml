@@ -65,12 +65,14 @@ steps:
     shell: '#!/bin/bash -x'
     agentSelector: "{nodeLabel: 'r-dcs63'}"
     run: |
-      # [[ ! -f $(which sshpass) ]] && sudo yum install -y sshpass
-      # sshpass -p 3tango ssh -o StrictHostKeyChecking=no root@r-dcs63
+      [[ ! -f $(which sshpass) ]] && sudo yum install -y sshpass
+      hostname
+      sshpass -p 3tango ssh -o StrictHostKeyChecking=no root@r-dcs63
+      hostname
       cd docker
       pwd 
       ls
-      bash docker_build.sh
+      ./docker_build.sh
       docker load < /ufm-plugin-rest-rdma_* > /dev/null
       docker run -d --network=host --privileged --name=ufm-plugin-rest-rdma --rm -v /tmp/ibdiagnet:/tmp/ibdiagnet mellanox/ufm-plugin-rest-rdma:* client
       cd /tmp/client_cert/
