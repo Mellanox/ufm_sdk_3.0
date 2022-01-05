@@ -13,7 +13,8 @@ volumes:
 runs_on_dockers:
    - {file: '.ci/Dockerfile_static_tests_ub2004', arch: 'x86_64', name: 'swx_static', tag: 'latest'}
   #- {name: 'swx_static', url: 'harbor.mellanox.com/collectx/x86_64/swx_static_tests:latest', category: 'tool', arch: 'x86_64'}
-
+run_on_agents:
+  - nodeLabel: 'r-dcs63'
 
 steps:
   - name: pylint
@@ -65,9 +66,6 @@ steps:
     shell: '#!/bin/bash -x'
     agentSelector: "{nodeLabel: 'r-dcs63'}"
     run: |
-      [[ ! -f $(which sshpass) ]] && sudo yum install -y sshpass
-      hostname
-      sshpass -p 3tango ssh -o StrictHostKeyChecking=no root@r-dcs63
       hostname
       cd docker
       pwd 
