@@ -75,6 +75,9 @@ steps:
       cd /
       ./ufm_rest_rdma_client.sh  -t simple -a GET -w 'ufmRest/actions/get_all_pkeys?guids_data=true\&pkey_api_only=False' -d /tmp/ufm-client.pfx -s ufm.azurehpc.core.azure-test.net 
       ./ufm_rest_rdma_client.sh -t ibdiagnet -a POST -w ufmRest/reports/ibdiagnetPeriodic -l '{\"general\": {\"name\": \"Alex\", \"location\": \"local\", \"running_mode\": \"once\"}, \"command_flags\": {\"--pc\": \"\"}}' -d /tmp/ufm-client.pfx -s ufm.azurehpc.core.azure-test.net 
+      docker
+      docker stop ufm-plugin-rest-rdma
+      docker image rm mellanox/ufm-plugin-rest-rdma:*
       exit $?
     parallel: false
 
