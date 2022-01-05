@@ -66,18 +66,14 @@ steps:
     shell: '#!/bin/bash -x'
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
-      hostname
       cd docker
-      pwd 
-      ls
       ./docker_build.sh
       docker load < /ufm-plugin-rest-rdma_* > /dev/null
-      docker run -d --network=host --privileged --name=ufm-plugin-rest-rdma_new --rm -v /tmp/ibdiagnet:/tmp/ibdiagnet mellanox/ufm-plugin-rest-rdma:1.0.0-5 client
+      docker run -d --network=host --privileged --name=ufm-plugin-rest-rdma --rm -v /tmp/ibdiagnet:/tmp/ibdiagnet mellanox/ufm-plugin-rest-rdma:1.0.0-5 client
       cd /tmp/client_cert/
-      docker cp ufm-client.pfx ufm-plugin-rest-rdma_new:/tmp
-      docker exec -i ufm-plugin-rest-rdma_new bash
-      cd /opt/ufm/ufm-plugin-ufm-rest/src/
-      python3 ufm_rdma.py -r client -t simple -a GET -w 'ufmRest/actions/get_all_pkeys?guids_data=true&pkey_api_only=False' -d /tmp/ufm-client.pfx -s ufm.azurehpc.core.azure-test.net
+      docker cp ufm-client.pfx ufm-plugin-rest-rdma:/tmp
+      cd /
+      ./ufm_rest_rdma_client.sh  -t simple -a GET -w 'ufmRest/actions/get_all_pkeys?guids_data=true\&pkey_api_only=False' -d /tmp/ufm-client.pfx -s ufm.azurehpc.core.azure-test.net 
       exit $?
     parallel: false
 
