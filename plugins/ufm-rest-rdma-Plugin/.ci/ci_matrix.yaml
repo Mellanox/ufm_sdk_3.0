@@ -73,6 +73,8 @@ steps:
     run: |
       expect << EOF
       spawn ssh admin@ufm-appliance07
+      expect "Are you sure you want to continue connecting (yes/no)?"
+      send -- "yes\r"
       expect "Password:*"
       send -- "admin\r"
       expect "> "
