@@ -102,15 +102,15 @@ steps:
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     step_allow_single_selector: true
     run: |
-      docker load < /ufm-plugin-rest-rdma_* > /dev/null
-      docker run -d --network=host --privileged --name=ufm-plugin-rest-rdma --rm -v /tmp/ibdiagnet:/tmp/ibdiagnet mellanox/ufm-* client
+      docker load < /ufm*.tar.gz  > /dev/null
+      docker run -d --network=host --privileged --name=ufm-plugin-rest-rdma --rm -v /tmp/ibdiagnet:/tmp/ibdiagnet mellanox/ufm-plugin-rest-rdma:* client
       # cd /tmp/client_cert/
       # docker cp ufm-client.pfx ufm-plugin-rest-rdma:/tmp
       cd /
       # ./ufm_rest_rdma_client.sh  -t simple -a GET -w 'ufmRest/actions/get_all_pkeys?guids_data=true\&pkey_api_only=False' -d /tmp/ufm-client.pfx -s ufm.azurehpc.core.azure-test.net 
       # ./ufm_rest_rdma_client.sh -t ibdiagnet -a POST -w ufmRest/reports/ibdiagnetPeriodic -l '{\"general\": {\"name\": \"Alex\", \"location\": \"local\", \"running_mode\": \"once\"}, \"command_flags\": {\"--pc\": \"\"}}' -d /tmp/ufm-client.pfx -s ufm.azurehpc.core.azure-test.net 
       ./ufm_rest_rdma_client.sh -u admin -p admin  -t simple -a GET -w 'ufmRest/actions/get_all_pkeys?guids_data=true\&pkey_api_only=False'
-
+      ./ufm_rest_rdma_client.sh -u admin -p admin -t ibdiagnet -a POST -w ufmRest/reports/ibdiagnetPeriodic -l '{\"general\": {\"name\": \"Alex\", \"location\": \"local\", \"running_mode\": \"once\"}, \"command_flags\": {\"--pc\": \"\"}}'
       docker stop ufm-plugin-rest-rdma
       docker image rm mellanox/ufm-*
       exit $?
