@@ -69,6 +69,7 @@ steps:
       ./docker_build.sh
       cd /
       cp ufm-plugin-rest-rdma_* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
+    parallel: false
     
 
   - name: Install Plugin Server
