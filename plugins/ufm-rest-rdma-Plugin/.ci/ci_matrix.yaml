@@ -4,6 +4,7 @@ job: ufm-rest-rdma
 registry_host: harbor.mellanox.com
 registry_path: /swx-storage/ci-demo
 registry_auth: swx-storage
+step_allow_single_selector: true
 
 kubernetes:
   cloud: swx-k8s-spray
@@ -65,7 +66,6 @@ steps:
   - name: build Plugin
     shell: '#!/bin/bash -x'
     agentSelector: "{nodeLabel: 'UFM-POC'}"
-    step_allow_single_selector: true
     run: |
       cd docker
       ./docker_build.sh
@@ -90,10 +90,10 @@ steps:
       expect "/(config/) # "
       send -- "image fetch scp://root:3tango@10.209.36.69/auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/ufm-plugin-rest-rdma_1.0.0-5.tar.gz\r"
       expect "/(config/) # "
-      send -- "docker load ufm-plugin-rest-rdma_1.*\r"
+      send -- "docker load ufm-plugin-rest-rdma_1.0.0-5.tar.gz\r"
       sleep 60
       expect "/(config/) # "
-      send -- "ufm plugin rest-rdma add tag 1.*\r"
+      send -- "ufm plugin rest-rdma add tag 1.0.0-5\r"
       EOF
     parallel: false
 
@@ -102,8 +102,8 @@ steps:
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     step_allow_single_selector: true
     run: |
-      docker load < /ufm*.tar.gz  > /dev/null
-      docker run -d --network=host --privileged --name=ufm-plugin-rest-rdma --rm -v /tmp/ibdiagnet:/tmp/ibdiagnet mellanox/ufm-plugin-rest-rdma:* client
+      docker load < /ufm-plugin-rest-rdma_1.0.0-5.tar.gz > /dev/null
+      docker run -d --network=host --privileged --name=ufm-plugin-rest-rdma --rm -v /tmp/ibdiagnet:/tmp/ibdiagnet mellanox/ufm-plugin-rest-rdma:1.0.0-5 client
       # cd /tmp/client_cert/
       # docker cp ufm-client.pfx ufm-plugin-rest-rdma:/tmp
       cd /
@@ -112,7 +112,7 @@ steps:
       ./ufm_rest_rdma_client.sh -u admin -p admin  -t simple -a GET -w 'ufmRest/actions/get_all_pkeys?guids_data=true\&pkey_api_only=False'
       ./ufm_rest_rdma_client.sh -u admin -p admin -t ibdiagnet -a POST -w ufmRest/reports/ibdiagnetPeriodic -l '{\"general\": {\"name\": \"Alex\", \"location\": \"local\", \"running_mode\": \"once\"}, \"command_flags\": {\"--pc\": \"\"}}'
       docker stop ufm-plugin-rest-rdma
-      docker image rm mellanox/ufm-*
+      docker image rm $(docker images |grep mell|awk '{print $3}')
       exit $?
     parallel: false
 
@@ -126,7 +126,7 @@ pipeline_start:
 
 pipeline_stop:
   run: |
-    # sudo rm -rf /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
+    sudo rm -rf /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
   
 
 
