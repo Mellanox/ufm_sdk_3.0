@@ -62,11 +62,14 @@ steps:
 
   - name: build Plugin
     shell: '#!/bin/bash -x'
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    step_allow_single_selector: true
     run: |
       cd docker
       ./docker_build.sh
       cd /
       cp ufm-plugin-rest-rdma_* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
+    
 
   - name: Install Plugin Server
     shell: '#!/bin/bash -x'
@@ -118,7 +121,7 @@ pipeline_start:
 
 pipeline_stop:
   run: |
-    sudo rm -rf /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
+    # sudo rm -rf /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
   
 
 
