@@ -133,8 +133,6 @@ steps:
       echo $tagver
       expect << EOF
       spawn ssh admin@ufm-appliance07
-      # expect "Are you sure you want to continue connecting (yes/no)?"
-      # send -- "yes\r"
       expect "Password:*"
       send -- "admin\r"
       expect "> "
@@ -144,11 +142,12 @@ steps:
       expect "/(config/) # "
       send -- "ufm plugin rest-rdma add tag $tagver\r"
       expect "/(config/) # "
-      send -- "ufm plugin rest-rdma enable"
+      send -- "ufm plugin rest-rdma enable\r"
       expect "/(config/) # "
       send -- "show ufm plugin\r"
       expect "/(config/) # "
       send "show ufm status\r"
+      sleep 10
       EOF
     parallel: false
 
