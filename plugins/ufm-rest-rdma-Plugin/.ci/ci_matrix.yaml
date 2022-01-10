@@ -91,11 +91,29 @@ steps:
       send -- "image fetch scp://root:3tango@10.209.36.69/auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/ufm-plugin-rest-rdma_1.0.0-5.tar.gz\r"
       expect "/(config/) # "
       send -- "docker load ufm-plugin-rest-rdma_1.0.0-5.tar.gz\r"
-      sleep 120
+      expect "/(config/) # "
+      # send -- "ufm plugin rest-rdma add tag 1.0.0-5\r"
+      EOF
+    parallel: false
+
+  - name: add plugin
+    shell: '#!/bin/bash -x'
+    run: |
+      expect << EOF
+      spawn ssh admin@ufm-appliance07
+      # expect "Are you sure you want to continue connecting (yes/no)?"
+      # send -- "yes\r"
+      expect "Password:*"
+      send -- "admin\r"
+      expect "> "
+      send -- "enable\r"
+      expect "# "
+      send -- "config terminal\r"
       expect "/(config/) # "
       send -- "ufm plugin rest-rdma add tag 1.0.0-5\r"
       EOF
     parallel: false
+
 
   - name: Install Plugin client
     shell: '#!/bin/bash -x'
