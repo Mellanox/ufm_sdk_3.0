@@ -76,6 +76,7 @@ steps:
 
   - name: Install Plugin Server
     shell: '#!/bin/bash -x'
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
       expect << EOF
       spawn ssh admin@ufm-appliance07
@@ -92,27 +93,28 @@ steps:
       expect "/(config/) # "
       send -- "docker load ufm-plugin-rest-rdma_1.0.0-5.tar.gz\r"
       expect "/(config/) # "
-      # send -- "ufm plugin rest-rdma add tag 1.0.0-5\r"
+      send -- "ufm plugin rest-rdma add tag 1.0.0-5\r"
+      sleep 15
       EOF
     parallel: false
 
-  - name: add plugin
-    shell: '#!/bin/bash -x'
-    run: |
-      expect << EOF
-      spawn ssh admin@ufm-appliance07
-      # expect "Are you sure you want to continue connecting (yes/no)?"
-      # send -- "yes\r"
-      expect "Password:*"
-      send -- "admin\r"
-      expect "> "
-      send -- "enable\r"
-      expect "# "
-      send -- "config terminal\r"
-      expect "/(config/) # "
-      send -- "ufm plugin rest-rdma add tag 1.0.0-5\r"
-      EOF
-    parallel: false
+  # - name: add plugin
+  #   shell: '#!/bin/bash -x'
+  #   run: |
+  #     expect << EOF
+  #     spawn ssh admin@ufm-appliance07
+  #     # expect "Are you sure you want to continue connecting (yes/no)?"
+  #     # send -- "yes\r"
+  #     expect "Password:*"
+  #     send -- "admin\r"
+  #     expect "> "
+  #     send -- "enable\r"
+  #     expect "# "
+  #     send -- "config terminal\r"
+  #     expect "/(config/) # "
+  #     send -- "ufm plugin rest-rdma add tag 1.0.0-5\r"
+  #     EOF
+  #   parallel: false
 
 
   - name: Install Plugin client
