@@ -176,6 +176,33 @@ steps:
       exit $?
     parallel: false
 
+  - name: remove plugin
+    shell: '#!/bin/bash -x'
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: |
+      cd docker/
+      tagver=$(cat release_info )
+      echo $tagver
+      expect << EOF
+      spawn ssh admin@ufm-appliance07
+      expect "Password:*"
+      send -- "admin\r"
+      expect "> "
+      send -- "enable\r"
+      expect "# "
+      send -- "config terminal\r"
+      expect "/(config/) # "
+      send -- "ufm plugin rest-rdma remove\r"
+      expect "/(config/) # "
+      send -- "docker remove image mellanox/ufm-plugin-rest-rdma $tagver\r"
+      expect "/(config/) # "
+      send -- "show ufm plugin\r"
+      expect "/(config/) # "
+      send "show ufm status\r"
+      sleep 10
+      EOF
+    parallel: false
+
 
 
 pipeline_start:
