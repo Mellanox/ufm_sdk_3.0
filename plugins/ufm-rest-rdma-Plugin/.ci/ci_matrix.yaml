@@ -94,37 +94,63 @@ steps:
       expect "/(config/) # "
       send -- "image fetch scp://root:3tango@10.209.36.69/auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/ufm-plugin-rest-rdma_$tagver.tar.gz\r"
       expect "/(config/) # "
+      # send -- "docker load ufm-plugin-rest-rdma_$tagver.tar.gz\r"
+      # expect "/(config/) # "
+      sleep 50
+      EOF
+    parallel: false
+  
+  - name: laod plugin
+    shell: '#!/bin/bash -x'
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: |
+      cd docker/
+      tagver=$(cat release_info )
+      echo $tagver
+      expect << EOF
+      spawn ssh admin@ufm-appliance07
+      # expect "Are you sure you want to continue connecting (yes/no)?"
+      # send -- "yes\r"
+      expect "Password:*"
+      send -- "admin\r"
+      expect "> "
+      send -- "enable\r"
+      expect "# "
+      send -- "config terminal\r"
+      expect "/(config/) # "
       send -- "docker load ufm-plugin-rest-rdma_$tagver.tar.gz\r"
+      expect "/(config/) # "
+      send -- "show docker images\r"
+      sleep 60
+      EOF
+
+  - name: add plugin
+    shell: '#!/bin/bash -x'
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: |
+      cd docker/
+      tagver=$(cat release_info )
+      echo $tagver
+      expect << EOF
+      spawn ssh admin@ufm-appliance07
+      # expect "Are you sure you want to continue connecting (yes/no)?"
+      # send -- "yes\r"
+      expect "Password:*"
+      send -- "admin\r"
+      expect "> "
+      send -- "enable\r"
+      expect "# "
+      send -- "config terminal\r"
       expect "/(config/) # "
       send -- "ufm plugin rest-rdma add tag $tagver\r"
       expect "/(config/) # "
+      send -- "ufm plugin rest-rdma enable"
+      expect "/(config/) # "
       send -- "show ufm plugin\r"
-      sleep 15
+      expect "/(config/) # "
+      send "show ufm status\r"
       EOF
     parallel: false
-
-  # - name: add plugin
-  #   shell: '#!/bin/bash -x'
-  #   agentSelector: "{nodeLabel: 'UFM-POC'}"
-  #   run: |
-  #     expect << EOF
-  #     spawn ssh admin@ufm-appliance07
-  #     # expect "Are you sure you want to continue connecting (yes/no)?"
-  #     # send -- "yes\r"
-  #     expect "Password:*"
-  #     send -- "admin\r"
-  #     expect "> "
-  #     send -- "enable\r"
-  #     expect "# "
-  #     send -- "config terminal\r"
-  #     expect "/(config/) # "
-  #     send -- "ufm plugin rest-rdma add tag 1.0.0-5\r"
-  #     expect "/(config/) # "
-  #     send -- "show ufm plugin\r"
-  #     expect "/(config/) # "
-  #     send "show ufm status\r"
-  #     EOF
-  #   parallel: false
 
 
   - name: Install Plugin client
