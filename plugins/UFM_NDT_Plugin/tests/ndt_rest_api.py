@@ -4,6 +4,7 @@ import requests
 import re
 import os
 import json
+import textwrap
 
 # predefined params
 BASE_ENVIRON_NAME = "UFM_PLUGIN_NDT_{}"
@@ -17,7 +18,7 @@ AUTHENTICATION_TOKEN = os.environ.get(BASE_ENVIRON_NAME.format('AUTHENTICATION_T
 
 # resources
 NDTS = "list"
-UPLOAD_METADATA = "upload_metadata"
+UPLOAD = "upload"
 COMPARE = "compare"
 DELETE = "delete"
 CANCEL = "cancel"
@@ -28,7 +29,7 @@ HELP = "help"
 
 # authentication types
 BASIC = "basic"
-CLIENT = "client"
+CLIENT = "client_cert"
 TOKEN = "token"
 
 
@@ -47,7 +48,7 @@ def make_request(host_ip, request, auth_type, auth, payload, headers, cert):
     verify = True if cert else False
     if request in [NDTS, REPORTS, VERSION, HELP] or re.match(REPORT_ID_PATTERN, request):
         response = requests.get(request_string, verify=verify, headers=headers, auth=auth, cert=cert)
-    elif request in [UPLOAD_METADATA, COMPARE, DELETE, CANCEL]:
+    elif request in [UPLOAD, COMPARE, DELETE, CANCEL]:
         response = requests.post(request_string, verify=verify, headers=headers, auth=auth, cert=cert, json=payload)
     else:
         print("Request /{} is not supported".format(request))
@@ -58,9 +59,22 @@ def make_request(host_ip, request, auth_type, auth, payload, headers, cert):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='NDT REST API provider')
+    parser = argparse.ArgumentParser(description='NDT REST API provider',
+                                     formatter_class=argparse.RawDescriptionHelpFormatter,
+                                     epilog=textwrap.dedent('''\
+                                              use following environment variables to set arguments permanently:
+                                                  UFM_PLUGIN_NDT_AUTH_TYPE
+                                                  UFM_PLUGIN_NDT_HOST
+                                                  UFM_PLUGIN_NDT_USER
+                                                  UFM_PLUGIN_NDT_PASSWORD
+                                                  UFM_PLUGIN_NDT_PRIVATE_KEY
+                                                  UFM_PLUGIN_NDT_CLIENT_CERTIFICATE
+                                                  UFM_PLUGIN_NDT_AUTHENTICATION_TOKEN
+                                                e.g., "export UFM_PLUGIN_NDT_AUTH_TYPE=client_cert"
+                                              ''')
+    )
     parser.add_argument('request', type=str, help='Request to complete',
-                        choices=[NDTS, REPORTS, UPLOAD_METADATA, COMPARE, DELETE, CANCEL, VERSION, HELP])
+                        choices=[NDTS, REPORTS, UPLOAD, COMPARE, DELETE, CANCEL, VERSION, HELP])
     parser.add_argument('-ip', '--host', type=str, help='Host IP address where NDT is running')
     parser.add_argument('-a', '--auth_type', type=str, help='Authentication type', choices=[BASIC, CLIENT, TOKEN])
     parser.add_argument('-u', '--user', type=str)
@@ -68,10 +82,10 @@ def parse_args():
     parser.add_argument('-t', '--token', type=str)
     parser.add_argument('-d', '--data', type=str, help='Sends the specified data in a POST request')
     parser.add_argument('-df', '--delete_files', type=str, help='String with file names to delete, '
-                                                                'format: file1|type1,file2|type2,...,fileN|typeN '
-                                                                'where type is switch_to_switch or switch_to_host')
+                                                                'format: \"file1,file2,...,fileN\"')
     parser.add_argument('-uf', '--upload_files', type=str, help='String with absolute file paths to upload, '
-                                                                'format: file1,file2,...,fileN')
+                                                                'format: \"file1|type1,file2|type2,...,fileN|typeN\" '
+                                                                'where type is switch_to_switch or switch_to_host')
     parser.add_argument('-s', '--start', type=str, help="Periodic comparison start time, "
                                                         r"format: '%%Y-%%m-%%d %%H:%%M:%%S'")
     parser.add_argument('-e', '--end', type=str, help="Periodic comparison end time, "
@@ -161,7 +175,7 @@ def main():
             headers = {'Authorization': 'Bearer {}'.format(authentication_token)}
 
     payload = {}
-    if args.request == UPLOAD_METADATA:
+    if args.request == UPLOAD:
         if args.upload_files is None:
             print("Please provide file paths to upload")
             exit(1)
@@ -184,7 +198,7 @@ def main():
 
     response = make_request(host, args.request, auth_type, auth, payload, headers, cert)
     if response is not None:
-        if response.status_code in [200, 400]:
+        if response.status_code in [200, 400, 500]:
             json_formatted_str = json.dumps(response.json(), indent=2)
             print("Response:\n{}".format(json_formatted_str))
 

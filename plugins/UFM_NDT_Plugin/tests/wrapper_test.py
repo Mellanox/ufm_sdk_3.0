@@ -6,7 +6,7 @@ DEFAULT_PASSWORD = "123456"
 
 # resources
 NDTS = "list"
-UPLOAD_METADATA = "upload_metadata"
+UPLOAD = "upload"
 COMPARE = "compare"
 DELETE = "delete"
 CANCEL = "cancel"
@@ -36,8 +36,8 @@ def main():
     ndts_folder = "positive_flow_ndts"
     files = "{}/switch_to_host_topo1.ndt|switch_to_host,{}/switch_to_switch_topo2.ndt|switch_to_switch" \
         .format(ndts_folder, ndts_folder)
-    cmd = ["python3", wrapper_file, HOST_IP, UPLOAD_METADATA, "-uf", files] + authentication_cmd
-    assert_equal(UPLOAD_METADATA, subprocess.check_output(cmd))
+    cmd = ["python3", wrapper_file, HOST_IP, UPLOAD, "-uf", files] + authentication_cmd
+    assert_equal(UPLOAD, subprocess.check_output(cmd))
 
     cmd = ["python3", wrapper_file, HOST_IP, COMPARE] + authentication_cmd
     assert_equal(COMPARE, subprocess.check_output(cmd))

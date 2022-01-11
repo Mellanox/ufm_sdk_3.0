@@ -25,7 +25,7 @@ POST = "POST"
 
 # resources
 NDTS = "list"
-UPLOAD_METADATA = "upload_metadata"
+UPLOAD = "upload"
 COMPARE = "compare"
 DELETE = "delete"
 CANCEL = "cancel"
@@ -129,7 +129,7 @@ def upload_metadata(ndts_folder):
                                        "file_type": file_type})
 
     test_name = "not allowed"
-    response, request_string = make_request(GET, UPLOAD_METADATA, payload=upload_request)
+    response, request_string = make_request(GET, UPLOAD, payload=upload_request)
     assert_equal(request_string, get_code(response), 405, test_name)
     assert_equal(request_string, get_response(response), {'error': 'Method is not allowed'}, test_name)
 
@@ -137,7 +137,7 @@ def upload_metadata(ndts_folder):
     test_name = "incorrect file type"
     good_file_type = upload_request[0]["file_type"]
     upload_request[0]["file_type"] = "asd"
-    response, request_string = make_request(POST, UPLOAD_METADATA, payload=upload_request)
+    response, request_string = make_request(POST, UPLOAD, payload=upload_request)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response),
                  {'error': ["Incorrect file type. Possible file types: {}."
@@ -147,7 +147,7 @@ def upload_metadata(ndts_folder):
     good_file_name = upload_request[0]["file_name"]
     upload_request[0]["file_name"] = ""
     test_name = "empty file name"
-    response, request_string = make_request(POST, UPLOAD_METADATA, payload=upload_request)
+    response, request_string = make_request(POST, UPLOAD, payload=upload_request)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response), {'error': ['File name is empty']}, test_name)
     upload_request[0]["file_name"] = good_file_name
@@ -155,7 +155,7 @@ def upload_metadata(ndts_folder):
     test_name = "wrong sha-1"
     good_sha = upload_request[0]["sha-1"]
     upload_request[0]["sha-1"] = "xyz"
-    response, request_string = make_request(POST, UPLOAD_METADATA, payload=upload_request)
+    response, request_string = make_request(POST, UPLOAD, payload=upload_request)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response),
                  {"error": ["Provided sha-1 {} for {} is different from actual one {}"
@@ -167,7 +167,7 @@ def upload_metadata(ndts_folder):
 
     test_name = "update ndts"
     upload_request[0]["sha-1"] = good_sha
-    response, request_string = make_request(POST, UPLOAD_METADATA, payload=upload_request)
+    response, request_string = make_request(POST, UPLOAD, payload=upload_request)
     assert_equal(request_string, get_code(response), 200, test_name)
     assert_equal(request_string, get_response(response), {}, test_name)
 
@@ -177,16 +177,16 @@ def upload_metadata(ndts_folder):
 
     test_name = "incorrect request"
     upload_request = {"asd": "asd"}
-    response, request_string = make_request(POST, UPLOAD_METADATA, payload=upload_request)
+    response, request_string = make_request(POST, UPLOAD, payload=upload_request)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response), {"error": ["Request format is incorrect"]}, test_name)
 
     test_name = "incorrect key"
     upload_request = [{"name_of_the_file": "ndt"}]
-    response, request_string = make_request(POST, UPLOAD_METADATA, payload=upload_request)
+    response, request_string = make_request(POST, UPLOAD, payload=upload_request)
     assert_equal(request_string, get_code(response), 400, test_name)
-    assert_equal(request_string, get_response(response), {"error": ["Incorrect format, no expected key in request: "
-                                                                    "'file_name'"]}, test_name)
+    assert_equal(request_string, get_response(response), {"error": ["Incorrect format, extra keys in request: "
+                                                                    "{'name_of_the_file'}"]}, test_name)
 
 
 def get_actual_report_len(report):
@@ -315,7 +315,7 @@ def periodic_comparison():
     response, request_string = make_request(POST, COMPARE, payload=payload)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response),
-                 {'error': "Incorrect format, no expected key in request: 'run'"}, test_name)
+                 {'error': "Incorrect format, extra keys in request: {'asd'}"}, test_name)
 
     test_name = "incorrect datetime format"
     payload = {
@@ -426,8 +426,8 @@ def delete_ndts(ndts_folder):
     upload_request = [{"name_of_the_file": "ndt"}]
     response, request_string = make_request(POST, DELETE, payload=upload_request)
     assert_equal(request_string, get_code(response), 400, test_name)
-    assert_equal(request_string, get_response(response), {"error": ["Incorrect format, no expected key in request: "
-                                                                    "'file_name'"]}, test_name)
+    assert_equal(request_string, get_response(response), {"error": ["Incorrect format, extra keys in request: "
+                                                                    "{'name_of_the_file'}"]}, test_name)
 
     test_name = "wrong ndt name"
     wrong_name_request = [delete_request[0], {"file_name": "xyz"}]
@@ -469,7 +469,7 @@ def topo_diff(ndts_folder):
                                "file": data,
                                "file_type": "switch_to_switch",
                                "sha-1": get_hash(data)})
-    make_request(POST, UPLOAD_METADATA, payload=upload_request)
+    make_request(POST, UPLOAD, payload=upload_request)
     response, request_string = make_request(POST, COMPARE)
     assert_equal(request_string, get_code(response), 400, garbage_ndt)
     assert_equal(request_string, get_response(response),
@@ -484,7 +484,7 @@ def topo_diff(ndts_folder):
                                "file": data,
                                "file_type": "switch_to_switch",
                                "sha-1": get_hash(data)})
-    make_request(POST, UPLOAD_METADATA, payload=upload_request)
+    make_request(POST, UPLOAD, payload=upload_request)
     response, request_string = make_request(POST, COMPARE)
     assert_equal(request_string, get_code(response), 400, incorrect_ports_ndt)
     # patterns = (r"^Port (\d+)$", r"(^Blade \d+_Port \d+/\d+$)", r"(^SAT\d+ ibp.*$)")
@@ -502,7 +502,7 @@ def topo_diff(ndts_folder):
                                "file": data,
                                "file_type": "switch_to_switch",
                                "sha-1": get_hash(data)})
-    make_request(POST, UPLOAD_METADATA, payload=upload_request)
+    make_request(POST, UPLOAD, payload=upload_request)
     response, request_string = make_request(POST, COMPARE)
     assert_equal(request_string, get_code(response), 400, incorrect_columns_ndt)
     assert_equal(request_string, get_response(response),
