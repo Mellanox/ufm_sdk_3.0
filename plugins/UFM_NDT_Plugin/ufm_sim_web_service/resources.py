@@ -46,6 +46,7 @@ class UFMResource(Resource):
         self.host_patterns = []
         self.datetime_format = "%Y-%m-%d %H:%M:%S"
         self.ufm_port = 8000
+        self.expected_keys = set()
         # self.version_file = "release.json"
         # self.help_file = "help.json"
         self.version_file = "/opt/ufm/ufm_plugin_ndt/ufm_sim_web_service/release.json"
@@ -86,6 +87,19 @@ class UFMResource(Resource):
     def report_success(self):
         return {}, self.success
 
+    def check_request_keys(self, json_data):
+        try:
+            keys_dict = json_data.keys()
+        except:
+            return "Request format is incorrect", 400
+        extra_keys = keys_dict - self.expected_keys
+        if extra_keys:
+            return "Incorrect format, extra keys in request: {}".format(extra_keys), 400
+        missing_keys = self.expected_keys - keys_dict
+        if missing_keys:
+            return "Incorrect format, missing keys in request: {}".format(missing_keys), 400
+        return self.report_success()
+
     @staticmethod
     def read_json_file(file_name):
         with open(file_name, "r", encoding="utf-8") as file:
@@ -115,7 +129,7 @@ def get_hash(file_content):
     return sha1.hexdigest()
 
 
-class UploadMetadata(UFMResource):
+class Upload(UFMResource):
     def __init__(self):
         super().__init__()
         self.possible_file_types = ["switch_to_switch", "switch_to_host"]
@@ -123,26 +137,26 @@ class UploadMetadata(UFMResource):
         self.sha1 = ""
         self.file_type = ""
         self.expected_checksum = ""
+        self.expected_keys = ["file_name", "file", "file_type", "sha-1"]
 
     def get(self):
         return self.report_error(405, "Method is not allowed")
 
     def parse_request(self, json_data):
-        try:
-            self.file_name = json_data["file_name"]
-            if not self.file_name:
-                return "", ("File name is empty", 400)
-            file_content = json_data["file"]
-            self.file_type = json_data["file_type"]
-            if self.file_type not in self.possible_file_types:
-                return "", ("Incorrect file type. Possible file types: {}."
-                            .format(",".join(self.possible_file_types)), 400)
-            self.expected_checksum = json_data["sha-1"]
-            return file_content, self.report_success()
-        except KeyError as ke:
-            return "", ("Incorrect format, no expected key in request: {}".format(ke), 400)
-        except TypeError:
-            return "", ("Request format is incorrect", 400)
+        logging.debug("Parsing JSON request: {}".format(json_data))
+        response, status_code = self.check_request_keys(json_data)
+        if status_code != self.success:
+            return "", (response, status_code)
+        self.file_name = json_data["file_name"]
+        if not self.file_name:
+            return "", ("File name is empty", 400)
+        file_content = json_data["file"]
+        self.file_type = json_data["file_type"]
+        if self.file_type not in self.possible_file_types:
+            return "", ("Incorrect file type. Possible file types: {}."
+                        .format(",".join(self.possible_file_types)), 400)
+        self.expected_checksum = json_data["sha-1"]
+        return file_content, self.report_success()
 
     def check_sha1(self, file_content):
         self.sha1 = get_hash(file_content)
@@ -184,7 +198,7 @@ class UploadMetadata(UFMResource):
                 return self.report_error(500, "Cannot save ndt {}: {}".format(self.file_name, oe))
 
     def post(self):
-        logging.info("POST /plugin/ndt/upload_metadata")
+        logging.info("POST /plugin/ndt/upload")
         error_status_code, error_response = self.success, []
         if not request.json:
             return self.report_error(400, "Upload request is empty")
@@ -215,13 +229,14 @@ class UploadMetadata(UFMResource):
             if error_status_code == self.success:
                 return self.report_success()
             else:
-                return {"error": error_response}, error_status_code
+                return self.report_error(error_status_code, error_response)
 
 
 class Delete(UFMResource):
     def __init__(self):
         super().__init__()
         self.ndts_to_delete = []
+        self.expected_keys = ["file_name"]
 
     def get(self):
         return self.report_error(405, "Method is not allowed")
@@ -234,17 +249,16 @@ class Delete(UFMResource):
         except FileNotFoundError:
             return "Cannot remove {}: file not found".format(file_name), 400
 
-    def parse_request(self, json_data, file_name):
+    def parse_request(self, json_data, file_name, validate_keys=True):
         logging.debug("Parsing JSON request: {}".format(json_data))
-        try:
-            file = json_data[file_name]
-            if not file:
-                return "", ("File name is empty", 400)
-            return file, self.report_success()
-        except KeyError as ke:
-            return "", ("Incorrect format, no expected key in request: {}".format(ke), 400)
-        except TypeError:
-            return "", ("Request format is incorrect", 400)
+        if validate_keys:
+            response, status_code = self.check_request_keys(json_data)
+            if status_code != self.success:
+                return "", (response, status_code)
+        file = json_data[file_name]
+        if not file:
+            return "", ("File name is empty", 400)
+        return file, self.report_success()
 
     def update_ndts_list(self, json_data):
         error_response = []
@@ -257,9 +271,9 @@ class Delete(UFMResource):
                     error_response.append(response)
                     continue
                 for ndt_record in list(data):
-                    ndt_file, (response, status_code) = self.parse_request(ndt_record, "file")
+                    ndt_file, (response, status_code) = self.parse_request(ndt_record, "file", False)
                     if status_code != self.success:
-                        error_response.extend(response)
+                        error_response.append(response)
                         continue
                     if ndt_to_delete == ndt_file:
                         data.remove(ndt_record)
@@ -294,7 +308,7 @@ class Delete(UFMResource):
             if error_status_code == self.success:
                 return self.report_success()
             else:
-                return {"error": error_response}, error_status_code
+                return self.report_error(error_status_code, error_response)
 
 
 class Compare(UFMResource):
@@ -306,6 +320,8 @@ class Compare(UFMResource):
         self.interval = 0
         self.datetime_start = None
         self.datetime_end = None
+        self.expected_keys_first_level = ["run"]
+        self.expected_keys_second_level = ["startTime", "endTime", "interval"]
 
     def get(self):
         return self.report_error(405, "Method is not allowed")
@@ -382,8 +398,17 @@ class Compare(UFMResource):
         return self.report_success()
 
     def parse_request(self, json_data):
+        logging.debug("Parsing JSON request: {}".format(json_data))
         try:
+            self.expected_keys = self.expected_keys_first_level
+            response, status_code = self.check_request_keys(json_data)
+            if status_code != self.success:
+                return self.report_error(status_code, response)
             params = json_data["run"]
+            self.expected_keys = self.expected_keys_second_level
+            response, status_code = self.check_request_keys(params)
+            if status_code != self.success:
+                return self.report_error(status_code, response)
             start_time = params["startTime"]
             end_time = params["endTime"]
             self.interval = params["interval"]
@@ -401,8 +426,6 @@ class Compare(UFMResource):
             if self.datetime_end < timestamp:
                 return self.report_error(400, "End time is less than current time")
             return self.report_success()
-        except KeyError as ke:
-            return self.report_error(400, "Incorrect format, no expected key in request: {}".format(ke))
         except TypeError:
             return self.report_error(400, "Incorrect format, failed to parse timestamp")
         except ValueError as ve:
@@ -425,7 +448,6 @@ class Compare(UFMResource):
             json_data = request.get_json(force=True)
             with open(UFMResource.periodic_request_file, "w") as file:
                 json.dump(json_data, file)
-            logging.debug("Parsing JSON request: {}".format(json_data))
             response, status_code = self.parse_request(json_data)
             if status_code != self.success:
                 return response, status_code

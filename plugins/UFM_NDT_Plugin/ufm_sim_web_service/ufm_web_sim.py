@@ -16,12 +16,12 @@
 
 import configparser
 import json
+import os
+import logging
 
 from flask import Flask
 from flask_restful import Api
-import logging
 from logging.handlers import RotatingFileHandler
-import os
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from twisted.web.wsgi import WSGIResource
@@ -29,7 +29,7 @@ from twisted.internet import reactor
 from twisted.web import server
 
 from resources import UFMResource, Compare, Ndts, Reports, ReportId,\
-    UploadMetadata, Delete, Cancel, Version, Help, Dummy
+    Upload, Delete, Cancel, Version, Help, Dummy
 
 
 class UFMWebSim:
@@ -54,7 +54,7 @@ class UFMWebSim:
             Ndts: "/list",
             Reports: "/reports",
             Delete: "/delete",
-            UploadMetadata: "/upload_metadata",
+            Upload: "/upload",
             ReportId: "/reports/<report_id>",
             Version: "/version",
             Help: "/help",
@@ -91,10 +91,10 @@ class UFMWebSim:
         self.init_apis()
 
     async def run(self):
-        self.app.run(port=self.port_number, debug=True)
-        # resource = WSGIResource(reactor, reactor.getThreadPool(), self.app)
-        # reactor.listenTCP(self.port_number, server.Site(resource))
-        # reactor.run()
+        # self.app.run(port=self.port_number, debug=True)
+        resource = WSGIResource(reactor, reactor.getThreadPool(), self.app)
+        reactor.listenTCP(self.port_number, server.Site(resource))
+        reactor.run()
 
     async def stop(self):
         pass

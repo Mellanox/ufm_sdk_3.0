@@ -16,8 +16,7 @@ class PortType(Enum):
 
 class Constants:
     # NDT keys
-    start_device_key_nvidia = "#StartDevice"  # Nvidia case
-    start_device_key_msft = "#Fields:StartDevice"  # Microsoft Case
+    start_device_keys = ["#StartDevice", "#Fields:StartDevice", "StartDevice"]
     start_port_key = "StartPort"
     end_device_key = "EndDevice"
     end_port_key = "EndPort"
@@ -52,9 +51,11 @@ class Link:
 
 def parse_ndt_port(file, row, index, port_type, patterns):
     if port_type == PortType.SOURCE:
-        device_key = Constants.start_device_key_nvidia
-        if not row.get(device_key):
-            device_key = Constants.start_device_key_msft
+        device_key = ""
+        for start_device_key in Constants.start_device_keys:
+            if row.get(start_device_key):
+                device_key = start_device_key
+                break
         port_key = Constants.start_port_key
     elif port_type == PortType.DESTINATION:
         device_key = Constants.end_device_key
@@ -68,7 +69,7 @@ def parse_ndt_port(file, row, index, port_type, patterns):
         error_message = "Failed to parse {}: {}, in file: {}, line: {}. KeyError: {}" \
             .format(port_type,
                     row[port_key],
-                    index, file, ke)
+                    file, index, ke)
         logging.error(error_message)
         return "", "", error_message
     port = ""
