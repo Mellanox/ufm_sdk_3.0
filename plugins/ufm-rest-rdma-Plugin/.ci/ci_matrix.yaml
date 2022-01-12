@@ -45,7 +45,7 @@ steps:
       exit $ret_code
     archiveArtifacts: 'logs/'
     parallel: true
-    enabled: false
+    enabled: true
 
 
   - name: Running Bandit
@@ -61,7 +61,7 @@ steps:
       fi
     parallel: true
     archiveArtifacts: 'logs/*'
-    enabled: false
+    enabled: true
 
   - name: build Plugin
     shell: '#!/bin/bash -x'
@@ -69,8 +69,7 @@ steps:
     run: |
       cd docker
       ./docker_build.sh
-      cd /
-      cp ufm-plugin-rest-rdma_* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
+      cp /ufm-plugin-rest-rdma_* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
     parallel: false
     
 
@@ -79,7 +78,7 @@ steps:
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
       cd docker/
-      tagver=$(cat release_info )
+      tagver=$(cat release_info)
       echo $tagver
       expect << EOF
       spawn ssh admin@ufm-appliance07
@@ -167,13 +166,19 @@ steps:
       # cd /tmp/client_cert/
       # docker cp ufm-client.pfx ufm-plugin-rest-rdma:/tmp
       cd /
-      # ./ufm_rest_rdma_client.sh  -t simple -a GET -w 'ufmRest/actions/get_all_pkeys?guids_data=true\&pkey_api_only=False' -d /tmp/ufm-client.pfx -s ufm.azurehpc.core.azure-test.net 
-      # ./ufm_rest_rdma_client.sh -t ibdiagnet -a POST -w ufmRest/reports/ibdiagnetPeriodic -l '{\"general\": {\"name\": \"Alex\", \"location\": \"local\", \"running_mode\": \"once\"}, \"command_flags\": {\"--pc\": \"\"}}' -d /tmp/ufm-client.pfx -s ufm.azurehpc.core.azure-test.net 
-      ./ufm_rest_rdma_client.sh -u admin -p admin  -t simple -a GET -w 'ufmRest/actions/get_all_pkeys?guids_data=true\&pkey_api_only=False'
+      ./ufm_rest_rdma_client.sh -u admin -p admin -t simple -a POST -w ufmRest/actions/add_guids_to_pkey -l'{\"pkey\": \"0x0002\",\"guids\": [\"f452140300188540\"],\"index0\": true,\"default_membership\": \"full\",\"ip_over_ib\": false}'
+      gettoken=$(./ufm_rest_rdma_client.sh -u admin -p admin -t simple -a GET -w ufmRest/actions/get_all_pkeys?guids_data=true)
+      if [ "$gettoken" != [] ] ; then echo "post request passed" ; else exit 1 ; fi
+      ./ufm_rest_rdma_client.sh -u admin -p admin -t simple -a POST -w ufmRest/actions/remove_guids_from_pkey -l '{\"pkey\":\"0x0002\",\"guids\":[\"f452140300188540\"]}'
+      gettoken=$(./ufm_rest_rdma_client.sh -u admin -p admin -t simple -a GET -w ufmRest/actions/get_all_pkeys?guids_data=true)
+      if [ "$gettoken" != [] ] ; then exit 1 ; else echo "delete request passed" ; fi
+      # ./ufm_rest_rdma_client.sh -u admin -p admin  -t simple -a GET -w 'ufmRest/actions/get_all_pkeys?guids_data=true\&pkey_api_only=False'
       ./ufm_rest_rdma_client.sh -u admin -p admin -t ibdiagnet -a POST -w ufmRest/reports/ibdiagnetPeriodic -l '{\"general\": {\"name\": \"Alex\", \"location\": \"local\", \"running_mode\": \"once\"}, \"command_flags\": {\"--pc\": \"\"}}'
+      tmpibi=$(ll /tmp/ibdiagnet/) ; if [ "$tmpibi" == "total 0" ] ; then exit 1 ; else echo "ibdiagnet post request passed" ; fi
+      rm -rf /tmp/ibdiagnet/*
       docker stop ufm-plugin-rest-rdma
       docker image rm $(docker images |grep mell|awk '{print $3}')
-      exit $?
+      
     parallel: false
 
   - name: remove plugin
