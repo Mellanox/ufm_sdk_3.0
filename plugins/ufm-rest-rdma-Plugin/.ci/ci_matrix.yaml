@@ -45,7 +45,6 @@ steps:
       exit $ret_code
     archiveArtifacts: 'logs/'
     parallel: true
-    enabled: true
 
 
   - name: Running Bandit
@@ -61,7 +60,6 @@ steps:
       fi
     parallel: true
     archiveArtifacts: 'logs/*'
-    enabled: true
 
   - name: build Plugin
     shell: '#!/bin/bash -x'
