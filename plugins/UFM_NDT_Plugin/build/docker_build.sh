@@ -25,6 +25,9 @@ echo " "
 if [ -z "${OUT_DIR}" ]; then
     OUT_DIR="."
 fi
+if [ -z "${IMAGE_VERSION}" ]; then
+    IMAGE_VERSION="latest"
+fi
 
 function create_out_dir()
 {
@@ -55,17 +58,18 @@ function build_docker_image()
     if [ "${IMAGE_VERSION}" == "0.0.00-0" ]; then
         full_image_version="${image_name}_${image_version}-${random_hash}"
     else
-        full_image_version="${image_name}"
+        full_image_version="${image_name}_${image_version}"
     fi
 
     echo "  full_image_version    : [${full_image_version}]"
 
     image_with_prefix="${prefix}/${image_name}"
+    image_with_prefix_and_version="${prefix}/${image_name}:${image_version}"
 
     pushd ${build_dir}
-    echo "docker build --network host --no-cache --pull -t ${image_with_prefix} . --compress"
+    echo "docker build --network host --no-cache --pull -t ${image_with_prefix_and_version} . --compress"
 
-    docker build --network host --no-cache --pull -t ${image_with_prefix} . --compress
+    docker build --network host --no-cache --pull -t ${image_with_prefix_and_version} . --compress
     exit_code=$?
     popd
     if [ $exit_code -ne 0 ]; then
@@ -78,15 +82,15 @@ function build_docker_image()
     docker images | grep ${image_with_prefix}
     printf "\n\n\n"
 
-    echo "docker save ${image_with_prefix}:latest | gzip > ${out_dir}/${full_image_version}-docker.img.gz"
-    docker save ${image_with_prefix}:latest | gzip > ${out_dir}/${full_image_version}-docker.img.gz
+    echo "docker save ${image_with_prefix_and_version} | gzip > ${out_dir}/${full_image_version}-docker.img.gz"
+    docker save ${image_with_prefix_and_version} | gzip > ${out_dir}/${full_image_version}-docker.img.gz
     exit_code=$?
     if [ $exit_code -ne 0 ]; then
         echo "Failed to save image"
         return $exit_code
     fi
     if [ "$keep_image" != "y" -a "$keep_image" != "Y" ]; then
-        docker image rm -f ${image_with_prefix}
+        docker image rm -f ${image_with_prefix_and_version}
     fi
     return 0
 }
