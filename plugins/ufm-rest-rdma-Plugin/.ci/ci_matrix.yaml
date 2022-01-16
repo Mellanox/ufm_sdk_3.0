@@ -106,7 +106,7 @@ steps:
       tagver=$(cat release_info )
       echo $tagver
       expect << EOF
-      spawn ssh admin@ufm-appliance07
+      spawn ssh admin@$SERVER-HOST
       # expect "Are you sure you want to continue connecting (yes/no)?"
       # send -- "yes\r"
       expect "Password:*"
