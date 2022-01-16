@@ -49,6 +49,10 @@
             name: "conf_file"
             default: ".ci/ci_matrix.yaml"
             description: "Regex to select job config file. Do not change it"
+        - string:
+            name: SERVER-HOST
+            default: "ufm-appliance07"
+            description: "host server for plugin container"
         - bool:
             name: "debug"
             default: true
