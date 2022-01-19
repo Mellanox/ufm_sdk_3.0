@@ -79,8 +79,10 @@ steps:
       cd docker/
       tagver=$(cat release_info)
       echo $tagver
+      env; printenv;
+      export SERVER-HOST=$SERVER-HOST
       expect << EOF
-      spawn ssh admin@ufm-appliance07
+      spawn ssh admin@$SERVER-HOST
       # expect "Are you sure you want to continue connecting (yes/no)?"
       # send -- "yes\r"
       expect "Password:*"
@@ -105,8 +107,9 @@ steps:
       cd docker/
       tagver=$(cat release_info )
       echo $tagver
+      export SERVER-HOST=$SERVER-HOST
       expect << EOF
-      spawn ssh admin@ufm-appliance07
+      spawn ssh admin@$SERVER-HOST
       # expect "Are you sure you want to continue connecting (yes/no)?"
       # send -- "yes\r"
       expect "Password:*"
@@ -129,8 +132,9 @@ steps:
       cd docker/
       tagver=$(cat release_info )
       echo $tagver
+      export SERVER-HOST=$SERVER-HOST
       expect << EOF
-      spawn ssh admin@ufm-appliance07
+      spawn ssh admin@$SERVER-HOST
       expect "Password:*"
       send -- "admin\r"
       expect "> "
@@ -187,8 +191,9 @@ steps:
       cd docker/
       tagver=$(cat release_info )
       echo $tagver
+      export SERVER-HOST=$SERVER-HOST
       expect << EOF
-      spawn ssh admin@ufm-appliance07
+      spawn ssh admin@$SERVER-HOST
       expect "Password:*"
       send -- "admin\r"
       expect "> "
