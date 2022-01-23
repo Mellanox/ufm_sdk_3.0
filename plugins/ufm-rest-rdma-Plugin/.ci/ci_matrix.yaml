@@ -13,7 +13,6 @@ volumes:
   - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
 runs_on_dockers:
    - {file: '.ci/Dockerfile_static_tests_ub2004', arch: 'x86_64', name: 'swx_static', tag: 'latest'}
-  #- {name: 'swx_static', url: 'harbor.mellanox.com/collectx/x86_64/swx_static_tests:latest', category: 'tool', arch: 'x86_64'}
 runs_on_agents:
   - nodeLabel: 'UFM-POC'
 
@@ -62,7 +61,6 @@ steps:
     archiveArtifacts: 'logs/*'
 
   - name: build Plugin
-    shell: '#!/bin/bash -x'
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
       cd docker
@@ -75,7 +73,7 @@ steps:
     shell: '#!/bin/bash -x'
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
-      
+      namehost=$(echo $HOSTNAME)
       cd docker/
       tagver=$(cat release_info)
       echo $tagver
@@ -92,7 +90,7 @@ steps:
       expect "# "
       send -- "config terminal\r"
       expect "/(config/) # "
-      send -- "image fetch scp://root:3tango@10.209.36.69/auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/ufm-plugin-rest-rdma_$tagver.tar.gz\r"
+      send -- "image fetch scp://root:3tango@$namehost/auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/ufm-plugin-rest-rdma_$tagver.tar.gz\r"
       expect "/(config/) # "
       # send -- "docker load ufm-plugin-rest-rdma_$tagver.tar.gz\r"
       # expect "/(config/) # "
@@ -100,12 +98,12 @@ steps:
       EOF
     parallel: false
   
-  - name: laod plugin
+  - name: load plugin
     shell: '#!/bin/bash -x'
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
       cd docker/
-      tagver=$(cat release_info )
+      tagver=$(cat release_info)
       echo $tagver
       export SERVER_HOST=$SERVER_HOST
       expect << EOF
@@ -130,7 +128,7 @@ steps:
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
       cd docker/
-      tagver=$(cat release_info )
+      tagver=$(cat release_info)
       echo $tagver
       export SERVER_HOST=$SERVER_HOST
       expect << EOF
@@ -162,7 +160,7 @@ steps:
       pwd
       cd docker/
       ls
-      tagver=$(cat release_info )
+      tagver=$(cat release_info)
       echo $tagver
       docker load < /ufm-plugin-rest-rdma_$tagver.tar.gz > /dev/null
       docker run -d --network=host --privileged --name=ufm-plugin-rest-rdma --rm -v /tmp/ibdiagnet:/tmp/ibdiagnet mellanox/ufm-plugin-rest-rdma:$tagver client
@@ -176,8 +174,14 @@ steps:
       gettoken=$(./ufm_rest_rdma_client.sh -u admin -p admin -t simple -a GET -w ufmRest/actions/get_all_pkeys?guids_data=true)
       if [ "$gettoken" != [] ] ; then exit 1 ; else echo "delete request passed" ; fi
       # ./ufm_rest_rdma_client.sh -u admin -p admin  -t simple -a GET -w 'ufmRest/actions/get_all_pkeys?guids_data=true\&pkey_api_only=False'
-      ./ufm_rest_rdma_client.sh -u admin -p admin -t ibdiagnet -a POST -w ufmRest/reports/ibdiagnetPeriodic -l '{\"general\": {\"name\": \"Alex\", \"location\": \"local\", \"running_mode\": \"once\"}, \"command_flags\": {\"--pc\": \"\"}}'
-      tmpibi=$(ll /tmp/ibdiagnet/) ; if [ "$tmpibi" == "total 0" ] ; then exit 1 ; else echo "ibdiagnet post request passed" ; fi
+      ./ufm_rest_rdma_client.sh -u admin -p admin -t ibdiagnet -a POST -w ufmRest/reports/ibdiagnetPeriodic -l '{\"general\": {\"name\": \"RestRDMA\", \"location\": \"local\", \"running_mode\": \"once\"}, \"command_flags\": {\"--pc\": \"\"}}'
+      tmpibi=$(ll /tmp/ibdiagnet/)
+      if [ "$tmpibi" == "total 0" ]
+      then
+        exit 1
+      else 
+        echo "ibdiagnet post request passed"
+      fi
       rm -rf /tmp/ibdiagnet/*
       docker stop ufm-plugin-rest-rdma
       docker image rm $(docker images |grep mell|awk '{print $3}')

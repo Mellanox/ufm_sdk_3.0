@@ -14,7 +14,7 @@ Put a comment with "bot:retest"
 
 ## Sanity test for rest-rdma plugin
 
-Installing contaier on client and server
+Installing container on client and server
 sending POST requests, Delete Request, Get Request and Post ibidiagnt request:(for example)
 --ufm_rdma.py -r client -t simple -a POST -w ufmRest/actions/add_guids_to_pkey -l'{"pkey": "0x0002","guids":["f452140300188540"],"index0": true,"default_membership": "full","ip_over_ib": false}' 
 --ufm_rdma.py -r client -t simple -a POST -w ufmRest/actions/remove_guids_from_pkey -l '{"pkey":"0x0002","guids":["f452140300188540"]}' 
