@@ -61,6 +61,7 @@ steps:
     archiveArtifacts: 'logs/*'
 
   - name: build Plugin
+    shell: '#!/bin/bash -x'
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
       cd docker
