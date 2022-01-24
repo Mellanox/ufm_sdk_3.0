@@ -176,7 +176,7 @@ steps:
       if [ "$gettoken" != [] ] ; then exit 1 ; else echo "delete request passed" ; fi
       # ./ufm_rest_rdma_client.sh -u admin -p admin  -t simple -a GET -w 'ufmRest/actions/get_all_pkeys?guids_data=true\&pkey_api_only=False'
       ./ufm_rest_rdma_client.sh -u admin -p admin -t ibdiagnet -a POST -w ufmRest/reports/ibdiagnetPeriodic -l '{\"general\": {\"name\": \"RestRDMA\", \"location\": \"local\", \"running_mode\": \"once\"}, \"command_flags\": {\"--pc\": \"\"}}'
-      tmpibi=$(ll /tmp/ibdiagnet/)
+      tmpibi=$(ls -l /tmp/ibdiagnet/)
       if [ "$tmpibi" == "total 0" ]
       then
         exit 1
