@@ -1,4 +1,7 @@
-FROM ubuntu:18.04 AS ndt_base_ubuntu18
+FROM ubuntu:20.04 AS ndt_base_ubuntu20
+
+ENV TZ=Europe/Moscow
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 ARG BASE_PATH=/opt/ufm/ufm_plugin_ndt
 
