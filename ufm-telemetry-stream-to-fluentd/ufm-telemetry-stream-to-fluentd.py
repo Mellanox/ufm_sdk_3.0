@@ -20,10 +20,10 @@ import logging
 import time
 import datetime
 from fluent import asyncsender as asycsender
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.base import STATE_RUNNING
 
 try:
-    from utils.utils import Utils
-    from utils.ufm_rest_client import UfmRestClient, HTTPMethods
     from utils.args_parser import ArgsParser
     from utils.config_parser import ConfigParser
     from utils.logger import Logger, LOG_LEVELS
@@ -31,6 +31,10 @@ except ModuleNotFoundError as e:
     print("Error occurred while importing python modules, "
           "Please make sure that you exported your repository to PYTHONPATH by running: "
           f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.getcwd())}"')
+
+
+class StreamingAlreadyRunning(Exception):
+    pass
 
 
 class UFMTelemetryConstants:
@@ -46,6 +50,9 @@ class UFMTelemetryConstants:
         },{
             "name": '--ufm_telemetry_url',
             "help": "URL of UFM Telemetry endpoint"
+        },{
+            "name": '--streaming_interval',
+            "help": "Interval for telemetry streaming in seconds"
         },{
             "name": '--fluentd_host',
             "help": "Host name or IP of fluentd endpoint"
@@ -76,6 +83,9 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
     FLUENTD_ENDPOINT_SECTION_TIMEOUT = "timeout"
     FLUENTD_ENDPOINT_SECTION_MSG_TAG_NAME = "message_tag_name"
 
+    STREAMING_SECTION = "streaming"
+    STREAMING_SECTION_INTERVAL = "interval"
+
     def __init__(self, args):
         super().__init__(args)
         self.sdk_config.read(self.config_file)
@@ -97,6 +107,11 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
                                      self.UFM_TELEMETRY_ENDPOINT_SECTION_URL,
                                      "enterprise")
 
+    def get_streaming_interval(self):
+        return self.safe_get_int(self.args.streaming_interval,
+                                 self.STREAMING_SECTION,
+                                 self.STREAMING_SECTION_INTERVAL,
+                                 10)
 
     def get_fluentd_host(self):
         return self.get_config_value(self.args.fluentd_host,
@@ -123,9 +138,21 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
 
 class UFMTelemetryStreaming:
 
-    @staticmethod
-    def get_metrics(host, port, url):
-        url = f'http://{host}:{port}/{url}'
+    def __init__(self, ufm_telemetry_host, ufm_telemetry_port, ufm_telemetry_url,
+                 streaming_interval,fluentd_host,fluentd_port,fluentd_timeout,fluentd_msg_tag):
+        self.ufm_telemetry_host = ufm_telemetry_host
+        self.ufm_telemetry_port = ufm_telemetry_port
+        self.ufm_telemetry_url = ufm_telemetry_url
+
+        self.streaming_interval = streaming_interval
+
+        self.fluentd_host = fluentd_host
+        self.fluentd_port = fluentd_port
+        self.fluentd_timeout = fluentd_timeout
+        self.fluentd_msg_tag = fluentd_msg_tag
+
+    def _get_metrics(self):
+        url = f'http://{self.ufm_telemetry_host}:{self.ufm_telemetry_port}/{self.ufm_telemetry_url}'
         logging.info(f'Send UFM Telemetry Endpoint Request, Method: GET, URL: {url}')
         try:
             response = requests.get(url)
@@ -134,16 +161,12 @@ class UFMTelemetryStreaming:
             logging.error(e)
             return response
 
-    @staticmethod
-    def stream_data_to_fluentd(fluentd_host,
-                               fluentd_port,
-                               fluentd_msg_name,
-                               fluentd_timeout,data_to_stream):
-        logging.info(f'Streaming to Fluentd IP: {fluentd_host} port: {fluentd_port} timeout: {fluentd_timeout}')
+    def _stream_data_to_fluentd(self, data_to_stream):
+        logging.info(f'Streaming to Fluentd IP: {self.fluentd_host} port: {self.fluentd_port} timeout: {self.fluentd_timeout}')
         try:
             fluent_sender = asycsender.FluentSender(UFMTelemetryConstants.PLUGIN_NAME,
-                                                    fluentd_host,
-                                                    fluentd_port, timeout=fluentd_timeout)
+                                                    self.fluentd_host,
+                                                    self.fluentd_port, timeout=self.fluentd_timeout)
 
             fluentd_message = {
                 "timestamp": datetime.datetime.fromtimestamp(int(time.time())).strftime('%Y-%m-%d %H:%M:%S'),
@@ -151,11 +174,35 @@ class UFMTelemetryStreaming:
                 "metrics": data_to_stream
             }
 
-            fluent_sender.emit(fluentd_msg_name, fluentd_message)
+            fluent_sender.emit(self.fluentd_msg_tag, fluentd_message)
             fluent_sender.close()
             logging.info(f'Finished Streaming to Fluentd Host: {fluentd_host} port: {fluentd_port}')
         except Exception as e:
             logging.error(e)
+
+    def stream_data(self):
+        telemetry_data = self._get_metrics()
+        self._stream_data_to_fluentd(telemetry_data)
+
+
+class StreamingScheduler:
+    def __init__(self):
+        self.scheduler = BackgroundScheduler()
+        self.streaming_job = None
+        pass
+
+    def start_streaming(self, streaming_func, streaming_interval):
+        if self.streaming_job and self.scheduler.state == STATE_RUNNING:
+            raise StreamingAlreadyRunning
+
+        self.streaming_job = self.scheduler.add_job(streaming_func, 'interval',
+                                                    seconds=streaming_interval)
+        self.scheduler.start()
+
+    def stop_streaming(self):
+        self.scheduler.remove_job(self.streaming_job.id)
+        self.scheduler.shutdown()
+        self.streaming_job = None
 
 if __name__ == "__main__":
     # init app args
@@ -173,16 +220,23 @@ if __name__ == "__main__":
     ufm_telemetry_port = config_parser.get_telemetry_port()
     ufm_telemetry_url = config_parser.get_telemetry_url()
 
+    streaming_interval = config_parser.get_streaming_interval()
+
     fluentd_host = config_parser.get_fluentd_host()
     fluentd_port = config_parser.get_fluentd_port()
     fluentd_timeout = config_parser.get_fluentd_timeout()
     fluentd_msg_tag = config_parser.get_fluentd_msg_tag(ufm_telemetry_host)
 
+    telemetry_streaming = UFMTelemetryStreaming(ufm_telemetry_host=ufm_telemetry_host,
+                                                ufm_telemetry_port= ufm_telemetry_port,
+                                                ufm_telemetry_url=ufm_telemetry_url,
+                                                streaming_interval=streaming_interval,
+                                                fluentd_host=fluentd_host, fluentd_port=fluentd_port,
+                                                fluentd_timeout=fluentd_timeout, fluentd_msg_tag=fluentd_msg_tag)
 
-    metrics = UFMTelemetryStreaming.get_metrics(ufm_telemetry_host,
-                                                ufm_telemetry_port,
-                                                ufm_telemetry_url)
+    streaming_scheduler = StreamingScheduler()
+    streaming_scheduler.start_streaming(telemetry_streaming.stream_data, streaming_interval)
 
-    UFMTelemetryStreaming.stream_data_to_fluentd(fluentd_host, fluentd_port, fluentd_msg_tag,
-                                                 fluentd_timeout, metrics)
-
+    # this loop will be replaced with the flask server
+    while True:
+        pass
