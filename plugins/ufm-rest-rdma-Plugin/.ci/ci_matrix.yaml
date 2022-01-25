@@ -100,10 +100,22 @@ steps:
       cd /
       ./ufm_rest_rdma_client.sh -u admin -p admin -t simple -a POST -w ufmRest/actions/add_guids_to_pkey -l'{\"pkey\": \"0x0002\",\"guids\": [\"f452140300188540\"],\"index0\": true,\"default_membership\": \"full\",\"ip_over_ib\": false}'
       gettoken=$(./ufm_rest_rdma_client.sh -u admin -p admin -t simple -a GET -w ufmRest/actions/get_all_pkeys?guids_data=true)
-      if [ "$gettoken" != [] ] ; then echo "post request passed" ; else exit 1 ; fi
+      if [ "$gettoken" != [] ]
+      then
+        echo "post request passed"
+      else
+        echo "simple post request faild"
+        exit 1
+      fi
       ./ufm_rest_rdma_client.sh -u admin -p admin -t simple -a POST -w ufmRest/actions/remove_guids_from_pkey -l '{\"pkey\":\"0x0002\",\"guids\":[\"f452140300188540\"]}'
       gettoken=$(./ufm_rest_rdma_client.sh -u admin -p admin -t simple -a GET -w ufmRest/actions/get_all_pkeys?guids_data=true)
-      if [ "$gettoken" != [] ] ; then exit 1 ; else echo "delete request passed" ; fi
+      if [ "$gettoken" != [] ]
+      then
+        echo "delete request failed"
+        exit 1
+      else
+        echo "delete request passed"
+      fi
       # ./ufm_rest_rdma_client.sh -u admin -p admin  -t simple -a GET -w 'ufmRest/actions/get_all_pkeys?guids_data=true\&pkey_api_only=False'
       ./ufm_rest_rdma_client.sh -u admin -p admin -t ibdiagnet -a POST -w ufmRest/reports/ibdiagnetPeriodic -l '{\"general\": {\"name\": \"RestRDMA\", \"location\": \"local\", \"running_mode\": \"once\"}, \"command_flags\": {\"--pc\": \"\"}}'
       tmpibi=$(ls -l /tmp/ibdiagnet/)
@@ -116,13 +128,11 @@ steps:
       rm -rf /tmp/ibdiagnet/*
       docker stop ufm-plugin-rest-rdma
       docker image rm $(docker images |grep mell|awk '{print $3}')
-      
     parallel: false
 
   - name: remove plugin
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: .ci/do_remove_plugin.sh
-      
     parallel: false
 
 
