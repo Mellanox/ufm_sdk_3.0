@@ -61,11 +61,10 @@ steps:
     archiveArtifacts: 'logs/*'
 
   - name: build Plugin
-    shell: '#!/bin/bash -x'
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
       cd docker
-      ./docker_build.sh
+      bash -x ./docker_build.sh
       cp /ufm-plugin-rest-rdma_* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
     parallel: false
     
