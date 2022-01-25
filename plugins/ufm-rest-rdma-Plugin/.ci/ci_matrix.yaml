@@ -88,6 +88,7 @@ steps:
   - name: Install Plugin client
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
+    
       cd docker/
       tagver=$(cat release_info)
       docker load < /ufm-plugin-rest-rdma_$tagver.tar.gz > /dev/null
@@ -111,11 +112,11 @@ steps:
       else
         echo "delete request passed"
       fi
-      # ./ufm_rest_rdma_client.sh -u admin -p admin  -t simple -a GET -w 'ufmRest/actions/get_all_pkeys?guids_data=true\&pkey_api_only=False'
       ./ufm_rest_rdma_client.sh -u admin -p admin -t ibdiagnet -a POST -w ufmRest/reports/ibdiagnetPeriodic -l '{\"general\": {\"name\": \"RestRDMA\", \"location\": \"local\", \"running_mode\": \"once\"}, \"command_flags\": {\"--pc\": \"\"}}'
       tmpibi=$(ls -l /tmp/ibdiagnet/)
       if [ "$tmpibi" == "total 0" ]
       then
+        echo "ibiagent request failed"
         exit 1
       else 
         echo "ibdiagnet post request passed"
