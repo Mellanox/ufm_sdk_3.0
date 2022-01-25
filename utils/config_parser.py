@@ -128,3 +128,16 @@ class ConfigParser(object):
                                      SDK_CONFIG_LOGS_SECTION,
                                      SDK_CONFIG_LOGS_SECTION_LOGS_LEVEL,
                                      'INFO')
+
+    def get_conf_sections(self):
+        return self.sdk_config.sections()
+
+    def get_section_items(self, section):
+        return self.sdk_config.items(section)
+
+    def set_item_value(self, section, item, value):
+        self.sdk_config.set(section, item, value)
+
+    def update_config_file(self, file_path):
+        with open(file_path, 'w') as configfile:
+            self.sdk_config.write(configfile)

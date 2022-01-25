@@ -15,26 +15,21 @@
 @author: Anan Al-Aghbar
 @date:   Nov 23, 2021
 """
+import os
+import sys
+sys.path.append(os.getcwd())
+
 import requests
 import logging
 import time
 import datetime
 from fluent import asyncsender as asycsender
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.schedulers.base import STATE_RUNNING
-
-try:
-    from utils.args_parser import ArgsParser
-    from utils.config_parser import ConfigParser
-    from utils.logger import Logger, LOG_LEVELS
-except ModuleNotFoundError as e:
-    print("Error occurred while importing python modules, "
-          "Please make sure that you exported your repository to PYTHONPATH by running: "
-          f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.getcwd())}"')
+from streaming_scheduler import StreamingScheduler
 
 
-class StreamingAlreadyRunning(Exception):
-    pass
+from utils.args_parser import ArgsParser
+from utils.config_parser import ConfigParser
+from utils.logger import Logger, LOG_LEVELS
 
 
 class UFMTelemetryConstants:
@@ -70,7 +65,7 @@ class UFMTelemetryConstants:
 
 
 class UFMTelemetryStreamingConfigParser(ConfigParser):
-    config_file = "ufm-telemetry-stream-to-fluentd.cfg"
+    config_file = "../conf/ufm-telemetry-stream-to-fluentd.cfg"
 
     UFM_TELEMETRY_ENDPOINT_SECTION = "ufm-telemetry-endpoint"
     UFM_TELEMETRY_ENDPOINT_SECTION_HOST = "host"
@@ -176,33 +171,13 @@ class UFMTelemetryStreaming:
 
             fluent_sender.emit(self.fluentd_msg_tag, fluentd_message)
             fluent_sender.close()
-            logging.info(f'Finished Streaming to Fluentd Host: {fluentd_host} port: {fluentd_port}')
+            logging.info(f'Finished Streaming to Fluentd Host: {self.fluentd_host} port: {self.fluentd_port}')
         except Exception as e:
             logging.error(e)
 
     def stream_data(self):
         telemetry_data = self._get_metrics()
         self._stream_data_to_fluentd(telemetry_data)
-
-
-class StreamingScheduler:
-    def __init__(self):
-        self.scheduler = BackgroundScheduler()
-        self.streaming_job = None
-        pass
-
-    def start_streaming(self, streaming_func, streaming_interval):
-        if self.streaming_job and self.scheduler.state == STATE_RUNNING:
-            raise StreamingAlreadyRunning
-
-        self.streaming_job = self.scheduler.add_job(streaming_func, 'interval',
-                                                    seconds=streaming_interval)
-        self.scheduler.start()
-
-    def stop_streaming(self):
-        self.scheduler.remove_job(self.streaming_job.id)
-        self.scheduler.shutdown()
-        self.streaming_job = None
 
 if __name__ == "__main__":
     # init app args
@@ -234,9 +209,7 @@ if __name__ == "__main__":
                                                 fluentd_host=fluentd_host, fluentd_port=fluentd_port,
                                                 fluentd_timeout=fluentd_timeout, fluentd_msg_tag=fluentd_msg_tag)
 
-    streaming_scheduler = StreamingScheduler()
-    streaming_scheduler.start_streaming(telemetry_streaming.stream_data, streaming_interval)
+    #streaming_scheduler = StreamingScheduler()
+    #streaming_scheduler.start_streaming(telemetry_streaming.stream_data, telemetry_streaming.streaming_interval)
 
-    # this loop will be replaced with the flask server
-    while True:
-        pass
+    telemetry_streaming.stream_data()
