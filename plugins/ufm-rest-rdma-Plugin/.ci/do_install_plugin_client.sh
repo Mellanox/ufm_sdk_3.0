@@ -10,7 +10,7 @@ if [ "$gettoken" != [] ]
 then
     echo "post request passed"
 else
-    echo "simple post request faild"
+    echo "simple post request faild  "
     exit 1
 fi
 ./ufm_rest_rdma_client.sh -u admin -p admin -t simple -a POST -w ufmRest/actions/remove_guids_from_pkey -l '{\"pkey\":\"0x0002\",\"guids\":[\"f452140300188540\"]}'
