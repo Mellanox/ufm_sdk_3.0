@@ -27,7 +27,10 @@ from ufm_telemetry_stream_to_fluentd.src.streamer import \
 
 def _init_logs(config_parser):
     # init logs configs
-    logs_file_name = config_parser.get_logs_file_name()
+    # this path for debugging
+    # default_file_name = 'tfs.log'
+    default_file_name = '/log/tfs.log' # this path on docker
+    logs_file_name = config_parser.get_logs_file_name(default_file_name=default_file_name)
     logs_level = config_parser.get_logs_level()
     Logger.init_logs_config(logs_file_name, logs_level)
 

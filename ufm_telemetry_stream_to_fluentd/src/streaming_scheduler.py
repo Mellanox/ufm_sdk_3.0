@@ -16,12 +16,16 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.schedulers.base import STATE_RUNNING
 
+from datetime import datetime
+
+
 class StreamingAlreadyRunning(Exception):
     pass
 
 
 class NoRunningStreamingInstance(Exception):
     pass
+
 
 class StreamingScheduler:
     def __init__(self):
@@ -34,14 +38,15 @@ class StreamingScheduler:
             raise StreamingAlreadyRunning
 
         self.streaming_job = self.scheduler.add_job(streaming_func, 'interval',
-                                                    seconds=streaming_interval)
-        self.scheduler.start()
+                                                    seconds=streaming_interval,
+                                                    next_run_time=datetime.now())
+        if not self.scheduler.running:
+            self.scheduler.start()
         return self.streaming_job.id
 
     def stop_streaming(self):
-        if self.streaming_job and self.scheduler.state == STATE_RUNNING:
+        if self.streaming_job and self.scheduler.running:
             self.scheduler.remove_job(self.streaming_job.id)
-            self.scheduler.shutdown()
             self.streaming_job = None
             return True
         raise NoRunningStreamingInstance

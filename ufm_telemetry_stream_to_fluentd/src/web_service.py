@@ -14,17 +14,28 @@
 @date:   Jan 25, 2022
 """
 
-from flask import Flask, request, make_response
+from flask import Flask
 from flask_restful import Api
-from ufm_telemetry_stream_to_fluentd.src.streaming_scheduler import StreamingScheduler
+from http import HTTPStatus
+from twisted.web.wsgi import WSGIResource
+from twisted.internet import reactor
+from twisted.web import server
+
+from ufm_telemetry_stream_to_fluentd.src.web_service_error_messages import \
+    no_running_streaming_instance,\
+    streaming_already_running
+
+from ufm_telemetry_stream_to_fluentd.src.streaming_scheduler import \
+    StreamingScheduler,\
+    NoRunningStreamingInstance,\
+    StreamingAlreadyRunning
 
 from ufm_telemetry_stream_to_fluentd.src.web_service_resources import \
     SetStreamingConfigurations, \
     StartStreamingScheduler,StopStreamingScheduler,\
-    GetStreamingSchedulerStatus
+    GetStreamingSchedulerStatus,\
+    InvalidConfRequest
 
-from utils.args_parser import ArgsParser
-from utils.logger import Logger, LOG_LEVELS
 
 class UFMTelemetryFluentdStreamingServer:
 
@@ -45,5 +56,27 @@ class UFMTelemetryFluentdStreamingServer:
         self.api.add_resource(GetStreamingSchedulerStatus, f'/status',
                               resource_class_kwargs={'scheduler': self.streaming_scheduler})
 
+        self._addErrorHandlers()
+
+    def _getErrorHandlers(self):
+        return [
+            (NoRunningStreamingInstance,
+             lambda e: (no_running_streaming_instance, HTTPStatus.BAD_REQUEST)),
+            (StreamingAlreadyRunning,
+             lambda e: (streaming_already_running, HTTPStatus.BAD_REQUEST)),
+            (InvalidConfRequest,
+             lambda e: (str(e), HTTPStatus.BAD_REQUEST)),
+        ]
+
+    def _addErrorHandlers(self):
+        hdlrs = self._getErrorHandlers()
+        for code_or_exception, f in hdlrs:
+            self.app.register_error_handler(code_or_exception, f)
+
+
     def run(self):
-        self.app.run(port=self.port_number, debug=True)
+        # for debugging
+        #self.app.run(port=self.port_number, debug=True)
+        resource = WSGIResource(reactor, reactor.getThreadPool(), self.app)
+        reactor.listenTCP(self.port_number, server.Site(resource,logPath=None))
+        reactor.run()

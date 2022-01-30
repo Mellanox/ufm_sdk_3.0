@@ -2,3 +2,7 @@ requests
 configparser
 fluent-logger
 apscheduler
+flask
+flask_restful
+twisted
+tzlocal<3.0

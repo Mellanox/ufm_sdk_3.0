@@ -19,8 +19,11 @@ from flask_restful import Resource
 
 from ufm_telemetry_stream_to_fluentd.src.streamer import UFMTelemetryStreaming
 
+
 class InvalidConfRequest(Exception):
-    pass
+
+    def __init__(self, message):
+        Exception.__init__(self,message)
 
 
 class SetStreamingConfigurations(Resource):
@@ -33,10 +36,10 @@ class SetStreamingConfigurations(Resource):
         sections = self.conf.get_conf_sections()
         for section,section_items in new_conf.items():
             if section not in sections:
-                raise InvalidConfRequest
+                raise InvalidConfRequest(f'Invalid section: {section}')
             for section_item,value in section_items.items():
                 if section_item not in dict(self.conf.get_section_items(section)).keys():
-                    raise InvalidConfRequest
+                    raise InvalidConfRequest(f'Invalid property: {section_item} in {section}')
                 self.conf.set_item_value(section, section_item, value)
         self.conf.update_config_file(self.conf.config_file)
 

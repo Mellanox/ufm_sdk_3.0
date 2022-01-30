@@ -24,12 +24,11 @@ import logging
 import time
 import datetime
 from fluent import asyncsender as asycsender
-from streaming_scheduler import StreamingScheduler
 
 
 from utils.args_parser import ArgsParser
 from utils.config_parser import ConfigParser
-from utils.logger import Logger, LOG_LEVELS
+from utils.logger import Logger
 
 
 class UFMTelemetryConstants:
@@ -65,7 +64,10 @@ class UFMTelemetryConstants:
 
 
 class UFMTelemetryStreamingConfigParser(ConfigParser):
-    config_file = "../conf/ufm-telemetry-stream-to-fluentd.cfg"
+    # for debugging
+    # config_file = "../conf/ufm-telemetry-stream-to-fluentd.cfg"
+
+    config_file = "/config/ufm-telemetry-stream-to-fluentd.cfg" # this path on the docker
 
     UFM_TELEMETRY_ENDPOINT_SECTION = "ufm-telemetry-endpoint"
     UFM_TELEMETRY_ENDPOINT_SECTION_HOST = "host"

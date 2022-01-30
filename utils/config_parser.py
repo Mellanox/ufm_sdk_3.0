@@ -117,11 +117,11 @@ class ConfigParser(object):
                                      False)
 
 
-    def get_logs_file_name(self):
+    def get_logs_file_name(self, default_file_name  = 'console.log'):
         return self.get_config_value(self.args.logs_file_name,
                                      SDK_CONFIG_LOGS_SECTION,
                                      SDK_CONFIG_LOGS_SECTION_LOGS_FILE_NAME,
-                                     'console.log')
+                                     default_file_name)
 
     def get_logs_level(self):
         return self.get_config_value(self.args.logs_level,
