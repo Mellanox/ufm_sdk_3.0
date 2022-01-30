@@ -10,16 +10,10 @@ kubernetes:
   nodeSelector: 'beta.kubernetes.io/os=linux'
 
 volumes:
-  #- {mountPath: /auto/sw_tools, hostPath: /auto/sw_tools}
   - {mountPath: /auto/UFM, hostPath: /auto/UFM}
   - {mountPath: /auto/GLIT/SCRIPTS/HELPERS, hostPath: /auto/GLIT/SCRIPTS/HELPERS}
   - {mountPath: /auto/BACKUP/logs_of_LOGS/, hostPath: /auto/BACKUP/logs_of_LOGS}
-  #- {mountPath: /hpc/local/etc/modulefiles, hostPath: /hpc/local/etc/modulefiles}
-
-  #- {mountPath: /.autodirect/mtrswgwork, hostPath: /.autodirect/mtrswgwork}
-  #- {mountPath: /.autodirect/sw/release/mlnx_ofed/MLNX_OFED, hostPath: /.autodirect/sw/release/mlnx_ofed/MLNX_OFED}
-  #- {mountPath: /mswg/projects, hostPath: /mswg/projects}
-  #- {mountPath: /project/sw/, hostPath: /project/sw}
+ 
 
   - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
 
