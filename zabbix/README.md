@@ -37,7 +37,7 @@ Creating a host in Zabbix Server frontend:
 1) Go to: Configuration → Hosts.
 2) Click on Create host in the upper corner of the screen.
 
-![zabbix-create-host](zabbix-create-host.png)
+![zabbix-create-host](zabbix_create_host.png)
 
 Host name
 
@@ -60,7 +60,7 @@ Creating a log item in Zabbix Server frontend:
 5) Enter parameters of the item in the form.
 6) Click on Add
 
-![zabbix-itemlog](zabbix-item-log.png)
+![zabbix-itemlog](zabbix_item_log.png)
 
 
  Viewing UFM Events
