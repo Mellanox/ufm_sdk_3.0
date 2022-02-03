@@ -546,6 +546,15 @@ class Help(UFMResource):
         return self.report_error(405, "Method is not allowed")
 
 
+class Date(UFMResource):
+    def get(self):
+        logging.info("GET /plugin/ndt/date")
+        return {"date": self.get_timestamp()}, self.success
+
+    def post(self):
+        return self.report_error(405, "Method is not allowed")
+
+
 class Dummy(UFMResource):
     def get(self):
         logging.info("GET /plugin/ndt/dummy")
