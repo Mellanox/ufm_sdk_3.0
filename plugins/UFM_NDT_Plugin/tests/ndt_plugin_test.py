@@ -1,5 +1,6 @@
 import json
 import subprocess
+import sys
 import time
 
 import requests
@@ -25,6 +26,7 @@ POST = "POST"
 
 # resources
 NDTS = "list"
+DATE = "date"
 UPLOAD = "upload"
 COMPARE = "compare"
 DELETE = "delete"
@@ -33,6 +35,8 @@ REPORTS = "reports"
 REPORT_ID = "reports/{}"
 
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+FAILED_TESTS_COUNT = 0
 
 
 def remove_timestamp(response):
@@ -74,6 +78,8 @@ def assert_equal(request, left_expr, right_expr, test_name="positive"):
         print("    - test name: {} {}, request: {} -- PASS"
               .format(test_name, test_type, request))
     else:
+        global FAILED_TESTS_COUNT
+        FAILED_TESTS_COUNT += 1
         print("    - test name: {} {}, request: {} -- FAIL (expected: {}, actual: {})"
               .format(test_name, test_type, request, right_expr, left_expr))
 
@@ -243,9 +249,9 @@ def check_comparison_report(comparison_type):
         if expected_response:
             expected_miss_wired_len, expected_missing_in_ndt_len, expected_missing_in_ufm_len,\
                 = get_expected_report_len()
-        assert_equal(request_string, str(missing_in_ndt_len), str(expected_missing_in_ndt_len), test_name)
-        assert_equal(request_string, str(missing_in_ufm_len), str(expected_missing_in_ufm_len), test_name)
-        assert_equal(request_string, str(miss_wired_len), str(expected_miss_wired_len), test_name)
+        assert_equal(request_string, str(missing_in_ndt_len), str(expected_missing_in_ndt_len), test_name + " missing_in_ndt_len")
+        assert_equal(request_string, str(missing_in_ufm_len), str(expected_missing_in_ufm_len), test_name + " missing_in_ufm_len")
+        assert_equal(request_string, str(miss_wired_len), str(expected_miss_wired_len), test_name + " miss_wired_len")
 
     test_name = "report doesn't exist"
     response, request_string = make_request(GET, REPORT_ID.format(reports_number + 1))
@@ -305,10 +311,14 @@ def instant_comparison():
         check_comparison_report("Instant")
 
 
+def get_server_datetime():
+    response, request_string = make_request(GET, DATE)
+    datetime_response = get_response(response)
+    datetime_string = datetime_response["date"]
+    return datetime.strptime(datetime_string, DATETIME_FORMAT)
+
 def periodic_comparison():
     print("Periodic comparison")
-
-    datetime_end = datetime_start = datetime.now() + timedelta(seconds=2)
 
     test_name = "incorrect request"
     payload = {"asd": "asd"}
@@ -328,15 +338,16 @@ def periodic_comparison():
     response, request_string = make_request(POST, COMPARE, payload=payload)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response),
-                 {'error': "Incorrect timestamp format: time data '{}' does not match format '%Y-%m-%d %H:%M:%S'"
-                 .format(payload["run"]["startTime"])},
+                 {'error': "Incorrect timestamp format: time data '{}' does not match format '{}'"
+                 .format(payload["run"]["startTime"], DATETIME_FORMAT)},
                  test_name)
 
+    datetime_end = datetime_start = get_server_datetime() + timedelta(seconds=3)
     test_name = "too small interval"
     payload = {
         "run": {
-            "startTime": datetime_start.strftime("%Y-%m-%d %H:%M:%S"),
-            "endTime": datetime_end.strftime("%Y-%m-%d %H:%M:%S"),
+            "startTime": datetime_start.strftime(DATETIME_FORMAT),
+            "endTime": datetime_end.strftime(DATETIME_FORMAT),
             "interval": 1
         }
     }
@@ -348,8 +359,8 @@ def periodic_comparison():
     test_name = "end time less than start time"
     payload = {
         "run": {
-            "startTime": datetime_start.strftime("%Y-%m-%d %H:%M:%S"),
-            "endTime": (datetime_end - timedelta(seconds=2)).strftime("%Y-%m-%d %H:%M:%S"),
+            "startTime": datetime_start.strftime(DATETIME_FORMAT),
+            "endTime": (datetime_end - timedelta(seconds=10)).strftime(DATETIME_FORMAT),
             "interval": 5
         }
     }
@@ -358,11 +369,11 @@ def periodic_comparison():
     assert_equal(request_string, get_response(response), {'error': 'End time is less than current time'},
                  test_name)
 
-    datetime_end = datetime_start = datetime.now() + timedelta(seconds=1)
+    datetime_end = datetime_start = get_server_datetime() + timedelta(seconds=2)
     good_payload = {
         "run": {
-            "startTime": datetime_start.strftime("%Y-%m-%d %H:%M:%S"),
-            "endTime": datetime_end.strftime("%Y-%m-%d %H:%M:%S"),
+            "startTime": datetime_start.strftime(DATETIME_FORMAT),
+            "endTime": datetime_end.strftime(DATETIME_FORMAT),
             "interval": 10
         }
     }
@@ -375,12 +386,12 @@ def periodic_comparison():
         check_comparison_report("Periodic")
 
     test_name = "start scheduler twice"
-    datetime_start = datetime.now() + timedelta(seconds=1)
+    datetime_end = datetime_start = get_server_datetime() + timedelta(seconds=2)
     datetime_end = datetime_start + timedelta(minutes=10)
     payload = {
         "run": {
-            "startTime": datetime_start.strftime("%Y-%m-%d %H:%M:%S"),
-            "endTime": datetime_end.strftime("%Y-%m-%d %H:%M:%S"),
+            "startTime": datetime_start.strftime(DATETIME_FORMAT),
+            "endTime": datetime_end.strftime(DATETIME_FORMAT),
             "interval": 5
         }
     }
@@ -524,6 +535,12 @@ def main():
     ndts_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "negative_flow_ndts")
     topo_diff(ndts_folder)
 
+    if FAILED_TESTS_COUNT > 0:
+        print("\n{} tests failed".format(FAILED_TESTS_COUNT))
+        return 1
+    else:
+        return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

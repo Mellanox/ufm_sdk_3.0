@@ -29,7 +29,7 @@ from twisted.internet import reactor
 from twisted.web import server
 
 from resources import UFMResource, Compare, Ndts, Reports, ReportId,\
-    Upload, Delete, Cancel, Version, Help, Dummy
+    Upload, Delete, Cancel, Version, Help, Date, Dummy
 
 
 class UFMWebSim:
@@ -58,6 +58,7 @@ class UFMWebSim:
             ReportId: "/reports/<report_id>",
             Version: "/version",
             Help: "/help",
+            Date: "/date",
             Dummy: "/dummy",
         }
         for resource, path in default_apis.items():
@@ -91,10 +92,10 @@ class UFMWebSim:
         self.init_apis()
 
     async def run(self):
-        # self.app.run(port=self.port_number, debug=True)
-        resource = WSGIResource(reactor, reactor.getThreadPool(), self.app)
-        reactor.listenTCP(self.port_number, server.Site(resource))
-        reactor.run()
+        self.app.run(port=self.port_number, debug=True)
+        # resource = WSGIResource(reactor, reactor.getThreadPool(), self.app)
+        # reactor.listenTCP(self.port_number, server.Site(resource))
+        # reactor.run()
 
     async def stop(self):
         pass
