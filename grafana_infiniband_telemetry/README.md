@@ -15,16 +15,18 @@ To install Prometheus server on your machine, please follow the [installation gu
 
 Configuration
 --------------------------------------------------------
-a) Edit prometheus.yml
+a) Configure Prometheus endpoint with [Prometheus Label Generation](https://docs.nvidia.com/networking/display/UFMTelemetryUMv18/Prometheus+Endpoint+Support#PrometheusEndpointSupport-PrometheusLabelGeneration)
+
+b) Edit prometheus.yml in Prometheus Server
 
     # metrics_path : 'labels/metrics'
     # targets: ["{UFM enterprise IP}:{Prometheus endpoint port, usually 9001}"]
 
-b) Run Prometheus server
+c) Run Prometheus server
 
-c) Add Prometheus server as data source for Grafana
+d) Add Prometheus server as data source for Grafana
 
-d) Import Infiniband_Telemetry.json to your Grafana dashboard
+e) Import Infiniband_Telemetry.json to your Grafana dashboard
 
 Use Grafana
 --------------------------------------------------------
