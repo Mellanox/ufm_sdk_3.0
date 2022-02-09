@@ -37,10 +37,18 @@ class SetStreamingConfigurations(Resource):
         for section,section_items in new_conf.items():
             if section not in sections:
                 raise InvalidConfRequest(f'Invalid section: {section}')
-            for section_item,value in section_items.items():
-                if section_item not in dict(self.conf.get_section_items(section)).keys():
-                    raise InvalidConfRequest(f'Invalid property: {section_item} in {section}')
-                self.conf.set_item_value(section, section_item, value)
+            if section == self.conf.META_FIELDS_SECTION:
+                #special logic for the meta-fields section because it contains dynamic options
+                #current options meta-fields should be overwritten with the new options
+                self.conf.clear_section_items(section)
+                for section_item, value in section_items.items():
+                    self.conf.set_item_value(section, section_item, value)
+
+            else:
+                for section_item, value in section_items.items():
+                    if section_item not in dict(self.conf.get_section_items(section)).keys():
+                        raise InvalidConfRequest(f'Invalid property: {section_item} in {section}')
+                    self.conf.set_item_value(section, section_item, value)
         self.conf.update_config_file(self.conf.config_file)
 
     def post(self):
@@ -67,16 +75,19 @@ class StartStreamingScheduler(Resource):
         ufm_telemetry_url = self.config_parser.get_telemetry_url()
 
         streaming_interval = self.config_parser.get_streaming_interval()
+        bulk_streaming_flag = self.config_parser.get_bulk_streaming_flag()
 
         fluentd_host = self.config_parser.get_fluentd_host()
         fluentd_port = self.config_parser.get_fluentd_port()
         fluentd_timeout = self.config_parser.get_fluentd_timeout()
         fluentd_msg_tag = self.config_parser.get_fluentd_msg_tag(ufm_telemetry_host)
+        aliases_meta_fields, custom_meta_fields = self.config_parser.get_meta_fields()
 
         return UFMTelemetryStreaming(ufm_telemetry_host=ufm_telemetry_host,
                                      ufm_telemetry_port=ufm_telemetry_port,
                                      ufm_telemetry_url=ufm_telemetry_url,
-                                     streaming_interval=streaming_interval,
+                                     streaming_interval=streaming_interval,bulk_streaming_flag=bulk_streaming_flag,
+                                     aliases_meta_fields=aliases_meta_fields,custom_meta_fields=custom_meta_fields,
                                      fluentd_host=fluentd_host, fluentd_port=fluentd_port,
                                      fluentd_timeout=fluentd_timeout, fluentd_msg_tag=fluentd_msg_tag)
 

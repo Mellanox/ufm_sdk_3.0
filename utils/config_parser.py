@@ -39,7 +39,7 @@ class ConfigParser(object):
     def get_config_value(self, arg, section, key, default=None):
         if arg:
             return arg
-        elif section in self.sdk_config and key in self.sdk_config[section] and len(self.sdk_config[section][key]):
+        elif section in self.sdk_config and key in self.sdk_config[section] and len(str(self.sdk_config[section][key])):
             return self.sdk_config[section][key]
         elif default is not None:
             return default
@@ -131,6 +131,12 @@ class ConfigParser(object):
 
     def get_conf_sections(self):
         return self.sdk_config.sections()
+
+    def clear_section_items(self, section):
+        # remove the old section with all items
+        self.sdk_config.remove_section(section)
+        # add new empty section
+        self.sdk_config.add_section(section)
 
     def get_section_items(self, section):
         return self.sdk_config.items(section)

@@ -48,6 +48,10 @@ class UFMTelemetryConstants:
             "name": '--streaming_interval',
             "help": "Interval for telemetry streaming in seconds"
         },{
+            "name": '--bulk_streaming',
+            "help": "Bulk streaming flag, i.e. if True all telemetry rows will be streamed in one message; "
+                    "otherwise, each row will be streamed in a separated message"
+        },{
             "name": '--fluentd_host',
             "help": "Host name or IP of fluentd endpoint"
         },{
@@ -82,6 +86,9 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
 
     STREAMING_SECTION = "streaming"
     STREAMING_SECTION_INTERVAL = "interval"
+    STREAMING_SECTION_BULK_STREAMING = "bulk_streaming"
+
+    META_FIELDS_SECTION = "meta-fields"
 
     def __init__(self, args):
         super().__init__(args)
@@ -110,6 +117,12 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
                                  self.STREAMING_SECTION_INTERVAL,
                                  10)
 
+    def get_bulk_streaming_flag(self):
+        return self.safe_get_bool(self.args.bulk_streaming,
+                                  self.STREAMING_SECTION,
+                                  self.STREAMING_SECTION_BULK_STREAMING,
+                                  True)
+
     def get_fluentd_host(self):
         return self.get_config_value(self.args.fluentd_host,
                                      self.FLUENTD_ENDPOINT_SECTION,
@@ -132,16 +145,42 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
                                      self.FLUENTD_ENDPOINT_SECTION_MSG_TAG_NAME,
                                      default)
 
+    def get_meta_fields(self):
+        meta_fields_list = self.get_section_items(self.META_FIELDS_SECTION)
+        aliases = []
+        custom = []
+        for meta_field,value in meta_fields_list:
+            meta_fields_parts = meta_field.split("_")
+            meta_field_type = meta_fields_parts[0]
+            meta_field_key = "_".join(meta_fields_parts[1:])
+            if meta_field_type == "alias":
+                aliases.append({
+                    "key": meta_field_key,
+                    "value": value
+                })
+            elif meta_field_type == "add":
+                custom.append({
+                    "key": meta_field_key,
+                    "value": value
+                })
+            else:
+                logging.warning("The meta field type : {} is not from the supported types list [alias, add]".format(meta_field_type))
+        return aliases,custom
+
 
 class UFMTelemetryStreaming:
 
     def __init__(self, ufm_telemetry_host, ufm_telemetry_port, ufm_telemetry_url,
+                 aliases_meta_fields,custom_meta_fields,bulk_streaming_flag,
                  streaming_interval,fluentd_host,fluentd_port,fluentd_timeout,fluentd_msg_tag):
         self.ufm_telemetry_host = ufm_telemetry_host
         self.ufm_telemetry_port = ufm_telemetry_port
         self.ufm_telemetry_url = ufm_telemetry_url
 
         self.streaming_interval = streaming_interval
+        self.bulk_streaming_flag = bulk_streaming_flag
+        self.aliases_meta_fields = aliases_meta_fields
+        self.custom_meta_fields = custom_meta_fields
 
         self.fluentd_host = fluentd_host
         self.fluentd_port = fluentd_port
@@ -158,6 +197,29 @@ class UFMTelemetryStreaming:
             logging.error(e)
             return response
 
+    def _parse_telemetry_csv_metrics_to_json(self, data, line_separator = "\n", attrs_sepatator = ","):
+        rows = data.split(line_separator)
+        keys = rows[0].split(attrs_sepatator)
+        output = []
+        for row in rows[1:]:
+            if len(row) > 0:
+                values = row.split(attrs_sepatator)
+                dic = {}
+                for i in range(len(keys)):
+                    dic[keys[i]] = values[i]
+                for alias in self.aliases_meta_fields:
+                    alias_key = alias["key"]
+                    alias_value = alias["value"]
+                    value = dic.get(alias_key,None)
+                    if value is None:
+                        logging.warning("The alias : {} does not exist in the telemetry response keys: {}".format(alias_key, str(keys)))
+                        continue
+                    dic[alias_value] = value
+                for custom_field in self.custom_meta_fields:
+                    dic[custom_field["key"]] = custom_field["value"]
+                output.append(dic)
+        return output
+
     def _stream_data_to_fluentd(self, data_to_stream):
         logging.info(f'Streaming to Fluentd IP: {self.fluentd_host} port: {self.fluentd_port} timeout: {self.fluentd_timeout}')
         try:
@@ -168,7 +230,7 @@ class UFMTelemetryStreaming:
             fluentd_message = {
                 "timestamp": datetime.datetime.fromtimestamp(int(time.time())).strftime('%Y-%m-%d %H:%M:%S'),
                 "type": "full",
-                "metrics": data_to_stream
+                "values": data_to_stream
             }
 
             fluent_sender.emit(self.fluentd_msg_tag, fluentd_message)
@@ -179,7 +241,12 @@ class UFMTelemetryStreaming:
 
     def stream_data(self):
         telemetry_data = self._get_metrics()
-        self._stream_data_to_fluentd(telemetry_data)
+        data_to_stream = self._parse_telemetry_csv_metrics_to_json(telemetry_data)
+        if self.bulk_streaming_flag:
+            self._stream_data_to_fluentd(data_to_stream)
+        else:
+            for row in data_to_stream:
+                self._stream_data_to_fluentd(row)
 
 if __name__ == "__main__":
     # init app args
