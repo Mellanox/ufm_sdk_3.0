@@ -170,9 +170,6 @@ The output record after adding these meta-fields will be:
       "port_guid": "e41d2d030003e450",
       "port_num": "10",
       "node_description": "SwitchIB Mellanox Technologies",
-      ...
-      ...
-      ...
       "node_name": "SwitchIB Mellanox Technologies",
       "AID": "e41d2d030003e450",
       "type": "json"
