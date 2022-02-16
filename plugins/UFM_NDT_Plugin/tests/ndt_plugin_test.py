@@ -1,3 +1,4 @@
+import argparse
 import json
 import subprocess
 import sys
@@ -14,11 +15,8 @@ def get_hash(file_content):
     sha1.update(file_content.encode('utf-8'))
     return sha1.hexdigest()
 
-
-HOST_IP = "r-ufm247"
-DEFAULT_PASSWORD = "123456"
-# HOST_IP = "r-ufm235"
-# DEFAULT_PASSWORD = "admin"
+# DEFAULT_PASSWORD = "123456"
+DEFAULT_PASSWORD = "admin"
 
 # rest api
 GET = "GET"
@@ -369,7 +367,7 @@ def periodic_comparison():
     assert_equal(request_string, get_response(response), {'error': 'End time is less than current time'},
                  test_name)
 
-    datetime_end = datetime_start = get_server_datetime() + timedelta(seconds=2)
+    datetime_end = datetime_start = get_server_datetime() + timedelta(seconds=3)
     good_payload = {
         "run": {
             "startTime": datetime_start.strftime(DATETIME_FORMAT),
@@ -543,4 +541,9 @@ def main():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='NDT plugin test')
+    parser.add_argument('-ip', '--host', type=str, required=True, help='Host IP address where NDT plugin is running')
+    args = parser.parse_args()
+    HOST_IP = args.host
+
     sys.exit(main())

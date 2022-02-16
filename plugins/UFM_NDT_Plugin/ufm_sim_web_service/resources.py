@@ -424,6 +424,8 @@ class Compare(UFMResource):
                 self.datetime_start += timedelta(minutes=self.interval)
             self.datetime_end = datetime.strptime(end_time, self.datetime_format)
             if self.datetime_end < timestamp:
+                logging.debug("End time is: {}, current time is: {}"
+                .format(self.datetime_end.strftime(self.datetime_format), timestamp.strftime(self.datetime_format)))
                 return self.report_error(400, "End time is less than current time")
             return self.report_success()
         except TypeError:
