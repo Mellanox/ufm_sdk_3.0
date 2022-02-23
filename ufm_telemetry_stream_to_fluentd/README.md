@@ -61,7 +61,7 @@ To deploy the plugin with UFM Enterprise (SA or HA):
 - To enable & start the plugin, run :
 
     
-    > /opt/ufm/scripts/manage_ufm_plugins.py add -p tfs
+    > /opt/ufm/scripts/manage_ufm_plugins.sh add -p tfs
   
 - Check that plugin is up and running with
  
