@@ -25,16 +25,18 @@ echo /opt/ufm/files/log/:/log > /config/tfs_shared_volumes.conf
 # echo /opt/ufm/conf/plugins/tfs/ufm-telemetry-stream-to-fluentd.cfg:/config/ufm-telemetry-stream-to-fluentd.cfg > /config/tfs_shared_volumes.conf
 
 # UFM version test
-required_ufm_version=(6 8 0)
+required_ufm_version=(6 8 5 build 8)
 echo "Required UFM version: ${required_ufm_version[0]}.${required_ufm_version[1]}.${required_ufm_version[2]}"
 
 if [ "$1" == "-ufm_version" ]; then
+    #UFM VERSION Input format is 6.8.5 build 8
     actual_ufm_version_string=$2
     actual_ufm_version=(${actual_ufm_version_string//./ })
-    echo "Actual UFM version: ${actual_ufm_version[0]}.${actual_ufm_version[1]}.${actual_ufm_version[2]}"
+    echo "Actual UFM version: ${actual_ufm_version[0]}.${actual_ufm_version[1]}.${actual_ufm_version[2]} build ${actual_ufm_version[4]}"
     if [ ${actual_ufm_version[0]} -ge ${required_ufm_version[0]} ] \
     && [ ${actual_ufm_version[1]} -ge ${required_ufm_version[1]} ] \
-    && [ ${actual_ufm_version[2]} -ge ${required_ufm_version[2]} ]; then
+    && [ ${actual_ufm_version[2]} -ge ${required_ufm_version[2]} ] \
+    && [ ${actual_ufm_version[4]} -ge ${required_ufm_version[4]} ]; then
         echo "UFM version meets the requirements"
         exit 0
     else

@@ -58,7 +58,7 @@ def set_streaming_configurations():
         "ufm-telemetry-endpoint": {
             "host": "swx-proton03",
             "url": "csv/minimal",
-            "port": 9110
+            "port": 9001
         },
         "fluentd-endpoint": {
             "host": "10.209.36.68",
