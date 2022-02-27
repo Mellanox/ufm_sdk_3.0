@@ -91,7 +91,7 @@ Usage
 
    METHOD: _POST_
    
-   URL: _https://[HOST-IP]/plugin/tfs/conf_
+   URL: _https://[HOST-IP]/ufmRest/plugin/tfs/conf_
    
    Payload Example:
    ```json
@@ -181,7 +181,7 @@ The output record after adding these meta-fields will be:
 
    METHOD: _GET_
    
-   URL: _https://[HOST-IP]/plugin/tfs/conf_
+   URL: _https://[HOST-IP]/ufmRest/plugin/tfs/conf_
 
 
 
@@ -189,19 +189,19 @@ The output record after adding these meta-fields will be:
 
    METHOD: _POST_
    
-   URL: _https://[HOST-IP]/plugin/tfs/start_
+   URL: _https://[HOST-IP]/ufmRest/plugin/tfs/start_
 
 
 ### 4.Stop the streaming by the following API:
 
    METHOD: _POST_
    
-   URL: _https://[HOST-IP]/plugin/tfs/stop_
+   URL: _https://[HOST-IP]/ufmRest/plugin/tfs/stop_
 
 ### 5.Check the the streaming status by the following API:
 
    METHOD: _POST_
    
-   URL: _https://[HOST-IP]/plugin/tfs/status_
+   URL: _https://[HOST-IP]/ufmRest/plugin/tfs/status_
    
    Response: _0_ | _1_ [0=>Stopped | 1=>Running]
