@@ -200,7 +200,7 @@ The output record after adding these meta-fields will be:
 
 ### 5.Check the the streaming status by the following API:
 
-   METHOD: _POST_
+   METHOD: _GET_
    
    URL: _https://[HOST-IP]/ufmRest/plugin/tfs/status_
    
