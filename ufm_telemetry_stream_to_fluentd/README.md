@@ -172,7 +172,7 @@ The output record after adding these meta-fields will be:
       "node_description": "SwitchIB Mellanox Technologies",
       "node_name": "SwitchIB Mellanox Technologies",
       "AID": "e41d2d030003e450",
-      "type": "json"
+      "type": "csv"
 }
 ```
 
