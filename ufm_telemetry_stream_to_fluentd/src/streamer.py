@@ -52,6 +52,9 @@ class UFMTelemetryConstants:
             "help": "Bulk streaming flag, i.e. if True all telemetry rows will be streamed in one message; "
                     "otherwise, each row will be streamed in a separated message"
         },{
+            "name": '--enable_streaming',
+            "help": "If true, the streaming will be started once the required configurations have been set"
+        },{
             "name": '--fluentd_host',
             "help": "Host name or IP of fluentd endpoint"
         },{
@@ -87,6 +90,7 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
     STREAMING_SECTION = "streaming"
     STREAMING_SECTION_INTERVAL = "interval"
     STREAMING_SECTION_BULK_STREAMING = "bulk_streaming"
+    STREAMING_SECTION_ENABLED = "enabled"
 
     META_FIELDS_SECTION = "meta-fields"
 
@@ -122,6 +126,12 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
                                   self.STREAMING_SECTION,
                                   self.STREAMING_SECTION_BULK_STREAMING,
                                   True)
+
+    def get_enable_streaming_flag(self):
+        return self.safe_get_bool(self.args.enable_streaming,
+                                  self.STREAMING_SECTION,
+                                  self.STREAMING_SECTION_ENABLED,
+                                  False)
 
     def get_fluentd_host(self):
         return self.get_config_value(self.args.fluentd_host,
@@ -170,22 +180,22 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
 
 class UFMTelemetryStreaming:
 
-    def __init__(self, ufm_telemetry_host, ufm_telemetry_port, ufm_telemetry_url,
-                 aliases_meta_fields,custom_meta_fields,bulk_streaming_flag,
-                 streaming_interval,fluentd_host,fluentd_port,fluentd_timeout,fluentd_msg_tag):
-        self.ufm_telemetry_host = ufm_telemetry_host
-        self.ufm_telemetry_port = ufm_telemetry_port
-        self.ufm_telemetry_url = ufm_telemetry_url
+    def __init__(self, config_parser):
 
-        self.streaming_interval = streaming_interval
-        self.bulk_streaming_flag = bulk_streaming_flag
-        self.aliases_meta_fields = aliases_meta_fields
-        self.custom_meta_fields = custom_meta_fields
+        self.config_parser = config_parser
 
-        self.fluentd_host = fluentd_host
-        self.fluentd_port = fluentd_port
-        self.fluentd_timeout = fluentd_timeout
-        self.fluentd_msg_tag = fluentd_msg_tag
+        self.ufm_telemetry_host = self.config_parser.get_telemetry_host()
+        self.ufm_telemetry_port = self.config_parser.get_telemetry_port()
+        self.ufm_telemetry_url = self.config_parser.get_telemetry_url()
+
+        self.streaming_interval = self.config_parser.get_streaming_interval()
+        self.bulk_streaming_flag = self.config_parser.get_bulk_streaming_flag()
+        self.aliases_meta_fields , self.custom_meta_fields = self.config_parser.get_meta_fields()
+
+        self.fluentd_host = self.config_parser.get_fluentd_host()
+        self.fluentd_port = self.config_parser.get_fluentd_port()
+        self.fluentd_timeout = self.config_parser.get_fluentd_timeout()
+        self.fluentd_msg_tag = self.config_parser.get_fluentd_msg_tag(self.ufm_telemetry_host)
 
     def _get_metrics(self):
         url = f'http://{self.ufm_telemetry_host}:{self.ufm_telemetry_port}/{self.ufm_telemetry_url}'
@@ -260,25 +270,9 @@ if __name__ == "__main__":
     logs_level = config_parser.get_logs_level()
     Logger.init_logs_config(logs_file_name, logs_level)
 
-    ufm_telemetry_host = config_parser.get_telemetry_host()
-    ufm_telemetry_port = config_parser.get_telemetry_port()
-    ufm_telemetry_url = config_parser.get_telemetry_url()
+    telemetry_streaming = UFMTelemetryStreaming(config_parser)
 
-    streaming_interval = config_parser.get_streaming_interval()
-
-    fluentd_host = config_parser.get_fluentd_host()
-    fluentd_port = config_parser.get_fluentd_port()
-    fluentd_timeout = config_parser.get_fluentd_timeout()
-    fluentd_msg_tag = config_parser.get_fluentd_msg_tag(ufm_telemetry_host)
-
-    telemetry_streaming = UFMTelemetryStreaming(ufm_telemetry_host=ufm_telemetry_host,
-                                                ufm_telemetry_port= ufm_telemetry_port,
-                                                ufm_telemetry_url=ufm_telemetry_url,
-                                                streaming_interval=streaming_interval,
-                                                fluentd_host=fluentd_host, fluentd_port=fluentd_port,
-                                                fluentd_timeout=fluentd_timeout, fluentd_msg_tag=fluentd_msg_tag)
-
-    #streaming_scheduler = StreamingScheduler()
+    #streaming_scheduler = StreamingScheduler.getInstance()
     #streaming_scheduler.start_streaming(telemetry_streaming.stream_data, telemetry_streaming.streaming_interval)
 
     telemetry_streaming.stream_data()

@@ -107,7 +107,8 @@ Usage
         },
         "streaming": {
             "interval": 10,
-            "bulk_streaming": true
+            "bulk_streaming": true,
+            "enabled": true
         },
         "meta-fields":{
             "alias_node_description": "node_name",
@@ -133,6 +134,7 @@ Usage
 | [ufm-telemetry-endpoint.url](conf/ufm-telemetry-stream-to-fluentd.cfg#L4) | True | URL for The UFM Telemetry Endpoint [Default is 'labels/csv/metrics']
 | [streaming.interval](conf/ufm-telemetry-stream-to-fluentd.cfg#L13) | True | Streaming interval [Default is 10 seconds]
 | [streaming.bulk_streaming](conf/ufm-telemetry-stream-to-fluentd.cfg#L14) | True | if True all telemetry records will be streamed in one message; otherwise, each record will be streamed in a separated message [Default is True]
+| [streaming.enabled](conf/ufm-telemetry-stream-to-fluentd.cfg#L15) | True | If True, the streaming will be started once the required configurations have been set [Default is False]
 
 
    - Records ٌMeta-fields:
@@ -183,25 +185,3 @@ The output record after adding these meta-fields will be:
    
    URL: _https://[HOST-IP]/ufmRest/plugin/tfs/conf_
 
-
-
-### 3.Start the streaming by the following API:
-
-   METHOD: _POST_
-   
-   URL: _https://[HOST-IP]/ufmRest/plugin/tfs/start_
-
-
-### 4.Stop the streaming by the following API:
-
-   METHOD: _POST_
-   
-   URL: _https://[HOST-IP]/ufmRest/plugin/tfs/stop_
-
-### 5.Check the the streaming status by the following API:
-
-   METHOD: _GET_
-   
-   URL: _https://[HOST-IP]/ufmRest/plugin/tfs/status_
-   
-   Response: _0_ | _1_ [0=>Stopped | 1=>Running]

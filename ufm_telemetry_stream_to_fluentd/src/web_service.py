@@ -32,8 +32,6 @@ from ufm_telemetry_stream_to_fluentd.src.streaming_scheduler import \
 
 from ufm_telemetry_stream_to_fluentd.src.web_service_resources import \
     SetStreamingConfigurations, \
-    StartStreamingScheduler,StopStreamingScheduler,\
-    GetStreamingSchedulerStatus,\
     InvalidConfRequest
 
 
@@ -41,20 +39,14 @@ class UFMTelemetryFluentdStreamingServer:
 
     def __init__(self,config_parser):
         self.config_parser = config_parser
-        self.streaming_scheduler = StreamingScheduler()
+        self.streaming_scheduler = StreamingScheduler.getInstance()
 
         self.port_number = 8981
         self.app = Flask(__name__)
         self.api = Api(self.app)
 
         self.api.add_resource(SetStreamingConfigurations, f'/conf',
-                              resource_class_kwargs={'conf': config_parser})
-        self.api.add_resource(StartStreamingScheduler, f'/start',
                               resource_class_kwargs={'conf': config_parser,'scheduler': self.streaming_scheduler})
-        self.api.add_resource(StopStreamingScheduler, f'/stop',
-                              resource_class_kwargs={'scheduler': self.streaming_scheduler})
-        self.api.add_resource(GetStreamingSchedulerStatus, f'/status',
-                              resource_class_kwargs={'scheduler': self.streaming_scheduler})
 
         self._addErrorHandlers()
 
@@ -65,6 +57,8 @@ class UFMTelemetryFluentdStreamingServer:
             (StreamingAlreadyRunning,
              lambda e: (streaming_already_running, HTTPStatus.BAD_REQUEST)),
             (InvalidConfRequest,
+             lambda e: (str(e), HTTPStatus.BAD_REQUEST)),
+            (ValueError,
              lambda e: (str(e), HTTPStatus.BAD_REQUEST)),
         ]
 

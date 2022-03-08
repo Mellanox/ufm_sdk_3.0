@@ -66,6 +66,7 @@ def set_streaming_configurations():
         },
         "streaming": {
             "interval": 10,
+            "enabled": True,
             "bulk_streaming": True
         },
         "meta-fields":{
@@ -76,41 +77,14 @@ def set_streaming_configurations():
     }
     return make_request(CONF_URL, payload=payload, method="POST")
 
-
-def get_streaming_status():
-    return make_request(STATUS_URL)
-
-
-def start_streaming():
-    return make_request(START_URL, method="POST")
-
-
-def stop_streaming():
-    return make_request(STOP_URL, method="POST")
-
 if __name__ == '__main__':
     import urllib3
 
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-    print("Checking the streaming status::")
-    response = get_streaming_status()
-    if int(response.text) == 1:
-        print("########")
-        print("The streaming is running, stopping it::")
-        stop_streaming()
-    print("########")
     print("Getting the current streaming configurations::")
     get_current_configurations()
     print("########")
-    print("Set the configurations::")
+    print("Set the configurations & start the streaming::")
     set_streaming_configurations()
     print("########")
-    print("Start the streaming::")
-    response = start_streaming()
-    print("########")
-    if response.status_code == 200:
-        print("sleep for 60 seconds")
-        time.sleep(60)
-        print("stop the streaming::")
-        stop_streaming()
