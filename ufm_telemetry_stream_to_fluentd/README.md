@@ -43,10 +43,16 @@ To deploy the plugin on UFM Appliance:
 
     > ufm plugin tfs add;
 
+- To enable & start the plugin on UFM Docker container or UFM 3, run :
+
+    
+    > docker exec ufm /opt/ufm/scripts/manage_ufm_plugins.sh add -p tfs  
+
+
 - Check that plugin is up and running with
     
     
-    > ufm plugin show;
+    > show ufm plugin;
 
 
 To deploy the plugin with UFM Enterprise (SA or HA):
@@ -62,6 +68,11 @@ To deploy the plugin with UFM Enterprise (SA or HA):
 
     
     > /opt/ufm/scripts/manage_ufm_plugins.sh add -p tfs
+    
+- To enable & start the plugin on UFM Docker container or UFM 3, run :
+
+    
+    > docker exec ufm /opt/ufm/scripts/manage_ufm_plugins.sh add -p tfs  
   
 - Check that plugin is up and running with
  
@@ -117,7 +128,7 @@ Usage
         }
     }
    ```
-
+   - Updating the configurations while the streaming is running requires restarting the plugin to load the new configurations
    - For the configuration parameters details:
       
  Running syntax
