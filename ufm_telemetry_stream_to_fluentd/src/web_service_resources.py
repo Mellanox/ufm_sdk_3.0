@@ -18,7 +18,9 @@ from flask import make_response, request
 from flask_restful import Resource
 
 from ufm_telemetry_stream_to_fluentd.src.streamer import UFMTelemetryStreaming
+from utils.json_schema_validator import validate_schema
 
+import re
 
 class InvalidConfRequest(Exception):
 
@@ -43,6 +45,10 @@ class SetStreamingConfigurations(Resource):
                 #current options meta-fields should be overwritten with the new options
                 self.conf.clear_section_items(section)
                 for section_item, value in section_items.items():
+                    if not re.match(r'(alias_|add_).*$', section_item):
+                        raise InvalidConfRequest(f'Invalid property: {section_item} in {section}; '
+                                                 f'the meta-field key should be with format '
+                                                 f'"alias_[[key]]" for aliases or "add_[[key]]" for constants pairs')
                     self.conf.set_item_value(section, section_item, value)
 
             else:
@@ -53,6 +59,7 @@ class SetStreamingConfigurations(Resource):
 
     def post(self):
         # validate the new conf json
+        validate_schema("schemas/set_conf.schema.json",request.json)
         self._set_new_conf()
         try:
             if self.conf.get_enable_streaming_flag():
