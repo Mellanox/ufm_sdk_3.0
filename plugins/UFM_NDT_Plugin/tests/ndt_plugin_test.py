@@ -280,11 +280,17 @@ def check_syslog(miswired_syslog, mufm_syslog, mndt_syslog):
     miswired_expected, mndt_expected, mufm_expected = get_expected_report_len()
 
     if miswired_diff != miswired_expected:
-        print("    - miswired syslog -- FAIL (expected: {}, actual: {})".format(2, miswired_diff))
+        print("    - test name: miswired syslog -- FAIL (expected: {}, actual: {})".format(miswired_expected, miswired_diff))
+    else:
+        print("    - test name: miswired syslog -- PASS")
     if mufm_diff != mufm_expected:
-        print("    - missing in UFM syslog -- FAIL (expected: {}, actual: {})".format(mufm_expected, mufm_diff))
+        print("    - test name: missing in UFM syslog -- FAIL (expected: {}, actual: {})".format(mufm_expected, mufm_diff))
+    else:
+        print("    - test name: missing in UFM syslog -- PASS")
     if mndt_diff != mndt_expected:
-        print("    - missing in NDT syslog -- FAIL (expected: {}, actual: {})".format(mndt_expected, mndt_diff))
+        print("    - test name: missing in NDT syslog -- FAIL (expected: {}, actual: {})".format(mndt_expected, mndt_diff))
+    else:
+        print("    - test name: missing in NDT syslog -- PASS")
 
 
 def instant_comparison():
@@ -367,7 +373,7 @@ def periodic_comparison():
     assert_equal(request_string, get_response(response), {'error': 'End time is less than current time'},
                  test_name)
 
-    datetime_end = datetime_start = get_server_datetime() + timedelta(seconds=3)
+    datetime_end = datetime_start = get_server_datetime() + timedelta(seconds=5)
     good_payload = {
         "run": {
             "startTime": datetime_start.strftime(DATETIME_FORMAT),
