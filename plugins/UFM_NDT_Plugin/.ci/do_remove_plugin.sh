@@ -16,5 +16,7 @@ expect "/(config/) # "
 send -- "show ufm plugin\r"
 expect "/(config/) # "
 send "show ufm status\r"
+expect "/(config/) # "
+send -- "ufm mode mgmt"
 sleep 20
 EOF
