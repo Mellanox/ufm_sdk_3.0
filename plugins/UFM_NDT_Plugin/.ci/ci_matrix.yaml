@@ -104,6 +104,7 @@ steps:
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
       service rsyslog restart
+      sleep 30
       export SERVER_HOST=$SERVER_HOST
       cd tests
       python3 ndt_plugin_test.py --host $SERVER_HOST
