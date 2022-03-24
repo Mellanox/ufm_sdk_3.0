@@ -24,7 +24,7 @@ b) Edit prometheus.yml in Prometheus Server
 
 c) Run Prometheus server
 
-d) Add Prometheus server as data source for Grafana
+d) Add Prometheus server as data source for Grafana and name it prometheus (case-sensitive)
 
 e) Import Infiniband_Telemetry.json to your Grafana dashboard
 

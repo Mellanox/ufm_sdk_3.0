@@ -1,0 +1,94 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Update streaming configurations",
+  "type": "object",
+  "properties": {
+    "ufm-telemetry-endpoint": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string",
+          "anyOf": [
+            {
+              "format": "hostname",
+              "err_message": "Invalid attribute [fluentd-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
+            },
+            {
+              "format": "ipv4",
+              "err_message": "Invalid attribute [fluentd-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
+            },
+            {
+              "format": "ipv6",
+              "err_message": "Invalid attribute [fluentd-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
+            }
+          ]
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "err_message": "[ufm-telemetry-endpoint - port] attribute should be an integer between 1-65535."
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    "fluentd-endpoint": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string",
+          "anyOf": [
+            {
+              "format": "hostname",
+              "err_message": "Invalid attribute [fluentd-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
+            },
+            {
+              "format": "ipv4",
+              "err_message": "Invalid attribute [fluentd-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
+            },
+            {
+              "format": "ipv6",
+              "err_message": "Invalid attribute [fluentd-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
+            }
+          ]
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "err_message": "[ufm-telemetry-endpoint - port] attribute should be an integer between 1-65535."
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "err_message": "[fluentd-endpoint - timeout] attribute should be an integer greater than 0"
+        },
+        "message_tag_name": {
+          "type": "string"
+        }
+      }
+    },
+    "streaming": {
+      "type": "object",
+      "properties": {
+        "interval": {
+          "type": "integer",
+          "minimum": 1,
+          "err_message": "[streaming - interval] attribute should be an integer greater than 0"
+        },
+        "bulk_streaming": {
+          "type": "boolean"
+        },
+        "enabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "meta-fields": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": false
+}
