@@ -84,6 +84,7 @@ FluentdD Deployment configurations
     > docker run -ti --rm --network host -v /tmp/fluentd:/fluentd/etc fluentd -c /fluentd/etc/fluentd.conf -v
 
 * We provide [fluentd.conf](conf/fluentd.conf) as a fluentd configurations sample.
+* For IPv6, please replace [fluentd host address](conf/fluentd.conf#3) (bind 0.0.0.0) with (bind ::)
 
 Usage
 --------------------------------------------------------
@@ -117,19 +118,17 @@ Usage
         }
     }
    ```
-
-   - For the configuration parameters details:
       
- Running syntax
+ Configuration Parameters Details:
 --------------------------------------------------------
 
 | Parameter | Required | Description |
 | :---: | :---: |:---: |
-| [fluentd-endpoint.host](conf/ufm-telemetry-stream-to-fluentd.cfg#L7) | True |  Hostname or IP for Fluentd endpoint
+| [fluentd-endpoint.host](conf/ufm-telemetry-stream-to-fluentd.cfg#L7) | True |  Hostname or IPv4 or IPv6 for Fluentd endpoint
 | [fluentd-endpoint.port](conf/ufm-telemetry-stream-to-fluentd.cfg#L8) | True | Port for Fluentd endpoint [this port should be the port which is configured in [fluentd.conf](conf/fluentd.conf#L4)]
 | [fluentd-endpoint.timeout](conf/ufm-telemetry-stream-to-fluentd.cfg#L9) | True | Timeout for Fluentd endpoint streaming [Default is 120 seconds]
 | [fluentd-endpoint.message_tag_name](conf/ufm-telemetry-stream-to-fluentd.cfg#L10) | False | Message Tag Name for Fluentd endpoint message [Default is the ufm_telemetry_host]
-| [ufm-telemetry-endpoint.host](conf/ufm-telemetry-stream-to-fluentd.cfg#L2) | True | Hostname or IP for The UFM Telemetry Endpoint [Default is 127.0.0.1]
+| [ufm-telemetry-endpoint.host](conf/ufm-telemetry-stream-to-fluentd.cfg#L2) | True | Hostname or IPv4 or IPv6 for The UFM Telemetry Endpoint [Default is 127.0.0.1]
 | [ufm-telemetry-endpoint.port](conf/ufm-telemetry-stream-to-fluentd.cfg#L3) | True | Port for The UFM Telemetry Endpoint [Default is 9001]
 | [ufm-telemetry-endpoint.url](conf/ufm-telemetry-stream-to-fluentd.cfg#L4) | True | URL for The UFM Telemetry Endpoint [Default is 'labels/csv/metrics']
 | [streaming.interval](conf/ufm-telemetry-stream-to-fluentd.cfg#L13) | True | Streaming interval [Default is 10 seconds]
