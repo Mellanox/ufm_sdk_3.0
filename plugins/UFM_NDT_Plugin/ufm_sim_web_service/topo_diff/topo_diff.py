@@ -220,7 +220,11 @@ def parse_ufm_port(link, port_type):
             port = port_name_split
         return device, port, ""
     except KeyError as ke:
-        error_message = "Failed to parse UFM links, wrong key: {}".format(ke)
+        error_message = "Failed to parse UFM links, wrong key: {}, error: {}".format(link, ke)
+        logging.error(error_message)
+        return "", "", error_message
+    except IndexError as ie:
+        error_message = "Failed to parse UFM links, wrong key: {}, error: {}".format(link, ie)
         logging.error(error_message)
         return "", "", error_message
 
