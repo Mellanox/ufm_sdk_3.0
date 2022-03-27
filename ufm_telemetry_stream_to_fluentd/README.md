@@ -95,7 +95,14 @@ FluentdD Deployment configurations
     > docker run -ti --rm --network host -v /tmp/fluentd:/fluentd/etc fluentd -c /fluentd/etc/fluentd.conf -v
 
 * We provide [fluentd.conf](conf/fluentd.conf) as a fluentd configurations sample.
-* For IPv6, please replace [fluentd host address](conf/fluentd.conf#3) (bind 0.0.0.0) with (bind ::)
+
+IPv6 configurations
+--------------------------------------------------------
+To run the plugin via the IPv6, please make sure that you are running the telemetry & fluentd endpoints on the IPv6 interfaces:
+* For FluentD configurations, please replace [fluentd host address](conf/fluentd.conf#3) (bind 0.0.0.0) with (bind ::)
+* For UFM telemetry configurations:
+    1. In case you are running the UFM telemetry within the UFM Enterprise, please make sure to set manual_config True under the Telemetry section in file /opt/ufm/conf/gv.cfg 
+    2. Inside launch_ibdiagnet_config.ini file, please replace plugin_env_PROMETHEUS_ENDPOINT=http://0.0.0.0:9001 with plugin_env_PROMETHEUS_ENDPOINT=http://0:0:0:0:0:0:0:0:9001
 
 Usage
 --------------------------------------------------------

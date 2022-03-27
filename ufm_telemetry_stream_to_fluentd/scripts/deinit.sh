@@ -15,7 +15,7 @@ set -eE
 # removing log file
 LOG_FILE=/opt/ufm/log/tfs.log
 if test -f "$LOG_FILE"; then
-    rm "$LOG_FILE"
+    rm -rf "$LOG_FILE"
 fi
 
 exit 0

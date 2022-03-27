@@ -1,6 +1,7 @@
 import json
 import ast
 import logging
+import os
 from jsonschema import validate, FormatChecker
 from jsonschema.exceptions import ValidationError, SchemaError
 
@@ -23,8 +24,13 @@ class ValidatorSchemaConstants(object):
     SCHEMA_MESSAGES = "messages"
     SCHEMA_ERR_FMT = "err_fmt"
 
-
+'''
+will validate the passed data according to the schema that exists under the schema_path location
+'''
 def validate_schema(schema_path, data):
+    dirname = os.path.dirname(__file__)
+    current_abs_path = os.path.abspath(os.path.join(dirname, os.pardir))
+    schema_path = os.path.join(current_abs_path, schema_path)
     data = clean_unicode(data)
     if schema_path:
         try:

@@ -20,7 +20,7 @@ from http import HTTPStatus
 from twisted.web.wsgi import WSGIResource
 from twisted.internet import reactor
 from twisted.web import server
-from utils.json_schema_validator import SchemaValidationError
+from utils.json_schema_validator import ValidationError, SchemaValidationError
 from ufm_telemetry_stream_to_fluentd.src.web_service_error_messages import \
     no_running_streaming_instance,\
     streaming_already_running
@@ -57,6 +57,8 @@ class UFMTelemetryFluentdStreamingServer:
             (StreamingAlreadyRunning,
              lambda e: (streaming_already_running, HTTPStatus.BAD_REQUEST)),
             (InvalidConfRequest,
+             lambda e: (str(e), HTTPStatus.BAD_REQUEST)),
+            (ValidationError,
              lambda e: (str(e), HTTPStatus.BAD_REQUEST)),
             (SchemaValidationError,
              lambda e: (str(e), HTTPStatus.BAD_REQUEST)),
