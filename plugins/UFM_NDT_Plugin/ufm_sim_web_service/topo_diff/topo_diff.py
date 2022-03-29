@@ -207,12 +207,17 @@ def parse_ufm_port(link, port_type):
                 port = link[port]
             else:
                 director_name_split = dev_name_split[1].split('/')
-                director_name_split[0] = director_name_split[0].split('L')[1]
-                director_name_split[1] = director_name_split[1].split('U')[1]
-                if int(director_name_split[0]) < 10:
-                    director_name_split[0] = "0" + director_name_split[0]
-                port = "Blade " + director_name_split[0] \
-                       + "_Port " + director_name_split[1] + "/" + director_name_split[2]
+                if len(director_name_split) == 3:
+                    director_name_split[0] = director_name_split[0].split('L')[1]
+                    director_name_split[1] = director_name_split[1].split('U')[1]
+                    if int(director_name_split[0]) < 10:
+                        director_name_split[0] = "0" + director_name_split[0]
+                    port = "Blade " + director_name_split[0] \
+                        + "_Port " + director_name_split[1] + "/" + director_name_split[2]
+                else:
+                    error_message = "Failed to parse UFM link node: {}".format(link[node_description])
+                    logging.error(error_message)
+                    return "", "", error_message
         else:
             port_name_split = dev_name_split[0]
             dev_name_split = link[node_description].split(' ')
@@ -220,11 +225,7 @@ def parse_ufm_port(link, port_type):
             port = port_name_split
         return device, port, ""
     except KeyError as ke:
-        error_message = "Failed to parse UFM links, wrong key: {}, error: {}".format(link, ke)
-        logging.error(error_message)
-        return "", "", error_message
-    except IndexError as ie:
-        error_message = "Failed to parse UFM links, wrong key: {}, error: {}".format(link, ie)
+        error_message = "Failed to parse UFM link node: {}".format(link[node_description])
         logging.error(error_message)
         return "", "", error_message
 
