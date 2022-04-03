@@ -19,7 +19,7 @@ a) Configure Prometheus endpoint with [Prometheus Label Generation](https://docs
 
 b) Edit prometheus.yml in Prometheus Server
 
-    # metrics_path : 'labels/metrics'
+    # metrics_path : 'labels/enterprise'
     # targets: ["{UFM enterprise IP}:{Prometheus endpoint port, usually 9001}"]
 
 c) Run Prometheus server
