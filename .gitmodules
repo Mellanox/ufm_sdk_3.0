@@ -1,0 +1,4 @@
+[submodule "utils/fluentd"]
+	path = utils/fluentd
+	url = git@github.com:Mellanox-lab/fluent-logger-python.git
+	branch = master

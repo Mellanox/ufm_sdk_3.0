@@ -59,7 +59,7 @@ class SetStreamingConfigurations(Resource):
 
     def post(self):
         # validate the new conf json
-        validate_schema("schemas/set_conf.schema.json",request.json)
+        validate_schema("ufm_telemetry_stream_to_fluentd/src/schemas/set_conf.schema.json",request.json)
         self._set_new_conf()
         try:
             if self.conf.get_enable_streaming_flag():

@@ -17,13 +17,16 @@
 """
 import os
 import sys
+
+from utils.utils import Utils
+
 sys.path.append(os.getcwd())
 
 import requests
 import logging
 import time
 import datetime
-from fluent import asyncsender as asycsender
+from utils.fluentd.fluent import asyncsender as asycsender
 
 
 from utils.args_parser import ArgsParser
@@ -198,14 +201,15 @@ class UFMTelemetryStreaming:
         self.fluentd_msg_tag = self.config_parser.get_fluentd_msg_tag(self.ufm_telemetry_host)
 
     def _get_metrics(self):
-        url = f'http://{self.ufm_telemetry_host}:{self.ufm_telemetry_port}/{self.ufm_telemetry_url}'
+        _host = f'[{self.ufm_telemetry_host}]' if Utils.is_ipv6_address(self.ufm_telemetry_host) else self.ufm_telemetry_host
+        url = f'http://{_host}:{self.ufm_telemetry_port}/{self.ufm_telemetry_url}'
         logging.info(f'Send UFM Telemetry Endpoint Request, Method: GET, URL: {url}')
         try:
             response = requests.get(url)
             return response.text
         except Exception as e:
             logging.error(e)
-            return response
+            return None
 
     def _parse_telemetry_csv_metrics_to_json(self, data, line_separator = "\n", attrs_sepatator = ","):
         rows = data.split(line_separator)
@@ -251,12 +255,15 @@ class UFMTelemetryStreaming:
 
     def stream_data(self):
         telemetry_data = self._get_metrics()
-        data_to_stream = self._parse_telemetry_csv_metrics_to_json(telemetry_data)
-        if self.bulk_streaming_flag:
-            self._stream_data_to_fluentd(data_to_stream)
+        if telemetry_data:
+            data_to_stream = self._parse_telemetry_csv_metrics_to_json(telemetry_data)
+            if self.bulk_streaming_flag:
+                self._stream_data_to_fluentd(data_to_stream)
+            else:
+                for row in data_to_stream:
+                    self._stream_data_to_fluentd(row)
         else:
-            for row in data_to_stream:
-                self._stream_data_to_fluentd(row)
+            logging.error("Failed to get the telemetry data metrics")
 
 if __name__ == "__main__":
     # init app args

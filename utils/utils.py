@@ -15,6 +15,7 @@
 """
 import logging
 import json
+import ipaddress
 from datetime import datetime
 
 
@@ -47,3 +48,15 @@ class Utils:
         file_name = f'{dateTimeObj.year}_{dateTimeObj.month}_{dateTimeObj.day}_' \
                            f'{dateTimeObj.hour}_{dateTimeObj.minute}_{dateTimeObj.second}'
         return file_name
+
+    @staticmethod
+    def is_ipv6_address(ip_address):
+        """
+        check if IPv6 address and if yes - return True otherwise return False
+        @param ip_address:
+        """
+        try:
+            ipaddress.IPv6Address(str(ip_address))
+        except:
+            return False
+        return True
