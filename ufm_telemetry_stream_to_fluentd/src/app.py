@@ -18,16 +18,20 @@ import sys
 sys.path.append(os.getcwd())
 
 import logging
-
+from twisted.web import server
 from utils.args_parser import ArgsParser
 from utils.logger import Logger
 
-from ufm_telemetry_stream_to_fluentd.src.web_service import UFMTelemetryFluentdStreamingServer
+from ufm_telemetry_stream_to_fluentd.src.web_service import UFMTelemetryFluentdStreamingAPI
 from ufm_telemetry_stream_to_fluentd.src.streamer import \
     UFMTelemetryStreaming,\
     UFMTelemetryStreamingConfigParser,\
     UFMTelemetryConstants
 from ufm_telemetry_stream_to_fluentd.src.streaming_scheduler import StreamingScheduler
+
+from twisted.web.wsgi import WSGIResource
+from twisted.internet import reactor
+
 
 def _init_logs(config_parser):
     # init logs configs
@@ -37,6 +41,15 @@ def _init_logs(config_parser):
     logs_file_name = config_parser.get_logs_file_name(default_file_name=default_file_name)
     logs_level = config_parser.get_logs_level()
     Logger.init_logs_config(logs_file_name, logs_level)
+
+
+def run_api(app):
+    port_number = 8981
+    # for debugging
+    #self.app.run(port=port_number, debug=True)
+    resource = WSGIResource(reactor, reactor.getThreadPool(), app)
+    reactor.listenTCP(port_number, server.Site(resource,logPath=None))
+    reactor.run()
 
 if __name__ == '__main__':
 
@@ -59,5 +72,5 @@ if __name__ == '__main__':
     except ValueError as ex:
         logging.warning("Streaming was not started, need to enable the streaming & set the required configurations")
 
-    server = UFMTelemetryFluentdStreamingServer(config_parser)
-    server.run()
+    app = UFMTelemetryFluentdStreamingAPI(config_parser)
+    run_api(app)

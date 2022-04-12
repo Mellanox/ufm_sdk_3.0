@@ -16,6 +16,7 @@
 import logging
 import json
 import ipaddress
+import os
 from datetime import datetime
 
 
@@ -60,3 +61,9 @@ class Utils:
         except:
             return False
         return True
+
+    @staticmethod
+    def get_absolute_path(path):
+        dirname = os.path.dirname(__file__)
+        current_abs_path = os.path.abspath(os.path.join(dirname, os.pardir))
+        return os.path.join(current_abs_path, path)

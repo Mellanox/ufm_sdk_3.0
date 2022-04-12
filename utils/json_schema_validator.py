@@ -4,7 +4,7 @@ import logging
 import os
 from jsonschema import validate, FormatChecker
 from jsonschema.exceptions import ValidationError, SchemaError
-
+from .utils import Utils
 
 
 class BaseSchemaValidationError(Exception):
@@ -28,9 +28,7 @@ class ValidatorSchemaConstants(object):
 will validate the passed data according to the schema that exists under the schema_path location
 '''
 def validate_schema(schema_path, data):
-    dirname = os.path.dirname(__file__)
-    current_abs_path = os.path.abspath(os.path.join(dirname, os.pardir))
-    schema_path = os.path.join(current_abs_path, schema_path)
+    schema_path = Utils.get_absolute_path(schema_path)
     data = clean_unicode(data)
     if schema_path:
         try:
