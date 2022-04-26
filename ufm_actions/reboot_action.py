@@ -1,0 +1,55 @@
+import os
+from ufm_actions.ufm_action import UfmAction,ActionConstants
+
+try:
+    from utils.utils import Utils
+    from utils.args_parser import ArgsParser
+    from utils.config_parser import ConfigParser
+    from utils.logger import Logger, LOG_LEVELS
+except ModuleNotFoundError as e:
+    print("Error occurred while importing python modules, "
+          "Please make sure that you exported your repository to PYTHONPATH by running: "
+          f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.getcwd())}"')
+
+
+
+class RebootActionConstants:
+    args_list = [
+        {
+            "name": f'--{ActionConstants.API_OBJECT_IDS}',
+            "help": "comma separated devices GUIDs if",
+        },
+        {
+            "name": f'--{ActionConstants.UFM_API_DESCRIPTION}',
+            "help": "action description",
+        }
+    ]
+
+# if run as main module
+if __name__ == "__main__":
+    try:
+        # init app args
+        args = ArgsParser.parse_args("UFM Reboot", RebootActionConstants.args_list)
+        args_dict = args.__dict__
+
+        # init app config parser & load config files
+        config_parser = ConfigParser(args)
+
+        # reboot
+        # todo use constant
+        payload={
+            "action":'reboot',
+            "object_type": "System",
+            "identifier": "id",
+            "description": config_parser.get_config_value(args_dict.get(ActionConstants.UFM_API_DESCRIPTION),None,None,''),
+        }
+        action = UfmAction(payload,config_parser.get_config_value(args_dict.get(ActionConstants.API_OBJECT_IDS),None,None,''),
+            host=config_parser.get_ufm_host(),client_token=config_parser.get_ufm_access_token(),
+            username = config_parser.get_ufm_username(), password = config_parser.get_ufm_password(),
+            ws_protocol=config_parser.get_ufm_protocol())
+
+        # run reboot action
+        action.run_action()
+
+    except Exception as global_ex:
+        print(global_ex)
