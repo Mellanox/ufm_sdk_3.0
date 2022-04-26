@@ -19,6 +19,9 @@ class ActionConstants:
     UFM_API_ACTIONS = 'actions'
     UFM_API_DESCRIPTION = 'description'
     UFM_API_ACTION = 'action'
+    UFM_API_OBJECT_TYPE = "object_type"
+    UFM_API_IDENTIFIER = "identifier"
+    UFM_API_PARAMS = "params"
     API_GUID = "guid"
     API_OBJECT_IDS = "object_ids"
     API_CAPABILITIES = "capabilities"
@@ -26,6 +29,9 @@ class ActionConstants:
     API_JOB_COMPLETED_ERRORS = "Completed With Errors"
     API_JOB_COMPLETED_WARNINGS = "Completed With Warnings"
     API_JOB_RUNNING = "Running"
+    API_JOB_STATUS = "Status"
+    API_JOB_SUMMARY = "Summary"
+    API_JOB_ID = "ID"
 
 
 class UfmAction(object):
@@ -45,9 +51,9 @@ class UfmAction(object):
                 sys_with_cap.append(sys[ActionConstants.API_GUID])
 
         if not sys_with_cap or not len(sys_with_cap):
-            raise ValueError(F"Error systems {self.object_ids} don't support reboot {self.action}")
+            raise ValueError(F"systems {self.object_ids} don't support reboot {self.action}")
         if len(systems) != len(sys_with_cap):
-            print(F'{self.action} action is supported only on {sys_with_cap}')
+            Logger.log_message(F'{self.action} action is supported only on {sys_with_cap}')
         return sys_with_cap
 
     def send_action_request(self,sys_with_cap):
@@ -57,11 +63,10 @@ class UfmAction(object):
 
         if response and response.status_code == HTTPStatus.ACCEPTED:
             Logger.log_message(F"{self.action} action is running on {sys_with_cap}!")
-            job_url = re.search(r'\b/jobs/[1-9]*\b', response.text).group(0)
+            job_url = re.search(r'\b/jobs/[0-9]*\b', response.text).group(0)
             self.job_polling(job_url)
         else:
-            #todo print the error
-            Logger.log_message(f'Action completed with errors', LOG_LEVELS.ERROR)
+            Logger.log_message(response.text, LOG_LEVELS.ERROR)
 
     def job_polling(self,job_url):
         try:
@@ -73,16 +78,25 @@ class UfmAction(object):
                 if job_response.raise_for_status():
                     break
                 job_response = job_response.json()
-                job_status = job_response.get('Status')
+                job_status = job_response[ActionConstants.API_JOB_STATUS]
                 job_is_completed = job_status != ActionConstants.API_JOB_RUNNING
             if job_status == ActionConstants.API_JOB_COMPLETED:
-                print(f"{self.action}action completed successfully!")
-            elif job_status == ActionConstants.API_JOB_COMPLETED_ERRORS or job_status == ActionConstants.API_JOB_COMPLETED_WARNINGS:
-                print(f"job failed, {job_response.get('Summary')}")
+                Logger.log_message(f"{self.action} action completed successfully!")
 
+            elif job_status == ActionConstants.API_JOB_COMPLETED_ERRORS or job_status == ActionConstants.API_JOB_COMPLETED_WARNINGS:
+                self.print_sub_jobs_summary(job_url.split('/').pop())
 
         except Exception as e:
             logging.error(f'Error in job polling: {e}')
+
+    def print_sub_jobs_summary(self, job_id):
+        sub_job_response = self.ufm_rest_client.send_request('jobs?parent_id='+job_id)
+        if sub_job_response and sub_job_response.status_code == HTTPStatus.OK:
+            for sub_job in sub_job_response.json():
+                Logger.log_message(f"{sub_job[ActionConstants.API_JOB_ID]}: {sub_job[ActionConstants.API_JOB_SUMMARY]}",
+                                   LOG_LEVELS.ERROR)
+        else:
+            Logger.log_message(sub_job_response.text, LOG_LEVELS.ERROR)
 
     def run_action(self):
         try:
@@ -92,7 +106,7 @@ class UfmAction(object):
                 sys_with_cap = self.get_supported_systems(response.json())
                 self.send_action_request(sys_with_cap)
             else:
-                Logger.log_message(response, LOG_LEVELS.ERROR)
+                Logger.log_message(response.text, LOG_LEVELS.ERROR)
 
         except Exception as ex:
-            print(ex)
+            logging.error(ex)

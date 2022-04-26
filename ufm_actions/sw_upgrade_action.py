@@ -1,5 +1,6 @@
-import os
-from ufm_actions.ufm_action import UfmAction,ActionConstants
+import sys
+import logging
+from ufm_actions.ufm_action import UfmAction, ActionConstants
 
 try:
     from utils.utils import Utils
@@ -20,11 +21,11 @@ class SwUpgradeActionConstants:
     UFM_API_IMAGE = "image"
     UFM_API_PROTOCOL = "protocol"
     UFM_API_SERVER = "server"
-    # todo help message should contian more detailes
+    ACTION = 'sw_upgrade'
     args_list = [
         {
             "name": f'--{ActionConstants.API_OBJECT_IDS}',
-            "help": "comma separated devices GUIDs if",
+            "help": "comma separated devices GUIDs",
         },
         {
             "name": f'--{ActionConstants.UFM_API_DESCRIPTION}',
@@ -40,7 +41,7 @@ class SwUpgradeActionConstants:
         },
         {
             "name": f'--{UFM_API_PATH}',
-            "help": "path",
+            "help": "image path",
         },
         {
             "name": f'--{UFM_API_IMAGE}',
@@ -48,55 +49,98 @@ class SwUpgradeActionConstants:
         },
         {
             "name": f'--{UFM_API_PROTOCOL}',
-            "help": "protocol",
+            "help": "protocol FTP or SCP",
         },
         {
             "name": f'--{UFM_API_SERVER}',
-            "help": "server",
+            "help": "IPv4 or IPv6",
         }
 
     ]
+
+class UfmSwUpgradeConfigParser(ConfigParser):
+
+    def __init__(self,args):
+        super().__init__(args)
+        self.args_dict = self.args.__dict__
+
+    def get_object_ids(self):
+        return self.get_config_value(self.args_dict.get(ActionConstants.API_OBJECT_IDS),
+                                     None, None, '')
+
+    def get_description(self):
+        return self.get_config_value(self.args_dict.get(ActionConstants.UFM_API_DESCRIPTION),
+                                     None, None, '')
+
+    def get_user_name(self):
+        return self.get_config_value(self.args_dict.get(SwUpgradeActionConstants.UFM_API_USER_NAME),
+                                     None, None, False)
+
+    def get_password(self):
+        return self.get_config_value(self.args_dict.get(SwUpgradeActionConstants.UFM_API_PASSWORD),
+                                     None, None)
+
+    def get_path(self):
+        return self.get_config_value(self.args_dict.get(SwUpgradeActionConstants.UFM_API_PATH),
+                                  None, None)
+
+    def get_image(self):
+        return self.get_config_value(self.args_dict.get(SwUpgradeActionConstants.UFM_API_IMAGE),
+                                  None, None)
+
+    def get_protocol(self):
+        return self.get_config_value(self.args_dict.get(SwUpgradeActionConstants.UFM_API_PROTOCOL),
+                                  None, None)
+    def get_server(self):
+        return self.get_config_value(self.args_dict.get(SwUpgradeActionConstants.UFM_API_SERVER),
+                                  None, None)
+
 
 
 # if run as main module
 if __name__ == "__main__":
     try:
+        payload = None
         # init app args
         args = ArgsParser.parse_args("UFM Reboot", SwUpgradeActionConstants.args_list)
         args_dict = args.__dict__
 
         # init app config parser & load config files
-        config_parser = ConfigParser(args)
+        config_parser = UfmSwUpgradeConfigParser(args)
 
         # sw upgrade
-        # todo use constant
-        payload={
-            "action":'sw_upgrade',
-            "object_type": "System",
-            "identifier": "id",
-            "description": config_parser.get_config_value(args_dict.get(ActionConstants.UFM_API_DESCRIPTION), None, None,''),
-            "params":{
-                "username": config_parser.get_config_value(args_dict.get(SwUpgradeActionConstants.UFM_API_USER_NAME),
-                                                           None, None),
-                "password": config_parser.get_config_value(args_dict.get(SwUpgradeActionConstants.UFM_API_PASSWORD),
-                                                           None, None),
-                "path": config_parser.get_config_value(args_dict.get(SwUpgradeActionConstants.UFM_API_PATH), None, None),
-                "image": config_parser.get_config_value(args_dict.get(SwUpgradeActionConstants.UFM_API_IMAGE),
-                                                        None, None),
-                "protocol": config_parser.get_config_value(args_dict.get(SwUpgradeActionConstants.UFM_API_PROTOCOL),
-                                                           None, None),
-                "server": config_parser.get_config_value(args_dict.get(SwUpgradeActionConstants.UFM_API_SERVER),
-                                                         None, None),
+        try:
+            payload={
+                ActionConstants.UFM_API_ACTION: SwUpgradeActionConstants.ACTION,
+                ActionConstants.UFM_API_OBJECT_TYPE: "System",
+                ActionConstants.UFM_API_IDENTIFIER: "id",
+                ActionConstants.UFM_API_DESCRIPTION: config_parser.get_description(),
+                ActionConstants.UFM_API_PARAMS:{
+                    SwUpgradeActionConstants.UFM_API_USER_NAME: config_parser.get_ufm_username(),
+                    SwUpgradeActionConstants.UFM_API_PASSWORD: config_parser.get_password(),
+                    SwUpgradeActionConstants.UFM_API_PATH: config_parser.get_path(),
+                    SwUpgradeActionConstants.UFM_API_IMAGE: config_parser.get_image(),
+                    SwUpgradeActionConstants.UFM_API_PROTOCOL: config_parser.get_protocol(),
+                    SwUpgradeActionConstants.UFM_API_SERVER: config_parser.get_server(),
+                }
             }
-        }
-        action = UfmAction(payload,config_parser.get_config_value(args_dict.get(ActionConstants.API_OBJECT_IDS),
-                                                                  None, None, ''),
-            host=config_parser.get_ufm_host(),client_token=config_parser.get_ufm_access_token(),
-            username = config_parser.get_ufm_username(), password = config_parser.get_ufm_password(),
-            ws_protocol=config_parser.get_ufm_protocol())
+
+        except ValueError as e:
+            Logger.log_missing_args_message(SwUpgradeActionConstants.ACTION,
+                                            SwUpgradeActionConstants.UFM_API_USER_NAME,
+                                            SwUpgradeActionConstants.UFM_API_PASSWORD,
+                                            SwUpgradeActionConstants.UFM_API_PATH,
+                                            SwUpgradeActionConstants.UFM_API_IMAGE,
+                                            SwUpgradeActionConstants.UFM_API_PROTOCOL,
+                                            SwUpgradeActionConstants.UFM_API_SERVER)
+            sys.exit(1)
+
+        action = UfmAction(payload,config_parser.get_object_ids(),host=config_parser.get_ufm_host(),
+                           client_token=config_parser.get_ufm_access_token(),username = config_parser.get_ufm_username(),
+                           password = config_parser.get_ufm_password(),ws_protocol=config_parser.get_ufm_protocol())
 
         # run reboot action
         action.run_action()
 
     except Exception as global_ex:
-        print(global_ex)
+        logging.error(global_ex)
