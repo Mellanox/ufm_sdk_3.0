@@ -2,6 +2,8 @@ import logging
 import time
 from http import HTTPStatus
 import re
+import sys
+import threading
 
 try:
     from utils.utils import Utils
@@ -40,6 +42,7 @@ class UfmDevicesAction(object):
         self.action = payload["action"]
         self.object_ids = object_ids
         self.payload = payload
+        self.action_inprogress = False
         # init ufm rest client
         self.ufm_rest_client = UfmRestClient(host=host,
                                         client_token=client_token, username=username, password=password,ws_protocol=ws_protocol)
@@ -51,7 +54,7 @@ class UfmDevicesAction(object):
                 sys_with_cap.append(sys[ActionConstants.API_GUID])
 
         if not sys_with_cap or not len(sys_with_cap):
-            raise ValueError(F"systems {self.object_ids} don't support reboot {self.action}")
+            raise ValueError(F"systems {self.object_ids} don't support {self.action}")
         if len(systems) != len(sys_with_cap):
             Logger.log_message(F'{self.action} action is supported only on {sys_with_cap}')
         return sys_with_cap
@@ -69,7 +72,9 @@ class UfmDevicesAction(object):
             Logger.log_message(response.text, LOG_LEVELS.ERROR)
 
     def job_polling(self,job_url):
+
         try:
+            t = self.create_loading_thread()
             job_is_completed = False
             job_status = None
             while not job_is_completed:
@@ -80,6 +85,9 @@ class UfmDevicesAction(object):
                 job_response = job_response.json()
                 job_status = job_response[ActionConstants.API_JOB_STATUS]
                 job_is_completed = job_status != ActionConstants.API_JOB_RUNNING
+            self.action_inprogress = False
+            # move to new line after to avoid prining load icon and the message in the same line
+            print(f" ", end='\n')
             if job_status == ActionConstants.API_JOB_COMPLETED:
                 Logger.log_message(f"{self.action} action completed successfully!")
 
@@ -87,7 +95,25 @@ class UfmDevicesAction(object):
                 self.print_sub_jobs_summary(job_url.split('/').pop())
 
         except Exception as e:
+            self.action_inprogress = False
             logging.error(f'Error in job polling: {e}')
+
+    def create_loading_thread(self):
+        self.action_inprogress = True
+        t = threading.Thread(target=self.print_loading_message)
+        t.daemon = True
+        t.start()
+        return t
+
+    def print_loading_message(self):
+        icon_list = [' | ',' / ',' \\ ']
+        while self.action_inprogress:
+            for icon in icon_list:
+                time.sleep(.5)
+                print(f"\r{' '}\r", end='')
+                print(icon, end='')
+                sys.stdout.flush()
+            sys.stdout.flush()
 
     def print_sub_jobs_summary(self, job_id):
         sub_job_response = self.ufm_rest_client.send_request('jobs?parent_id='+job_id)
