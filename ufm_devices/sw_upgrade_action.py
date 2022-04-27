@@ -25,7 +25,7 @@ class SwUpgradeActionConstants:
     args_list = [
         {
             "name": f'--{ActionConstants.API_OBJECT_IDS}',
-            "help": "comma separated devices GUIDs",
+            "help": "comma separated GUIDs if this arg was not provided the action will be run on all devices in UFM fabric",
         },
         {
             "name": f'--{ActionConstants.UFM_API_DESCRIPTION}',
