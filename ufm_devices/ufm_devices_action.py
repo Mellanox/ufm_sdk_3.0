@@ -34,7 +34,7 @@ class ActionConstants:
     API_JOB_ID = "ID"
 
 
-class UfmAction(object):
+class UfmDevicesAction(object):
 
     def __init__(self,payload,object_ids=None, host=None,client_token=None, username=None, password=None,ws_protocol=None):
         self.action = payload["action"]

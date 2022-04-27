@@ -1,6 +1,6 @@
 import sys
 import logging
-from ufm_actions.ufm_action import UfmAction, ActionConstants
+from ufm_devices.ufm_devices_action import UfmDevicesAction, ActionConstants
 
 try:
     from utils.utils import Utils
@@ -58,42 +58,63 @@ class SwUpgradeActionConstants:
 
     ]
 
+
 class UfmSwUpgradeConfigParser(ConfigParser):
+    config_file = "ufm_devices.cfg"
+
+    UFM_SW_UPGRADE_SECTION= "ufm-devices-sw-upgrade"
+    UFM_SW_UPGRADE_SECTION_OBJECT_IDS= "object_ids"
+    UFM_SW_UPGRADE_SECTION_OBJECT_TYPE= "object_type"
+    UFM_SW_UPGRADE_SECTION_ID= "identifier"
+    UFM_SW_UPGRADE_SECTION_DESCRIPTION= "description"
+    UFM_SW_UPGRADE_SECTION_USER_NAME= "username"
+    UFM_SW_UPGRADE_SECTION_PASSWORD= "password"
+    UFM_SW_UPGRADE_SECTION_PATH= "path"
+    UFM_SW_UPGRADE_SECTION_IMAGE= "image"
+    UFM_SW_UPGRADE_SECTION_PROTOCOL= "protocol"
+    UFM_SW_UPGRADE_SECTION_SERVER= "server"
 
     def __init__(self,args):
         super().__init__(args)
         self.args_dict = self.args.__dict__
+        self.sdk_config.read(self.config_file)
 
+    def get_object_type(self):
+        return self.get_config_value(self.args_dict.get(ActionConstants.UFM_API_OBJECT_TYPE),
+                                     self.UFM_SW_UPGRADE_SECTION, self.UFM_SW_UPGRADE_SECTION_OBJECT_TYPE, 'System')
+    def get_identifier(self):
+        return self.get_config_value(self.args_dict.get(ActionConstants.UFM_API_IDENTIFIER),
+                                     self.UFM_SW_UPGRADE_SECTION, self.UFM_SW_UPGRADE_SECTION_ID, 'id')
     def get_object_ids(self):
         return self.get_config_value(self.args_dict.get(ActionConstants.API_OBJECT_IDS),
-                                     None, None, '')
+                                     self.UFM_SW_UPGRADE_SECTION, self.UFM_SW_UPGRADE_SECTION_OBJECT_IDS, '')
 
     def get_description(self):
         return self.get_config_value(self.args_dict.get(ActionConstants.UFM_API_DESCRIPTION),
-                                     None, None, '')
+                                     self.UFM_SW_UPGRADE_SECTION, self.UFM_SW_UPGRADE_SECTION_DESCRIPTION, '')
 
     def get_user_name(self):
         return self.get_config_value(self.args_dict.get(SwUpgradeActionConstants.UFM_API_USER_NAME),
-                                     None, None, False)
+                                     self.UFM_SW_UPGRADE_SECTION, self.UFM_SW_UPGRADE_SECTION_USER_NAME)
 
     def get_password(self):
         return self.get_config_value(self.args_dict.get(SwUpgradeActionConstants.UFM_API_PASSWORD),
-                                     None, None)
+                                     self.UFM_SW_UPGRADE_SECTION, self.UFM_SW_UPGRADE_SECTION_PASSWORD)
 
     def get_path(self):
         return self.get_config_value(self.args_dict.get(SwUpgradeActionConstants.UFM_API_PATH),
-                                  None, None)
+                                     self.UFM_SW_UPGRADE_SECTION, self.UFM_SW_UPGRADE_SECTION_PATH)
 
     def get_image(self):
         return self.get_config_value(self.args_dict.get(SwUpgradeActionConstants.UFM_API_IMAGE),
-                                  None, None)
+                                     self.UFM_SW_UPGRADE_SECTION, self.UFM_SW_UPGRADE_SECTION_IMAGE)
 
     def get_protocol(self):
         return self.get_config_value(self.args_dict.get(SwUpgradeActionConstants.UFM_API_PROTOCOL),
-                                  None, None)
+                                     self.UFM_SW_UPGRADE_SECTION, self.UFM_SW_UPGRADE_SECTION_PROTOCOL)
     def get_server(self):
         return self.get_config_value(self.args_dict.get(SwUpgradeActionConstants.UFM_API_SERVER),
-                                  None, None)
+                                     self.UFM_SW_UPGRADE_SECTION, self.UFM_SW_UPGRADE_SECTION_SERVER)
 
 
 
@@ -112,8 +133,8 @@ if __name__ == "__main__":
         try:
             payload={
                 ActionConstants.UFM_API_ACTION: SwUpgradeActionConstants.ACTION,
-                ActionConstants.UFM_API_OBJECT_TYPE: "System",
-                ActionConstants.UFM_API_IDENTIFIER: "id",
+                ActionConstants.UFM_API_OBJECT_TYPE: config_parser.get_object_type(),
+                ActionConstants.UFM_API_IDENTIFIER: config_parser.get_identifier(),
                 ActionConstants.UFM_API_DESCRIPTION: config_parser.get_description(),
                 ActionConstants.UFM_API_PARAMS:{
                     SwUpgradeActionConstants.UFM_API_USER_NAME: config_parser.get_ufm_username(),
@@ -135,7 +156,7 @@ if __name__ == "__main__":
                                             SwUpgradeActionConstants.UFM_API_SERVER)
             sys.exit(1)
 
-        action = UfmAction(payload,config_parser.get_object_ids(),host=config_parser.get_ufm_host(),
+        action = UfmDevicesAction(payload,config_parser.get_object_ids(),host=config_parser.get_ufm_host(),
                            client_token=config_parser.get_ufm_access_token(),username = config_parser.get_ufm_username(),
                            password = config_parser.get_ufm_password(),ws_protocol=config_parser.get_ufm_protocol())
 
