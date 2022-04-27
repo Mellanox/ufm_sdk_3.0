@@ -10,6 +10,7 @@ try:
     from utils.utils import Utils
     from utils.ufm_rest_client import UfmRestClient, HTTPMethods
     from utils.logger import Logger, LOG_LEVELS
+    from utils.job_polling import JobPolling, JobsConstants
 except ModuleNotFoundError as e:
     print("Error occurred while importing python modules, "
           "Please make sure that you exported your repository to PYTHONPATH by running: "
@@ -28,13 +29,6 @@ class ActionConstants:
     API_GUID = "guid"
     API_OBJECT_IDS = "object_ids"
     API_CAPABILITIES = "capabilities"
-    API_JOB_COMPLETED = "Completed"
-    API_JOB_COMPLETED_ERRORS = "Completed With Errors"
-    API_JOB_COMPLETED_WARNINGS = "Completed With Warnings"
-    API_JOB_RUNNING = "Running"
-    API_JOB_STATUS = "Status"
-    API_JOB_SUMMARY = "Summary"
-    API_JOB_ID = "ID"
 
 
 class UfmDevicesAction(object):
@@ -47,6 +41,9 @@ class UfmDevicesAction(object):
         # init ufm rest client
         self.ufm_rest_client = UfmRestClient(host=host,
                                         client_token=client_token, username=username, password=password,ws_protocol=ws_protocol)
+        #init job_polling
+        self.job_polling = JobPolling(self.ufm_rest_client, self.action)
+
 
     def get_supported_systems(self,systems):
         sys_with_cap = []
@@ -67,63 +64,11 @@ class UfmDevicesAction(object):
 
         if response and response.status_code == HTTPStatus.ACCEPTED:
             Logger.log_message(F"{self.action} action is running on {sys_with_cap}!")
-            job_url = re.search(r'\b/jobs/[0-9]*\b', response.text).group(0)
-            self.job_polling(job_url)
+            job_id = self.job_polling.extract_job_id(response.text)
+            self.job_polling.start_polling(job_id)
         else:
             Logger.log_message(response.text, LOG_LEVELS.ERROR)
 
-    def job_polling(self,job_url):
-
-        try:
-            t = self.create_loading_thread()
-            job_is_completed = False
-            job_status = None
-            while not job_is_completed:
-                time.sleep(3)
-                job_response = self.ufm_rest_client.send_request(job_url)
-                if job_response.raise_for_status():
-                    break
-                job_response = job_response.json()
-                job_status = job_response[ActionConstants.API_JOB_STATUS]
-                job_is_completed = job_status != ActionConstants.API_JOB_RUNNING
-            self.action_inprogress = False
-            # move to new line after to avoid prining load icon and the message in the same line
-            print(f" ", end='\n')
-            if job_status == ActionConstants.API_JOB_COMPLETED:
-                Logger.log_message(f"{self.action} action completed successfully!")
-
-            elif job_status == ActionConstants.API_JOB_COMPLETED_ERRORS or job_status == ActionConstants.API_JOB_COMPLETED_WARNINGS:
-                self.print_sub_jobs_summary(job_url.split('/').pop())
-
-        except Exception as e:
-            self.action_inprogress = False
-            logging.error(f'Error in job polling: {e}')
-
-    def create_loading_thread(self):
-        self.action_inprogress = True
-        t = threading.Thread(target=self.print_loading_message)
-        t.daemon = True
-        t.start()
-        return t
-
-    def print_loading_message(self):
-        icon_list = [' | ',' / ',' \\ ']
-        while self.action_inprogress:
-            for icon in icon_list:
-                time.sleep(.5)
-                print(f"\r{' '}\r", end='')
-                print(icon, end='')
-                sys.stdout.flush()
-            sys.stdout.flush()
-
-    def print_sub_jobs_summary(self, job_id):
-        sub_job_response = self.ufm_rest_client.send_request('jobs?parent_id='+job_id)
-        if sub_job_response and sub_job_response.status_code == HTTPStatus.OK:
-            for sub_job in sub_job_response.json():
-                Logger.log_message(f"{sub_job[ActionConstants.API_JOB_ID]}: {sub_job[ActionConstants.API_JOB_SUMMARY]}",
-                                   LOG_LEVELS.ERROR)
-        else:
-            Logger.log_message(sub_job_response.text, LOG_LEVELS.ERROR)
 
     def run_action(self):
         try:
