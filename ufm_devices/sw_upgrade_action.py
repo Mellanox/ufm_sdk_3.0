@@ -1,5 +1,6 @@
 import sys
 import logging
+import os
 from ufm_devices.ufm_devices_action import UfmDevicesAction, ActionConstants
 
 try:
