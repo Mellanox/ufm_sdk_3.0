@@ -17,7 +17,7 @@ Running using command line arguments :
 --------------------------------------------------------
 ### 1. reboot devices :
 
-    pyhton3 reboot_action.py --object_ids=guid1,guid2.. --description=optional_action_description --object_type=object_type --identifier=identifier --ufm_host=ufm_host --ufm_protocol=ufm_protocol --ufm_username=ufm_username --ufm_password=ufm_password
+    python3 reboot_action.py --object_ids=guid1,guid2.. --description=optional_action_description --object_type=object_type --identifier=identifier --ufm_host=ufm_host --ufm_protocol=ufm_protocol --ufm_username=ufm_username --ufm_password=ufm_password
 
 ### 2. sw upgrade:
 
@@ -39,7 +39,7 @@ Running using configuration file:
   - Run
 
 
-    pyhton3 reboot_action.py or python3 sw_upgrade_action.py
+    python3 reboot_action.py or python3 sw_upgrade_action.py
 
 
  Running syntax
