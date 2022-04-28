@@ -17,11 +17,11 @@ Running using command line arguments :
 --------------------------------------------------------
 ### 1. reboot devices :
 
-    pyhton3 reboot_action.py --object_ids=guid1,guid2.. --description=optional_action_description
+    pyhton3 reboot_action.py --object_ids=guid1,guid2.. --description=optional_action_description --object_type=object_type --identifier=identifier --ufm_host=ufm_host --ufm_protocol=ufm_protocol --ufm_username=ufm_username --ufm_password=ufm_password
 
 ### 2. sw upgrade:
 
-    python3 sw_upgrade_action.py --object_ids=guid1,guid2..  --username=username --password=password --path=path --image=image --protocol=scp/ftp --server=server_ip --description=optional_action_description
+    python3 sw_upgrade_action.py --object_ids=guid1,guid2..  --username=username --password=password --path=path --image=image --protocol=scp/ftp --server=server_ip --description=optional_action_description --object_type=object_type --identifier=identifier --ufm_host=ufm_host --ufm_protocol=ufm_protocol --ufm_username=ufm_username --ufm_password=ufm_password
 
 
 Running using configuration file:
@@ -56,12 +56,16 @@ Running using configuration file:
 | --logs_level <logs_level> | [logs-config.logs_level](../conf/ufm-devices.sample.cfg#L14) | False | Default is 'info'
 
 ### 1. reboot devices args:
+| Argument | Corresponding Config Value | Required | Description |
+| :---: | :---: |:---: |:---: |
 | --object_ids <object_ids> | ufm-devices-reboot.object_ids | False | comma separated GUIDs if this arg was not provided the action will be run on all devices in UFM fabric
 | --description <description> | ufm-devices-reboot.description | False | Option to set a description for run action
 | --object_type <object_type> | ufm-devices-reboot.object_type| False | Option to set object type by default the value will be System
 | --identifier <identifier> | ufm-devices-reboot.identifier| False | Option to set identifier by default the value will be id
 
 ### 2. sw upgrade:
+| Argument | Corresponding Config Value | Required | Description |
+| :---: | :---: |:---: |:---: |
 | --object_ids <object_ids> | ufm-devices-sw-upgrade.object_ids | False | comma separated GUIDs if this arg was not provided the action will be run on all devices in UFM fabric
 | --description <description> | ufm-devices-sw-upgrade.description | False | Option to set a description for run action
 | --object_type <object_type> | ufm-devices-sw-upgrade.object_type| False | Option to set object type by default the value will be System

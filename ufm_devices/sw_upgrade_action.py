@@ -25,6 +25,14 @@ class SwUpgradeActionConstants:
     ACTION = 'sw_upgrade'
     args_list = [
         {
+            "name": f'--{ActionConstants.UFM_API_OBJECT_TYPE}',
+            "help": "action object type, the default value is System",
+        },
+        {
+            "name": f'--{ActionConstants.UFM_API_IDENTIFIER}',
+            "help": "action identifier, the default value is id",
+        },
+        {
             "name": f'--{ActionConstants.API_OBJECT_IDS}',
             "help": "comma separated GUIDs if this arg was not provided the action will be run on all devices in UFM fabric",
         },
@@ -68,12 +76,12 @@ class UfmSwUpgradeConfigParser(ConfigParser):
     UFM_SW_UPGRADE_SECTION_OBJECT_TYPE= "object_type"
     UFM_SW_UPGRADE_SECTION_ID= "identifier"
     UFM_SW_UPGRADE_SECTION_DESCRIPTION= "description"
-    UFM_SW_UPGRADE_SECTION_USER_NAME= "username"
-    UFM_SW_UPGRADE_SECTION_PASSWORD= "password"
-    UFM_SW_UPGRADE_SECTION_PATH= "path"
+    UFM_SW_UPGRADE_SECTION_USER_NAME= "remote_username"
+    UFM_SW_UPGRADE_SECTION_PASSWORD= "remote_password"
+    UFM_SW_UPGRADE_SECTION_PATH= "remote_path"
     UFM_SW_UPGRADE_SECTION_IMAGE= "image"
     UFM_SW_UPGRADE_SECTION_PROTOCOL= "protocol"
-    UFM_SW_UPGRADE_SECTION_SERVER= "server"
+    UFM_SW_UPGRADE_SECTION_SERVER= "remote_server"
 
     def __init__(self,args):
         super().__init__(args)

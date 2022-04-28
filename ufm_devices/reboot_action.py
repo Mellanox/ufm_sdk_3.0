@@ -18,8 +18,16 @@ class RebootActionConstants:
     ACTION = "reboot"
     args_list = [
         {
+            "name": f'--{ActionConstants.UFM_API_OBJECT_TYPE}',
+            "help": "action object type, the default value is System",
+        },
+        {
+            "name": f'--{ActionConstants.UFM_API_IDENTIFIER}',
+            "help": "action identifier, the default value is id",
+        },
+        {
             "name": f'--{ActionConstants.API_OBJECT_IDS}',
-            "help": "comma separated devices GUIDs if",
+            "help": "comma separated GUIDs if this arg was not provided the action will be run on all devices in UFM fabric",
         },
         {
             "name": f'--{ActionConstants.UFM_API_DESCRIPTION}',
