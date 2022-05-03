@@ -1,5 +1,7 @@
 UFM Logical Servers Management
 --------------------------------------------------------
+This feature is deprecated from UFM 6.9 (April 2022). Please refrain to use it
+--------------------------------------------------------
 
 
 This plugin is used to manage the Logical Servers records of the IB fabric via the UFM APIs.
