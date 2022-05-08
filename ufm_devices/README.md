@@ -12,6 +12,10 @@ To install all prerequisites, please run :
 
     pip install -r requirements.txt
 
+To exported your repository to PYTHONPATH, please run :
+
+   export PYTHONPATH="${PYTHONPATH}:<your ufm_sdk_cookbook path>"
+
 
 Running using command line arguments :
 --------------------------------------------------------
@@ -26,15 +30,15 @@ Running using command line arguments :
 
 Running using configuration file:
 --------------------------------------------------------
-- copy config file sample ufm-devices.sample.cfg to ufm-devices.cfg
+- copy config file sample ufm_devices.sample.cfg to ufm_devices.cfg
 
 
-    cp ufm-devices.sample.cfg ufm-devices.cfg
+    cp ufm_devices.sample.cfg ufm_devices.cfg
 
   - Edit config file with relevant parameters
 
 
-    vi ufm-devices.cfg
+    vi ufm_devices.cfg
 
   - Run
 
