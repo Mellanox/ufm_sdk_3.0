@@ -146,7 +146,7 @@ if __name__ == "__main__":
                 ActionConstants.UFM_API_IDENTIFIER: config_parser.get_identifier(),
                 ActionConstants.UFM_API_DESCRIPTION: config_parser.get_description(),
                 ActionConstants.UFM_API_PARAMS:{
-                    SwUpgradeActionConstants.UFM_API_USER_NAME: config_parser.get_ufm_username(),
+                    SwUpgradeActionConstants.UFM_API_USER_NAME: config_parser.get_user_name(),
                     SwUpgradeActionConstants.UFM_API_PASSWORD: config_parser.get_password(),
                     SwUpgradeActionConstants.UFM_API_PATH: config_parser.get_path(),
                     SwUpgradeActionConstants.UFM_API_IMAGE: config_parser.get_image(),
