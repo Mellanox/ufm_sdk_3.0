@@ -1,6 +1,7 @@
 import sys
 import logging
 import os
+from enum import Enum
 
 try:
     from utils.utils import Utils
@@ -8,6 +9,7 @@ try:
     from utils.config_parser import ConfigParser
     from utils.logger import Logger, LOG_LEVELS
     from ufm_devices.ufm_devices_action import UfmDevicesAction, ActionConstants
+    from utils.exception_handler import ExceptionHandler
 except ModuleNotFoundError as e:
     print("Error occurred while importing python modules, "
           "Please make sure that you exported your repository to PYTHONPATH by running: "
@@ -68,6 +70,14 @@ class SwUpgradeActionConstants:
     ]
 
 
+class SWProtocols(Enum):
+    scp = "scp"
+    ftp = "ftp"
+
+
+class WrongSWProtocol(Exception):
+    pass
+
 class UfmSwUpgradeConfigParser(ConfigParser):
     config_file = "ufm_devices.cfg"
 
@@ -119,8 +129,11 @@ class UfmSwUpgradeConfigParser(ConfigParser):
                                      self.UFM_SW_UPGRADE_SECTION, self.UFM_SW_UPGRADE_SECTION_IMAGE)
 
     def get_protocol(self):
-        return self.get_config_value(self.args_dict.get(SwUpgradeActionConstants.UFM_API_PROTOCOL),
+        sw_protocol =  self.get_config_value(self.args_dict.get(SwUpgradeActionConstants.UFM_API_PROTOCOL),
                                      self.UFM_SW_UPGRADE_SECTION, self.UFM_SW_UPGRADE_SECTION_PROTOCOL)
+        if sw_protocol != SWProtocols.ftp.value and sw_protocol != SWProtocols.scp.value:
+            raise WrongSWProtocol
+        return sw_protocol
     def get_server(self):
         return self.get_config_value(self.args_dict.get(SwUpgradeActionConstants.UFM_API_SERVER),
                                      self.UFM_SW_UPGRADE_SECTION, self.UFM_SW_UPGRADE_SECTION_SERVER)
@@ -159,23 +172,26 @@ if __name__ == "__main__":
                     SwUpgradeActionConstants.UFM_API_SERVER: config_parser.get_server(),
                 }
             }
+            action = UfmDevicesAction(payload, config_parser.get_object_ids(), host=config_parser.get_ufm_host(),
+                                      client_token=config_parser.get_ufm_access_token(),
+                                      username=config_parser.get_ufm_username(),
+                                      password=config_parser.get_ufm_password(),
+                                      ws_protocol=config_parser.get_ufm_protocol())
 
+            # run reboot action
+            action.run_action()
+        except WrongSWProtocol as e:
+            ExceptionHandler.handel_exception("Invalid sw upgrade protocol,please enter a value scp or ftp")
         except ValueError as e:
-            Logger.log_missing_args_message(SwUpgradeActionConstants.ACTION,
+            ExceptionHandler.handel_arg_exception(SwUpgradeActionConstants.ACTION,
                                             SwUpgradeActionConstants.UFM_API_USER_NAME,
                                             SwUpgradeActionConstants.UFM_API_PASSWORD,
                                             SwUpgradeActionConstants.UFM_API_PATH,
                                             SwUpgradeActionConstants.UFM_API_IMAGE,
                                             SwUpgradeActionConstants.UFM_API_PROTOCOL,
                                             SwUpgradeActionConstants.UFM_API_SERVER)
-            sys.exit(1)
 
-        action = UfmDevicesAction(payload,config_parser.get_object_ids(),host=config_parser.get_ufm_host(),
-                           client_token=config_parser.get_ufm_access_token(),username = config_parser.get_ufm_username(),
-                           password = config_parser.get_ufm_password(),ws_protocol=config_parser.get_ufm_protocol())
 
-        # run reboot action
-        action.run_action()
 
     except Exception as global_ex:
         logging.error(global_ex)

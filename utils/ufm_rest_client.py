@@ -16,18 +16,24 @@
 import requests
 import logging
 import urllib3
-import sys
 from enum import Enum
 from utils.logger import Logger
+from requests.exceptions import ConnectionError
+from utils.exception_handler import ExceptionHandler
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class MissingUFMCredentials(Exception):
     pass
 
+class WrongUFMProtocol(Exception):
+    pass
 
 class ApiErrorMessages(object):
     Missing_UFM_Credentials = "Missing UFM Authentication token or username/password"
+    Wrong_UFM_Protocol = "Invalid protocol, please enter a valid value http or https"
+    Invalid_UFM_Host = "Connection Error, please enter a valid ufm_host"
+    Invalid_UFM_Authentication = "Authentication Error, wrong credentials token or username/password"
 
 
 class UfmRestConstants(object):
@@ -44,6 +50,11 @@ class HTTPMethods(Enum):
     PATCH = 3
     PUT = 4
     DELETE = 5
+
+
+class UfmProtocols(Enum):
+    http = "http"
+    https = "https"
 
 
 class UfmRestClient(object):
@@ -68,6 +79,8 @@ class UfmRestClient(object):
             auth = (self.username, self.password)
         else:
             raise MissingUFMCredentials
+        if self.ws_protocol != UfmProtocols.http.value and self.ws_protocol != UfmProtocols.https.value:
+            raise WrongUFMProtocol
         url = self.ws_protocol + "://" + self.host + "/" + self.api_prefix + "/" + api_url
         return url, headers, auth
 
@@ -85,15 +98,19 @@ class UfmRestClient(object):
                 response = requests.delete(url, json=payload, verify=False, headers=headers, auth=auth)
             logging.info("UFM API Request Status [" + str(response.status_code) + "], URL " + url)
             if response.raise_for_status():
-                logging.error(response.raise_for_status())
+                Logger.log_message(response.raise_for_status())
             return response
         except MissingUFMCredentials as M:
-            Logger.log_message(ApiErrorMessages.Missing_UFM_Credentials)
-            sys.exit(1)
+            ExceptionHandler.handel_exception(ApiErrorMessages.Missing_UFM_Credentials)
+        except WrongUFMProtocol as W:
+            ExceptionHandler.handel_exception(ApiErrorMessages.Wrong_UFM_Protocol)
+        except ConnectionError as e:
+            ExceptionHandler.handel_exception(ApiErrorMessages.Invalid_UFM_Host)
         except Exception as e:
-            logging.error(e)
-            return response
-
+            if response.status_code == 401:
+                ExceptionHandler.handel_exception(ApiErrorMessages.Invalid_UFM_Authentication)
+            else:
+                ExceptionHandler.handel_exception(f"{e}\n{response.text}")
     def get_systems(self):
         response = self.send_request(UfmRestConstants.UFM_API_SYSTEMS)
         return response.json()
