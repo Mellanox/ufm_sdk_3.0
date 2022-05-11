@@ -138,6 +138,11 @@ if __name__ == "__main__":
         # init app config parser & load config files
         config_parser = UfmSwUpgradeConfigParser(args)
 
+        # init logs configs
+        logs_file_name = config_parser.get_logs_file_name()
+        logs_level = config_parser.get_logs_level()
+        Logger.init_logs_config(logs_file_name, logs_level)
+
         # sw upgrade
         try:
             payload={
