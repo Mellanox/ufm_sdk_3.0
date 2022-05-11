@@ -16,7 +16,9 @@
 import requests
 import logging
 import urllib3
+import sys
 from enum import Enum
+from utils.logger import Logger
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -86,8 +88,8 @@ class UfmRestClient(object):
                 logging.error(response.raise_for_status())
             return response
         except MissingUFMCredentials as M:
-            logging.error(ApiErrorMessages.Missing_UFM_Credentials)
-            return response
+            Logger.log_message(ApiErrorMessages.Missing_UFM_Credentials)
+            sys.exit(1)
         except Exception as e:
             logging.error(e)
             return response
