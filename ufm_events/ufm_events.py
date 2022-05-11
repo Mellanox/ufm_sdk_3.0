@@ -98,7 +98,8 @@ if __name__ == "__main__":
 
     # init ufm rest client
     ufm_rest_client = UfmRestClient(host = config_parser.get_ufm_host(),
-                                    client_token=config_parser.get_ufm_access_token())
+                                    client_token=config_parser.get_ufm_access_token(),username = config_parser.get_ufm_username(),
+                                    password = config_parser.get_ufm_password(),ws_protocol=config_parser.get_ufm_protocol())
     args_dict = args.__dict__
     if args_dict.get(UfmEventsConstants.EVENTS_OPERATIONS.get("get_events")):
         UfmEventsManagement.get_events()
