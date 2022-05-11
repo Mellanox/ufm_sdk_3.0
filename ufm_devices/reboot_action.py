@@ -76,6 +76,11 @@ if __name__ == "__main__":
         # init app config parser & load config files
         config_parser = UfmRebootConfigParser(args)
 
+        # init logs configs
+        logs_file_name = config_parser.get_logs_file_name()
+        logs_level = config_parser.get_logs_level()
+        Logger.init_logs_config(logs_file_name, logs_level)
+
         # reboot
         payload={
             ActionConstants.UFM_API_ACTION: RebootActionConstants.ACTION,
