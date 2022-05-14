@@ -16,6 +16,7 @@
 import requests
 import logging
 import urllib3
+from http import HTTPStatus
 from enum import Enum
 from utils.logger import Logger
 from requests.exceptions import ConnectionError
@@ -31,9 +32,11 @@ class WrongUFMProtocol(Exception):
 
 class ApiErrorMessages(object):
     Missing_UFM_Credentials = "Missing UFM Authentication token or username/password"
+    Missing_UFM_Host = "Missing ufm host"
     Wrong_UFM_Protocol = "Invalid protocol, please enter a valid value http or https"
     Invalid_UFM_Host = "Connection Error, please enter a valid ufm_host"
     Invalid_UFM_Authentication = "Authentication Error, wrong credentials token or username/password"
+    UFM_Forbidden = "you don't have permission to access %s"
 
 
 class UfmRestConstants(object):
@@ -107,8 +110,10 @@ class UfmRestClient(object):
         except ConnectionError as e:
             ExceptionHandler.handel_exception(ApiErrorMessages.Invalid_UFM_Host)
         except Exception as e:
-            if response.status_code == 401:
+            if response.status_code == HTTPStatus.UNAUTHORIZED:
                 ExceptionHandler.handel_exception(ApiErrorMessages.Invalid_UFM_Authentication)
+            if response.status_code == HTTPStatus.FORBIDDEN:
+                ExceptionHandler.handel_exception(ApiErrorMessages.UFM_Forbidden % url)
             else:
                 ExceptionHandler.handel_exception(f"{e}\n{response.text}")
     def get_systems(self):

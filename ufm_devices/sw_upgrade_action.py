@@ -189,7 +189,8 @@ if __name__ == "__main__":
                                             SwUpgradeActionConstants.UFM_API_PATH,
                                             SwUpgradeActionConstants.UFM_API_IMAGE,
                                             SwUpgradeActionConstants.UFM_API_PROTOCOL,
-                                            SwUpgradeActionConstants.UFM_API_SERVER)
+                                            SwUpgradeActionConstants.UFM_API_SERVER,
+                                                  supported_in_config=True)
 
 
 
