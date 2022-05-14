@@ -26,6 +26,7 @@ try:
     from utils.args_parser import ArgsParser
     from utils.config_parser import ConfigParser
     from utils.logger import Logger, LOG_LEVELS
+    from utils.exception_handler import ExceptionHandler
 except ModuleNotFoundError as e:
     print("Error occurred while importing python modules, "
           "Please make sure that you exported your repository to PYTHONPATH by running: "
@@ -187,7 +188,8 @@ if __name__ == "__main__":
 
     # init ufm rest client
     ufm_rest_client = UfmRestClient(host = config_parser.get_ufm_host(),
-                                    client_token=config_parser.get_ufm_access_token())
+                                    client_token=config_parser.get_ufm_access_token(),username = config_parser.get_ufm_username(),
+                                    password = config_parser.get_ufm_password(),ws_protocol=config_parser.get_ufm_protocol())
     args_dict = args.__dict__
     if args_dict.get(UfmPkeysConstants.PKEYS_OPERATIONS.get("set_pkey")):
         try:
@@ -196,8 +198,8 @@ if __name__ == "__main__":
             guids = config_parser.safe_get_list(args_dict.get(UfmPkeysConstants.API_GUIDS),
                                                    None, None)
         except Exception as e:
-            Logger.log_message("create_pkey operation requires at least the following parameters: --pkey,--guids", LOG_LEVELS.ERROR)
-            sys.exit(0)
+            ExceptionHandler.handel_arg_exception(UfmPkeysConstants.PKEYS_OPERATIONS.get("set_pkey"),
+                                                  UfmPkeysConstants.API_PKEY,UfmPkeysConstants.API_GUIDS)
 
         index0 = config_parser.safe_get_bool(args_dict.get(UfmPkeysConstants.API_INDEX0),
                                              None, None, False)
