@@ -26,6 +26,7 @@ try:
     from utils.args_parser import ArgsParser
     from utils.config_parser import ConfigParser
     from utils.logger import Logger, LOG_LEVELS
+    from utils.exception_handler import ExceptionHandler
 except ModuleNotFoundError as e:
     print("Error occurred while importing python modules, "
           "Please make sure that you exported your repository to PYTHONPATH by running: "
@@ -394,7 +395,8 @@ if __name__ == "__main__":
 
     # init ufm rest client
     ufm_rest_client = UfmRestClient(host = config_parser.get_ufm_host(),
-                                    client_token=config_parser.get_ufm_access_token())
+                                    client_token=config_parser.get_ufm_access_token(),username = config_parser.get_ufm_username(),
+                                    password = config_parser.get_ufm_password(),ws_protocol=config_parser.get_ufm_protocol())
 
     if config_parser.args_dict.get(UfmLogicalServersConstants.LS_OPERATIONS.get("get_envs")):
         UfmLsManagement.get_envs()
@@ -406,9 +408,8 @@ if __name__ == "__main__":
         try:
             env_name = config_parser.get_name()
         except ValueError as e:
-            Logger.log_missing_args_message(UfmLogicalServersConstants.LS_OPERATIONS.get("create_env"),
-                                            UfmLogicalServersConstants.API_NAME)
-            sys.exit(1)
+            ExceptionHandler.handel_arg_exception(UfmLogicalServersConstants.LS_OPERATIONS.get("create_env"),
+                                                  UfmLogicalServersConstants.API_NAME)
         desc = config_parser.get_description()
         UfmLsManagement.create_env(env_name, desc)
     elif config_parser.args_dict.get(UfmLogicalServersConstants.LS_OPERATIONS.get("delete_env")):
@@ -427,9 +428,8 @@ if __name__ == "__main__":
         try:
             name = config_parser.get_name()
         except ValueError as e:
-            Logger.log_missing_args_message(UfmLogicalServersConstants.LS_OPERATIONS.get("create_network"),
+            ExceptionHandler.handel_arg_exception(UfmLogicalServersConstants.LS_OPERATIONS.get("create_network"),
                                             UfmLogicalServersConstants.API_NAME)
-            sys.exit(1)
         description = config_parser.get_description()
         pkey = config_parser.get_pkey()
 
@@ -441,20 +441,18 @@ if __name__ == "__main__":
             ls_name = config_parser.get_name()
             env_name = config_parser.get_env()
         except ValueError as e:
-            Logger.log_missing_args_message(UfmLogicalServersConstants.LS_OPERATIONS.get("delete_logical_server"),
+            ExceptionHandler.handel_arg_exception(UfmLogicalServersConstants.LS_OPERATIONS.get("delete_logical_server"),
                                             UfmLogicalServersConstants.API_NAME,
                                             UfmLogicalServersConstants.API_ENV)
-            sys.exit(1)
         UfmLsManagement.delete_ls(env_name, ls_name)
     elif config_parser.args_dict.get(UfmLogicalServersConstants.LS_OPERATIONS.get("create_logical_server")):
         try:
             ls_name = config_parser.get_name()
             env_name = config_parser.get_env()
         except ValueError as e:
-            Logger.log_missing_args_message(UfmLogicalServersConstants.LS_OPERATIONS.get("create_logical_server"),
+            ExceptionHandler.handel_arg_exception(UfmLogicalServersConstants.LS_OPERATIONS.get("create_logical_server"),
                                             UfmLogicalServersConstants.API_NAME,
                                             UfmLogicalServersConstants.API_ENV)
-            sys.exit(1)
         description = config_parser.get_description()
         UfmLsManagement.create_ls(env_name, ls_name, desc=description)
     elif config_parser.args_dict.get(UfmLogicalServersConstants.LS_OPERATIONS.get("get_free_hosts")):
@@ -465,11 +463,10 @@ if __name__ == "__main__":
             env_name = config_parser.get_env()
             total_computes = config_parser.get_total_computes()
         except ValueError as e:
-            Logger.log_missing_args_message(UfmLogicalServersConstants.LS_OPERATIONS.get("auto_allocate_hosts"),
+            ExceptionHandler.handel_arg_exception(UfmLogicalServersConstants.LS_OPERATIONS.get("auto_allocate_hosts"),
                                             UfmLogicalServersConstants.API_NAME,
                                             UfmLogicalServersConstants.API_ENV,
                                             UfmLogicalServersConstants.API_TOTAL_COMPUTES)
-            sys.exit(1)
         UfmLsManagement.auto_allocate_hosts(env_name, ls_name, total_computes)
     elif config_parser.args_dict.get(UfmLogicalServersConstants.LS_OPERATIONS.get("allocate_hosts")):
         try:
@@ -477,11 +474,10 @@ if __name__ == "__main__":
             env_name = config_parser.get_env()
             guids = config_parser.get_computes()
         except ValueError as e:
-            Logger.log_missing_args_message(UfmLogicalServersConstants.LS_OPERATIONS.get("allocate_hosts"),
+            ExceptionHandler.handel_arg_exception(UfmLogicalServersConstants.LS_OPERATIONS.get("allocate_hosts"),
                                             UfmLogicalServersConstants.API_NAME,
                                             UfmLogicalServersConstants.API_ENV,
                                             UfmLogicalServersConstants.API_COMPUTES)
-            sys.exit(1)
         UfmLsManagement.allocate_hosts(env_name, ls_name, guids)
     elif config_parser.args_dict.get(UfmLogicalServersConstants.LS_OPERATIONS.get("add_network_interfaces")):
         try:
@@ -489,11 +485,10 @@ if __name__ == "__main__":
             env_name = config_parser.get_env()
             networks = config_parser.get_networks()
         except ValueError as e:
-            Logger.log_missing_args_message(UfmLogicalServersConstants.LS_OPERATIONS.get("add_network_interfaces"),
+            ExceptionHandler.handel_arg_exception(UfmLogicalServersConstants.LS_OPERATIONS.get("add_network_interfaces"),
                                             UfmLogicalServersConstants.API_NAME,
                                             UfmLogicalServersConstants.API_ENV,
                                             UfmLogicalServersConstants.API_NETWORKS)
-            sys.exit(1)
         UfmLsManagement.add_network_interfaces(env_name, ls_name, networks)
     else:
         message = "You must provide one of the following operations: "+ \
