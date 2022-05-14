@@ -14,7 +14,8 @@
 @date:   Sep 26, 2021
 """
 import configparser
-
+from utils.ufm_rest_client import UfmProtocols, ApiErrorMessages
+from utils.exception_handler import  ExceptionHandler
 
 SDK_CONFIG_FILE = '../conf/ufm-sdk.cfg'
 
@@ -89,9 +90,14 @@ class ConfigParser(object):
         return config_value
 
     def get_ufm_host(self):
-        return self.get_config_value(self.args.ufm_host,
-                                     SDK_CONFIG_UFM_REMOTE_SECTION,
-                                     SDK_CONFIG_UFM_REMOTE_SECTION_HOST)
+        # the exception was handled here to prevent handling it in every script
+        try:
+            return self.get_config_value(self.args.ufm_host,
+                                         SDK_CONFIG_UFM_REMOTE_SECTION,
+                                         SDK_CONFIG_UFM_REMOTE_SECTION_HOST)
+        except ValueError as e:
+            ExceptionHandler.handel_exception(ApiErrorMessages.Missing_UFM_Host)
+
 
     def get_ufm_username(self):
         return self.get_config_value(self.args.ufm_username,
@@ -108,7 +114,8 @@ class ConfigParser(object):
     def get_ufm_protocol(self):
         return self.get_config_value(self.args.ufm_protocol,
                                      SDK_CONFIG_UFM_REMOTE_SECTION,
-                                     SDK_CONFIG_UFM_REMOTE_SECTION_WS_PROTOCOL)
+                                     SDK_CONFIG_UFM_REMOTE_SECTION_WS_PROTOCOL,
+                                     UfmProtocols.https.value)
 
     def get_ufm_access_token(self):
         return self.get_config_value(self.args.ufm_access_token,
