@@ -25,7 +25,7 @@ try:
     from utils.ufm_rest_client import UfmRestClient, HTTPMethods
     from utils.args_parser import ArgsParser
     from utils.config_parser import ConfigParser
-    from utils.logger import Logger
+    from utils.logger import Logger, LOG_LEVELS
 except ModuleNotFoundError as e:
     print("Error occurred while importing python modules, "
           "Please make sure that you exported your repository to PYTHONPATH by running: "
@@ -295,7 +295,7 @@ class UfmTopologyGephiExporter(object):
                                      prefix='.tmp',
                                      mode='w', encoding='ascii') # Open temporary file streaming
 
-        logging.info("Generating %s file",path_to_export)
+        Logger.log_message("Generating %s file"%path_to_export)
 
         self.fo.write('''<?xml version="1.0" encoding="UTF-8"?>
 <gexf xmlns="http://www.gexf.net/1.1draft"
@@ -312,7 +312,7 @@ class UfmTopologyGephiExporter(object):
 </gexf>
 ''')
         self.close(path_to_export= path_to_export)
-        logging.info("The file %s is saved successfully", path_to_export)
+        Logger.log_message("The file %s is saved successfully"% path_to_export)
 
 
 class UFMTopologyTopoExporter:
@@ -327,9 +327,9 @@ class UFMTopologyTopoExporter:
             file_content = ufm_rest_client.send_request(url + "/" + file_name)
             with open(export_to_path, 'wb') as f:
                 f.write(file_content.content)
-                logging.info("The file %s is saved successfully", export_to_path)
+                Logger.log_message("The file %s is saved successfully"%export_to_path)
         except Exception as e:
-            logging.error(f'Error to export topology: {e}')
+            Logger.log_message(f'Error to export topology: {e}', LOG_LEVELS.ERROR)
 
 
 class UFMTopologyCompare:
@@ -356,7 +356,7 @@ class UFMTopologyCompare:
                     return topo_diff_response
 
         except Exception as e:
-            logging.error(f'Error to compare topology: {e}')
+            Logger.log_message(f'Error to compare topology: {e}',LOG_LEVELS.ERROR)
 
 if __name__ == "__main__":
 
@@ -374,7 +374,8 @@ if __name__ == "__main__":
 
     # init ufm rest client
     ufm_rest_client = UfmRestClient(host = config_parser.get_ufm_host(),
-                                    client_token=config_parser.get_ufm_access_token())
+                                    client_token=config_parser.get_ufm_access_token(),username = config_parser.get_ufm_username(),
+                                    password = config_parser.get_ufm_password(),ws_protocol=config_parser.get_ufm_protocol())
 
     if config_parser.get_export_to_gephi():
         # load systems,links
