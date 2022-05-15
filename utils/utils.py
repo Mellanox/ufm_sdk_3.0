@@ -18,6 +18,7 @@ import json
 import ipaddress
 import os
 from datetime import datetime
+from utils.logger import Logger, LOG_LEVELS
 
 
 class Utils:
@@ -28,7 +29,7 @@ class Utils:
             f = open(path, "w")
             f.write(json.dumps(json_obj))
             f.close()
-            logging.info(f'Finished writing to json file {path}')
+            Logger.log_message(f'Finished writing to json file {path}')
         except Exception as e:
             logging.error(e)
 
