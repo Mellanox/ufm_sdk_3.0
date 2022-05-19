@@ -1,4 +1,3 @@
-import sys
 import logging
 import os
 from enum import Enum
@@ -8,7 +7,7 @@ try:
     from utils.args_parser import ArgsParser
     from utils.config_parser import ConfigParser
     from utils.logger import Logger, LOG_LEVELS
-    from ufm_devices.ufm_devices_action import UfmDevicesAction, ActionConstants
+    from scripts.ufm_devices.ufm_devices_action import UfmDevicesAction, ActionConstants
     from utils.exception_handler import ExceptionHandler
 except ModuleNotFoundError as e:
     print("Error occurred while importing python modules, "
