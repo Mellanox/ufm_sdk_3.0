@@ -33,8 +33,7 @@
             "dashLength": 10,
             "dashes": false,
             "datasource": {
-                "type": "prometheus",
-                "uid": "fdz8YHunk"
+                "type": "prometheus"
             },
             "fieldConfig": {
                 "defaults": {
@@ -129,8 +128,7 @@
             "dashLength": 10,
             "dashes": false,
             "datasource": {
-                "type": "prometheus",
-                "uid": "fdz8YHunk"
+                "type": "prometheus"
             },
             "fieldConfig": {
                 "defaults": {
@@ -228,8 +226,7 @@
             "dashLength": 10,
             "dashes": false,
             "datasource": {
-                "type": "prometheus",
-                "uid": "fdz8YHunk"
+                "type": "prometheus"
             },
             "fieldConfig": {
                 "defaults": {
@@ -317,8 +314,7 @@
             "dashLength": 10,
             "dashes": false,
             "datasource": {
-                "type": "prometheus",
-                "uid": "fdz8YHunk"
+                "type": "prometheus"
             },
             "fieldConfig": {
                 "defaults": {
@@ -364,8 +360,7 @@
             "steppedLine": false,
             "targets": [{
                     "datasource": {
-                        "type": "prometheus",
-                        "uid": "fdz8YHunk"
+                        "type": "prometheus"
                     },
                     "editorMode": "code",
                     "exemplar": true,
@@ -412,8 +407,7 @@
             "dashLength": 10,
             "dashes": false,
             "datasource": {
-                "type": "prometheus",
-                "uid": "fdz8YHunk"
+                "type": "prometheus"
             },
             "fieldConfig": {
                 "defaults": {
@@ -461,8 +455,7 @@
             "steppedLine": false,
             "targets": [{
                     "datasource": {
-                        "type": "prometheus",
-                        "uid": "fdz8YHunk"
+                        "type": "prometheus"
                     },
                     "exemplar": true,
                     "expr": "max by (level, peer_level)(rate(PortXmitDataExtended{level!=\"\", peer_level!=\"\"}[$__rate_interval]) *8)",
@@ -507,8 +500,7 @@
             "dashLength": 10,
             "dashes": false,
             "datasource": {
-                "type": "prometheus",
-                "uid": "fdz8YHunk"
+                "type": "prometheus"
             },
             "description": "Note: we are currently clamping to 100%, but sometimes it's over 100%.",
             "fieldConfig": {
@@ -557,9 +549,8 @@
             "steppedLine": false,
             "targets": [{
                     "datasource": {
-                        "type": "prometheus",
-                        "uid": "fdz8YHunk"
-                    },
+                        "type": "prometheus"
+						},
                     "exemplar": true,
                     "expr": "max by (level, peer_level) (Normalized_CBW{level!=\"\", peer_level!=\"\"})",
                     "interval": "$step",
@@ -603,8 +594,7 @@
             "dashLength": 10,
             "dashes": false,
             "datasource": {
-                "type": "prometheus",
-                "uid": "fdz8YHunk"
+                "type": "prometheus"
             },
             "fieldConfig": {
                 "defaults": {
@@ -652,8 +642,7 @@
             "steppedLine": false,
             "targets": [{
                     "datasource": {
-                        "type": "prometheus",
-                        "uid": "fdz8YHunk"
+                        "type": "prometheus"
                     },
                     "editorMode": "code",
                     "exemplar": true,
@@ -700,8 +689,7 @@
             "dashLength": 10,
             "dashes": false,
             "datasource": {
-                "type": "prometheus",
-                "uid": "fdz8YHunk"
+                "type": "prometheus"
             },
             "fieldConfig": {
                 "defaults": {
@@ -749,8 +737,7 @@
             "steppedLine": false,
             "targets": [{
                     "datasource": {
-                        "type": "prometheus",
-                        "uid": "fdz8YHunk"
+                        "type": "prometheus"
                     },
                     "exemplar": true,
                     "expr": "rate(PortRcvDataExtended{hostname!=\"\", hostname!=\"aggregation\"}[$__rate_interval]) *8",
@@ -803,8 +790,7 @@
                     "value": ""
                 },
                 "datasource": {
-                    "type": "prometheus",
-                    "uid": "tYF2ENX7k"
+                    "type": "prometheus"
                 },
                 "definition": "label_values(infiniband_port_xmit_wait_ticks, fabric)",
                 "hide": 0,
@@ -843,7 +829,6 @@
     },
     "timezone": "",
     "title": "Infiniband Telemetry",
-    "uid": "jnvFKs5nx1",
     "version": 6,
     "weekStart": ""
 }
