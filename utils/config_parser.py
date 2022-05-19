@@ -14,10 +14,11 @@
 @date:   Sep 26, 2021
 """
 import configparser
+import os
 from utils.ufm_rest_client import UfmProtocols, ApiErrorMessages
 from utils.exception_handler import  ExceptionHandler
 
-SDK_CONFIG_FILE = '../conf/ufm-sdk.cfg'
+SDK_CONFIG_FILE = 'conf/ufm-sdk.cfg'
 
 SDK_CONFIG_UFM_REMOTE_SECTION = 'ufm-remote-server-config'
 SDK_CONFIG_UFM_REMOTE_SECTION_HOST = 'host'
@@ -34,7 +35,7 @@ class ConfigParser(object):
 
     def __init__(self, args):
         self.sdk_config = configparser.RawConfigParser()
-        self.sdk_config.read(SDK_CONFIG_FILE)
+        self.sdk_config.read(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),SDK_CONFIG_FILE))
         self.args = args
 
     def get_config_value(self, arg, section, key, default=None):
