@@ -98,7 +98,7 @@ function build_docker_image()
 
 echo "Updating git submodules..."
 pushd ${SCRIPT_DIR}
-cd ../../ # back to the root dir
+cd ../../../ # back to the root dir
 git submodule update --init --remote
 if [ $? -ne 0 ];then
     echo "Failed to update git submodules"
@@ -109,8 +109,8 @@ pushd ${SCRIPT_DIR}
 
 BUILD_DIR=$(create_out_dir)
 cp Dockerfile ${BUILD_DIR}
-cp -r ../../utils ${BUILD_DIR}
-cp -r ../../ufm_telemetry_stream_to_fluentd ${BUILD_DIR}
+cp -r ../../../utils ${BUILD_DIR}
+cp -r ../../fluentd_telemetry_plugin ${BUILD_DIR}
 
 echo "BUILD_DIR    : [${BUILD_DIR}]"
 

@@ -1,4 +1,4 @@
 __pycache__/
 .idea/
-ufm-stream-to-fluentd.cfg
+fluentd_topology_plugin.cfg
 console.log

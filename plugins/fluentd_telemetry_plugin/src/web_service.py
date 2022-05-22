@@ -17,8 +17,8 @@
 
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
-from ufm_telemetry_stream_to_fluentd.src.api.conf_api import StreamingConfigurationsAPI
-from ufm_telemetry_stream_to_fluentd.src.api.base_api import BaseAPIApplication
+from plugins.fluentd_telemetry_plugin.src.api.conf_api import StreamingConfigurationsAPI
+from plugins.fluentd_telemetry_plugin.src.api.base_api import BaseAPIApplication
 
 
 class UFMTelemetryFluentdStreamingAPI(DispatcherMiddleware):

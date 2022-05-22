@@ -22,12 +22,12 @@ from twisted.web import server
 from utils.args_parser import ArgsParser
 from utils.logger import Logger
 
-from ufm_telemetry_stream_to_fluentd.src.web_service import UFMTelemetryFluentdStreamingAPI
-from ufm_telemetry_stream_to_fluentd.src.streamer import \
+from plugins.fluentd_telemetry_plugin.src.web_service import UFMTelemetryFluentdStreamingAPI
+from plugins.fluentd_telemetry_plugin.src.streamer import \
     UFMTelemetryStreaming,\
     UFMTelemetryStreamingConfigParser,\
     UFMTelemetryConstants
-from ufm_telemetry_stream_to_fluentd.src.streaming_scheduler import StreamingScheduler
+from plugins.fluentd_telemetry_plugin.src.streaming_scheduler import StreamingScheduler
 
 from twisted.web.wsgi import WSGIResource
 from twisted.internet import reactor

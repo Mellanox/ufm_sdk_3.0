@@ -183,7 +183,7 @@ def update_ufm_apis(ufm_new_version):
 class UfmStreamingToFluentdConstants:
 
     PLUGIN_NAME = "UFM_API_Streaming"
-    CONFIG_FILE = 'ufm-stream-to-fluentd.cfg'
+    CONFIG_FILE = 'fluentd_topology_plugin.cfg'
     FLUENTD_METADATA_FILE = 'fluentd_metadata.json'
     UFM_API_VERSIONING = 'app/versioning'
     UFM_API_VERSIONING_RESULT = 'api_results/versioning.json'
@@ -258,7 +258,7 @@ class UfmStreamingToFluentdConstants:
 
 
 class UfmStreamingToFluentdConfigParser(ConfigParser):
-    config_file = "ufm-stream-to-fluentd.cfg"
+    config_file = "fluentd_topology_plugin.cfg"
     UFM_FLUENTD_CONFIG_SECTION = "fluentd-config"
     UFM_STREAMING_CONFIG_SECTION = "streaming-config"
     UFM_FLUENTD_CONFIG_SECTION_HOST = "host"
