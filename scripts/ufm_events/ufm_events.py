@@ -28,7 +28,7 @@ try:
 except ModuleNotFoundError as e:
     print("Error occurred while importing python modules, "
           "Please make sure that you exported your repository to PYTHONPATH by running: "
-          f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.getcwd())}"')
+          f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}"')
 
 
 class UfmEventsConstants:
