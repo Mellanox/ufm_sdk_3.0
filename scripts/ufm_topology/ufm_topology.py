@@ -29,7 +29,7 @@ try:
 except ModuleNotFoundError as e:
     print("Error occurred while importing python modules, "
           "Please make sure that you exported your repository to PYTHONPATH by running: "
-          f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.getcwd())}"')
+          f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}"')
 
 
 class UfmTopologyConfigParser(ConfigParser):
@@ -49,13 +49,12 @@ class UfmTopologyConfigParser(ConfigParser):
 
     def __init__(self, args):
         super().__init__(args)
-        self.sdk_config.read(self.config_file)
-
+        self.sdk_config.read(os.path.join(os.path.dirname(os.path.abspath(__file__)), self.config_file))
     def get_path_to_export(self):
         return self.get_config_value(self.args.path_to_export,
                                      self.UFM_TOPOLOGY_SECTION,
                                      self.UFM_TOPOLOGY_SECTION_STORED_DATA_PATH,
-                                     'api_results')
+                                     os.path.join(os.path.dirname(os.path.abspath(__file__)), 'api_results'))
 
     def get_gephi_file_name(self):
         return self.get_config_value(self.args.gephi_file_name,

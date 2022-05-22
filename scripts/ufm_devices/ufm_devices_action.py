@@ -14,7 +14,7 @@ try:
 except ModuleNotFoundError as e:
     print("Error occurred while importing python modules, "
           "Please make sure that you exported your repository to PYTHONPATH by running: "
-          f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.getcwd())}"')
+          f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}"')
 
 
 
@@ -81,4 +81,4 @@ class UfmDevicesAction(object):
                 Logger.log_message(response.text, LOG_LEVELS.ERROR)
 
         except Exception as ex:
-            logging.error(ex)
+            Logger.log_message(ex, LOG_LEVELS.ERROR)

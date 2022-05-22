@@ -10,7 +10,7 @@ try:
 except ModuleNotFoundError as e:
     print("Error occurred while importing python modules, "
           "Please make sure that you exported your repository to PYTHONPATH by running: "
-          f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.getcwd())}"')
+          f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}"')
 
 
 
@@ -48,7 +48,7 @@ class UfmRebootConfigParser(ConfigParser):
     def __init__(self,args):
         super().__init__(args)
         self.args_dict = self.args.__dict__
-        self.sdk_config.read(self.config_file)
+        self.sdk_config.read(os.path.join(os.path.dirname(os.path.abspath(__file__)), self.config_file))
 
     def get_object_type(self):
         return self.get_config_value(self.args_dict.get(ActionConstants.UFM_API_OBJECT_TYPE),

@@ -19,7 +19,7 @@ try:
 except ModuleNotFoundError as e:
     print("Error occurred while importing python modules, "
           "Please make sure that you exported your repository to PYTHONPATH by running: "
-          f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.getcwd())}"')
+          f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}"')
 
 
 
@@ -276,7 +276,7 @@ class UfmStreamingToFluentdConfigParser(ConfigParser):
 
     def __init__(self,args):
         super().__init__(args)
-        self.sdk_config.read(self.config_file)
+        self.sdk_config.read(os.path.join(os.path.dirname(os.path.abspath(__file__)), self.config_file))
         self.args_dict = self.args.__dict__
 
     def get_fluentd_host(self):
