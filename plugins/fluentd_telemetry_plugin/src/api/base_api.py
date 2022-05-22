@@ -3,15 +3,15 @@ from flask_restful import Api
 from http import HTTPStatus
 from functools import partial
 from utils.json_schema_validator import ValidationError, SchemaValidationError
-from ufm_telemetry_stream_to_fluentd.src.web_service_error_messages import \
+from plugins.fluentd_telemetry_plugin.src.web_service_error_messages import \
     no_running_streaming_instance,\
     streaming_already_running
 
-from ufm_telemetry_stream_to_fluentd.src.streaming_scheduler import \
+from plugins.fluentd_telemetry_plugin.src.streaming_scheduler import \
     NoRunningStreamingInstance,\
     StreamingAlreadyRunning
 
-from ufm_telemetry_stream_to_fluentd.src.api import InvalidConfRequest
+from plugins.fluentd_telemetry_plugin.src.api import InvalidConfRequest
 
 
 class BaseAPIApplication:

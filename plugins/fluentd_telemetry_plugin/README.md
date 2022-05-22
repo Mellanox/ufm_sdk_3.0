@@ -145,16 +145,16 @@ Usage
 
 | Parameter | Required | Description |
 | :---: | :---: |:---: |
-| [fluentd-endpoint.host](conf/ufm-telemetry-stream-to-fluentd.cfg#L7) | True |  Hostname or IPv4 or IPv6 for Fluentd endpoint
-| [fluentd-endpoint.port](conf/ufm-telemetry-stream-to-fluentd.cfg#L8) | True | Port for Fluentd endpoint [this port should be the port which is configured in [fluentd.conf](conf/fluentd.conf#L4)]
-| [fluentd-endpoint.timeout](conf/ufm-telemetry-stream-to-fluentd.cfg#L9) | True | Timeout for Fluentd endpoint streaming [Default is 120 seconds]
-| [fluentd-endpoint.message_tag_name](conf/ufm-telemetry-stream-to-fluentd.cfg#L10) | False | Message Tag Name for Fluentd endpoint message [Default is the ufm_telemetry_host]
-| [ufm-telemetry-endpoint.host](conf/ufm-telemetry-stream-to-fluentd.cfg#L2) | True | Hostname or IPv4 or IPv6 for The UFM Telemetry Endpoint [Default is 127.0.0.1]
-| [ufm-telemetry-endpoint.port](conf/ufm-telemetry-stream-to-fluentd.cfg#L3) | True | Port for The UFM Telemetry Endpoint [Default is 9001]
-| [ufm-telemetry-endpoint.url](conf/ufm-telemetry-stream-to-fluentd.cfg#L4) | True | URL for The UFM Telemetry Endpoint [Default is 'labels/csv/metrics']
-| [streaming.interval](conf/ufm-telemetry-stream-to-fluentd.cfg#L13) | True | Streaming interval [Default is 10 seconds]
-| [streaming.bulk_streaming](conf/ufm-telemetry-stream-to-fluentd.cfg#L14) | True | if True all telemetry records will be streamed in one message; otherwise, each record will be streamed in a separated message [Default is True]
-| [streaming.enabled](conf/ufm-telemetry-stream-to-fluentd.cfg#L15) | True | If True, the streaming will be started once the required configurations have been set [Default is False]
+| [fluentd-endpoint.host](conf/fluentd_telemetry_plugin.cfg#L7) | True |  Hostname or IPv4 or IPv6 for Fluentd endpoint
+| [fluentd-endpoint.port](conf/fluentd_telemetry_plugin.cfg#L8) | True | Port for Fluentd endpoint [this port should be the port which is configured in [fluentd.conf](conf/fluentd.conf#L4)]
+| [fluentd-endpoint.timeout](conf/fluentd_telemetry_plugin.cfg#L9) | True | Timeout for Fluentd endpoint streaming [Default is 120 seconds]
+| [fluentd-endpoint.message_tag_name](conf/fluentd_telemetry_plugin.cfg#L10) | False | Message Tag Name for Fluentd endpoint message [Default is the ufm_telemetry_host]
+| [ufm-telemetry-endpoint.host](conf/fluentd_telemetry_plugin.cfg#L2) | True | Hostname or IPv4 or IPv6 for The UFM Telemetry Endpoint [Default is 127.0.0.1]
+| [ufm-telemetry-endpoint.port](conf/fluentd_telemetry_plugin.cfg#L3) | True | Port for The UFM Telemetry Endpoint [Default is 9001]
+| [ufm-telemetry-endpoint.url](conf/fluentd_telemetry_plugin.cfg#L4) | True | URL for The UFM Telemetry Endpoint [Default is 'labels/csv/metrics']
+| [streaming.interval](conf/fluentd_telemetry_plugin.cfg#L13) | True | Streaming interval [Default is 10 seconds]
+| [streaming.bulk_streaming](conf/fluentd_telemetry_plugin.cfg#L14) | True | if True all telemetry records will be streamed in one message; otherwise, each record will be streamed in a separated message [Default is True]
+| [streaming.enabled](conf/fluentd_telemetry_plugin.cfg#L15) | True | If True, the streaming will be started once the required configurations have been set [Default is False]
 
 
    - Records ٌMeta-fields:

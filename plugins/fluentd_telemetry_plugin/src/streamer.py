@@ -75,9 +75,9 @@ class UFMTelemetryConstants:
 
 class UFMTelemetryStreamingConfigParser(ConfigParser):
     # for debugging
-    # config_file = "../conf/ufm-telemetry-stream-to-fluentd.cfg"
+    #config_file = "../conf/fluentd_telemetry_plugin.cfg"
 
-    config_file = "/config/ufm-telemetry-stream-to-fluentd.cfg" # this path on the docker
+    config_file = "/config/fluentd_telemetry_plugin.cfg" # this path on the docker
 
     UFM_TELEMETRY_ENDPOINT_SECTION = "ufm-telemetry-endpoint"
     UFM_TELEMETRY_ENDPOINT_SECTION_HOST = "host"
