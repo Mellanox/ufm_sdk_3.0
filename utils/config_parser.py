@@ -33,9 +33,11 @@ SDK_CONFIG_LOGS_SECTION_LOGS_LEVEL = "logs_level"
 
 class ConfigParser(object):
 
-    def __init__(self, args):
+    def __init__(self, args, read_sdk_config = True):
         self.sdk_config = configparser.RawConfigParser()
-        self.sdk_config.read(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),SDK_CONFIG_FILE))
+        if read_sdk_config:
+            print(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            self.sdk_config.read(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),SDK_CONFIG_FILE))
         self.args = args
 
     def get_config_value(self, arg, section, key, default=None):
