@@ -98,7 +98,7 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
     META_FIELDS_SECTION = "meta-fields"
 
     def __init__(self, args):
-        super().__init__(args)
+        super().__init__(args, False)
         self.sdk_config.read(self.config_file)
 
     def get_telemetry_host(self):
