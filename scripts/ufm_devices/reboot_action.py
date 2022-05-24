@@ -1,3 +1,4 @@
+import platform
 import os
 import logging
 
@@ -8,10 +9,14 @@ try:
     from utils.logger import Logger, LOG_LEVELS
     from scripts.ufm_devices.ufm_devices_action import UfmDevicesAction, ActionConstants
 except ModuleNotFoundError as e:
-    print("Error occurred while importing python modules, "
-          "Please make sure that you exported your repository to PYTHONPATH by running: "
-          f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}"')
-
+    if platform.system() == "Windows":
+        print("Error occurred while importing python modules, "
+              "Please make sure that you exported your repository to PYTHONPATH by running: "
+              f'set PYTHONPATH=%PYTHONPATH%;{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}')
+    else:
+        print("Error occurred while importing python modules, "
+              "Please make sure that you exported your repository to PYTHONPATH by running: "
+              f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}"')
 
 
 class RebootActionConstants:

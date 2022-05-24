@@ -1,4 +1,5 @@
 import logging
+import platform
 import time
 from http import HTTPStatus
 import re
@@ -12,10 +13,14 @@ try:
     from utils.logger import Logger, LOG_LEVELS
     from utils.job_polling import JobPolling, JobsConstants
 except ModuleNotFoundError as e:
-    print("Error occurred while importing python modules, "
-          "Please make sure that you exported your repository to PYTHONPATH by running: "
-          f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}"')
-
+    if platform.system() == "Windows":
+        print("Error occurred while importing python modules, "
+              "Please make sure that you exported your repository to PYTHONPATH by running: "
+              f'set PYTHONPATH=%PYTHONPATH%;{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}')
+    else:
+        print("Error occurred while importing python modules, "
+              "Please make sure that you exported your repository to PYTHONPATH by running: "
+              f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}"')
 
 
 class ActionConstants:
