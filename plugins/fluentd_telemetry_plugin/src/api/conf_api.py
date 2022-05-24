@@ -2,11 +2,10 @@ import re
 import json
 import logging
 from flask import make_response, request
-
-from plugins.fluentd_telemetry_plugin.src.api import InvalidConfRequest
-from plugins.fluentd_telemetry_plugin.src.api.base_api import BaseAPIApplication
-from plugins.fluentd_telemetry_plugin.src.streamer import UFMTelemetryStreaming
-from plugins.fluentd_telemetry_plugin.src.streaming_scheduler import StreamingScheduler
+from api import InvalidConfRequest
+from api.base_api import BaseAPIApplication
+from streamer import UFMTelemetryStreaming
+from streaming_scheduler import StreamingScheduler
 from utils.json_schema_validator import validate_schema
 from utils.utils import Utils
 
@@ -17,7 +16,10 @@ class StreamingConfigurationsAPI(BaseAPIApplication):
         super(StreamingConfigurationsAPI, self).__init__()
         self.conf = conf
         self.scheduler = StreamingScheduler.getInstance()
-        self.conf_schema_path = "plugins/fluentd_telemetry_plugin/src/schemas/set_conf.schema.json"
+        #to debug
+        #self.conf_schema_path = "plugins/fluentd_telemetry_plugin/src/schemas/set_conf.schema.json"
+
+        self.conf_schema_path = "fluentd_telemetry_plugin/src/schemas/set_conf.schema.json"
 
     def _get_routes(self):
         return {
