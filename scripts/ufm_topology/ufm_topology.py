@@ -17,6 +17,7 @@
 """
 
 import os
+import platform
 import time
 import logging
 from tempfile import NamedTemporaryFile
@@ -27,10 +28,14 @@ try:
     from utils.config_parser import ConfigParser
     from utils.logger import Logger, LOG_LEVELS
 except ModuleNotFoundError as e:
-    print("Error occurred while importing python modules, "
-          "Please make sure that you exported your repository to PYTHONPATH by running: "
-          f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}"')
-
+    if platform.system() == "Windows":
+        print("Error occurred while importing python modules, "
+              "Please make sure that you exported your repository to PYTHONPATH by running: "
+              f'set PYTHONPATH=%PYTHONPATH%;{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}')
+    else:
+        print("Error occurred while importing python modules, "
+              "Please make sure that you exported your repository to PYTHONPATH by running: "
+              f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}"')
 
 class UfmTopologyConfigParser(ConfigParser):
 

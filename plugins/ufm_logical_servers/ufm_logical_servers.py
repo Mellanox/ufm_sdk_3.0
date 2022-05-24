@@ -17,6 +17,7 @@
 """
 
 import os
+import platform
 import sys
 from http import HTTPStatus
 
@@ -28,10 +29,14 @@ try:
     from utils.logger import Logger, LOG_LEVELS
     from utils.exception_handler import ExceptionHandler
 except ModuleNotFoundError as e:
-    print("Error occurred while importing python modules, "
-          "Please make sure that you exported your repository to PYTHONPATH by running: "
-          f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}"')
-
+    if platform.system() == "Windows":
+        print("Error occurred while importing python modules, "
+              "Please make sure that you exported your repository to PYTHONPATH by running: "
+              f'set PYTHONPATH=%PYTHONPATH%;{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}')
+    else:
+        print("Error occurred while importing python modules, "
+              "Please make sure that you exported your repository to PYTHONPATH by running: "
+              f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}"')
 
 class UfmLogicalServersConstants:
 
