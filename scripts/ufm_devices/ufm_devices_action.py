@@ -34,6 +34,7 @@ class ActionConstants:
     API_GUID = "guid"
     API_OBJECT_IDS = "object_ids"
     API_CAPABILITIES = "capabilities"
+    IGNORE_ALL_OPTION_MSG ="%s will be ignored because %s has a value"
 
 
 class UfmDevicesAction(object):
