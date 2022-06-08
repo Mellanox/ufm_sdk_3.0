@@ -1,0 +1,195 @@
+{
+    "API": ["GET /version", "GET /list", "POST /upload_metadata", "POST /compare", "POST /cancel", "GET /reports", "GET /reports/<report_id>", "POST /delete"],
+    "GET /list":
+    {
+        "Description": "Get list of uploaded NDT files",
+        "URL": "GET ufmRestV2/plugin/ndt/list",
+        "Request Data": "N/A",
+        "Response Content Type": "Application/json",
+        "Response":
+        [
+            {
+                "file": "topo1.ndt",
+                "timestamp": "2020-09-13 10:57:09",
+                "sha-1": "c3499c2729730a7f807efb8676a92dcb6f8a3f8f",
+                "file_type": "switch_to_host"
+            },
+            {
+                "file": "topo2.ndt",
+                "timestamp": "2020-09-15 10:58:09",
+                "sha-1": "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3",
+                "file_type": "switch_to_switch"
+            }
+        ],
+        "Status Codes": ["200 - Ok", "400 - bad request (bad or missing parameters)"]
+    },
+    "POST /upload_metadata":
+    {
+        "Description": "Uploads NDT file to UFM",
+        "URL": "POST ufmRestV2/plugin/ndt/upload_metadata",
+        "Request Content Type": "Application/json",
+        "Request Data":
+        [
+            {
+                "file_name": "topo1.ndt",
+                "file": "base64 string",
+                "file_type": "switch_to_host",
+                "sha-1": "2287218c377485e179521b3f51c2ac924cea3d7f"
+            },
+            {
+                "file_name": "topo2.ndt",
+                "file": "base64 string",
+                "file_type": "switch_to_switch",
+                "sha-1": "787508d320df47ec90b9233b6120b3e22b1bb804"
+            }
+        ],
+        "Response": "N/A",
+        "Status Codes": ["200 - Ok", "400 - bad request (bad or missing parameters)", "500 - insufficient resources (disk space)"]
+    },
+    "POST /compare":
+    {
+        "Description": "Run NDT topo compare and save last X reports",
+        "URL": "POST ufmRestV2/plugin/ndt/compare",
+        "Request Content Type": "Application/json",
+        "Request Data":
+        {
+            "run":
+            {
+                "startTime": "2020-10-01 16:40:59",
+                "endTime": "2020-10-01 18:45:59",
+                "interval": 3600
+            }
+        },
+        "Notes":
+        [
+            "Request data is needed only to define periodic execution",
+            "startTime - when to start the first run",
+            "endTime - the time of the last run",
+            "interval - interval between the runs in minutes"
+        ],
+        "Response": "N/A",
+        "Status Codes": ["200 - Ok", "400 - bad request (bad or missing parameters)"]
+    },
+    "POST /cancel":
+    {
+        "Description": "Cancels periodic NDT comparison",
+        "URL": "POST ufmRestV2/plugin/ndt/cancel",
+        "Request Data": "N/A",
+        "Response": "N/A",
+        "Status Codes": ["200 - Ok", "400 - bad request (bad or missing parameters)"]
+    },
+    "GET /reports":
+    {
+        "Description": "Get reports list",
+        "URL": "GET ufmRestV2/plugin/ndt/reports",
+        "Request Data": "N/A",
+        "Response Content Type": "Application/json",
+        "Response":
+        [
+            {
+                "report_id": "1",
+                "report_scope": "Periodic",
+                "timestamp": "2021-06-22 11:00:00"
+            },
+            {
+                "report_id": "2",
+                "report_scope": "Periodic",
+                "timestamp": "2021-06-22 11:05:00"
+            },
+            {
+                "report_id": "3",
+                "report_scope": "Instant",
+                "timestamp": "2021-06-22 11:06:22"
+            }
+        ],
+        "Status Codes": ["200 - Ok", "400 - bad request (bad or missing parameters)"]
+    },
+    "GET /reports/<report_id>":
+    {
+        "Description": "Get a specific report",
+        "URL": "GET ufmRestV2/plugin/ndt/reports/<id>",
+        "Request Data": "N/A",
+        "Response Content Type": "Application/json",
+        "Response":
+        {
+            "error": "",
+            "timestamp": "2020-09-13 10:57:09",
+            "report":
+            {
+                "miss-wired":
+                [
+                    {
+                        "expected": "DSM09-0101-0617-001IB2/P2 - DSM09-0101-0721-001IB4/P2",
+                        "actual": "DSM09-0101-0617-001IB2/P2 - DSM09-0101-0721-001IB4/P3"
+                    },
+                    {
+                        "expected": "DSM09-0101-0617-001IB2/P2 - DSM09-0101-0721-001IB4/P2",
+                        "actual": "DSM09-0101-0617-001IB2/P2 - DSM09-0101-0721-001IB4/P3"
+                    }
+                ],
+                "missing_in_ufm":
+                [
+                    "DSM09-0101-0618-001IB2/P2 - DSM09-0101-0722-001IB4/P2",
+                    "DSM09-0101-0618-001IB2/P2 - DSM09-0101-0722-001IB4/P2"
+                ],
+                "missing_in_ndt":
+                [
+                    "DSM09-0101-0619-001IB2/P2 - DSM09-0101-0723-001IB4/P2",
+                    "DSM09-0101-0619-001IB2/P2 - DSM09-0101-0723-001IB4/P2"
+                ]
+            }
+        },
+        "Failed report response":
+        {
+            "error": "Failed to parse file topo1.ndt",
+            "timestamp": "2020-09-13 10:57:09"
+        },
+        "Fully match topologies report response":
+        {
+            "timestamp": "2020-09-13 10:57:09",
+            "response": "NDT and UFM topologies are fully match"
+        },
+        "Status Codes": ["200 - Ok", "400 - bad request (bad or missing parameters)"],
+        "Notes":
+        [
+            "miss-wired - links that are connected differently than specified in the NDTs",
+            "missing_in_ufm - links that are specified in the NDT files, but missing in the UFM",
+            "missing_in_ndt - links that aren’t specified in the NDT, but found by the UFM",
+            "limited to the last 10K error events",
+            "every difference logged by syslog"
+        ]
+    },
+    "POST /delete":
+    {
+        "Description": "Deletes NDT files from UFM",
+        "URL": "POST ufmRestV2/plugin/ndt/delete",
+        "Request Content Type": "Application/json",
+        "Request Data":
+        [
+            {
+                "file_name": "topo1.ndt"
+            },
+            {
+                "file_name": "topo2.ndt"
+            }
+        ],
+        "Response": "N/A",
+        "Status Codes": ["200 - Ok", "400 - bad request (bad or missing parameters)", "404 - not found"]
+    },
+    "GET /version":
+    {
+        "Description": "Returns a release version of UFM NDT plugin",
+        "URL": "POST ufmRestV2/plugin/ndt/version",
+        "Request Data": "N/A",
+        "Response": "N/A",
+        "Status Codes": ["200 - Ok", "400 - bad request (bad or missing parameters)"]
+    },
+    "GET /help":
+    {
+        "Description": "Returns help message",
+        "URL": "POST ufmRestV2/plugin/ndt/help",
+        "Request Data": "N/A",
+        "Response": "N/A",
+        "Status Codes": ["200 - Ok", "400 - bad request (bad or missing parameters)"]
+    }
+}
