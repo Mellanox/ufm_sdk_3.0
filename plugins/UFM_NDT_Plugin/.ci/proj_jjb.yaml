@@ -11,7 +11,7 @@
             keep-system-variables: true
             properties-content: |
               jjb_proj={jjb_proj}
-              REPOSITORY='https://github.com/Mellanox-lab/UFM_NDT_Plugin'
+              REPOSITORY='https://github.com/Mellanox/ufm_sdk_3.0'
               PROJECT_NAME=UFM-NDT
     description: Do NOT edit this job through the Web GUI !
     concurrent: true
@@ -98,7 +98,7 @@
     name: ufm_ndt
     jjb_email: 'ekaidrikov@nvidia.com'
     jjb_proj: 'ufm_ndt'
-    jjb_git: 'https://github.com/Mellanox-lab/UFM_NDT_Plugin'
+    jjb_git: 'https://github.com/Mellanox/ufm_sdk_3.0'
     jjb_owner: 'Evgeny Kaidrikov'
     jobs:
         - ufm_ndt
