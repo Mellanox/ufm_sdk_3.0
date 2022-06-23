@@ -29,6 +29,7 @@ class SwUpgradeActionConstants:
     UFM_API_PROTOCOL = "protocol"
     UFM_API_SERVER = "server"
     ACTION = 'sw_upgrade'
+    UPGRADE_ALL = 'upgrade_all'
     args_list = [
         {
             "name": f'--{ActionConstants.UFM_API_OBJECT_TYPE}',
@@ -40,7 +41,7 @@ class SwUpgradeActionConstants:
         },
         {
             "name": f'--{ActionConstants.API_OBJECT_IDS}',
-            "help": "comma separated GUIDs if this arg was not provided the action will be run on all devices in UFM fabric",
+            "help": "comma separated GUIDs",
         },
         {
             "name": f'--{ActionConstants.UFM_API_DESCRIPTION}',
@@ -69,6 +70,11 @@ class SwUpgradeActionConstants:
         {
             "name": f'--{UFM_API_SERVER}',
             "help": "IPv4 or IPv6",
+        },
+        {
+            "name": f'--{UPGRADE_ALL}',
+            "help": "run sw upgrade in all devices that support it",
+            "no_value": True
         }
 
     ]
@@ -87,6 +93,7 @@ class UfmSwUpgradeConfigParser(ConfigParser):
 
     UFM_SW_UPGRADE_SECTION= "ufm-devices-sw-upgrade"
     UFM_SW_UPGRADE_SECTION_OBJECT_IDS= "object_ids"
+    UFM_SW_UPGRADE_SECTION_UPGRADE_ALL= "upgrade_all"
     UFM_SW_UPGRADE_SECTION_OBJECT_TYPE= "object_type"
     UFM_SW_UPGRADE_SECTION_ID= "identifier"
     UFM_SW_UPGRADE_SECTION_DESCRIPTION= "description"
@@ -110,7 +117,11 @@ class UfmSwUpgradeConfigParser(ConfigParser):
                                      self.UFM_SW_UPGRADE_SECTION, self.UFM_SW_UPGRADE_SECTION_ID, 'id')
     def get_object_ids(self):
         return self.get_config_value(self.args_dict.get(ActionConstants.API_OBJECT_IDS),
-                                     self.UFM_SW_UPGRADE_SECTION, self.UFM_SW_UPGRADE_SECTION_OBJECT_IDS, '')
+                                     self.UFM_SW_UPGRADE_SECTION, self.UFM_SW_UPGRADE_SECTION_OBJECT_IDS)
+    def get_upgrade_all(self):
+        return self.safe_get_bool(self.args_dict.get(SwUpgradeActionConstants.UPGRADE_ALL),
+                                  self.UFM_SW_UPGRADE_SECTION,self.UFM_SW_UPGRADE_SECTION_UPGRADE_ALL,
+                                  False)
 
     def get_description(self):
         return self.get_config_value(self.args_dict.get(ActionConstants.UFM_API_DESCRIPTION),
@@ -162,6 +173,15 @@ if __name__ == "__main__":
 
         # sw upgrade
         try:
+            object_ids = ''
+            try:
+                object_ids = config_parser.get_object_ids()
+                if config_parser.get_upgrade_all():
+                    Logger.log_message(ActionConstants.IGNORE_ALL_OPTION_MSG%(SwUpgradeActionConstants.UPGRADE_ALL,
+                                       ActionConstants.API_OBJECT_IDS))
+            except ValueError as e:
+                if not config_parser.get_upgrade_all():
+                    raise ValueError()
             payload={
                 ActionConstants.UFM_API_ACTION: SwUpgradeActionConstants.ACTION,
                 ActionConstants.UFM_API_OBJECT_TYPE: config_parser.get_object_type(),
@@ -176,7 +196,7 @@ if __name__ == "__main__":
                     SwUpgradeActionConstants.UFM_API_SERVER: config_parser.get_server(),
                 }
             }
-            action = UfmDevicesAction(payload, config_parser.get_object_ids(), host=config_parser.get_ufm_host(),
+            action = UfmDevicesAction(payload, object_ids, host=config_parser.get_ufm_host(),
                                       client_token=config_parser.get_ufm_access_token(),
                                       username=config_parser.get_ufm_username(),
                                       password=config_parser.get_ufm_password(),
@@ -194,6 +214,7 @@ if __name__ == "__main__":
                                             SwUpgradeActionConstants.UFM_API_IMAGE,
                                             SwUpgradeActionConstants.UFM_API_PROTOCOL,
                                             SwUpgradeActionConstants.UFM_API_SERVER,
+                                            f'{ActionConstants.API_OBJECT_IDS} or {SwUpgradeActionConstants.UPGRADE_ALL}',
                                                   supported_in_config=True)
 
 

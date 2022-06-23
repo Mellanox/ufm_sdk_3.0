@@ -36,7 +36,6 @@ class ConfigParser(object):
     def __init__(self, args, read_sdk_config = True):
         self.sdk_config = configparser.RawConfigParser()
         if read_sdk_config:
-            print(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             self.sdk_config.read(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),SDK_CONFIG_FILE))
         self.args = args
 
