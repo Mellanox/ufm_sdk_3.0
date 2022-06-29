@@ -46,25 +46,25 @@ Plugin Deployment
     - Move the file to scp shared location that is accessible to the appliance 
     - Fetch the image to the appliance 
       > image fetch scp://[some-shared-location]/ufm-plugin-tfs
-      - Load the image
+    - Load the image
       > docker load ufm-plugin-tfs
 - Enable & start the plugin 
 
     > ufm plugin tfs add;
 
 ### To deploy the plugin on UFM Docker container:
- Load the latest plugin container
-  - In case of HA, load the plugin on the standby node as well;
-  - if your machine is connected to the internet, you could simply run:
-    > docker pull mellanox/ufm-plugin-tfs
-  - if your appliance is not connected to the internet, you need to load the image offline 
-    - Use a machine that is connected to the internet to save the docker image 
-      > docker save mellanox/ufm-plugin-tfs:latest | gzip > ufm-plugin-tfs.tar.gz
-    - Move the file to some shared location that is accessible to the UFM machine 
-    - Load the image to UFM machine
-      > docker load < /[some-shared-location]/ufm-plugin-tfs.tar.gz
-    
-    - Enable & start the plugin
+  - Load the latest plugin container
+      - In case of HA, load the plugin on the standby node as well;
+      - if your machine is connected to the internet, you could simply run:
+        > docker pull mellanox/ufm-plugin-tfs
+      - if your appliance is not connected to the internet, you need to load the image offline 
+        - Use a machine that is connected to the internet to save the docker image 
+          > docker save mellanox/ufm-plugin-tfs:latest | gzip > ufm-plugin-tfs.tar.gz
+        - Move the file to some shared location that is accessible to the UFM machine 
+        - Load the image to UFM machine
+          > docker load < /[some-shared-location]/ufm-plugin-tfs.tar.gz
+        
+- Enable & start the plugin
     > docker exec ufm /opt/ufm/scripts/manage_ufm_plugins.sh add -p tfs  
 
 
@@ -77,7 +77,7 @@ Plugin Deployment
 ### To deploy the plugin with UFM Enterprise (SA or HA):
 - Install the latest version of UFM.
  
-Load the latest plugin container
+- Load the latest plugin container
   - In case of HA, load the plugin on the standby node as well;
   - if your machine is connected to the internet, you could simply run:
     > docker pull mellanox/ufm-plugin-tfs
@@ -139,7 +139,7 @@ Usage
         },
         "fluentd-endpoint": {
             "host": "10.209.36.68",
-            "port": "24226"
+            "port": 24226
         },
         "streaming": {
             "interval": 10,
