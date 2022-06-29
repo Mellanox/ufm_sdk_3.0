@@ -15,67 +15,84 @@ As a fabric manager, the UFM Telemetry holds a real-time network telemetry infor
 Plugin Deployment
 --------------------------------------------------------
 
-To deploy the plugin on UFM Appliance:
+### To deploy the plugin on UFM-SDN Appliance:
 
-- Login as admin;
+- Login as admin
 - Run 
 
 
-    > enable;
-    > config terminal;
+    > enable
+    > config terminal
 
-- make sure that UFM is running with :
-
-
-    > show ufm status;
-- If UFM is down then run it with 
+- Make sure that UFM is running
 
 
-    > ufm start;
-- Make sure that TFS plugin is not added yet by running 
+    > show ufm status
+- if UFM is down then run it
 
-
-    > show ufm plugin;
-- Pull the latest plugin container
-  - In case of HA pull the plugin on the standby node as well;
-- To enable & start the plugin, run: 
-
+    > ufm start
+  
+- Make sure docker is running
+  
+    > no docker shutdown
+  
+- Load the latest plugin container
+  - In case of HA, load the plugin on the standby node as well;
+  - if your appliance is connected to the internet, you could simply run:
+    > docker pull mellanox/ufm-plugin-tfs
+  - if your appliance is not connected to the internet, you need to load the image offline 
+    - Use a machine that is connected to the internet to save the docker image 
+      > docker save mellanox/ufm-plugin-tfs:latest | gzip > ufm-plugin-tfs.tar.gz
+    - Move the file to scp shared location that is accessible to the appliance 
+    - Fetch the image to the appliance 
+      > image fetch scp://[some-shared-location]/ufm-plugin-tfs
+      - Load the image
+      > docker load ufm-plugin-tfs
+- Enable & start the plugin 
 
     > ufm plugin tfs add;
 
-- To enable & start the plugin on UFM Docker container or UFM 3, run :
-
+### To deploy the plugin on UFM Docker container:
+ Load the latest plugin container
+  - In case of HA, load the plugin on the standby node as well;
+  - if your machine is connected to the internet, you could simply run:
+    > docker pull mellanox/ufm-plugin-tfs
+  - if your appliance is not connected to the internet, you need to load the image offline 
+    - Use a machine that is connected to the internet to save the docker image 
+      > docker save mellanox/ufm-plugin-tfs:latest | gzip > ufm-plugin-tfs.tar.gz
+    - Move the file to some shared location that is accessible to the UFM machine 
+    - Load the image to UFM machine
+      > docker load < /[some-shared-location]/ufm-plugin-tfs.tar.gz
     
+    - Enable & start the plugin
     > docker exec ufm /opt/ufm/scripts/manage_ufm_plugins.sh add -p tfs  
 
 
 - Check that plugin is up and running with
     
     
-    > show ufm plugin;
+    > docker exec ufm /opt/ufm/scripts/manage_ufm_plugins.sh show
 
 
-To deploy the plugin with UFM Enterprise (SA or HA):
+### To deploy the plugin with UFM Enterprise (SA or HA):
 - Install the latest version of UFM.
-- Run UFM by running:
-
-
-    > /etc/init.d/ufmd start
  
-- Pull the latest plugin container
-  - In case of HA pull the plugin on the standby node as well;
+Load the latest plugin container
+  - In case of HA, load the plugin on the standby node as well;
+  - if your machine is connected to the internet, you could simply run:
+    > docker pull mellanox/ufm-plugin-tfs
+  - if your appliance is not connected to the internet, you need to load the image offline 
+    - Use a machine that is connected to the internet to save the docker image 
+      > docker save mellanox/ufm-plugin-tfs:latest | gzip > ufm-plugin-tfs.tar.gz
+    - Move the file to some shared location that is accessible to the UFM machine 
+    - Load the image to UFM machine
+      > docker load < /[some-shared-location]/ufm-plugin-tfs.tar.gz
+      
 - To enable & start the plugin, run :
 
-    
     > /opt/ufm/scripts/manage_ufm_plugins.sh add -p tfs
-    
-- To enable & start the plugin on UFM Docker container or UFM 3, run :
-
-    
-    > docker exec ufm /opt/ufm/scripts/manage_ufm_plugins.sh add -p tfs  
   
 - Check that plugin is up and running with
- 
  
     >docker ps;
 
