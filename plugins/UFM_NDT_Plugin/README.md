@@ -27,7 +27,7 @@ Log file ndt.log is located in /opt/ufm/files/log on the host.
 **Usage**
 
 Example of a test scenario (positive flow):
-- run UFM simulation based on /auto/mtrswgwork/atolikin/ndt_testing/ibnetdiscover_director.txt file;
+- run UFM simulation based on [ibnetdiscover_director.txt](https://github.com/Mellanox/UFM/blob/master/simulation/ibnetdiscover_files/ibnetdiscover_director.txt) file (instruction on how to run UFM on top of simulated topology could be found [here](https://github.com/Mellanox/UFM/blob/master/simulation/README.md));
 - _curl -k -i -X POST -H "Content-Type:application/json" -d ‘<request>’ ‘http://<host_ip>/ufmRest<V2><V3>/plugin/ndt/upload_metadata’_: upload the data, don’t forget to replace Windows line endings with Linux ones;
 - _curl -k -i -X GET 'http:// <host_ip>/ ufmRest<V2><V3>/plugin/ndt/list'_: check a list of uploaded NDTs;
 - _curl -k -i -X POST -H "Content-Type:application/json" -d ‘’ 'http://<host_ip>/ ufmRest<V2><V3>/plugin/ndt/compare’_: run topology comparison;
