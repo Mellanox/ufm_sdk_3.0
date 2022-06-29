@@ -22,6 +22,7 @@ Plugin Deployment
 
 
     > enable
+    
     > config terminal
 
 - Make sure that UFM is running
@@ -45,12 +46,18 @@ Plugin Deployment
       > docker save mellanox/ufm-plugin-tfs:latest | gzip > ufm-plugin-tfs.tar.gz
     - Move the file to scp shared location that is accessible to the appliance 
     - Fetch the image to the appliance 
-      > image fetch scp://[some-shared-location]/ufm-plugin-tfs
+      > image fetch scp://user@hostname/path-to-file/ufm-plugin-tfs.tar.gz
     - Load the image
-      > docker load ufm-plugin-tfs
+      > docker load ufm-plugin-tfs.tar.gz
 - Enable & start the plugin 
 
-    > ufm plugin tfs add;
+    > ufm plugin tfs add
+    
+    
+-	Check that plugin is up and running with
+
+    > show ufm plugin
+
 
 ### To deploy the plugin on UFM Docker container:
   - Load the latest plugin container
