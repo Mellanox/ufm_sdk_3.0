@@ -26,6 +26,7 @@ import requests
 import logging
 import time
 import datetime
+from prometheus_client.parser import text_string_to_metric_families
 from utils.fluentd.fluent import asyncsender as asycsender
 
 
@@ -82,7 +83,9 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
     UFM_TELEMETRY_ENDPOINT_SECTION = "ufm-telemetry-endpoint"
     UFM_TELEMETRY_ENDPOINT_SECTION_HOST = "host"
     UFM_TELEMETRY_ENDPOINT_SECTION_PORT = "port"
-    UFM_TELEMETRY_ENDPOINT_SECTION_URL = "url"
+    UFM_TELEMETRY_ENDPOINT_SECTION_CSV_URL = "csv_url"
+    UFM_TELEMETRY_ENDPOINT_SECTION_PROMETHEUS_URL = "prometheus_url"
+    UFM_TELEMETRY_ENDPOINT_SECTION_CSV_FORMAT = "csv_format"
 
     FLUENTD_ENDPOINT_SECTION = "fluentd-endpoint"
     FLUENTD_ENDPOINT_SECTION_HOST = "host"
@@ -112,11 +115,23 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
                                  self.UFM_TELEMETRY_ENDPOINT_SECTION_PORT,
                                  9001)
 
-    def get_telemetry_url(self):
+    def get_telemetry_csv_url(self):
         return self.get_config_value(self.args.ufm_telemetry_url,
                                      self.UFM_TELEMETRY_ENDPOINT_SECTION,
-                                     self.UFM_TELEMETRY_ENDPOINT_SECTION_URL,
-                                     "enterprise")
+                                     self.UFM_TELEMETRY_ENDPOINT_SECTION_CSV_URL,
+                                     "labels/csv/metrics")
+
+    def get_telemetry_prometheus_url(self):
+        return self.get_config_value(self.args.ufm_telemetry_url,
+                                     self.UFM_TELEMETRY_ENDPOINT_SECTION,
+                                     self.UFM_TELEMETRY_ENDPOINT_SECTION_PROMETHEUS_URL,
+                                     "labels/metrics")
+
+    def get_telemetry_csv_format(self):
+        return self.safe_get_bool(self.args.ufm_telemetry_url,
+                                  self.UFM_TELEMETRY_ENDPOINT_SECTION,
+                                  self.UFM_TELEMETRY_ENDPOINT_SECTION_CSV_FORMAT,
+                                  True)
 
     def get_streaming_interval(self):
         return self.safe_get_int(self.args.streaming_interval,
@@ -189,7 +204,9 @@ class UFMTelemetryStreaming:
 
         self.ufm_telemetry_host = self.config_parser.get_telemetry_host()
         self.ufm_telemetry_port = self.config_parser.get_telemetry_port()
-        self.ufm_telemetry_url = self.config_parser.get_telemetry_url()
+        self.ufm_telemetry_is_csv_format = self.config_parser.get_telemetry_csv_format()
+        self.ufm_telemetry_url = self.config_parser.get_telemetry_csv_url() if self.ufm_telemetry_is_csv_format \
+            else self.config_parser.get_telemetry_prometheus_url()
 
         self.streaming_interval = self.config_parser.get_streaming_interval()
         self.bulk_streaming_flag = self.config_parser.get_bulk_streaming_flag()
@@ -234,6 +251,27 @@ class UFMTelemetryStreaming:
                 output.append(dic)
         return output
 
+    def _parse_telemetry_prometheus_metrics_to_json(self, data):
+        id_keys = ['node_guid','port_guid', 'port_num']
+        elements_dict = {}
+        for family in text_string_to_metric_families(data):
+            for sample in family.samples:
+                id = ''
+                for key in id_keys:
+                    id += sample.labels.get(key, '') + ":"
+                id += str(sample.timestamp)
+                current_row = elements_dict.get(id)
+                if current_row is None:
+                    row = {
+                        'timestamp': int(sample.timestamp * 1000)  # to be unified with the csv value
+                    }
+                    row.update(sample.labels)
+                    # rename source -> source_id in order to be unified with the csv format key
+                    row["source_id"] = row.pop("source")
+                    elements_dict[id] = row
+                elements_dict[id][sample.name] = sample.value
+        return list(elements_dict.values())
+
     def _stream_data_to_fluentd(self, data_to_stream):
         logging.info(f'Streaming to Fluentd IP: {self.fluentd_host} port: {self.fluentd_port} timeout: {self.fluentd_timeout}')
         try:
@@ -256,12 +294,17 @@ class UFMTelemetryStreaming:
     def stream_data(self):
         telemetry_data = self._get_metrics()
         if telemetry_data:
-            data_to_stream = self._parse_telemetry_csv_metrics_to_json(telemetry_data)
-            if self.bulk_streaming_flag:
-                self._stream_data_to_fluentd(data_to_stream)
-            else:
-                for row in data_to_stream:
-                    self._stream_data_to_fluentd(row)
+            try:
+                data_to_stream = self._parse_telemetry_csv_metrics_to_json(telemetry_data) \
+                    if self.ufm_telemetry_is_csv_format else \
+                    self._parse_telemetry_prometheus_metrics_to_json(telemetry_data)
+                if self.bulk_streaming_flag:
+                    self._stream_data_to_fluentd(data_to_stream)
+                else:
+                    for row in data_to_stream:
+                        self._stream_data_to_fluentd(row)
+            except Exception as e:
+                logging.error("Exception occured during parsing telemetry data: "+ str(e))
         else:
             logging.error("Failed to get the telemetry data metrics")
 
