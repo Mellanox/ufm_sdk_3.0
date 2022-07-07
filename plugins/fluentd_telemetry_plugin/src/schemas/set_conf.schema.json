@@ -29,8 +29,14 @@
           "maximum": 65535,
           "err_message": "[ufm-telemetry-endpoint - port] attribute should be an integer between 1-65535."
         },
-        "url": {
+        "csv_url": {
           "type": "string"
+        },
+        "prometheus_url": {
+          "type": "string"
+        },
+        "csv_format": {
+          "type": "boolean"
         }
       }
     },
