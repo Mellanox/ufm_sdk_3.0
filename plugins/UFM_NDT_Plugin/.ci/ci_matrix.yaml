@@ -60,7 +60,7 @@ steps:
       if [ "$lst" == "" ]; then
           echo "No *.py changed files" > $WORKSPACE/logs/bandit.html
       else
-          /usr/local/bin/bandit -lll -f html -c $WORKSPACE/.ci/bandit.yaml ${lst} > $WORKSPACE/logs/bandit.html || true
+          /usr/local/bin/bandit -lll -f html -c $WORKSPACE/plugins/UFM_NDT_Plugin/.ci/bandit.yaml ${lst} > $WORKSPACE/logs/bandit.html || true
       fi
     parallel: true
     archiveArtifacts: 'logs/*'

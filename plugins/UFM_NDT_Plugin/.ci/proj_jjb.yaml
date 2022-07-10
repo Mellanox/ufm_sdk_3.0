@@ -47,7 +47,7 @@
             description: "email notifications"
         - string:
             name: "conf_file"
-            default: "plugins/UFM_NDT_Plugin/.ci/Jenkinsfile"
+            default: "plugins/UFM_NDT_Plugin/.ci/ci_matrix.yaml"
             description: "Regex to select job config file. Do not change it"
         - string:
             name: SERVER_HOST
