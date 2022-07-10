@@ -47,7 +47,7 @@
             description: "email notifications"
         - string:
             name: "conf_file"
-            default: "/plugins/UFM_NDT_Plugin/.ci/Jenkinsfile"
+            default: "plugins/UFM_NDT_Plugin/.ci/Jenkinsfile"
             description: "Regex to select job config file. Do not change it"
         - string:
             name: SERVER_HOST
@@ -68,7 +68,7 @@
                 refspec: "+refs/pull/*:refs/remotes/origin/pr/*"
                 browser: githubweb
                 browser-url: "{jjb_git}"
-        script-path: "/plugins/UFM_NDT_Plugin/.ci/Jenkinsfile"
+        script-path: "plugins/UFM_NDT_Plugin/.ci/Jenkinsfile"
     publishers:
       - email-ext:
           recipients: ekaidrikov@nvidia.com
