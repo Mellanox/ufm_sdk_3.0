@@ -15,7 +15,7 @@ credentials:
 volumes:
   - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
 runs_on_dockers:
-   - {file: '.ci/Dockerfile_static_tests_ub2004', arch: 'x86_64', name: 'swx_static', tag: 'latest'}
+   - {file: '/plugins/UFM_NDT_Plugin/.ci/Dockerfile_static_tests_ub2004', arch: 'x86_64', name: 'swx_static', tag: 'latest'}
 runs_on_agents:
   - nodeLabel: 'UFM-POC'
 
