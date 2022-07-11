@@ -87,6 +87,7 @@ steps:
     credentialsId: '2c8fd3fe-df05-4f6f-9d1f-f1896d611434'
     run: |
       pwd
+      cd plugins/UFM_NDT_Plugin/
       export PASSWORD=$PASSWORD
       .ci/do_install_plugin_server.sh
     parallel: false
@@ -94,13 +95,16 @@ steps:
   - name: load plugin
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
+      cd plugins/UFM_NDT_Plugin/
       service opensmd start
       .ci/do_load_plugin.sh
     parallel: false
 
   - name: add plugin
     agentSelector: "{nodeLabel: 'UFM-POC'}"
-    run: .ci/do_add_plugin.sh 
+    run: |
+      cd plugins/UFM_NDT_Plugin/
+      .ci/do_add_plugin.sh 
     parallel: false
 
 
@@ -118,13 +122,16 @@ steps:
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
       mkdir $WORKSPACE/logs/
+      cd plugins/UFM_NDT_Plugin/
       .ci/do_get_logs.sh
     archiveArtifacts: 'logs/ndt.log'
     parallel: false
 
   - name: remove plugin end
     agentSelector: "{nodeLabel: 'UFM-POC'}"
-    run: .ci/do_remove_plugin.sh
+    run: |
+      cd plugins/UFM_NDT_Plugin/
+      .ci/do_remove_plugin.sh
     parallel: false
     
 
