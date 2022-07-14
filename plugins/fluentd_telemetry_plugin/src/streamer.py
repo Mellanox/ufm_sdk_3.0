@@ -83,9 +83,7 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
     UFM_TELEMETRY_ENDPOINT_SECTION = "ufm-telemetry-endpoint"
     UFM_TELEMETRY_ENDPOINT_SECTION_HOST = "host"
     UFM_TELEMETRY_ENDPOINT_SECTION_PORT = "port"
-    UFM_TELEMETRY_ENDPOINT_SECTION_CSV_URL = "csv_url"
-    UFM_TELEMETRY_ENDPOINT_SECTION_PROMETHEUS_URL = "prometheus_url"
-    UFM_TELEMETRY_ENDPOINT_SECTION_CSV_FORMAT = "csv_format"
+    UFM_TELEMETRY_ENDPOINT_SECTION_URL = "url"
 
     FLUENTD_ENDPOINT_SECTION = "fluentd-endpoint"
     FLUENTD_ENDPOINT_SECTION_HOST = "host"
@@ -115,23 +113,11 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
                                  self.UFM_TELEMETRY_ENDPOINT_SECTION_PORT,
                                  9001)
 
-    def get_telemetry_csv_url(self):
+    def get_telemetry_url(self):
         return self.get_config_value(self.args.ufm_telemetry_url,
                                      self.UFM_TELEMETRY_ENDPOINT_SECTION,
-                                     self.UFM_TELEMETRY_ENDPOINT_SECTION_CSV_URL,
+                                     self.UFM_TELEMETRY_ENDPOINT_SECTION_URL,
                                      "labels/csv/metrics")
-
-    def get_telemetry_prometheus_url(self):
-        return self.get_config_value(self.args.ufm_telemetry_url,
-                                     self.UFM_TELEMETRY_ENDPOINT_SECTION,
-                                     self.UFM_TELEMETRY_ENDPOINT_SECTION_PROMETHEUS_URL,
-                                     "labels/metrics")
-
-    def get_telemetry_csv_format(self):
-        return self.safe_get_bool(self.args.ufm_telemetry_url,
-                                  self.UFM_TELEMETRY_ENDPOINT_SECTION,
-                                  self.UFM_TELEMETRY_ENDPOINT_SECTION_CSV_FORMAT,
-                                  True)
 
     def get_streaming_interval(self):
         return self.safe_get_int(self.args.streaming_interval,
@@ -204,9 +190,7 @@ class UFMTelemetryStreaming:
 
         self.ufm_telemetry_host = self.config_parser.get_telemetry_host()
         self.ufm_telemetry_port = self.config_parser.get_telemetry_port()
-        self.ufm_telemetry_is_csv_format = self.config_parser.get_telemetry_csv_format()
-        self.ufm_telemetry_url = self.config_parser.get_telemetry_csv_url() if self.ufm_telemetry_is_csv_format \
-            else self.config_parser.get_telemetry_prometheus_url()
+        self.ufm_telemetry_url = self.config_parser.get_telemetry_url()
 
         self.streaming_interval = self.config_parser.get_streaming_interval()
         self.bulk_streaming_flag = self.config_parser.get_bulk_streaming_flag()
@@ -228,6 +212,21 @@ class UFMTelemetryStreaming:
             logging.error(e)
             return None
 
+    def _append_meta_fields_to_dict(self, dic):
+        keys = dic.keys()
+        for alias in self.aliases_meta_fields:
+            alias_key = alias["key"]
+            alias_value = alias["value"]
+            value = dic.get(alias_key, None)
+            if value is None:
+                logging.warning(
+                    "The alias : {} does not exist in the telemetry response keys: {}".format(alias_key, str(keys)))
+                continue
+            dic[alias_value] = value
+        for custom_field in self.custom_meta_fields:
+            dic[custom_field["key"]] = custom_field["value"]
+        return dic
+
     def _parse_telemetry_csv_metrics_to_json(self, data, line_separator = "\n", attrs_sepatator = ","):
         rows = data.split(line_separator)
         keys = rows[0].split(attrs_sepatator)
@@ -238,16 +237,7 @@ class UFMTelemetryStreaming:
                 dic = {}
                 for i in range(len(keys)):
                     dic[keys[i]] = values[i]
-                for alias in self.aliases_meta_fields:
-                    alias_key = alias["key"]
-                    alias_value = alias["value"]
-                    value = dic.get(alias_key,None)
-                    if value is None:
-                        logging.warning("The alias : {} does not exist in the telemetry response keys: {}".format(alias_key, str(keys)))
-                        continue
-                    dic[alias_value] = value
-                for custom_field in self.custom_meta_fields:
-                    dic[custom_field["key"]] = custom_field["value"]
+                dic = self._append_meta_fields_to_dict(dic)
                 output.append(dic)
         return output
 
@@ -268,6 +258,7 @@ class UFMTelemetryStreaming:
                     row.update(sample.labels)
                     # rename source -> source_id in order to be unified with the csv format key
                     row["source_id"] = row.pop("source")
+                    row = self._append_meta_fields_to_dict(row)
                     elements_dict[id] = row
                 elements_dict[id][sample.name] = sample.value
         return list(elements_dict.values())
@@ -295,9 +286,10 @@ class UFMTelemetryStreaming:
         telemetry_data = self._get_metrics()
         if telemetry_data:
             try:
-                data_to_stream = self._parse_telemetry_csv_metrics_to_json(telemetry_data) \
-                    if self.ufm_telemetry_is_csv_format else \
-                    self._parse_telemetry_prometheus_metrics_to_json(telemetry_data)
+                ufm_telemetry_is_prometheus_format = telemetry_data.startswith('#')
+                data_to_stream = self._parse_telemetry_prometheus_metrics_to_json(telemetry_data) \
+                    if ufm_telemetry_is_prometheus_format else \
+                    self._parse_telemetry_csv_metrics_to_json(telemetry_data)
                 if self.bulk_streaming_flag:
                     self._stream_data_to_fluentd(data_to_stream)
                 else:
