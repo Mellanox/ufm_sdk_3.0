@@ -52,12 +52,10 @@ class UfmPortsConstants:
         },
         {
             "name": f'--{API_PARAM_ACTIVE}',
-            "default": True,
             "help": "Option to get active ports only"
         },
         {
             "name": f'--{API_PARAM_SHOW_DISABLED}',
-            "default": False,
             "help": "Option to get disabled ports"
         }
     ]
