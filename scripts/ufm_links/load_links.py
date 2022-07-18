@@ -13,7 +13,7 @@
     provided with the software product.
 
 @author: Nasr Ajaj
-@date:   Jul 14, 2022
+@date:   Jul 17, 2022
 """
 
 import os
@@ -38,41 +38,42 @@ except ModuleNotFoundError as e:
               f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}"')
 
 
-class UfmPortsConstants:
+class UfmLinksConstants:
 
-    PORTS_API_URL = 'resources/ports'
-    API_PARAM_SHOW_DISABLED = "show_disabled"
+    LINKS_API_URL = 'resources/links'
+    API_PARAM_CABLE_INFO = "cable_info"
+    API_PARAM_MONITORING_COUNTERS_INFO = "monitoring_counters_info"
     API_PARAM_SYSTEM = "system"
-    API_PARAM_ACTIVE = "active"
 
     args_list = [
         {
             "name": f'--{API_PARAM_SYSTEM}',
-            "help": "Option to get all ports data related to specific system node"
+            "help": "Option to get all links data related to specific system node"
         },
         {
-            "name": f'--{API_PARAM_ACTIVE}',
-            "help": "Option to get active ports only"
+            "name": f'--{API_PARAM_MONITORING_COUNTERS_INFO}',
+            "help": "Option to show monitoring counters data"
         },
         {
-            "name": f'--{API_PARAM_SHOW_DISABLED}',
-            "help": "Option to get disabled ports"
+            "name": f'--{API_PARAM_CABLE_INFO}',
+            "help": "Option to show cable information"
         }
     ]
 
 
-class UfmPortsConfigParser(ConfigParser):
+class UfmLinksConfigParser(ConfigParser):
     def __init__(self, args):
         super().__init__(args)
 
 
-class UfmPortsManagement:
+class UfmLinksManagement:
 
     @staticmethod
-    def get_ports(active, show_disabled, system=None):
-        url = f'{UfmPortsConstants.PORTS_API_URL}?{UfmPortsConstants.API_PARAM_ACTIVE}={active}&{UfmPortsConstants.API_PARAM_SHOW_DISABLED}={show_disabled}'
+    def get_links(show_cable_info, show_counters_info, system=None):
+        url = f'{UfmLinksConstants.LINKS_API_URL}?{UfmLinksConstants.API_PARAM_CABLE_INFO}={show_cable_info}' \
+              f'&{UfmLinksConstants.API_PARAM_MONITORING_COUNTERS_INFO}={show_counters_info}'
         if system:
-            url = f'{url}&{UfmPortsConstants.API_PARAM_SYSTEM}={system}'
+            url = f'{url}&{UfmLinksConstants.API_PARAM_SYSTEM}={system}'
         response = ufm_rest_client.send_request(url)
         if response and response.status_code == HTTPStatus.OK:
             Logger.log_message(response.json())
@@ -83,10 +84,10 @@ class UfmPortsManagement:
 
 if __name__ == "__main__":
     # init app args
-    args = ArgsParser.parse_args("UFM Ports Management", UfmPortsConstants.args_list)
+    args = ArgsParser.parse_args("UFM Links Management", UfmLinksConstants.args_list)
 
     # init app config parser & load config files
-    config_parser = UfmPortsConfigParser(args)
+    config_parser = UfmLinksConfigParser(args)
 
     # init logs configs
     logs_level = config_parser.get_logs_level()
@@ -98,11 +99,10 @@ if __name__ == "__main__":
                                     client_token=config_parser.get_ufm_access_token(), username=config_parser.get_ufm_username(),
                                     password=config_parser.get_ufm_password(), ws_protocol=config_parser.get_ufm_protocol())
     args_dict = args.__dict__
-    param_active = config_parser.safe_get_bool(args_dict.get(UfmPortsConstants.API_PARAM_ACTIVE), None, None, True)
-    param_show_disabled = config_parser.safe_get_bool(args_dict.get(UfmPortsConstants.API_PARAM_SHOW_DISABLED), None, None, False)
-    if args_dict.get(UfmPortsConstants.API_PARAM_SYSTEM):
-        system = args_dict.get(UfmPortsConstants.API_PARAM_SYSTEM)
-        UfmPortsManagement.get_ports(param_active, param_show_disabled, system)
+    param_show_cable_info = config_parser.safe_get_bool(args_dict.get(UfmLinksConstants.API_PARAM_CABLE_INFO), None, None, True)
+    param_show_counters_info = config_parser.safe_get_bool(args_dict.get(UfmLinksConstants.API_PARAM_MONITORING_COUNTERS_INFO), None, None, False)
+    if args_dict.get(UfmLinksConstants.API_PARAM_SYSTEM):
+        system = args_dict.get(UfmLinksConstants.API_PARAM_SYSTEM)
+        UfmLinksManagement.get_links(param_show_cable_info, param_show_counters_info, system)
     else:
-        UfmPortsManagement.get_ports(param_active, param_show_disabled)
-
+        UfmLinksManagement.get_links(param_show_cable_info, param_show_counters_info)
