@@ -13,5 +13,7 @@ send -- "config terminal\r"
 expect "/(config/) # "
 send -- "image fetch scp://root:$PASSWORD@$namehost/auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/ufm-plugin-ndt_latest-docker.img.gz\r"
 expect "/(config/) # "
+send -- "no ufm start\r"
+expect "/(config/) # "
 sleep 50
 EOF

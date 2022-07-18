@@ -96,7 +96,7 @@ steps:
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
       cd plugins/UFM_NDT_Plugin/
-      service opensmd start
+      /etc/init.d/ufmd start
       .ci/do_load_plugin.sh
     parallel: false
 
