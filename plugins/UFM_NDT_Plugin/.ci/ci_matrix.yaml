@@ -114,7 +114,9 @@ steps:
       service rsyslog restart
       sleep 30
       export SERVER_HOST=$SERVER_HOST
-      cd /plugins/UFM_NDT_Plugin/tests
+      echo "in run client tests"
+      pwd
+      cd plugins/UFM_NDT_Plugin/tests
       python3 ndt_plugin_test.py --host $SERVER_HOST
     parallel: false
   
