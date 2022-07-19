@@ -1,8 +1,8 @@
-UFM Links
+UFM Top Nodes By Counter
 --------------------------------------------------------
 
 
-This plugin is used to get links information via the UFM APIs.
+This plugin is used to get top nodes by counter information via the UFM APIs.
 
 
 Prerequisites
@@ -20,7 +20,7 @@ To export your repository to PYTHONPATH, please run :
 Running using command line arguments :
 --------------------------------------------------------
 
-    python3 load_links.py
+    python3 get_top_nodes_by_counter.py
 
  Running syntax
 --------------------------------------------------------
@@ -35,9 +35,9 @@ Running using command line arguments :
 | --logs_file_name <logs_file_name> | [logs-config.logs_file_name](../conf/ufm-devices.sample.cfg#L11) | False | Log file name [Default = 'console.log']
 | --logs_level <logs_level> | [logs-config.logs_level](../conf/ufm-devices.sample.cfg#L14) | False | Default is 'info'
 | --logs_level <logs_level> | [logs-config.logs_level](../conf/ufm-devices.sample.cfg#L14) | False | Default is 'info'
-| --system <system> | None | False | Option to get specific system links data
-| --cable_info <cable_info> | None | False | Option to show cable information [Default = True]
-| --monitoring_counters_info <monitoring_counters_info> | None | False | Option to show monitoring counters data [Default = False]
+| --PickBy <PickBy> | None | True | Option to get specific system links data
+| --limit <limit> | None | False | Option to show cable information [Default = 5]
+
 
 *If command line argument is provided, the corresponding config value will be ignored
 
