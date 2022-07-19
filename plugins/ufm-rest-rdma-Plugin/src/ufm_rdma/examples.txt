@@ -1,0 +1,34 @@
+Environment:
+
+# Create and activate new environment
+conda create -n py36 -c rapidsai -c nvidia -c conda-forge -c defaults python=3.6 pytest-asyncio libtool cmake automake autoconf cython bokeh pytest pkg-config libhwloc gdb ipython
+conda activate py36
+
+# Clone, build and install UCX -- Make sure you adjust the CUDA path according to your machine
+git clone https://github.com/openucx/ucx
+cd ucx
+git checkout v1.11.x
+./autogen.sh
+mkdir build; cd build
+../contrib/configure-release  --prefix=$CONDA_PREFIX --disable-backtrace-detail
+make -j install
+
+# Clone, build and install UCX-Py
+git clone https://github.com/rapidsai/ucx-py
+cd ucx-py
+pip install .
+
+
+activate py36 env: 
+conda activate py36
+
+start server:
+UCX_NET_DEVICES=mlx5_0:1 UCX_TLS=rc_x python rest_rdma_server.py
+
+start client:
+for REST
+UCX_NET_DEVICES=mlx5_0:1 UCX_TLS=rc_x python rest_rdma_client.py -i mlx5_0 -u admin -p 123456 -s r-ufm55 -t simple -a GET -w ufmRest/resources/systems
+
+for ibdiagnet
+UCX_NET_DEVICES=mlx5_0:1 UCX_TLS=rc_x python rest_rdma_client.py -i mlx5_0 -u admin -p 123456 -s r-ufm55 -t ibdiagnet -a POST -w ufmRest/reports/ibdiagnetPeriodic -l '{"general": {"name": "IBDiagnet_CMD_1234567890", "location": "local", "running_mode": "once"}, "command_flags": {"--pc": ""}}'
+
