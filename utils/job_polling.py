@@ -26,7 +26,7 @@ class JobPolling(object):
         self.action_inprogress = False
         self.operation = operation
 
-    def start_polling(self, job_id):
+    def start_polling(self, job_id, print_summary=False):
         try:
             self.action_inprogress = True
             t = self.create_loading_thread()
@@ -45,6 +45,8 @@ class JobPolling(object):
             print(f" ", end='\n')
             if job_status == JobsConstants.API_JOB_COMPLETED:
                 Logger.log_message(f"{self.operation} completed successfully!")
+                if print_summary:
+                    self.print_sub_jobs_summary(job_id)
 
             elif job_status == JobsConstants.API_JOB_COMPLETED_ERRORS or job_status == JobsConstants.API_JOB_COMPLETED_WARNINGS:
                 self.print_sub_jobs_summary(job_id)
