@@ -18,6 +18,7 @@
 
 import os
 import platform
+import time
 from http import HTTPStatus
 
 try:
@@ -44,6 +45,7 @@ class UfmLinksConstants:
     API_PARAM_CABLE_INFO = "cable_info"
     API_PARAM_MONITORING_COUNTERS_INFO = "monitoring_counters_info"
     API_PARAM_SYSTEM = "system"
+    LINKS_API_RESULT = 'api_results/links'
 
     args_list = [
         {
@@ -77,9 +79,8 @@ class UfmLinksManagement:
         response = ufm_rest_client.send_request(url)
         if response and response.status_code == HTTPStatus.OK:
             Logger.log_message(response.json())
-        else:
-            Logger.log_message(response, LOG_LEVELS.ERROR)
-        return response
+            return response.json()
+        return None
 
 
 if __name__ == "__main__":
@@ -101,8 +102,8 @@ if __name__ == "__main__":
     args_dict = args.__dict__
     param_show_cable_info = config_parser.safe_get_bool(args_dict.get(UfmLinksConstants.API_PARAM_CABLE_INFO), None, None, True)
     param_show_counters_info = config_parser.safe_get_bool(args_dict.get(UfmLinksConstants.API_PARAM_MONITORING_COUNTERS_INFO), None, None, False)
-    if args_dict.get(UfmLinksConstants.API_PARAM_SYSTEM):
-        system = args_dict.get(UfmLinksConstants.API_PARAM_SYSTEM)
-        UfmLinksManagement.get_links(param_show_cable_info, param_show_counters_info, system)
-    else:
-        UfmLinksManagement.get_links(param_show_cable_info, param_show_counters_info)
+    system = args_dict.get(UfmLinksConstants.API_PARAM_SYSTEM)
+    result = UfmLinksManagement.get_links(param_show_cable_info, param_show_counters_info, system)
+    if result:
+        Utils.write_json_to_file(f'{UfmLinksConstants.LINKS_API_RESULT}_{time.strftime("%Y%m%d-%H%M%S")}.json',
+                                 result)

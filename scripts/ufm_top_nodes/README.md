@@ -14,13 +14,13 @@ To install all prerequisites, please run :
 
 To export your repository to PYTHONPATH, please run :
 
-   export PYTHONPATH="${PYTHONPATH}:<your ufm_sdk_cookbook path>"
+   export PYTHONPATH="${PYTHONPATH}:<your ufm_sdk_cookbook path>"`````````````````````
 
 
 Running using command line arguments :
 --------------------------------------------------------
 
-    python3 get_top_nodes_by_counter.py
+    python3 get_top_nodes_by_counter.py --PickBy=<counter_name>
 
  Running syntax
 --------------------------------------------------------
@@ -35,7 +35,7 @@ Running using command line arguments :
 | --logs_file_name <logs_file_name> | [logs-config.logs_file_name](../conf/ufm-devices.sample.cfg#L11) | False | Log file name [Default = 'console.log']
 | --logs_level <logs_level> | [logs-config.logs_level](../conf/ufm-devices.sample.cfg#L14) | False | Default is 'info'
 | --logs_level <logs_level> | [logs-config.logs_level](../conf/ufm-devices.sample.cfg#L14) | False | Default is 'info'
-| --PickBy <PickBy> | None | True | Option to get specific system links data
+| --PickBy <PickBy> | None | True | The counter name to get top nodes based on
 | --limit <limit> | None | False | Option to show cable information [Default = 5]
 
 
