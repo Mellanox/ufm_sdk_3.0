@@ -1,8 +1,8 @@
-UFM Devices Action
+UFM Devices
 --------------------------------------------------------
 
 
-This plugin is used to run devices action via the UFM APIs.
+This plugin is used to run devices action and get devices data via the UFM APIs.
 
 
 Prerequisites
@@ -26,6 +26,14 @@ Running using command line arguments :
 ### 2. sw upgrade:
 
     python3 sw_upgrade_action.py --object_ids=guid1,guid2..  --username=username --password=password --path=path --image=image --protocol=scp/ftp --server=server_ip --description=optional_action_description --object_type=object_type --identifier=identifier --ufm_host=ufm_host --ufm_protocol=ufm_protocol --ufm_username=ufm_username --ufm_password=ufm_password
+
+### 3. get devices data:
+
+    python3 load_devices.py --type=<type>
+
+### 4. get specific device data:
+
+    python3 load_devices.py --system=<system_guid>
 
 
 Running using configuration file:
@@ -80,6 +88,12 @@ Running using configuration file:
 | --image <image> | ufm-devices-sw-upgrade.image| True | Option to set image name
 | --protocol <protocol> | ufm-devices-sw-upgrade.protocol| True | Option to set protocol SCP/FTP
 | --server <server> | ufm-devices-sw-upgrade.server| True | Option to set server ip that contain the image
+
+### 2. get devices data:
+| Argument | Corresponding Config Value | Required | Description |
+| :---: | :---: |:---: |:---: |
+| --type <type> | None | False | Option to get devices of specific type
+| --system <system> | None | False | Option to get data of a specific device
 
 *If command line argument is provided, the corresponding config value will be ignored
 
