@@ -18,6 +18,7 @@
 
 import os
 import platform
+import time
 from http import HTTPStatus
 
 try:
@@ -44,6 +45,7 @@ class UfmPortsConstants:
     API_PARAM_SHOW_DISABLED = "show_disabled"
     API_PARAM_SYSTEM = "system"
     API_PARAM_ACTIVE = "active"
+    PORTS_API_RESULT = 'api_results/ports'
 
     args_list = [
         {
@@ -76,9 +78,8 @@ class UfmPortsManagement:
         response = ufm_rest_client.send_request(url)
         if response and response.status_code == HTTPStatus.OK:
             Logger.log_message(response.json())
-        else:
-            Logger.log_message(response, LOG_LEVELS.ERROR)
-        return response
+            return response.json()
+        return None
 
 
 if __name__ == "__main__":
@@ -100,9 +101,9 @@ if __name__ == "__main__":
     args_dict = args.__dict__
     param_active = config_parser.safe_get_bool(args_dict.get(UfmPortsConstants.API_PARAM_ACTIVE), None, None, True)
     param_show_disabled = config_parser.safe_get_bool(args_dict.get(UfmPortsConstants.API_PARAM_SHOW_DISABLED), None, None, False)
-    if args_dict.get(UfmPortsConstants.API_PARAM_SYSTEM):
-        system = args_dict.get(UfmPortsConstants.API_PARAM_SYSTEM)
-        UfmPortsManagement.get_ports(param_active, param_show_disabled, system)
-    else:
-        UfmPortsManagement.get_ports(param_active, param_show_disabled)
+    system = args_dict.get(UfmPortsConstants.API_PARAM_SYSTEM)
+    result = UfmPortsManagement.get_ports(param_active, param_show_disabled, system)
+    if result:
+        Utils.write_json_to_file(f'{UfmPortsConstants.PORTS_API_RESULT}_{time.strftime("%Y%m%d-%H%M%S")}.json',
+                                 result)
 
