@@ -24,7 +24,7 @@ Run
 
 ### 2. Run a fabric validation test:
 
-    python3 run_validation_test.py --run_test=Test
+    python3 run_validation_test.py --run_test=<test_name>
 
 
  Running syntax
@@ -39,7 +39,7 @@ Run
 | --logs_file_name <logs_file_name> | [logs-config.logs_file_name](../conf/ufm-sdk.sample.cfg#L11) | False | Log file name [Default = 'console.log']
 | --logs_level <logs_level> | [logs-config.logs_level](../conf/ufm-sdk.sample.cfg#L14) | False | Default is 'info'
 | --run_test <run_test> | None | True | Option to run a test
-| --get_pkey <get_pkey> | None | True | Option to get list of tests which are available to run
+| --get_available_tests <get_available_tests> | None | False | Option to get list of tests which are available to run
 
 
 *If command line argument is provided, the corresponding config value will be ignored
