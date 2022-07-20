@@ -83,8 +83,6 @@ class UfmValidationTest:
         if response and response.status_code == HTTPStatus.ACCEPTED:
             job_id = job_polling.extract_job_id(response.text)
             job_polling.start_polling(job_id, print_summary=True)
-        else:
-            Logger.log_message(response, LOG_LEVELS.ERROR)
         return response
 
 
@@ -111,7 +109,7 @@ if __name__ == "__main__":
         if param_test_name and param_test_name in UfmValidationTestConstants.AVAILABLE_VALIDATION_TESTS:
             UfmValidationTest.run_validation_test(param_test_name)
         else:
-            message = f'Please provide valid test name'
+            message = f'The test {param_test_name} isn\'t one of the following available tests: {UfmValidationTestConstants.AVAILABLE_VALIDATION_TESTS}'
             Logger.log_message(message, LOG_LEVELS.ERROR)
     elif args_dict.get(UfmValidationTestConstants.VALIDATION_TEST_OPERATIONS.get("get_available_tests")):
         Logger.log_message(UfmValidationTestConstants.AVAILABLE_VALIDATION_TESTS)
