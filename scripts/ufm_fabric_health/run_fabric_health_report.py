@@ -2,6 +2,8 @@ import os
 import platform
 from http import HTTPStatus
 
+from utils.report_polling import ReportPolling
+
 try:
     from utils.utils import Utils
     from utils.ufm_rest_client import UfmRestClient, HTTPMethods
@@ -261,9 +263,8 @@ class UfmFabricHealthReport:
             response = ufm_rest_client.send_request(UfmFabricHealthConstants.FABRIC_REPORT_API_URL, HTTPMethods.POST, payload=payload)
             if response and response.status_code == HTTPStatus.ACCEPTED:
                 report_id = response.json()['report_id']
-                report_data = ufm_rest_client.send_request(f'{UfmFabricHealthConstants.REPORTS_API_URL}/{report_id}')
-                if report_data and response.status_code == HTTPStatus.ACCEPTED:
-                    return report_data.json()
+                report_polling = ReportPolling(ufm_rest_client)
+                report_polling.start_polling(report_id)
 
         @staticmethod
         def prepare_request_data(conf_parser):
@@ -317,7 +318,6 @@ if __name__ == "__main__":
 
     payload = UfmFabricHealthReport.prepare_request_data(config_parser)
 
-    report_data = UfmFabricHealthReport.run_report(payload)
-    Logger.log_message(report_data)
+    UfmFabricHealthReport.run_report(payload)
 
 
