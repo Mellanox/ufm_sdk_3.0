@@ -48,12 +48,14 @@ global enabled_streaming_systems
 global enabled_streaming_ports
 global enabled_streaming_links
 global enabled_streaming_alarms
+global enabled_streaming_events
 
 stored_versioning_api = ''
 stored_systems_api = []
 stored_ports_api = []
 stored_links_api = []
 stored_alarms_api = []
+stored_events_api = []
 
 
 
@@ -87,6 +89,10 @@ def stream_to_fluentd():
             fluentd_message["alarms"] = {
                 "alarms_list": stored_alarms_api
             }
+        if enabled_streaming_events:
+            fluentd_message["events"] = {
+                "events_list": stored_events_api
+            }
         fluent_sender.emit(fluentd_message_tag_name,fluentd_message)
         fluent_sender.close()
         fluentd_metadata.message_id = message_id
@@ -114,6 +120,7 @@ def load_memory_with_jsons():
     global stored_ports_api
     global stored_links_api
     global stored_alarms_api
+    global stored_events_api
 
     try:
         logging.info(f'Call load_memory_with_jsons')
@@ -133,6 +140,9 @@ def load_memory_with_jsons():
         if os.path.exists(UfmStreamingToFluentdConstants.UFM_API_ALARMS_RESULT) and enabled_streaming_alarms:
             stored_alarms_api = Utils.read_json_from_file(UfmStreamingToFluentdConstants.UFM_API_ALARMS_RESULT)
 
+        if os.path.exists(UfmStreamingToFluentdConstants.UFM_API_EVENTS_RESULT) and enabled_streaming_events:
+            stored_events_api = Utils.read_json_from_file(UfmStreamingToFluentdConstants.UFM_API_EVENTS_RESULT)
+
     except Exception as e:
         Logger.log_message(e, LOG_LEVELS.ERROR)
 
@@ -147,6 +157,7 @@ def update_ufm_apis(ufm_new_version):
     global stored_ports_api
     global stored_links_api
     global stored_alarms_api
+    global stored_events_api
 
     try:
         logging.info(f'Call update_ufm_apis')
@@ -179,6 +190,13 @@ def update_ufm_apis(ufm_new_version):
             stored_alarms_api = ufm_rest_client.send_request(UfmStreamingToFluentdConstants.UFM_API_ALARMS).json()
             Utils.write_json_to_file(UfmStreamingToFluentdConstants.UFM_API_ALARMS_RESULT, stored_alarms_api)
 
+        # check if alarms api is changed
+        if enabled_streaming_events and \
+                (stored_versioning_api == '' or
+                 ufm_new_version["events_version"] != stored_versioning_api["events_version"]):
+            stored_events_api = ufm_rest_client.send_request(UfmStreamingToFluentdConstants.UFM_API_EVENTS).json()
+            Utils.write_json_to_file(UfmStreamingToFluentdConstants.UFM_API_EVENTS_RESULT, stored_events_api)
+
         stored_versioning_api = ufm_new_version
         Utils.write_json_to_file(UfmStreamingToFluentdConstants.UFM_API_VERSIONING_RESULT, stored_versioning_api)
     except Exception as e:
@@ -200,6 +218,8 @@ class UfmStreamingToFluentdConstants:
     UFM_API_LINKS_RESULT = 'api_results/links.json'
     UFM_API_ALARMS = 'app/alarms'
     UFM_API_ALARMS_RESULT = 'api_results/alarms.json'
+    UFM_API_EVENTS = 'app/events'
+    UFM_API_EVENTS_RESULT = 'api_results/events.json'
 
     FLUENTD_HOST = "fluentd_host"
     FLUENTD_PORT = "fluentd_port"
@@ -212,6 +232,7 @@ class UfmStreamingToFluentdConstants:
     STREAMING_PORTS = 'streaming_ports'
     STREAMING_ALARMS = 'streaming_alarms'
     STREAMING_LINKS = 'streaming_links'
+    STREAMING_EVENTS = 'streaming_events'
     UFM_STREAMING_TO_FLUENTD = "ufm streaming to fluentd"
 
     args_list = [
@@ -258,6 +279,10 @@ class UfmStreamingToFluentdConstants:
         {
             "name": f'--{STREAMING_LINKS}',
             "help": "Enable/Disable streaming links API [True|False]"
+        },
+        {
+            "name": f'--{STREAMING_EVENTS}',
+            "help": "Enable/Disable streaming events API [True|False]"
         }
     ]
 
@@ -277,6 +302,7 @@ class UfmStreamingToFluentdConfigParser(ConfigParser):
     UFM_STREAMING_CONFIG_SECTION_LINKS = "links"
     UFM_STREAMING_CONFIG_SECTION_PORTS = "ports"
     UFM_STREAMING_CONFIG_SECTION_ALARMS = "alarms"
+    UFM_STREAMING_CONFIG_SECTION_EVENTS = "events"
 
 
     def __init__(self,args):
@@ -325,6 +351,10 @@ class UfmStreamingToFluentdConfigParser(ConfigParser):
         return self.safe_get_bool(self.args_dict.get(UfmStreamingToFluentdConstants.STREAMING_ALARMS),
                                    self.UFM_STREAMING_CONFIG_SECTION, self.UFM_STREAMING_CONFIG_SECTION_ALARMS, 'True')
 
+    def get_enabled_streaming_events(self):
+        return self.safe_get_bool(self.args_dict.get(UfmStreamingToFluentdConstants.STREAMING_EVENTS),
+                                     self.UFM_STREAMING_CONFIG_SECTION, self.UFM_STREAMING_CONFIG_SECTION_EVENTS, 'True')
+
     def get_ufm_protocol(self):
         return self.get_config_value(self.args.ufm_protocol,
                                      SDK_CONFIG_UFM_REMOTE_SECTION,
@@ -348,6 +378,7 @@ def init_app_params():
     global enabled_streaming_ports
     global enabled_streaming_links
     global enabled_streaming_alarms
+    global enabled_streaming_events
     try:
         fluentd_host = config_parser.get_fluentd_host()
         fluentd_port = config_parser.get_fluentd_port()
@@ -364,6 +395,7 @@ def init_app_params():
         enabled_streaming_ports =  config_parser.get_enabled_streaming_ports()
         enabled_streaming_links =  config_parser.get_enabled_streaming_links()
         enabled_streaming_alarms =  config_parser.get_enabled_streaming_alarms()
+        enabled_streaming_events = config_parser.get_enabled_streaming_events()
     except ValueError as e:
         ExceptionHandler.handel_arg_exception(UfmStreamingToFluentdConstants.UFM_STREAMING_TO_FLUENTD,
                                               UfmStreamingToFluentdConstants.FLUENTD_HOST,
