@@ -15,7 +15,7 @@ To install Prometheus server on your machine, please follow the [installation gu
 
 Configuration
 --------------------------------------------------------
-a) Configure Prometheus endpoint with [Prometheus Label Generation](https://docs.nvidia.com/networking/display/UFMTelemetryUMv18/Prometheus+Endpoint+Support#PrometheusEndpointSupport-PrometheusLabelGeneration)
+a) Configure Prometheus endpoint with [Prometheus Label Generation](https://docs.nvidia.com/networking/display/UFMTelemetryLatest/Prometheus+Endpoint+Support#PrometheusEndpointSupport-PrometheusLabelGenerationPrometheusLabelGeneration)
 
 b) Edit prometheus.yml in Prometheus Server
 
