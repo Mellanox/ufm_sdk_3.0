@@ -3,7 +3,9 @@ UFM Health
 
 
 This script is used to run UFM Health Report via the UFM APIs.
+Through UFM Health Report, you can create reports that run a series of checks on the UFM server.
 
+For more details, click [here](https://docs.nvidia.com/networking/display/UFMEnterpriseUMv69/UFM+Health+Tab).
 
 Prerequisites
 --------------------------------------------------------
@@ -24,7 +26,7 @@ Run
 
 | Argument | Corresponding Config Value | Required | Description |
 | :---: | :---: |:---: |:---: |
-| --ufm_host <ufm_host> | [ufm-remo `te-server-config.host](../conf/ufm-sdk.sample.cfg#L2) | True | Hostname or IP for The UFM Enterprise
+| --ufm_host <ufm_host> | [ufm-remote-server-config.host](../conf/ufm-sdk.sample.cfg#L2) | True | Hostname or IP for The UFM Enterprise
 | --ufm_protocol <ufm_protocol> | [ufm-server-config.ws_protocol](../conf/ufm-sdk.sample.cfg#L4) | True | Web services protocol used by UFM Enterprise (HTTP, HTTPS)
 | --ufm_username <ufm_username> | [ufm-server-config.username](../conf/ufm-sdk.sample.cfg#L6) | True | Username of UFM user
 | --ufm_password <ufm_password> | [ufm-server-config.password](../conf/ufm-sdk.sample.cfg#L7) | True | Password of UFM user

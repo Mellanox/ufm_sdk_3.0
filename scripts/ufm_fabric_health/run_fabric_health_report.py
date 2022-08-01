@@ -22,6 +22,7 @@ except ModuleNotFoundError as e:
 
 
 class UfmFabricHealthConstants:
+    FABRIC_REPORT_RESULT_PATH = 'report_result/'
     FABRIC_REPORT_API_URL = 'reports/Fabric_Health'
     REPORTS_API_URL = 'reports'
 
@@ -259,12 +260,12 @@ class UfmFabricHealthConfigParser(ConfigParser):
 class UfmFabricHealthReport:
 
         @staticmethod
-        def run_report(payload):
+        def run_report(payload, output_file):
             response = ufm_rest_client.send_request(UfmFabricHealthConstants.FABRIC_REPORT_API_URL, HTTPMethods.POST, payload=payload)
             if response and response.status_code == HTTPStatus.ACCEPTED:
                 report_id = response.json()['report_id']
                 report_polling = ReportPolling(ufm_rest_client)
-                report_polling.start_polling(report_id)
+                report_polling.start_polling(report_id, output_file)
 
         @staticmethod
         def prepare_request_data(conf_parser):
@@ -318,6 +319,6 @@ if __name__ == "__main__":
 
     payload = UfmFabricHealthReport.prepare_request_data(config_parser)
 
-    UfmFabricHealthReport.run_report(payload)
+    UfmFabricHealthReport.run_report(payload, UfmFabricHealthConstants.FABRIC_REPORT_RESULT_PATH)
 
 
