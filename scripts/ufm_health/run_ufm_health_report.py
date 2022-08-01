@@ -23,10 +23,7 @@ except ModuleNotFoundError as e:
 
 class UfmHealthConstants:
     UFM_HEALTH_REPORT_API_URL = 'reports/UFM_Health'
-
-    args_list = [
-
-    ]
+    UFM_HEALTH_REPORT_RESULT_PATH = 'report_result/'
 
 
 class UfmHealthConfigParser(ConfigParser):
@@ -37,19 +34,18 @@ class UfmHealthConfigParser(ConfigParser):
 
 class UfmHealthReport:
 
-        @staticmethod
-        def run_report():
-            response = ufm_rest_client.send_request(UfmHealthConstants.UFM_HEALTH_REPORT_API_URL, HTTPMethods.POST)
-            if response and response.status_code == HTTPStatus.ACCEPTED:
-                report_id = response.json()['report_id']
-                report_polling = ReportPolling(ufm_rest_client)
-                report_polling.start_polling(report_id)
+    @staticmethod
+    def run_report(output_path):
+        response = ufm_rest_client.send_request(UfmHealthConstants.UFM_HEALTH_REPORT_API_URL, HTTPMethods.POST)
+        if response and response.status_code == HTTPStatus.ACCEPTED:
+            report_id = response.json()['report_id']
+            report_polling = ReportPolling(ufm_rest_client)
+            report_polling.start_polling(report_id, output_path)
 
 
 if __name__ == "__main__":
-
     # init app args
-    args = ArgsParser.parse_args("UFM Health Report", UfmHealthConstants.args_list)
+    args = ArgsParser.parse_args("UFM Health Report", [])
 
     # init app config parser & load config files
     config_parser = UfmHealthConfigParser(args)
@@ -59,13 +55,11 @@ if __name__ == "__main__":
     logs_level = config_parser.get_logs_level()
     Logger.init_logs_config(logs_file_name, logs_level)
 
-
     # init ufm rest client
-    ufm_rest_client = UfmRestClient(host = config_parser.get_ufm_host(),
-                                    client_token=config_parser.get_ufm_access_token(),username = config_parser.get_ufm_username(),
-                                    password = config_parser.get_ufm_password(),ws_protocol=config_parser.get_ufm_protocol())
+    ufm_rest_client = UfmRestClient(host=config_parser.get_ufm_host(),
+                                    client_token=config_parser.get_ufm_access_token(),
+                                    username=config_parser.get_ufm_username(),
+                                    password=config_parser.get_ufm_password(),
+                                    ws_protocol=config_parser.get_ufm_protocol())
 
-
-    report_data = UfmHealthReport.run_report()
-
-
+    UfmHealthReport.run_report(UfmHealthConstants.UFM_HEALTH_REPORT_RESULT_PATH)

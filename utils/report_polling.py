@@ -3,7 +3,11 @@ import sys
 import threading
 import time
 from http import HTTPStatus
+
+import requests
+
 from utils.logger import Logger
+from utils.utils import Utils
 
 
 class ReportsConstants:
@@ -15,7 +19,7 @@ class ReportPolling(object):
         self.ufm_rest_client = ufm_rest_client
         self.action_inprogress = False
 
-    def start_polling(self, report_id):
+    def start_polling(self, report_id, output_file=None):
         try:
             self.action_inprogress = True
             t = self.create_loading_thread()
@@ -23,7 +27,11 @@ class ReportPolling(object):
             while report_status != HTTPStatus.OK:
                 time.sleep(3)
                 report_response = self.ufm_rest_client.send_request(f"{ReportsConstants.UFM_API_REPORTS}/{report_id}")
-                if report_response.raise_for_status():
+                try:
+                    report_response.raise_for_status()
+                except requests.exceptions.HTTPError as e:
+                    self.action_inprogress = False
+                    logging.error(f'Error in report polling: {e}')
                     break
                 report_status = report_response.status_code
             self.action_inprogress = False
@@ -31,10 +39,13 @@ class ReportPolling(object):
             print(f" ", end='\n')
             print(report_response.json())
             Logger.log_message(f"Report {report_id}: {report_response.json()}")
+            if output_file:
+                Utils.write_json_to_file(f'{output_file}Report_{time.strftime("%Y%m%d-%H%M%S")}.json',
+                                         report_response.json())
 
         except Exception as e:
             self.action_inprogress = False
-            logging.error(f'Error in job polling: {e}')
+            logging.error(f'Error in report polling: {e}')
 
     def create_loading_thread(self):
         t = threading.Thread(target=self.print_loading_message)
