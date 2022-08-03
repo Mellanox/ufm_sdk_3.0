@@ -45,7 +45,7 @@ class UFMTelemetryConstants:
 
 class UFMTelemetryConfigParser(ConfigParser):
 
-    config_file = "telemetry.cfg"
+    config_file = "telemetry.sample.cfg"
 
     UFM_TELEMETRY_ENDPOINT_SECTION = "ufm-telemetry-endpoint"
     UFM_TELEMETRY_ENDPOINT_SECTION_HOST = "host"

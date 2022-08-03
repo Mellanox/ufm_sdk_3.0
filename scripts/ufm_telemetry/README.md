@@ -25,17 +25,34 @@ To exported your repository to PYTHONPATH, please run :
 
 Run
 --------------------------------------------------------
-### 1. Get all events :
+### 1. Using command line arguments :
 
     python3 load_telemetry.py --ufm_telemetry_host=<ufm_telemetry_host> --ufm_telemetry_port=<ufm_telemetry_port> --ufm_telemetry_url=<ufm_telemetry_url>
 
+### 2. using configuration file:
+
+  - Copy config file sample telemetry.sample.cfg to telemetry.cfg
+
+
+        cp telemetry.sample.cfg telemetry.cfg
+
+  - Edit config file with relevant parameters
+
+
+        vi telemetry.cfg
+    
+
+  - Run
+
+
+        python3 ufm-topology.py
       
  Configuration Parameters Details:
 --------------------------------------------------------
 
 | Parameter | Required | Description |
 | :---: | :---: |:---: |
-| [ufm-telemetry-endpoint.host](telemetry.cfg#L2) | True | Hostname or IPv4 or IPv6 for The UFM Telemetry Endpoint [Default is 127.0.0.1]
-| [ufm-telemetry-endpoint.port](telemetry.cfg#L3) | True | Port for The UFM Telemetry Endpoint [Default is 9001]
-| [ufm-telemetry-endpoint.url](telemetry.cfg#L4) | True | URL for The UFM Telemetry Endpoint [Default is 'labels/csv/metrics', for Prometheus format you can use 'labels/metrics']
+| [ufm-telemetry-endpoint.host](telemetry.sample.cfg#L2) | True | Hostname or IPv4 or IPv6 for The UFM Telemetry Endpoint [Default is 127.0.0.1]
+| [ufm-telemetry-endpoint.port](telemetry.sample.cfg#L3) | True | Port for The UFM Telemetry Endpoint [Default is 9001]
+| [ufm-telemetry-endpoint.url](telemetry.sample.cfg#L4) | True | URL for The UFM Telemetry Endpoint [Default is 'labels/csv/metrics', for Prometheus format you can use 'labels/metrics']
 
