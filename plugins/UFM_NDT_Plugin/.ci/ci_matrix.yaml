@@ -133,6 +133,7 @@ steps:
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
       pwd
+      ls
       cd plugins/UFM_NDT_Plugin/
       .ci/do_remove_plugin.sh
     parallel: false
