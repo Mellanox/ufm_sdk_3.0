@@ -103,6 +103,7 @@ steps:
   - name: add plugin
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
+      etc/init.d/ufmd stop
       cd plugins/UFM_NDT_Plugin/
       .ci/do_add_plugin.sh 
     parallel: false
@@ -114,6 +115,7 @@ steps:
       service rsyslog restart
       sleep 30
       export SERVER_HOST=$SERVER_HOST
+      echo "$SERVER_HOST"
       echo "in run client tests"
       pwd
       cd plugins/UFM_NDT_Plugin/tests
