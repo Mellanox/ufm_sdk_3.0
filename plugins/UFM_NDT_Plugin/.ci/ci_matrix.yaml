@@ -103,7 +103,7 @@ steps:
   - name: add plugin
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
-      /etc/init.d/ufmd stop
+      /etc/init.d/ufmd start
       cd plugins/UFM_NDT_Plugin/
       .ci/do_add_plugin.sh 
     parallel: false
