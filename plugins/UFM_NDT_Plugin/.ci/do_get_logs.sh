@@ -12,8 +12,10 @@ expect "# "
 send -- "config terminal\r"
 expect "/(config/) # "
 send -- "debug generate dump\r"
+sleep 20
 expect "/(config/) # "
 send -- "file debug-dump upload latest scp://root:3tango@${NODE_NAME}:/$WORKSPACE\r"
+sleep 20
 expect "/(config/) # "
 send -- "file debug-dump delete latest\r"
 expect "/(config/) # "
