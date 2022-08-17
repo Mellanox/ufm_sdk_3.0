@@ -285,7 +285,7 @@ class UFM:
             else:
                 return False, Constants.UFM_CONNECT_ERROR
 
-    def _set_sharp_reservation(self, ufm_server, session, auth_type, job_id, job_nodes, pkey=None,
+    def _set_sharp_reservation(self, ufm_server, session, auth_type, job_id, job_nodes, app_resources_limit, pkey=None,
                                partially_alloc=True):
         resource_path = Constants.SET_NODES_TO_PKEY_URL
         url = self.getUrl(resource_path, auth_type)
@@ -295,7 +295,7 @@ class UFM:
         body_obj = {
             "app_id": job_id,
             "nodes": job_nodes,
-            "app_resources_limit": -1
+            "app_resources_limit": app_resources_limit
         }
 
         if pkey:
