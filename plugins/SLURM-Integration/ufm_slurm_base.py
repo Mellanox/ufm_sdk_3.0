@@ -82,11 +82,11 @@ class UfmSlurmBase():
             logging.error(Constants.LOG_ERROR_UFM_CONNECT % str(exc) )
             sys.exit(self.should_fail)
 
-    def set_sharp_reservation(self, job_id, job_nodes):
+    def set_sharp_reservation(self, job_id, job_nodes, app_resources_limit=-1):
         try:
             logging.info("Allocate Job's node %s to app_id: %s" % (job_nodes, job_id))
             response = self.ufm._set_sharp_reservation(self.server, self.session, self.auth_type, job_id, job_nodes,
-                                                       self.pkey, self.partially_alloc)
+                                                       app_resources_limit, self.pkey, self.partially_alloc)
             logging.info("Request Response: %s" % str(response))
         except Exception as exc:
             logging.error("Failed to allocate job's node %s to pkey::: Error==> %s" % (job_nodes, exc))

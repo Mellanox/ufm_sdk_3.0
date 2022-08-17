@@ -77,7 +77,7 @@ if __name__ == '__main__':
         prolog.connect_to_ufm()
         slurm_job_nodelist = prolog.get_job_nodes()
         if slurm_job_nodelist:
-            prolog.set_sharp_reservation(prolog.args.job_id, slurm_job_nodelist)
+            prolog.set_sharp_reservation(prolog.args.job_id, slurm_job_nodelist, app_resources_limit=-1)
         logging.info("UFM-Prolog time: %.1f seconds" % (time.time() - all_time_start))
     except Exception as exc:
         logging.error(
