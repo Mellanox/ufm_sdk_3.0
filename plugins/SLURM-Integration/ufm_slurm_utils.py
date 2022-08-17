@@ -294,7 +294,8 @@ class UFM:
 
         body_obj = {
             "app_id": job_id,
-            "nodes": job_nodes
+            "nodes": job_nodes,
+            "app_resources_limit": -1
         }
 
         if pkey:
