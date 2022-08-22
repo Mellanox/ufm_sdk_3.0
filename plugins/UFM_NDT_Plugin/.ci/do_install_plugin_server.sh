@@ -15,5 +15,5 @@ send -- "image fetch scp://root:$PASSWORD@$namehost/auto/UFM/tmp/${JOB_NAME}/${B
 expect "/(config/) # "
 send -- "no ufm start\r"
 expect "/(config/) # "
-sleep 50
+sleep 51
 EOF

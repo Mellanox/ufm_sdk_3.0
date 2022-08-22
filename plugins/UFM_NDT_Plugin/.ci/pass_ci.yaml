@@ -2,7 +2,7 @@ job: ufm-ndt
 step_allow_single_selector: true
 pipeline_start:
   run: |
-    echo "start mock ci matrix"
+    echo "start ndt mock ci matrix"
 
 pipeline_stop:
   run: |
