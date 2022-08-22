@@ -1,0 +1,108 @@
+- job-template:
+    name: ufm_sdk_3.0
+    project-type: pipeline
+    properties:
+        - github:
+             url: "{jjb_git}"
+        - build-discarder:
+            days-to-keep: 50
+            num-to-keep: 20
+        - inject:
+            keep-system-variables: true
+            properties-content: |
+              jjb_proj={jjb_proj}
+              REPOSITORY='https://github.com/Mellanox/ufm_sdk_3.0'
+              PROJECT_NAME=UFM-NDT
+    description: Do NOT edit this job through the Web GUI !
+    concurrent: true
+    disabled: false
+    parameters:
+        - string:
+            name: "sha1"
+            default: master
+            description: "UFM Cyber AI Branch"
+        - bool:
+            name: "build_dockers"
+            default: true
+            description: "Rebuild docker containers. Check this box if .ci/DockerFile* was changed"
+        - string:
+            name: "UFM_TAG"
+            default: 'weekly_0_0_0'
+            description: "ex: 6_5_95_1. This tag will be used for output /auto/UFM/tmp/$UFM_TAG"
+        - bool:
+            name: "SECURITY"
+            default: true
+            description: "Run BlackDuck, Bandit, Antivirus"
+        - string:
+            name: "BANDIT_OPTS"
+            default: '-s B608,B110,B108'
+            description: "additional params to Bandit check"
+        # - bool:
+        #     name: "DOCKER_CREATE"
+        #     default: true
+        #     description: "Create UFM Docker<br> Currently this is done from <a href=http://l-gerrit.mtl.labs.mlnx:8080/gitweb?p=ufm/cyber-ai.git;a=blob;f=rpms/copy_rpms.sh;h=b395fc78744f67258d8d57579d641ee1fcadb2e1;hb=refs/heads/UFMAPL_PYTHON3_VIRTENV#l461 >here </b>."
+        - string:
+            name: "EMAIL"
+            default: 'ekaidrikov@nvidia.com'
+            description: "email notifications"
+        - string:
+            name: "conf_file"
+            default: "plugins/UFM_NDT_Plugin/.ci/ci_matrix.yaml"
+            description: "Regex to select job config file. Do not change it"
+        - string:
+            name: SERVER_HOST
+            default: 'ufm-appliance07'
+            description: "host server for plugin container"
+        - bool:
+            name: "debug"
+            default: true
+            description: "More info in pipeline"
+    pipeline-scm:
+        scm:
+            - git:
+                url: "{jjb_git}"
+                credentials-id: '8dd5412b-9b3e-4110-9e0c-4363b3dfcf66'
+                branches: ['$sha1']
+                shallow-clone: false
+                depth: 100
+                refspec: "+refs/pull/*:refs/remotes/origin/pr/*"
+                browser: githubweb
+                browser-url: "{jjb_git}"
+        script-path: ".ci/Jenkinsfile"
+    publishers:
+      - email-ext:
+          recipients: ekaidrikov@nvidia.com
+          subject: Finished {name}
+          always: true
+          body: "Hello, my dear friend,\nPlease review\n$BUILD_URL/console"
+          attachments: 'logs/*'
+          content-type: html    
+    triggers:
+      #- timed: '@weekly'
+      - github-pull-request:
+          cron: 'H/5 * * * *'
+          trigger-phrase: '.*\bbot:retest\b.*'
+          status-context: "UFM CI"
+          status-add-test-results: true
+          auth-id: 'ef94fa95-5480-41ea-863f-6525aace5bc9'
+          org-list: ["Mellanox"]
+          allow-whitelist-orgs-as-admins: true
+          cancel-builds-on-update: true
+    wrappers:
+      - build-user-vars
+      - timestamps
+      - workspace-cleanup
+      - timeout:
+          timeout: 120
+- project:
+    name: ufm_sdk_3.0
+    jjb_email: 'ekaidrikov@nvidia.com'
+    jjb_proj: 'ufm_sdk_3.0'
+    jjb_git: 'https://github.com/Mellanox/ufm_sdk_3.0'
+    jjb_owner: 'Evgeny Kaidrikov'
+    jobs:
+        - ufm_sdk_3.0
+
+
+
+
