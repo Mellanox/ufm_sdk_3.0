@@ -18,5 +18,8 @@ expect "/(config/) # "
 send "show ufm status\r"
 expect "/(config/) # "
 send -- "ufm mode mgmt"
+expect "/(config/) # "
+send -- "no fae ufm sm-simulator enable \r"
+expect "/(config/) # "
 sleep 20
 EOF
