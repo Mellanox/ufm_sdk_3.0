@@ -539,7 +539,7 @@ def main():
     ndts_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "negative_flow_ndts")
     topo_diff(ndts_folder)
 
-    if FAILED_TESTS_COUNT > 6: ## TODO: change to 0 after simulation tests pass. 
+    if FAILED_TESTS_COUNT > 0: 
         print("\n{} tests failed".format(FAILED_TESTS_COUNT))
         return 1
     else:
