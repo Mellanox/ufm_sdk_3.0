@@ -9,5 +9,5 @@ webui=$(git diff --name-only remotes/origin/$ghprbTargetBranch |grep -v .gitmodu
 if [ $webui -eq $total ]; then
     ln -snf ndt_plugin_ci.yaml ci_matrix.yaml
 else
-    ln -snf pass_ci.yaml ci_matrix.yaml
+    ln -snf ndt_plugin_ci.yaml ci_matrix.yaml
 fi
