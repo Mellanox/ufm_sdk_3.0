@@ -30,13 +30,15 @@ SDK_CONFIG_UFM_REMOTE_SECTION_ACCESS_TOKEN = 'access_token'
 SDK_CONFIG_LOGS_SECTION = 'logs-config'
 SDK_CONFIG_LOGS_SECTION_LOGS_FILE_NAME = "logs_file_name"
 SDK_CONFIG_LOGS_SECTION_LOGS_LEVEL = "logs_level"
+SDK_CONFIG_LOGS_SECTION_LOGS_FILE_MAX_SIZE = "log_file_max_size"
+SDK_CONFIG_LOGS_SECTION_LOGS_FILE_BACKUP_COUNT = "log_file_backup_count"
+
 
 class ConfigParser(object):
 
     def __init__(self, args, read_sdk_config = True):
         self.sdk_config = configparser.RawConfigParser()
         if read_sdk_config:
-            print(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             self.sdk_config.read(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),SDK_CONFIG_FILE))
         self.args = args
 
@@ -101,7 +103,6 @@ class ConfigParser(object):
         except ValueError as e:
             ExceptionHandler.handel_exception(ApiErrorMessages.Missing_UFM_Host)
 
-
     def get_ufm_username(self):
         return self.get_config_value(self.args.ufm_username,
                                      SDK_CONFIG_UFM_REMOTE_SECTION,
@@ -138,6 +139,18 @@ class ConfigParser(object):
                                      SDK_CONFIG_LOGS_SECTION,
                                      SDK_CONFIG_LOGS_SECTION_LOGS_LEVEL,
                                      'INFO')
+
+    def get_log_file_max_size(self):
+        return self.safe_get_int(self.args.logs_level,
+                                 SDK_CONFIG_LOGS_SECTION,
+                                 SDK_CONFIG_LOGS_SECTION_LOGS_FILE_MAX_SIZE,
+                                 10 * 1024 * 1024)
+
+    def get_log_file_backup_count(self):
+        return self.safe_get_int(self.args.logs_level,
+                                 SDK_CONFIG_LOGS_SECTION,
+                                 SDK_CONFIG_LOGS_SECTION_LOGS_FILE_BACKUP_COUNT,
+                                 5)
 
     def get_conf_sections(self):
         return self.sdk_config.sections()

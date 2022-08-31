@@ -179,7 +179,10 @@ Usage
 | [streaming.interval](conf/fluentd_telemetry_plugin.cfg#L13) | True | Streaming interval [Default is 10 seconds]
 | [streaming.bulk_streaming](conf/fluentd_telemetry_plugin.cfg#L14) | True | if True all telemetry records will be streamed in one message; otherwise, each record will be streamed in a separated message [Default is True]
 | [streaming.enabled](conf/fluentd_telemetry_plugin.cfg#L15) | True | If True, the streaming will be started once the required configurations have been set [Default is False]
-
+| [logs-config.logs_file_name](conf/fluentd_telemetry_plugin.cfg#L18) | True | Log file name [Default = '/log/tfs.log']
+| [logs-config.logs_level](conf/fluentd_telemetry_plugin.cfg#L20) | True | Default is 'INFO'
+| [logs-config.max_log_file_size](conf/fluentd_telemetry_plugin.cfg#L22) | True | Maximum log file size in Bytes [Default is 10 MB]
+| [logs-config.log_file_backup_count](conf/fluentd_telemetry_plugin.cfg#L24) | True | Maximum number of backup log files [Default is 5]
 
    - Records ٌMeta-fields:
    

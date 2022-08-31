@@ -373,7 +373,9 @@ if __name__ == "__main__":
     # init logs configs
     logs_file_name = config_parser.get_logs_file_name()
     logs_level = config_parser.get_logs_level()
-    Logger.init_logs_config(logs_file_name, logs_level)
+    max_log_file_size = config_parser.get_log_file_max_size()
+    log_file_backup_count = config_parser.get_log_file_backup_count()
+    Logger.init_logs_config(logs_file_name, logs_level, max_log_file_size, log_file_backup_count)
 
 
     # init ufm rest client

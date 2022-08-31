@@ -15,6 +15,7 @@
 """
 
 import logging
+from logging.handlers import RotatingFileHandler
 from enum import Enum
 
 class LOG_LEVELS(Enum):
@@ -27,8 +28,10 @@ class LOG_LEVELS(Enum):
 class Logger:
 
     @staticmethod
-    def init_logs_config(logs_file_name, logs_level):
-        logging.basicConfig(filename=logs_file_name,
+    def init_logs_config(logs_file_name, logs_level, log_file_max_size=10 * 1024 * 1024, log_file_backup_count=5):
+        logging.basicConfig(handlers=[RotatingFileHandler(logs_file_name,
+                                                              maxBytes=log_file_max_size,
+                                                              backupCount=log_file_backup_count)],
                             level=logs_level,
                             format='%(asctime)s %(levelname)s %(name)s : %(message)s')
 
