@@ -207,6 +207,7 @@ class UFMTelemetryStreaming:
         logging.info(f'Send UFM Telemetry Endpoint Request, Method: GET, URL: {url}')
         try:
             response = requests.get(url)
+            response.raise_for_status()
             return response.text
         except Exception as e:
             logging.error(e)
