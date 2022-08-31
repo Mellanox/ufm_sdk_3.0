@@ -35,12 +35,12 @@ from twisted.internet import reactor
 
 def _init_logs(config_parser):
     # init logs configs
-    # this path for debugging
-    # default_file_name = 'tfs.log'
-    default_file_name = '/log/tfs.log' # this path on docker
+    default_file_name = 'tfs.log'
     logs_file_name = config_parser.get_logs_file_name(default_file_name=default_file_name)
     logs_level = config_parser.get_logs_level()
-    Logger.init_logs_config(logs_file_name, logs_level)
+    max_log_file_size = config_parser.get_log_file_max_size()
+    log_file_backup_count = config_parser.get_log_file_backup_count()
+    Logger.init_logs_config(logs_file_name, logs_level, max_log_file_size, log_file_backup_count)
 
 
 def run_api(app):

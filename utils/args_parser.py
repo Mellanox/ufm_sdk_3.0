@@ -37,6 +37,12 @@ sdk_args_list = [
     },{
         "name": "--logs_level",
         "help": "logs level [ FATAL | ERROR | WARNING | INFO | DEBUG | NOTSET ]"
+    },{
+        "name": "--log_file_max_size",
+        "help": "Maximum log file size in Bytes [Default is 10 MB (10 * 1024 * 1024)]"
+    },{
+        "name": "--log_file_backup_count",
+        "help": "Maximum number of backup log files [Default is 5]"
     }
 ]
 
