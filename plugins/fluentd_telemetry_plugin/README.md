@@ -153,6 +153,12 @@ Usage
             "bulk_streaming": true,
             "enabled": true
         },
+        "logs-config": {
+            "log_file_backup_count": 5,
+            "log_file_max_size": 10485760,
+            "logs_file_name": "/log/tfs.log",
+            "logs_level": "INFO"
+        },
         "meta-fields":{
             "alias_node_description": "node_name",
             "alias_node_guid": "AID",
