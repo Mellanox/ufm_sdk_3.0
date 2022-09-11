@@ -1,0 +1,8 @@
+requests
+configparser
+fluent-logger
+flask
+flask_restful
+twisted
+tzlocal<3.0
+jsonschema

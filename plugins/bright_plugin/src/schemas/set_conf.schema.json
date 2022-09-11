@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Update streaming configurations",
+  "type": "object",
+  "properties": {
+    "bright-endpoint": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string",
+          "anyOf": [
+            {
+              "format": "hostname",
+              "err_message": "Invalid attribute [bright-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
+            },
+            {
+              "format": "ipv4",
+              "err_message": "Invalid attribute [bright-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
+            },
+            {
+              "format": "ipv6",
+              "err_message": "Invalid attribute [bright-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
+            }
+          ]
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "err_message": "[bright-endpoint - port] attribute should be an integer between 1-65535."
+        },
+        "cert_file": {
+          "type": "string"
+        },
+        ,
+        "cert_key": {
+          "type": "string"
+        }
+      }
+    },
+    "meta-fields": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": false
+}
