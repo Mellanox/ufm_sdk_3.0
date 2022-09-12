@@ -14,6 +14,7 @@
 @date:   May 12, 2022
 """
 import json
+import logging
 
 import requests
 from utils.config_parser import ConfigParser
@@ -104,7 +105,7 @@ class BrightMgr(Singleton):
         }
         post_request = requests.post(url,json=data, cert=(self.BRIGHT_CERT_FILE, self.BRIGHT_CERT_KEY), verify=False)
         if post_request.status_code != 200:
-            gvlogger.error("bright server returned status code %s", post_request.status_code)
+            logging.error("bright server returned status code %s", post_request.status_code)
             return None
         else:
             entities = json.loads(post_request.text)
@@ -121,7 +122,7 @@ class BrightMgr(Singleton):
         }
         post_request = requests.post(url, json=data, cert=(self.BRIGHT_CERT_FILE, self.BRIGHT_CERT_KEY), verify=False)
         if post_request.status_code != 200:
-            gvlogger.error("Bright server has returned error %s", post_request.text)
+            logging.error("Bright server has returned error %s", post_request.text)
             return None
         else:
             jobs = json.loads(post_request.text)['jobs']
