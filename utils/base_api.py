@@ -13,13 +13,15 @@
 @author: Nasr Ajaj
 @date:   Sep 11, 2022
 """
-from flask import Flask
-from flask_restful import Api
-from http import HTTPStatus
-from functools import partial
 
-from api import InvalidConfRequest
-from utils.json_schema_validator import ValidationError, SchemaValidationError
+from flask import Flask, request
+from flask_restful import Api
+from functools import partial
+from ufm_rest_client import ApiErrorMessages
+
+
+class InvalidRequestError(Exception):
+    pass
 
 
 class BaseAPIApplication:
@@ -32,16 +34,13 @@ class BaseAPIApplication:
         self._add_error_handlers()
 
     def _get_error_handlers(self):
-        return [
-            (InvalidConfRequest,
-             lambda e: (str(e), HTTPStatus.BAD_REQUEST)),
-            (ValidationError,
-             lambda e: (str(e), HTTPStatus.BAD_REQUEST)),
-            (SchemaValidationError,
-             lambda e: (str(e), HTTPStatus.BAD_REQUEST)),
-            (ValueError,
-             lambda e: (str(e), HTTPStatus.BAD_REQUEST)),
-        ]
+        """Return a list of pairs: Exception classes
+                or status codes associated with their endpoint functions that
+                handle the error/exception and create the
+                appropriate view. Subclasses should implement this
+                method if they want to add error handlers to their
+                application."""
+        return []
 
     def _add_error_handlers(self):
         handlers = self._get_error_handlers()
@@ -81,3 +80,26 @@ class BaseAPIApplication:
             self.app.config.setdefault(
                 'auth_level', {})[
                 endpoint.__func__.__name__] = auth_level
+
+    def _getRequestArg(self, arg_name, def_val=None):
+        """
+        Returns the value of a Request Argument, if validated ok.
+        :param arg_name:
+        :param def_val:
+        :param arg_type:
+        :return:
+        """
+        req_arg = request.args.get(arg_name, def_val)
+        if req_arg:
+            self.validateASCII(req_arg)
+        return req_arg
+
+    @staticmethod
+    def validateASCII(s):
+        if isinstance(s, str):
+            try:
+                s.encode('ascii')
+            except Exception:  # UnicodeEncodeError
+                raise InvalidRequestError(
+                    ApiErrorMessages.BAD_CHARACTER_ENCODING_DETECTED)
+            return s

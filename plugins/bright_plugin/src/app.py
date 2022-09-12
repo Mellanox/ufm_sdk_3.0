@@ -13,20 +13,32 @@
 @author: Nasr Ajaj
 @date:   Sep 11, 2022
 """
-import os
-import sys
+import platform
 
-from api.bright_api import BrightDataAPI
-from plugins.bright_plugin.bright_mgr import BrightConfigParser, BrightConstants
+from web_service import BrightAPI
 
-sys.path.append(os.getcwd())
+try:
+    import os
+    import sys
+    sys.path.append(os.getcwd())
 
-from twisted.web import server
-from utils.args_parser import ArgsParser
-from utils.logger import Logger
+    from mgr.bright_mgr import BrightConfigParser, BrightConstants
 
-from twisted.web.wsgi import WSGIResource
-from twisted.internet import reactor
+    from twisted.web import server
+    from utils.args_parser import ArgsParser
+    from utils.logger import Logger
+
+    from twisted.web.wsgi import WSGIResource
+    from twisted.internet import reactor
+except ModuleNotFoundError as e:
+    if platform.system() == "Windows":
+        print("Error occurred while importing python modules, "
+              "Please make sure that you exported your repository to PYTHONPATH by running: "
+              f'set PYTHONPATH=%PYTHONPATH%;{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}')
+    else:
+        print("Error occurred while importing python modules, "
+              "Please make sure that you exported your repository to PYTHONPATH by running: "
+              f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}"')
 
 
 def _init_logs(config_parser):
@@ -42,7 +54,7 @@ def _init_logs(config_parser):
 def run_api(app):
     port_number = 8983
     # for debugging
-    # self.app.run(port=port_number, debug=True)
+    # app.run(port=port_number, debug=True)
     resource = WSGIResource(reactor, reactor.getThreadPool(), app)
     reactor.listenTCP(port_number, server.Site(resource, logPath=None))
     reactor.run()
@@ -55,5 +67,5 @@ if __name__ == '__main__':
 
     _init_logs(config_parser)
 
-    app = BrightDataAPI(config_parser)
+    app = BrightAPI(config_parser)
     run_api(app)

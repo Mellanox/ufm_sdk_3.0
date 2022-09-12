@@ -17,9 +17,9 @@
 
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
-from api.bright_api import BrightDataAPI
+from api.bright_data_api import BrightDataAPI
 from api.conf_api import BrightConfigurationsAPI
-from api.base_api import BaseAPIApplication
+from utils.base_api import BaseAPIApplication
 
 
 class BrightAPI(DispatcherMiddleware):
@@ -28,10 +28,10 @@ class BrightAPI(DispatcherMiddleware):
 
         frontend = BaseAPIApplication()
         self.bright_conf = BrightConfigurationsAPI(config_parser)
-        self.bright_data_api = BrightDataAPI()
+        self.bright_data_api = BrightDataAPI(config_parser)
         super(BrightAPI, self).__init__(
             frontend.application, {
                 "/conf": self.bright_conf.application,
-                "/bright": self.bright_data_api
+                "/bright": self.bright_data_api.application
             }
         )

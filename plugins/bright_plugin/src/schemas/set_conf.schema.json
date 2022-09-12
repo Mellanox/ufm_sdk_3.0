@@ -32,7 +32,6 @@
         "cert_file": {
           "type": "string"
         },
-        ,
         "cert_key": {
           "type": "string"
         }

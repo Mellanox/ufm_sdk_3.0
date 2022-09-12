@@ -13,9 +13,12 @@
 @author: Nasr Ajaj
 @date:   May 09, 2022
 """
+import json
 
-from api.base_api import BaseAPIApplication
-from plugins.bright_plugin.bright_mgr import BrightMgr
+from flask import make_response
+
+from mgr.bright_mgr import BrightMgr
+from utils.base_api import BaseAPIApplication
 
 
 class BrightDataAPI(BaseAPIApplication):
@@ -32,7 +35,7 @@ class BrightDataAPI(BaseAPIApplication):
         self._bright_mgr = BrightMgr.getInstance(config_parser)
         super(BrightDataAPI, self).__init__()
 
-    def _getRoutes(self):
+    def _get_routes(self):
         routes = {
             self.get_device_jobs: dict(urls=["/jobs"], methods=["GET"])
         }
@@ -42,4 +45,4 @@ class BrightDataAPI(BaseAPIApplication):
     def get_device_jobs(self):
         device = self._getRequestArg(self.API_PARAM_DEVICES)
         jobs = self._bright_mgr.get_device_jobs(device)
-        return self.createResp(jobs)
+        return make_response(json.dumps(jobs))

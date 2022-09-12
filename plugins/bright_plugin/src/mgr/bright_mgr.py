@@ -45,7 +45,7 @@ class BrightConfigParser(ConfigParser):
     # for debugging
     # config_file = "../conf/bright_plugin.cfg"
 
-    config_file = "/config/bright_plugin.cfg"  # this path on the docker
+    config_file = "../conf/bright_plugin.cfg"  # this path on the docker
 
     BRIGHT_ENDPOINT_SECTION = "bright-endpoint"
     BRIGHT_ENDPOINT_SECTION_HOST = "host"
@@ -58,24 +58,24 @@ class BrightConfigParser(ConfigParser):
         self.sdk_config.read(self.config_file)
 
     def get_bright_host(self):
-        return self.get_config_value(self.args.ufm_telemetry_host,
+        return self.get_config_value(self.args.bright_host,
                                      self.BRIGHT_ENDPOINT_SECTION,
                                      self.BRIGHT_ENDPOINT_SECTION_HOST)
 
     def get_bright_port(self):
-        return self.safe_get_int(self.args.ufm_telemetry_port,
+        return self.safe_get_int(self.args.bright_port,
                                  self.BRIGHT_ENDPOINT_SECTION,
                                  self.BRIGHT_ENDPOINT_SECTION_PORT,
                                  0)
 
     def get_bright_cert_key(self):
-        return self.get_config_value(self.args.BRIGHT_ENDPOINT_SECTION_CERT_KEY,
+        return self.get_config_value(self.args.bright_cert_key,
                                      self.BRIGHT_ENDPOINT_SECTION,
                                      self.BRIGHT_ENDPOINT_SECTION_CERT_KEY,
                                      None)
 
     def get_bright_cert_file(self):
-        return self.get_config_value(self.args.BRIGHT_ENDPOINT_SECTION_CERT_FILE,
+        return self.get_config_value(self.args.bright_cert_file,
                                      self.BRIGHT_ENDPOINT_SECTION,
                                      self.BRIGHT_ENDPOINT_SECTION_CERT_FILE,
                                      None)
@@ -91,9 +91,6 @@ class BrightMgr(Singleton):
         self.BRIGHT_DEVICE_JSON_URL = "json?indent=1"
         self.BRIGHT_CERT_FILE = config_parser.get_bright_cert_file()
         self.BRIGHT_CERT_KEY = config_parser.get_bright_cert_key()
-
-    def is_bright_enabled(self):
-        return self.BRIGHT_ENABLED
 
     def get_bright_devices(self):
         url = self.BRIGHT_DEVICE_JSON_URL
