@@ -1,3 +1,14 @@
+#
+# Copyright © 2013-2022 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+#
+# This software product is a proprietary product of Nvidia Corporation and its affiliates
+# (the "Company") and all right, title, and interest in and to the software
+# product, including all associated intellectual property rights, are and
+# shall remain exclusively with the Company.
+#
+# This software product is governed by the End User License Agreement
+# provided with the software product.
+#
 import grpc
 import plugins.grpc_streamer_plugin.ufm_sim_web_service.grpc_plugin_streamer_pb2 as grpc_plugin_streamer_pb2
 import plugins.grpc_streamer_plugin.ufm_sim_web_service.grpc_plugin_streamer_pb2_grpc as grpc_plugin_streamer_pb2_grpc
