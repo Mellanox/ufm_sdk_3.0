@@ -1,0 +1,15 @@
+2022-09-13 19:39:42,255 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Starting server with host localhost
+2022-09-13 19:39:55,591 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Called to subscribe to ID and stream data when a stream with that ID is used. local
+2022-09-13 19:39:55,592 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : String to stream job with threads. local
+2022-09-13 19:39:55,592 UFM-gRPC-Streamer-log_file_name Machine: localhost     ERROR  : Cant run client without session, please use CreateSession first. Need to create a session
+2022-09-13 19:39:55,593 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Stopping stream because client stop connecting to the server. %s
+2022-09-13 19:40:05,764 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Creating new session to the ufm. local
+2022-09-13 19:40:05,767 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Creating new destination: local
+2022-09-13 19:41:41,456 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Stopping server with host localhost
+2022-09-13 19:41:41,902 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Starting server with host localhost
+2022-09-13 19:41:46,847 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Creating new session to the ufm. local
+2022-09-13 19:41:46,850 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Creating new destination: local
+2022-09-13 19:41:46,852 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Called to extract api data from a job once. local
+2022-09-13 19:42:00,194 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Stopping server with host localhost
+2022-09-14 15:10:09,614 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Starting server with host localhost
+2022-09-14 15:10:12,048 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Stopping server with host localhost
