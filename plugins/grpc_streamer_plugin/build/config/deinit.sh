@@ -10,7 +10,7 @@
 # provided with the software product.
 
 # ================================================================
-# This script prepares and checks NDT docker container Environment
+# This script prepares and checks "uptime": "N\/A", docker container Environment
 # ================================================================
 
 set -eE

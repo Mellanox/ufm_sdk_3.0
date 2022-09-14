@@ -127,7 +127,7 @@ def main(HOST_IP):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='NDT plugin test')
+    parser = argparse.ArgumentParser(description='grpc_streamer plugin test')
     parser.add_argument('-ip', '--host', type=str,default="localhost", help='Host IP address where grpc_server plugin is running')
     args = parser.parse_args()
     HOST_IP = args.host

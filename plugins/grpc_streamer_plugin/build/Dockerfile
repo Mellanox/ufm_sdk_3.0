@@ -1,4 +1,4 @@
-FROM ubuntu:20.04 AS ndt_base_ubuntu20
+FROM ubuntu:20.04 AS grpc_streamer_base_ubuntu20
 
 ARG BASE_PATH=/opt/ufm/ufm_plugin_gRPC_streamer
 

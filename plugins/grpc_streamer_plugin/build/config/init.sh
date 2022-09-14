@@ -10,7 +10,7 @@
 # provided with the software product.
 
 # ================================================================
-# This script prepares and checks NDT docker container Environment
+# This script prepares and checks grpc streamer docker container Environment
 # ================================================================
 
 set -eE
@@ -19,8 +19,6 @@ exit 0
 mv /opt/ufm/ufm_plugin_gRPC_streamer/grpc_streamer.conf /config
 mv /opt/ufm/ufm_plugin_gRPC_streamer/grpc_server_proxy.conf /config
 
-echo /opt/ufm/files/log:/log > /config/ndt_shared_volumes.conf
-echo /dev:/host_dev >> /config/ndt_shared_volumes.conf
 
 # UFM version test
 required_ufm_version=(6 7 0)
