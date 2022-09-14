@@ -51,8 +51,8 @@
             name: "debug"
             default: true
             description: "More info in pipeline"
-    pipeline-scm:
-        script-path: ".ci/Jenkinsfile"
+#    pipeline-scm:
+#        script-path: ".ci/Jenkinsfile"
     publishers:
       - email-ext:
           recipients: ekaidrikov@nvidia.com
@@ -82,7 +82,7 @@
     name: ufm_grpc_streamer
     jjb_email: 'egershon@nvidia.com'
     jjb_proj: 'ufm_grpc_streamer'
-    jjb_git: 'https://github.com/Mellanox-lab/UFM_NDT_Plugin'
+    #jjb_git: 'https://github.com/Mellanox-lab/UFM_NDT_Plugin'
     jjb_owner: 'Elad Gershon'
     jobs:
         - ufm_grpc_streamer
