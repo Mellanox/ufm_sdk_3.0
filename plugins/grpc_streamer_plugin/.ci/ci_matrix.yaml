@@ -1,0 +1,100 @@
+---
+job: ufm-grpc-streamer
+
+registry_host: harbor.mellanox.com
+registry_path: /swx-storage/ci-demo
+registry_auth: swx-storage
+step_allow_single_selector: true
+
+kubernetes:
+  cloud: swx-k8s-spray
+
+credentials:
+  - {credentialsId: '2c8fd3fe-df05-4f6f-9d1f-f1896d611434', usernameVariable: 'REST_USER', passwordVariable: 'PASSWORD'}
+
+volumes:
+  - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
+runs_on_dockers:
+   - {file: '.ci/Dockerfile_static_tests_ub2004', arch: 'x86_64', name: 'swx_static', tag: 'latest'}
+runs_on_agents:
+  - nodeLabel: 'UFM-POC'
+
+steps:
+
+  - name: build Plugin
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: |
+      cd build
+      bash -x ./docker_build.sh
+      cp /ufm-plugin-grpc-streamer* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
+    parallel: false
+
+  - name: remove plugin start
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: .ci/do_remove_plugin.sh
+    parallel: false
+
+  - name: Install Plugin Server
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    credentialsId: '2c8fd3fe-df05-4f6f-9d1f-f1896d611434'
+    run: |
+      export PASSWORD=$PASSWORD
+      .ci/do_install_plugin_server.sh
+    parallel: false
+  
+  - name: load plugin
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: |
+      service opensmd start
+      .ci/do_load_plugin.sh
+    parallel: false
+
+  - name: add plugin
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: .ci/do_add_plugin.sh 
+    parallel: false
+
+
+  - name: run client tests
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: |
+      service rsyslog restart
+      sleep 30
+      export SERVER_HOST=$SERVER_HOST
+      cd tests
+      python3 grpc_streamer_plugin_test.py --host $SERVER_HOST
+    parallel: false
+  
+  - name: get ndt logs
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: |
+      mkdir $WORKSPACE/logs/
+      .ci/do_get_logs.sh
+    archiveArtifacts: 'logs/ndt.log'
+    parallel: false
+
+  - name: remove plugin end
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: .ci/do_remove_plugin.sh
+    parallel: false
+
+
+pipeline_start:
+  run: |
+    mkdir -p /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
+
+
+pipeline_stop:
+  run: |
+    sudo rm -rf /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
+  
+
+
+
+
+
+
+
+
+# Fail job if one of the steps fails or continue
+failFast: false

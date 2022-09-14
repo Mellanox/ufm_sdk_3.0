@@ -4,6 +4,7 @@ ARG BASE_PATH=/opt/ufm/ufm_plugin_gRPC_streamer
 
 LABEL maintainer="egershon@nvidia.com"
 
+EXPOSE 8001
 
 ENV TZ=Israel
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
