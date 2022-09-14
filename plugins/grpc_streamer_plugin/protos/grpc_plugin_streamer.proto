@@ -1,0 +1,68 @@
+syntax = "proto3";
+import "google/protobuf/any.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+
+
+message gRPCStreamerID{string job_id = 1;}
+
+message gRPCStreamerParams{
+  int64 job_id = 1;
+  string task_name = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  string data = 4;
+}
+
+message runOnceRespond{
+  string job_id=1;
+  repeated gRPCStreamerParams results = 2;
+}
+
+
+
+message DestinationParams{
+  message APIParams {
+    string name = 1;
+    int32 interval = 2;
+    optional bool only_delta = 3;
+  }
+  string ip = 1;
+  repeated APIParams apiParams = 2;
+}
+message ListDestinationParams{
+  repeated DestinationParams destinations = 1;
+}
+message SessionAuth{
+  string client_user=1;
+  string username = 2;
+  string password = 3 ;
+  optional string token = 4;
+}
+message SessionRespond{
+  string respond=1;
+}
+
+service GeneralGRPCStreamerService{
+  rpc Help(google.protobuf.Empty) returns (SessionRespond){}
+  rpc Version(google.protobuf.Empty) returns (SessionRespond){}
+
+  rpc CreateSession(SessionAuth) returns (SessionRespond) {}
+
+  rpc SubscribeToStream(gRPCStreamerID) returns (stream gRPCStreamerParams){}
+  rpc GetJobParams(gRPCStreamerID) returns (DestinationParams) {}
+
+  rpc RunStreamJob(gRPCStreamerID) returns (stream gRPCStreamerParams) {}
+  rpc RunOnceJob(gRPCStreamerID) returns (runOnceRespond) {}
+
+  rpc RunOnce(DestinationParams) returns (runOnceRespond) {}
+  rpc RunPeriodically(DestinationParams) returns (stream gRPCStreamerParams) {}
+
+  rpc StopStream(gRPCStreamerID) returns (google.protobuf.Empty) {}
+  rpc Serialization(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+
+  rpc ListDestinations(google.protobuf.Empty) returns (ListDestinationParams) {}
+  rpc AddDestination(DestinationParams) returns (SessionRespond) {}
+  rpc EditDestination(DestinationParams) returns (SessionRespond) {}
+  rpc DeleteDestination(gRPCStreamerID) returns (google.protobuf.Empty) {}
+}
