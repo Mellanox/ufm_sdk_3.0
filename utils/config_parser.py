@@ -15,6 +15,7 @@
 """
 import configparser
 import os
+from utils.args_parser import ArgsParser
 from utils.ufm_rest_client import UfmProtocols, ApiErrorMessages
 from utils.exception_handler import  ExceptionHandler
 
@@ -36,7 +37,8 @@ SDK_CONFIG_LOGS_SECTION_LOGS_FILE_BACKUP_COUNT = "log_file_backup_count"
 
 class ConfigParser(object):
 
-    def __init__(self, args, read_sdk_config = True):
+    def __init__(self, args = ArgsParser.parse_args("UFM SDK", []),
+                 read_sdk_config = True):
         self.sdk_config = configparser.RawConfigParser()
         if read_sdk_config:
             self.sdk_config.read(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),SDK_CONFIG_FILE))
