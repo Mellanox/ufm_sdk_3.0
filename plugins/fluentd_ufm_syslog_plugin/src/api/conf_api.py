@@ -1,12 +1,14 @@
 import json
-import logging
+
 from http import HTTPStatus
 from flask import make_response, request
 from api import InvalidConfRequest
+from utils.logger import LOG_LEVELS, Logger
 from utils.flask_server.base_flask_api_server import BaseAPIApplication
 from utils.json_schema_validator import validate_schema
 from utils.utils import Utils
 
+from mgr.fluent_bit_service_mgr import FluentBitServiceMgr
 
 class SyslogStreamingConfigurationsAPI(BaseAPIApplication):
 
@@ -15,9 +17,13 @@ class SyslogStreamingConfigurationsAPI(BaseAPIApplication):
         self.conf = conf
         # for debugging
         # self.conf_schema_path = "plugins/fluentd_ufm_syslog_plugin/src/schemas/set_conf.schema.json"
+        # self.fluent_bit_conf_template_path = "../conf/fluent-bit.conf.template"
 
         # for production with docker
         self.conf_schema_path = "fluentd_telemetry_plugin/src/schemas/set_conf.schema.json"
+        self.fluent_bit_conf_template_path = "/config/fluent-bit.conf.template"
+
+        self.fluent_bit_conf_file_path = "/etc/fluent-bit/fluent-bit.conf"
 
     def _get_error_handlers(self):
         return [
@@ -42,14 +48,43 @@ class SyslogStreamingConfigurationsAPI(BaseAPIApplication):
                     raise InvalidConfRequest(f'Invalid property: {section_item} in {section}')
                 self.conf.set_item_value(section, section_item, value)
 
+    def update_fluent_bit_conf_file(self):
+        host_ip = self.conf.get_fluentd_host()
+        host_port = self.conf.get_fluentd_port()
+
+        Logger.log_message('Reading fluent-bit configuration template file', LOG_LEVELS.DEBUG)
+        template_file = open(self.fluent_bit_conf_template_path, "r")
+        template = template_file.read()
+        Logger.log_message('Update fluent-bit configuration template values', LOG_LEVELS.DEBUG)
+        template = template.replace("host_ip", host_ip)
+        template = template.replace("host_port", str(host_port))
+        Logger.log_message('Generating fluent-bit configuration file', LOG_LEVELS.DEBUG)
+        with open(self.fluent_bit_conf_file_path, 'w') as config:
+            config.write(template)
+            Logger.log_message('fluent-bit configuration file generated successfully', LOG_LEVELS.DEBUG)
+
     def post(self):
+        Logger.log_message('Updating the streaming configurations')
         # validate the new conf json
         validate_schema(self.conf_schema_path,request.json)
+        # update the saved conf values
         self._set_new_conf()
         try:
+            # update the plugin conf file
             self.conf.update_config_file(self.conf.config_file)
+            # update the fluent-bit.conf file according to the new values
+            self.update_fluent_bit_conf_file()
+            # check if the streaming is enabled or not
+            if self.conf.get_enable_streaming_flag():
+                result, _ = FluentBitServiceMgr.restart_service()
+                if result:
+                    Logger.log_message('The streaming is restarted with the new configurations')
+            else:
+                result, _ = FluentBitServiceMgr.stop_service()
+                if result:
+                    Logger.log_message('The streaming is stopped')
             return make_response("set configurations has been done successfully")
-        except ValueError as ex:
+        except Exception as ex:
             raise ex
 
     def get(self):
@@ -85,4 +120,4 @@ class SyslogStreamingConfigurationsAPI(BaseAPIApplication):
                         conf_dict[section] = dict(section_items)
                 return make_response(conf_dict)
         except Exception as e:
-            logging.error("Error occurred while getting the current streaming configurations: " + str(e))
+            Logger.log_message("Error occurred while getting the current streaming configurations: " + str(e), LOG_LEVELS.ERROR)
