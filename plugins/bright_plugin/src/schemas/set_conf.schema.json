@@ -37,6 +37,28 @@
         }
       }
     },
+    "logs-config": {
+      "type": "object",
+      "properties": {
+        "logs_file_name": {
+          "type": "string"
+        },
+        "logs_level": {
+          "type": "string",
+          "enum": [ "FATAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET" ]
+        },
+        "log_file_max_size": {
+          "type": "integer",
+          "minimum": 1,
+          "err_message": "[logs-config - log_file_max_size] attribute should be an integer greater than 0"
+        },
+        "log_file_backup_count": {
+          "type": "integer",
+          "minimum": 1,
+          "err_message": "[logs-config - log_file_max_size] attribute should be an integer greater than 0"
+        }
+      }
+    },
     "meta-fields": {
       "type": "object"
     }

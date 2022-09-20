@@ -1,6 +1,5 @@
 requests
 configparser
-fluent-logger
 flask
 flask_restful
 twisted

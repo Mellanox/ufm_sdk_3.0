@@ -17,7 +17,7 @@
 from flask import Flask, request
 from flask_restful import Api
 from functools import partial
-from ufm_rest_client import ApiErrorMessages
+from utils.ufm_rest_client import ApiErrorMessages
 
 
 class InvalidRequestError(Exception):

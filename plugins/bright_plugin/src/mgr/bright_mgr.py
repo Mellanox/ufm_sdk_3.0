@@ -13,6 +13,10 @@
 @author: Nasr Ajaj
 @date:   May 12, 2022
 """
+import os
+import sys
+
+sys.path.append(os.getcwd())
 import json
 import logging
 
@@ -45,13 +49,15 @@ class BrightConfigParser(ConfigParser):
     # for debugging
     # config_file = "../conf/bright_plugin.cfg"
 
-    config_file = "../conf/bright_plugin.cfg"  # this path on the docker
+    config_file = "/config/bright_plugin.cfg"  # this path on the docker
 
     BRIGHT_ENDPOINT_SECTION = "bright-endpoint"
     BRIGHT_ENDPOINT_SECTION_HOST = "host"
     BRIGHT_ENDPOINT_SECTION_PORT = "port"
     BRIGHT_ENDPOINT_SECTION_CERT_KEY = "cert_key"
     BRIGHT_ENDPOINT_SECTION_CERT_FILE = "cert_file"
+
+    META_FIELDS_SECTION = "meta-fields"
 
     def __init__(self, args):
         super().__init__(args, False)

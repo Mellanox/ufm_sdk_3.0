@@ -29,7 +29,7 @@ class BrightConfigurationsAPI(BaseAPIApplication):
     def __init__(self, conf):
         super(BrightConfigurationsAPI, self).__init__()
         self.conf = conf
-        self.conf_schema_path = "plugins/bright_plugin/src/schemas/set_conf.schema.json"
+        self.conf_schema_path = "bright_plugin/src/schemas/set_conf.schema.json"
 
     def _get_routes(self):
         return {
