@@ -38,17 +38,17 @@ class UFMSyslogStreamingConfigParser(ConfigParser):
         self.sdk_config.read(self.config_file)
 
     def get_enable_streaming_flag(self):
-        return self.safe_get_bool(self.args.enable_streaming,
+        return self.safe_get_bool(None,
                                   self.STREAMING_SECTION,
                                   self.STREAMING_SECTION_ENABLED,
                                   False)
 
     def get_fluentd_host(self):
-        return self.get_config_value(self.args.fluentd_host,
+        return self.get_config_value(None,
                                      self.FLUENTD_ENDPOINT_SECTION,
                                      self.FLUENTD_ENDPOINT_SECTION_HOST)
 
     def get_fluentd_port(self):
-        return self.safe_get_int(self.args.fluentd_port,
+        return self.safe_get_int(None,
                                  self.FLUENTD_ENDPOINT_SECTION,
                                  self.FLUENTD_ENDPOINT_SECTION_PORT)
