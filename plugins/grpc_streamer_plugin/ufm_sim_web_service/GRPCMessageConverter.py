@@ -44,6 +44,11 @@ def decode_message(params_list):
 
 
 def encode_destination(job):
+    """
+    encode a destination to grpc DestinationParams
+    :param job: Destination that we want to encode
+    :return: DestinationParams
+    """
     if not job:
         print("COULDNT FIND THE IP:"+job.dest_ip)
         return grpc_plugin_streamer_pb2.DestinationParams()
@@ -57,6 +62,11 @@ def encode_destination(job):
 
 
 def decode_destination(request):
+    """
+    decode DestinationParams to Destination
+    :param request:
+    :return:
+    """
     ip = request.ip
     param_results = []
     for x in request.apiParams:

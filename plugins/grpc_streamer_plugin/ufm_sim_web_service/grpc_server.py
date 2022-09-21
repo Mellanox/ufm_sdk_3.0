@@ -39,7 +39,6 @@ class StopStream(Exception):
 
 
 class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamerServiceServicer):
-
     def __init__(self, host=None):
         self.callbacks = {}
         self.feeds = {}
@@ -53,7 +52,12 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
             self.parse_args()
         self.create_logger(Constants.CONF_LOGFILE_NAME)
 
-    def config_server(self,host):
+    def config_server(self, host):
+        """
+        config the server to the ufm that is in the location of host
+        :param host: location/ip of the ufm machine
+        :return:
+        """
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         grpc_plugin_streamer_pb2_grpc.add_GeneralGRPCStreamerServiceServicer_to_server(self, self.server)
 
@@ -65,6 +69,10 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         self._port = Constants.UFM_HTTP_PORT  # web https
 
     def parse_args(self):
+        """
+        parse the args if not given a host in __init__
+        :return:
+        """
         parser = argparse.ArgumentParser()
         parser.add_argument('-h', '--host', action='store', dest='host_ip', default=None, help="Host ip")
         args = parser.parse_args()
@@ -72,6 +80,11 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         self.config_server(self._host)
 
     def create_logger(self, file):
+        """
+        create a logger to put all the data of the server action
+        :param file: name of the file
+        :return:
+        """
         format_str = "%(asctime)-15s UFM-gRPC-Streamer-{0} Machine: {1}     %(levelname)-7s: %(message)s".format(file,self._host)
         conf_file = GENERAL_UTILS.getGrpcStreamConfFile()
         self.log_name = Constants.DEF_LOG_FILE
@@ -83,14 +96,28 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         logging.getLogger('').addHandler(rotateHandler)
 
     def start(self):
+        """
+        starts the server
+        :return:
+        """
         logging.info(Constants.LOG_SERVER_START %self._host)
         self.server.start()
 
     def stop(self):
+        """
+        stops the server
+        :return:
+        """
         logging.info(Constants.LOG_SERVER_STOP%self._host)
         self.server.stop(0)
 
     def __create_session__(self, client, auth):
+        """
+        create a session for client with the auth and save it
+        :param client: given id/ip/client name
+        :param auth: username,password
+        :return: "success" if successful or message of why it didnt success
+        """
         self._session[client] = requests.Session()
         self._session[client].auth = auth
         self._session[client].verify = False
@@ -114,18 +141,36 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
             return Constants.LOG_CANNOT_SESSION % str(e)
 
     def CreateSession(self, request, context):
+        """
+        service grpc function to create session
+        :param request: SessionAuth
+        :param context:
+        :return: SessionRespond
+        """
         ip = request.client_user
         auth = (request.username,request.password)
         result = self.__create_session__(ip, auth)
         return grpc_plugin_streamer_pb2.SessionRespond(respond=result)
 
     def GetJobParams(self, request, context):
+        """
+        service grpc function to retrieve destination params by given id
+        :param request: gRPCStreamerID
+        :param context:
+        :return: DestinationParams
+        """
         ip = request.job_id
         logging.info(Constants.LOG_GET_PARAMS%ip)
         job = self.destinations.get(ip, None)
         return encode_destination(job)
 
     def ListDestinations(self, request, context):
+        """
+        service grpc function to get list of all the destinations
+        :param request: empty
+        :param context:
+        :return: ListDestinationParams that have all the destinations
+        """
         logging.info(Constants.LOG_LIST_DESTINATION)
         messages = []
         for key in self.destinations:
@@ -134,6 +179,12 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         return grpc_plugin_streamer_pb2.ListDestinationParams(destinations=messages)
 
     def AddDestination(self, request, context):
+        """
+        service grpc function to add new destination
+        :param request: DestinationParams
+        :param context:
+        :return: SessionRespond of successful or not
+        """
         ip, param_results = decode_destination(request)
         respond = grpc_plugin_streamer_pb2.SessionRespond()
         if ip not in self._session:
@@ -160,6 +211,12 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         return self.Help(request,context)
 
     def RunOnceJob(self, request, context):
+        """
+        service grpc function to run a job once with only the id
+        :param request: gRPCStreamerID that contains only id
+        :param context:
+        :return: runOnceRespond
+        """
         ip = request.job_id
         logging.info(Constants.LOG_RUN_JOB_ONCE%ip)
         if ip not in self._session:
@@ -173,6 +230,12 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         return grpc_plugin_streamer_pb2.runOnceRespond(job_id=str(messages[0].job_id), results=messages)
 
     def EditDestination(self, request, context):
+        """
+        service grpc function to edit a job with new parameters
+        :param request: DestinationParams
+        :param context:
+        :return: SessionRespond
+        """
         ip, param_results = decode_destination(request)
         logging.info(Constants.LOG_EDIT_DESTINATION%ip)
         if ip not in self._session:
@@ -181,6 +244,12 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         return grpc_plugin_streamer_pb2.SessionRespond(respond="")
 
     def DeleteDestination(self, request, context):
+        """
+        service grpc function to delete a job with given id
+        :param request: gRPCStreamerID
+        :param context:
+        :return: Empty
+        """
         ip = request.job_id
         logging.info(Constants.LOG_DELETE_DESTINATION%ip)
         if ip in self.destinations:
@@ -191,6 +260,12 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         return google.protobuf.empty_pb2.Empty()
 
     def RunOnce(self, request, context):
+        """
+        service grpc function to run a job once with given all parameters
+        :param request: DestinationParams
+        :param context:
+        :return: runOnceRespond
+        """
         ip, param_results = decode_destination(request)
         logging.info(Constants.LOG_RUN_ONCE%ip)
         if ip not in self._session:
@@ -208,6 +283,12 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         return grpc_plugin_streamer_pb2.runOnceRespond(job_id=messages[0].job_id if len(messages)>0 else -1, results=messages)
 
     def RunPeriodically(self, request, context):
+        """
+        service grpc function to run a job streamed with given all parameters
+        :param request: DestinationParams
+        :param context:
+        :return: iterator that updates
+        """
         ip, calls = decode_destination(request)
         logging.info(Constants.LOG_RUN_STREAM%ip)
         dest = Destination(ip, calls, self._session[ip], self._host)
@@ -215,6 +296,12 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         return self.__output_generator(ip,context)
 
     def RunStreamJob(self, request, context):
+        """
+        service grpc function to run a job streamed with given only id when created before the destination
+        :param request: gRPCStreamerID
+        :param context:
+        :return: iterator that updates
+        """
         ip = request.job_id
         logging.info(Constants.LOG_RUN_JOB_Periodically%ip)
         dest = self.destinations[ip] if ip in self.destinations else None
@@ -222,6 +309,12 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         return self.__output_generator(ip, context)
 
     def SubscribeToStream(self, request, context):
+        """
+        service grpc function to subscribe to ID and recieve also all messages that goes thought that ID
+        :param request: gRPCStreamerID
+        :param context:
+        :return: iterator that updates
+        """
         ip = request.job_id
         logging.info(Constants.LOG_CALL_SUBSCRIBE%ip)
         if ip in self.subscribeDict_queue:
@@ -232,6 +325,12 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         return self.__output_generator(ip, context, True)
 
     def StopStream(self, request, context):
+        """
+        service grpc function to stop a stream of given id
+        :param request: gRPCStreamerID
+        :param context:
+        :return: empty
+        """
         ip = request.job_id
         logging.info(Constants.LOG_CALL_STOP_STREAM%ip)
         if ip in self.destinations:
@@ -243,23 +342,32 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         return google.protobuf.empty_pb2.Empty()
 
     def Serialization(self, request, context):
+        """
+        service grpc function to serialize all the streams data
+        :param request: empty
+        :param context:
+        :return: empty
+        """
         logging.info(Constants.LOG_CALL_SERIALIZATION)
         for ip in self.destinations:
             self.destinations[ip].serialization()
 
         return google.protobuf.empty_pb2.Empty()
 
-    def __output_generator(self, ip,context,sucsriber=False):
+    def __output_generator(self, ip, context, is_subscriber=False):
+        """
+        Stream Iterator that wait for an update or callback for stopstream
+        :param ip: id/ip of job
+        :param context:
+        :param is_subscriber: if it is a subscribed stream or regular one.
+        :return: itrator for messages
+        """
         logging.info(Constants.LOG_START_STREAM%ip)
         if ip not in self._session:
             logging.error(Constants.ERROR_NO_SESSION)
             yield grpc_plugin_streamer_pb2.gRPCStreamerParams(data=Constants.ERROR_NO_SESSION)
             return
 
-        # if ip not in self.destinations:
-        #     logging.error(Constants.ERROR_NO_CLIENT)
-        #     yield grpc_plugin_streamer_pb2.gRPCStreamerParams(data=Constants.ERROR_NO_CLIENT)
-        #     return
         while True:
             try:
                 try:
@@ -271,7 +379,7 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
                     while not self.feeds[context].empty():
                         result = self.feeds[context].get()
 
-                        if ip and ip in self.subscribeDict_queue and not sucsriber:
+                        if ip and ip in self.subscribeDict_queue and not is_subscriber:
                             for subscriber in self.subscribeDict_queue[ip]:
                                 self.feeds[subscriber].put(result)
                                 self.callbacks[subscriber].put(self.emptySubscriber)
@@ -289,6 +397,13 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
                 return
 
     def __stream_configuration(self, context, dest, subscribeTo=None):
+        """
+        configurate the stream iterator and start the threads
+        :param context:
+        :param dest: destination we want to work on
+        :param subscribeTo: if the stream is subscribe to anther stream
+        :return: callback queue for the iterator
+        """
         self.feeds[context] = queue.Queue()
         callbacks = queue.Queue()
 

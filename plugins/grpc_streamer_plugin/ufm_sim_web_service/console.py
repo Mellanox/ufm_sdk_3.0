@@ -1,11 +1,21 @@
+#
+# Copyright © 2013-2022 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+#
+# This software product is a proprietary product of Nvidia Corporation and its affiliates
+# (the "Company") and all right, title, and interest in and to the software
+# product, including all associated intellectual property rights, are and
+# shall remain exclusively with the Company.
+#
+# This software product is governed by the End User License Agreement
+# provided with the software product.
+#
+import sys
+
+import requests
+import logging
 import grpc_server
 from grpc_client import GrpcClient
-import requests
-import grpc
 from Config import Constants
-import grpc_plugin_streamer_pb2
-import grpc_plugin_streamer_pb2_grpc
-from Destination import Destination
 
 
 class RestClient:
@@ -40,7 +50,7 @@ class RestClient:
             respond = self._session.get(url)
             return respond
         except requests.ConnectionError as e:
-            print("Wasn't able to reach "+resource_path+". Connection Error, please see this exception.\n"+str(e))
+            print("Wasn't able to reach " + resource_path + ". Connection Error, please see this exception.\n"+str(e))
         except requests.Timeout as e:
             print("Wasn't able to reach " + resource_path + ". Timeout Error, please see this exception.\n" + str(e))
         except requests.RequestException as e:
@@ -86,6 +96,7 @@ class UserActions:
             respond = client.streamApis(api_list, auth)
 
         print(respond)
+        return respond
 
     def server_action(self, ufm_ip, action):
         #['up', 'destinations', 'down']
@@ -103,6 +114,13 @@ class UserActions:
         except Exception as e:
             print(e)
 
+class Logger:
+    def __init__(self):
+        self.terminal = sys.stdout
+        self.log = open("console.log", "w")
+    def write(self,message):
+        self.log.write(message)
+        self.terminal.write(message)
 
 def print_usage():
     print(f"can only use {len(commands)} main commands: {list(commands.keys())}\n")
@@ -121,8 +139,10 @@ def print_usage():
     print("client session --server_ip=localhost --id=client1 --auth=username,password")
     print("client create --server_ip=localhost --id=client1 --apis=events,links,alarms")
     print("client once_id --server_ip=localhost --id=client1")
-    print("client stream --server_ip=localhost --id=client2 --auth=username,password --apis=events,links,alarms")
+    print("client stream --server_ip=localhost --id=client2 --auth=username,password --apis=events;40;True,links;20;False,alarms;10")
     print("client subscribe --server_ip=localhost --id=client1")
+    command = input("enter command:")
+    return command
 
 
 def process_args(command_list):
@@ -137,29 +157,37 @@ def process_args(command_list):
         elif key == 'auth':
             auth = tuple(value.split(','))
         elif key == 'apis':
-            apis = value.split(',')
+            apis = [pairs.split(';') for pairs in value.split(',') ]
 
     return ufm_ip, job_id, auth, apis
 
 
-if __name__ == '__main__':
+def main():
+    #logger = Logger()
+    #sys.stdout = logger
     command = input("enter command:")
-    user=UserActions()
+
+    user = UserActions()
     while command != 'exit':
+        print(">>" + command)
         parts = ' '.join(command.split()).split(' ')
-        if len(parts)<2 or parts[0] not in commands.keys() or parts[1] not in commands[parts[0]]:
-            print_usage()
-            command = input("enter command:")
+        if len(parts) < 2 or parts[0] not in commands.keys() or parts[1] not in commands[parts[0]]:
+            command = print_usage()
             continue
         try:
             args = process_args(parts[2:])
             if parts[0] == 'server':
-                user.server_action(args[0],parts[1])
+                user.server_action(args[0], parts[1])
             elif parts[0] == 'get':
-                user.get_request(host=args[0],auth=args[2],what_to_bring=parts[1])
+                user.get_request(host=args[0], auth=args[2], what_to_bring=parts[1])
             elif parts[0] == 'client':
-                user.client_actions(server_ip=args[0],action=parts[1],id=args[1],api_list=args[3],auth=args[2])
+                user.client_actions(server_ip=args[0], action=parts[1], id=args[1], api_list=args[3], auth=args[2])
         except Exception as e:
             print(e)
+
         command = input("enter command:")
 
+    #logger.log.close()
+
+if __name__ == '__main__':
+    main()
