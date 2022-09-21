@@ -32,6 +32,7 @@ class UFMSyslogStreamingConfigParser(ConfigParser):
 
     STREAMING_SECTION = "streaming"
     STREAMING_SECTION_ENABLED = "enabled"
+    STREAMING_SECTION_MESSAGE_TAG_NAME = "message_tag_name"
 
     def __init__(self):
         super().__init__(read_sdk_config=False)
@@ -42,6 +43,12 @@ class UFMSyslogStreamingConfigParser(ConfigParser):
                                   self.STREAMING_SECTION,
                                   self.STREAMING_SECTION_ENABLED,
                                   False)
+
+    def get_message_tag_name(self):
+        return self.get_config_value(None,
+                                     self.STREAMING_SECTION,
+                                     self.STREAMING_SECTION_MESSAGE_TAG_NAME,
+                                     'ufm_syslog')
 
     def get_fluentd_host(self):
         return self.get_config_value(None,

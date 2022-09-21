@@ -36,6 +36,9 @@
       "properties": {
         "enabled": {
           "type": "boolean"
+        },
+        "message_tag_name": {
+          "type": "string"
         }
       }
     },

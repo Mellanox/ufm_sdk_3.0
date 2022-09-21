@@ -1,8 +1,8 @@
 [SERVICE]
     Flush        1
     Daemon       Off
-    Log_Level    info
-    Log_File     /log/fluent-bit.log
+    Log_Level    log_level
+    Log_File     log_file
     Parsers_File /etc/fluent-bit/parsers.conf
 
 [INPUT]
@@ -11,7 +11,7 @@
     Listen   127.0.0.1
     Port     5140
     Mode     udp
-    Tag      ufm_syslog
+    Tag      message_tag_name
 
 [OUTPUT]
     Name          forward

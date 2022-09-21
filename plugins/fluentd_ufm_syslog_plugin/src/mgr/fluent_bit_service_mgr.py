@@ -14,7 +14,7 @@
 import os
 from utils.logger import Logger, LOG_LEVELS
 
-SERVICE_CMD = 'service fluent-bit %s'
+SERVICE_CMD = 'sudo systemctl %s fluent-bit'
 SUCCESS_CODE = 0
 SERVICE_NOT_INSTALLED = 1024
 SERVICE_STOPPED = 768
