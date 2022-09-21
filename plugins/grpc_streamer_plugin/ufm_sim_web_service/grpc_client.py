@@ -12,7 +12,6 @@
 import grpc
 import plugins.grpc_streamer_plugin.ufm_sim_web_service.grpc_plugin_streamer_pb2 as grpc_plugin_streamer_pb2
 import plugins.grpc_streamer_plugin.ufm_sim_web_service.grpc_plugin_streamer_pb2_grpc as grpc_plugin_streamer_pb2_grpc
-from plugins.grpc_streamer_plugin.ufm_sim_web_service.GRPCMessageConverter import encode_destination, decode_destination,decode_message
 from plugins.grpc_streamer_plugin.ufm_sim_web_service.Destination import Destination
 from plugins.grpc_streamer_plugin.ufm_sim_web_service.Config import Constants
 
@@ -22,6 +21,35 @@ class GrpcClient:
     def __init__(self, server_ip, server_port,job_id):
         self.grpc_channel = f'{server_ip}:{server_port}'
         self.job_id = job_id
+
+    def _start_request(self, api_list, auth, solo_add_session=False, solo_add_job=False):
+        if solo_add_session:
+            if len(auth)<2: return False
+            success = self.add_session(auth[0],auth[1])
+            if not success: return False
+
+        if solo_add_job:
+            success = self.added_job(api_list)
+            if not success:
+                return False
+        try:
+            self.channel = grpc.insecure_channel(self.grpc_channel)
+            self.stub = grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamerServiceStub(self.channel)
+        except grpc.RpcError as e:
+            print(e)
+            return False
+        return True
+
+    def _end_request(self):
+        self.channel.close()
+
+    def _end_stream(self,interator):
+        result_list = []
+        for x in interator:
+            print(x.data)
+            result_list.append(x)
+
+        self.channel.close()
 
     def add_session(self,username,password):
         try:
@@ -47,88 +75,54 @@ class GrpcClient:
         return True
 
     def onceIDApis(self,api_list, auth=[], solo=False):
-        if not solo:
-            if len(auth)<2: return None
-            success = self.add_session(auth[0],auth[1])
-            success = success and self.added_job(api_list)
-            if not success:
-                return None
         try:
-            self.channel = grpc.insecure_channel(self.grpc_channel)
-            self.stub = grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamerServiceStub(self.channel)
+            success = self._start_request(api_list,auth,solo,solo)
+            if not success: return None
             result = self.stub.RunOnceJob(grpc_plugin_streamer_pb2.gRPCStreamerID(job_id=self.job_id))
-            self.channel.close()
+            self._end_request()
             return result
         except grpc.RpcError as e:
             print(e)
             return None
 
     def onceApis(self,api_list, auth):
-        success = self.add_session(auth[0],auth[1])
-        if not success:return None
-        self.dest = Destination(self.job_id,api_list,None,None)
         try:
-            self.channel = grpc.insecure_channel(self.grpc_channel)
-            self.stub = grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamerServiceStub(self.channel)
+            success = self._start_request(api_list, auth, True, False)
+            if not success: return None
+            self.dest = Destination(self.job_id, api_list, None, None)
             result = self.stub.RunOnce(self.dest.to_message())
-            self.channel.close()
+            self._end_request()
             return result
         except grpc.RpcError as e:
             print(e)
             return None
 
     def streamIDAPIs(self, api_list, auth=[], solo=False):
-        if not solo :
-            if len(auth)<2: return None
-            success = self.add_session(auth[0], auth[1])
-            success = success and self.added_job(api_list)
-            if not success:
-                return None
         try:
-            self.channel = grpc.insecure_channel(self.grpc_channel)
-            self.stub = grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamerServiceStub(self.channel)
+            success = self._start_request(api_list,auth,solo,solo)
+            if not success: return None
             interator = self.stub.RunStreamJob(grpc_plugin_streamer_pb2.gRPCStreamerID(job_id=self.job_id))
-            result_list = []
-            for x in interator:
-                print(x.data)
-                result_list.append(x)
-
-            self.channel.close()
-            return result_list
+            return self._end_stream(interator)
         except grpc.RpcError as e:
             print(f"client couldnt get stream: {e}")
             return None
 
     def streamApis(self, api_list, auth):
-        self.add_session(auth[0],auth[1])
         try:
-            self.dest = Destination(self.job_id,api_list,None,None)
-            self.channel = grpc.insecure_channel(self.grpc_channel)
-            self.stub = grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamerServiceStub(self.channel)
+            success = self._start_request(api_list, auth, True, False)
+            if not success: return None
+            self.dest = Destination(self.job_id, api_list, None,None)
             interator = self.stub.RunPeriodically(self.dest.to_message())
-            result_list = []
-            for x in interator:
-                print(x.data)
-                result_list.append(x)
-            self.channel.close()
-            return result_list
+            return self._end_stream(interator)
         except grpc.RpcError as e:
             print(f"client couldnt get stream: {e}")
             return None
 
     def subscribeTo(self, ip):
-        message = grpc_plugin_streamer_pb2.gRPCStreamerID(job_id=ip)
         try:
-            self.channel = grpc.insecure_channel(self.grpc_channel)
-            self.stub = grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamerServiceStub(self.channel)
-            interator = self.stub.SubscribeToStream(message)
-            result_list = []
-            for x in interator:
-                print(x)
-                result_list.append(x)
-
-            self.channel.close()
-            return result_list
+            self._start_request([],[],False,False)
+            interator = self.stub.SubscribeToStream(grpc_plugin_streamer_pb2.gRPCStreamerID(job_id=ip))
+            return self._end_stream(interator)
         except grpc.RpcError as e:
             print(f"client couldnt connect: {e}")
             return False

@@ -9,10 +9,10 @@
 # This software product is governed by the End User License Agreement
 # provided with the software product.
 #
-import re
 import subprocess
 from enum import Enum
 import os
+
 
 class Constants:
     VERSION = '1.0.0'

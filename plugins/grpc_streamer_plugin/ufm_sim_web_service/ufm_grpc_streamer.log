@@ -627,3 +627,30 @@ IndexError: list index out of range
 2022-09-21 09:42:12,338 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Called to run stream an api data from a new destination. client2
 2022-09-21 09:42:12,339 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : String to stream job with threads. start 3 threads for the ip client2 of <grpc._server._Context object at 0x7f09f81d5f98>
 2022-09-21 09:42:13,716 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : String to stream job with threads. client2
+2022-09-21 09:56:59,359 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Starting server with host localhost
+2022-09-21 09:57:14,999 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Creating new session to the ufm. client2
+2022-09-21 09:57:15,004 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Called to run stream an api data from a new destination. client2
+2022-09-21 09:57:15,004 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : String to stream job with threads. start 3 threads for the ip client2 of <grpc._server._Context object at 0x7f899d90b978>
+2022-09-21 09:57:15,010 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : String to stream job with threads. client2
+2022-09-21 11:51:46,861 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Starting server with host localhost
+2022-09-21 11:52:27,571 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Called to run once an api data from a new destination. client2
+2022-09-21 11:52:27,572 UFM-gRPC-Streamer-log_file_name Machine: localhost     ERROR  : Cant run client without session, please use CreateSession first. Need to create a session
+2022-09-21 11:55:27,014 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Starting server with host localhost
+2022-09-21 11:55:46,451 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Called to run once an api data from a new destination. client2
+2022-09-21 11:55:46,451 UFM-gRPC-Streamer-log_file_name Machine: localhost     ERROR  : Cant run client without session, please use CreateSession first. Need to create a session
+2022-09-21 11:56:13,471 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Starting server with host localhost
+2022-09-21 11:56:46,026 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Creating new session to the ufm. client2
+2022-09-21 11:58:49,297 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Starting server with host localhost
+2022-09-21 11:59:05,750 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Creating new session to the ufm. client2
+2022-09-21 11:59:05,771 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Creating new session to the ufm. client2
+2022-09-21 11:59:05,775 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Called to run once an api data from a new destination. client2
+2022-09-21 15:55:11,708 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Starting server with host localhost
+2022-09-21 15:55:40,355 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Creating new session to the ufm. client2
+2022-09-21 15:57:12,526 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Starting server with host localhost
+2022-09-21 15:57:36,345 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Creating new session to the ufm. client2
+2022-09-21 15:57:36,349 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Called to run once an api data from a new destination. client2
+2022-09-21 16:28:25,826 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Starting server with host localhost
+2022-09-21 16:28:57,633 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Creating new session to the ufm. client2
+2022-09-21 16:28:57,637 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : Called to run stream an api data from a new destination. client2
+2022-09-21 16:28:57,637 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : String to stream job with threads. start 3 threads for the ip client2 of <grpc._server._Context object at 0x7fe884506438>
+2022-09-21 16:28:57,643 UFM-gRPC-Streamer-log_file_name Machine: localhost     INFO   : String to stream job with threads. client2
