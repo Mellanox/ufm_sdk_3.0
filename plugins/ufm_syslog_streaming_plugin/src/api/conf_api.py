@@ -17,11 +17,11 @@ class SyslogStreamingConfigurationsAPI(BaseAPIApplication):
         super(SyslogStreamingConfigurationsAPI, self).__init__()
         self.conf = conf
         # for debugging
-        # self.conf_schema_path = "plugins/fluentd_ufm_syslog_plugin/src/schemas/set_conf.schema.json"
+        # self.conf_schema_path = "plugins/ufm_syslog_streaming_plugin/src/schemas/set_conf.schema.json"
         # self.fluent_bit_conf_template_path = "../conf/fluent-bit.conf.template"
 
         # for production with docker
-        self.conf_schema_path = "fluentd_ufm_syslog_plugin/src/schemas/set_conf.schema.json"
+        self.conf_schema_path = "ufm_syslog_streaming_plugin/src/schemas/set_conf.schema.json"
         self.fluent_bit_conf_template_path = "/config/fluent-bit.conf.template"
 
         self.fluent_bit_conf_file_path = "/etc/fluent-bit/fluent-bit.conf"

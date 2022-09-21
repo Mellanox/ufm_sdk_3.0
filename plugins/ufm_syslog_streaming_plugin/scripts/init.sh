@@ -15,11 +15,11 @@
 
 set -eE
 
-SRC_DIR_PATH=/opt/ufm/ufm_plugin_usfs/fluentd_ufm_syslog_plugin
+SRC_DIR_PATH=/opt/ufm/ufm_plugin_usfs/ufm_syslog_streaming_plugin
 
 cp $SRC_DIR_PATH/conf/fluentd.conf /config
 cp $SRC_DIR_PATH/conf/usfs_httpd_proxy.conf /config
-cp $SRC_DIR_PATH/conf/fluentd_ufm_syslog_plugin.cfg /config
+cp $SRC_DIR_PATH/conf/ufm_syslog_streaming_plugin.cfg /config
 cp $SRC_DIR_PATH/conf/fluent-bit.conf.template /config
 
 touch /config/usfs_shared_volumes.conf
