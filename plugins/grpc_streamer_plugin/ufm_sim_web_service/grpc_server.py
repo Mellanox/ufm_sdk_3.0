@@ -40,7 +40,7 @@ class StopStream(Exception):
 
 class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamerServiceServicer):
 
-    def __init__(self,host=None):
+    def __init__(self, host=None):
         self.callbacks = {}
         self.feeds = {}
         self.destinations = {}
@@ -90,18 +90,17 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         logging.info(Constants.LOG_SERVER_STOP%self._host)
         self.server.stop(0)
 
-    def __create_session__(self,client, auth):
+    def __create_session__(self, client, auth):
         self._session[client] = requests.Session()
         self._session[client].auth = auth
         self._session[client].verify = False
-        self._session[client].headers.update({'Content-Type': 'application/json; charset=utf-8',"X-Remote-User": "ufmsystem"})
-        self._session.get(self._host)
+        self._session[client].headers.update({'Content-Type': 'application/json; charset=utf-8'})
         if ':' in self._host:
             url = 'https://[{0}]{1}'.format(self._host, '/ufmRestV2')
         else:
             url = 'https://{0}{1}'.format(self._host, '/ufmRestV2')
         try:
-            result = self._session.get(url)
+            result = self._session[client].get(url)
             if result.status_code == 200:
                 logging.info(Constants.LOG_CREATE_SESSION % client)
                 return "Success"
@@ -112,7 +111,7 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
             return Constants.LOG_CANNOT_SESSION + str(e)
         except Exception as e:
             logging.error(Constants.LOG_CANNOT_UFM % str(e))
-            return Constants.LOG_CANNOT_SESSION + str(e)
+            return Constants.LOG_CANNOT_SESSION % str(e)
 
     def CreateSession(self, request, context):
         ip = request.client_user
@@ -199,14 +198,18 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
             return grpc_plugin_streamer_pb2.runOnceRespond(job_id=Constants.ERROR_NO_SESSION, results=[])
         destination = Destination(ip,param_results, self._session[ip], self._host)
         messages = destination.all_result()
-        return grpc_plugin_streamer_pb2.runOnceRespond(job_id=messages[0].job_id, results=messages)
+
+        if ip in self.subscribeDict_queue:
+            for message in messages:
+                for subscriber in self.subscribeDict_queue[ip]:
+                    self.feeds[subscriber].put(message)
+                    self.callbacks[subscriber].put(self.emptySubscriber)
+
+        return grpc_plugin_streamer_pb2.runOnceRespond(job_id=messages[0].job_id if len(messages)>0 else -1, results=messages)
 
     def RunPeriodically(self, request, context):
         ip, calls = decode_destination(request)
         logging.info(Constants.LOG_RUN_STREAM%ip)
-        if ip not in self._session:
-            logging.error(Constants.ERROR_NO_SESSION)
-            return grpc_plugin_streamer_pb2.gRPCStreamerParams(data=Constants.ERROR_NO_SESSION)
         dest = Destination(ip, calls, self._session[ip], self._host)
         self.callbacks[ip] = self.__stream_configuration(context, dest)
         return self.__output_generator(ip,context)
@@ -216,7 +219,7 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         logging.info(Constants.LOG_RUN_JOB_Periodically%ip)
         dest = self.destinations[ip] if ip in self.destinations else None
         self.callbacks[ip] = self.__stream_configuration(context, dest)
-        return self.__output_generator(ip,context)
+        return self.__output_generator(ip, context)
 
     def SubscribeToStream(self, request, context):
         ip = request.job_id
@@ -253,10 +256,10 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
             yield grpc_plugin_streamer_pb2.gRPCStreamerParams(data=Constants.ERROR_NO_SESSION)
             return
 
-        if ip not in self.destinations:
-            logging.error(Constants.ERROR_NO_CLIENT)
-            yield grpc_plugin_streamer_pb2.gRPCStreamerParams(data=Constants.ERROR_NO_CLIENT)
-            return
+        # if ip not in self.destinations:
+        #     logging.error(Constants.ERROR_NO_CLIENT)
+        #     yield grpc_plugin_streamer_pb2.gRPCStreamerParams(data=Constants.ERROR_NO_CLIENT)
+        #     return
         while True:
             try:
                 try:
@@ -277,7 +280,6 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
                             yield result
                         else:
                             raise StopStream('stopping stream')
-
 
             except IndexError:
                 print("That not good")

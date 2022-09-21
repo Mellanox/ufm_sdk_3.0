@@ -19,7 +19,7 @@ import "google/protobuf/timestamp.proto";
 message gRPCStreamerID{string job_id = 1;}
 
 message gRPCStreamerParams{
-  int64 job_id = 1;
+  string job_id = 1;
   string task_name = 2;
   google.protobuf.Timestamp timestamp = 3;
   string data = 4;
