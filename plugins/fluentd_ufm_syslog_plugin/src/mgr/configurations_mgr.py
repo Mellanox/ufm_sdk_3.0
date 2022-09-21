@@ -26,9 +26,9 @@ class UFMSyslogStreamingConfigParser(ConfigParser):
     # for production with docker
     config_file = "/config/fluentd_ufm_syslog_plugin.cfg"
 
-    FLUENTD_ENDPOINT_SECTION = "fluentd-endpoint"
-    FLUENTD_ENDPOINT_SECTION_HOST = "host"
-    FLUENTD_ENDPOINT_SECTION_PORT = "port"
+    DESTINATION_ENDPOINT_SECTION = "destination-endpoint"
+    DESTINATION_ENDPOINT_SECTION_HOST = "host"
+    DESTINATION_ENDPOINT_SECTION_PORT = "port"
 
     STREAMING_SECTION = "streaming"
     STREAMING_SECTION_ENABLED = "enabled"
@@ -52,10 +52,10 @@ class UFMSyslogStreamingConfigParser(ConfigParser):
 
     def get_fluentd_host(self):
         return self.get_config_value(None,
-                                     self.FLUENTD_ENDPOINT_SECTION,
-                                     self.FLUENTD_ENDPOINT_SECTION_HOST)
+                                     self.DESTINATION_ENDPOINT_SECTION,
+                                     self.DESTINATION_ENDPOINT_SECTION_HOST)
 
     def get_fluentd_port(self):
         return self.safe_get_int(None,
-                                 self.FLUENTD_ENDPOINT_SECTION,
-                                 self.FLUENTD_ENDPOINT_SECTION_PORT)
+                                 self.DESTINATION_ENDPOINT_SECTION,
+                                 self.DESTINATION_ENDPOINT_SECTION_PORT)

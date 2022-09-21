@@ -3,7 +3,7 @@
   "title": "Update streaming configurations",
   "type": "object",
   "properties": {
-    "fluentd-endpoint": {
+    "destination-endpoint": {
       "type": "object",
       "properties": {
         "host": {
@@ -11,15 +11,15 @@
           "anyOf": [
             {
               "format": "hostname",
-              "err_message": "Invalid attribute [fluentd-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
+              "err_message": "Invalid attribute [destination-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
             },
             {
               "format": "ipv4",
-              "err_message": "Invalid attribute [fluentd-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
+              "err_message": "Invalid attribute [destination-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
             },
             {
               "format": "ipv6",
-              "err_message": "Invalid attribute [fluentd-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
+              "err_message": "Invalid attribute [destination-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
             }
           ]
         },
