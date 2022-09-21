@@ -100,12 +100,12 @@ function build_docker_image()
 
 pushd ${SCRIPT_DIR}
 
-echo ${IMAGE_VERSION} > ../../fluentd_ufm_syslog_plugin/version
+echo ${IMAGE_VERSION} > ../../ufm_syslog_streaming_plugin/version
 
 BUILD_DIR=$(create_out_dir)
 cp Dockerfile ${BUILD_DIR}
 cp -r ../../../utils ${BUILD_DIR}
-cp -r ../../fluentd_ufm_syslog_plugin ${BUILD_DIR}
+cp -r ../../ufm_syslog_streaming_plugin ${BUILD_DIR}
 
 echo "BUILD_DIR    : [${BUILD_DIR}]"
 

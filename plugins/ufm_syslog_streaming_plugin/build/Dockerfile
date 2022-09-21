@@ -3,7 +3,7 @@ FROM ubuntu:20.04 AS usfs_base_ubuntu20
 LABEL maintainer="anana@nvidia.com"
 
 ARG BASE_PATH=/opt/ufm/ufm_plugin_usfs
-ARG SRC_BASE_DIR=fluentd_ufm_syslog_plugin
+ARG SRC_BASE_DIR=ufm_syslog_streaming_plugin
 
 COPY ${SRC_BASE_DIR}/ ${BASE_PATH}/${SRC_BASE_DIR}/
 COPY utils/ ${BASE_PATH}/utils/

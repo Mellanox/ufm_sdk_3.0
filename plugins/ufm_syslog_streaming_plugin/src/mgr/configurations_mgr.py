@@ -21,10 +21,10 @@ from utils.config_parser import ConfigParser
 
 class UFMSyslogStreamingConfigParser(ConfigParser):
     # for debugging
-    # config_file = "../conf/fluentd_ufm_syslog_plugin.cfg"
+    # config_file = "../conf/ufm_syslog_streaming_plugin.cfg"
 
     # for production with docker
-    config_file = "/config/fluentd_ufm_syslog_plugin.cfg"
+    config_file = "/config/ufm_syslog_streaming_plugin.cfg"
 
     DESTINATION_ENDPOINT_SECTION = "destination-endpoint"
     DESTINATION_ENDPOINT_SECTION_HOST = "host"
