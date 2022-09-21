@@ -10,6 +10,7 @@ from utils.utils import Utils
 
 from mgr.fluent_bit_service_mgr import FluentBitServiceMgr
 
+
 class SyslogStreamingConfigurationsAPI(BaseAPIApplication):
 
     def __init__(self, conf):
@@ -20,7 +21,7 @@ class SyslogStreamingConfigurationsAPI(BaseAPIApplication):
         # self.fluent_bit_conf_template_path = "../conf/fluent-bit.conf.template"
 
         # for production with docker
-        self.conf_schema_path = "fluentd_telemetry_plugin/src/schemas/set_conf.schema.json"
+        self.conf_schema_path = "fluentd_ufm_syslog_plugin/src/schemas/set_conf.schema.json"
         self.fluent_bit_conf_template_path = "/config/fluent-bit.conf.template"
 
         self.fluent_bit_conf_file_path = "/etc/fluent-bit/fluent-bit.conf"
@@ -49,13 +50,19 @@ class SyslogStreamingConfigurationsAPI(BaseAPIApplication):
                 self.conf.set_item_value(section, section_item, value)
 
     def update_fluent_bit_conf_file(self):
+        log_file = self.conf.get_logs_file_name()
+        log_level = self.conf.get_logs_level()
         host_ip = self.conf.get_fluentd_host()
         host_port = self.conf.get_fluentd_port()
+        message_tag_name = self.conf.get_message_tag_name()
 
         Logger.log_message('Reading fluent-bit configuration template file', LOG_LEVELS.DEBUG)
         template_file = open(self.fluent_bit_conf_template_path, "r")
         template = template_file.read()
         Logger.log_message('Update fluent-bit configuration template values', LOG_LEVELS.DEBUG)
+        template = template.replace("log_file", log_file)
+        template = template.replace("log_level", log_level.lower())
+        template = template.replace("message_tag_name", message_tag_name)
         template = template.replace("host_ip", host_ip)
         template = template.replace("host_port", str(host_port))
         Logger.log_message('Generating fluent-bit configuration file', LOG_LEVELS.DEBUG)
