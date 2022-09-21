@@ -34,9 +34,11 @@ class Destination:
         self.callback = None
 
     def processing_calls(self, rests_calls):
+        if rests_calls is None:return
         for call in rests_calls:
             is_tuple = isinstance(call,tuple)
-            name = call[0]  if is_tuple else call
+            name = call[0] if is_tuple else call
+            name = name.capitalize()
             if RESTCall.__contains__(name):
                 interval = call[1] if len(call) > 1 and is_tuple else Constants.REST_DEFAULT_INTERVAL
                 delta = call[2] if len(call) > 2 and is_tuple else Constants.REST_DEFAULT_DELTA
@@ -137,12 +139,13 @@ class Destination:
         timestamp = google.protobuf.timestamp_pb2.Timestamp()
         timestamp.FromDatetime(datetime.now())
         des_message.timestamp.CopyFrom(timestamp)
-        des_message.job_id = Destination.job_id_messages
+        des_message.job_id = str(Destination.job_id_messages)
         with Destination.lock:
             Destination.job_id_messages += 1
         return des_message
 
     def send_get_request(self, resource_path):
+        if self._host is None or self._session is None:return None
         if ':' in self._host:
             url = 'https://[{0}]{1}'.format(self._host, resource_path)
         else:
