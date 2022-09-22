@@ -3,11 +3,12 @@
 import grpc
 
 from google.protobuf import empty_pb2 as google_dot_protobuf_dot_empty__pb2
-import grpc_plugin_streamer_pb2 as grpc__plugin__streamer__pb2
+import plugins.grpc_streamer_plugin.ufm_sim_web_service.grpc_plugin_streamer_pb2 as grpc__plugin__streamer__pb2
 
 
 class GeneralGRPCStreamerServiceStub(object):
-    """Missing associated documentation comment in .proto file."""
+    """API for communicate with the server, all the function the server most to support those function.
+    """
 
     def __init__(self, channel):
         """Constructor.
@@ -93,7 +94,8 @@ class GeneralGRPCStreamerServiceStub(object):
 
 
 class GeneralGRPCStreamerServiceServicer(object):
-    """Missing associated documentation comment in .proto file."""
+    """API for communicate with the server, all the function the server most to support those function.
+    """
 
     def Help(self, request, context):
         """Missing associated documentation comment in .proto file."""
@@ -271,7 +273,8 @@ def add_GeneralGRPCStreamerServiceServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class GeneralGRPCStreamerService(object):
-    """Missing associated documentation comment in .proto file."""
+    """API for communicate with the server, all the function the server most to support those function.
+    """
 
     @staticmethod
     def Help(request,

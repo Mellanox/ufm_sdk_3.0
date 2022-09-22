@@ -14,66 +14,71 @@ import "google/protobuf/any.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-
-
 message gRPCStreamerID{string job_id = 1;}
 
+//messages returning from server contains data about
 message gRPCStreamerParams{
-  string job_id = 1;
-  string task_name = 2;
-  google.protobuf.Timestamp timestamp = 3;
-  string data = 4;
+  string message_id = 1; // unique identifier for messages
+  string ufm_api_name = 2; // what rest api receive the data from
+  google.protobuf.Timestamp timestamp = 3; //what time we created the message
+  string data = 4; // data of rest api call
 }
 
+//message returning from run once contains
 message runOnceRespond{
   string job_id=1;
   repeated gRPCStreamerParams results = 2;
 }
 
-
-
+//message about Destination params, containing the ufm api params
 message DestinationParams{
   message APIParams {
-    string name = 1;
+    string ufm_api_name = 1;
     int32 interval = 2;
     optional bool only_delta = 3;
   }
-  string ip = 1;
+  string job_id = 1; //unique identifier for this job
   repeated APIParams apiParams = 2;
 }
+
+//message for the existing destinations
 message ListDestinationParams{
   repeated DestinationParams destinations = 1;
 }
+
+//message for communicate with server to create session to the ufm
 message SessionAuth{
-  string client_user=1;
+  string job_id=1;
   string username = 2;
   string password = 3 ;
   optional string token = 4;
 }
+//message for returning from server
 message SessionRespond{
   string respond=1;
 }
 
+//API for communicate with the server, all the function the server most to support those function.
 service GeneralGRPCStreamerService{
-  rpc Help(google.protobuf.Empty) returns (SessionRespond){}
-  rpc Version(google.protobuf.Empty) returns (SessionRespond){}
+  rpc Help(google.protobuf.Empty) returns (SessionRespond){} // get help to communicate with the server
+  rpc Version(google.protobuf.Empty) returns (SessionRespond){} // same as help
 
-  rpc CreateSession(SessionAuth) returns (SessionRespond) {}
+  rpc CreateSession(SessionAuth) returns (SessionRespond) {} //create a session to the ufm and respond from server
 
-  rpc SubscribeToStream(gRPCStreamerID) returns (stream gRPCStreamerParams){}
-  rpc GetJobParams(gRPCStreamerID) returns (DestinationParams) {}
+  rpc SubscribeToStream(gRPCStreamerID) returns (stream gRPCStreamerParams){} //subscribe to stream and get those messages
+  rpc GetJobParams(gRPCStreamerID) returns (DestinationParams) {} //get information of destination using the id
 
-  rpc RunStreamJob(gRPCStreamerID) returns (stream gRPCStreamerParams) {}
-  rpc RunOnceJob(gRPCStreamerID) returns (runOnceRespond) {}
+  rpc RunStreamJob(gRPCStreamerID) returns (stream gRPCStreamerParams) {} // running the a stream of information using the id of the job.
+  rpc RunOnceJob(gRPCStreamerID) returns (runOnceRespond) {} //running all the data once using the id of the job.
 
-  rpc RunOnce(DestinationParams) returns (runOnceRespond) {}
-  rpc RunPeriodically(DestinationParams) returns (stream gRPCStreamerParams) {}
+  rpc RunOnce(DestinationParams) returns (runOnceRespond) {} // running all the data once using a destination param message.
+  rpc RunPeriodically(DestinationParams) returns (stream gRPCStreamerParams) {} //running the stream of information using the destination params.
 
-  rpc StopStream(gRPCStreamerID) returns (google.protobuf.Empty) {}
-  rpc Serialization(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc StopStream(gRPCStreamerID) returns (google.protobuf.Empty) {} //stop a stream of information using the job id.
+  rpc Serialization(google.protobuf.Empty) returns (google.protobuf.Empty) {} //Serialize every job information.
 
-  rpc ListDestinations(google.protobuf.Empty) returns (ListDestinationParams) {}
-  rpc AddDestination(DestinationParams) returns (SessionRespond) {}
-  rpc EditDestination(DestinationParams) returns (SessionRespond) {}
-  rpc DeleteDestination(gRPCStreamerID) returns (google.protobuf.Empty) {}
+  rpc ListDestinations(google.protobuf.Empty) returns (ListDestinationParams) {} // get all destinations.
+  rpc AddDestination(DestinationParams) returns (SessionRespond) {} // add new destination and receive server respond.
+  rpc EditDestination(DestinationParams) returns (SessionRespond) {} // edit a known destination with new params.
+  rpc DeleteDestination(gRPCStreamerID) returns (google.protobuf.Empty) {} // delete a destination using it's job.
 }

@@ -55,7 +55,7 @@ class GrpcClient:
         try:
             self.channel = grpc.insecure_channel(self.grpc_channel)
             self.stub = grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamerServiceStub(self.channel)
-            self.stub.CreateSession(grpc_plugin_streamer_pb2.SessionAuth(client_user=self.job_id, username=username,
+            self.stub.CreateSession(grpc_plugin_streamer_pb2.SessionAuth(job_id=self.job_id, username=username,
                                                                      password=password))
             self.channel.close()
             return True
@@ -87,7 +87,7 @@ class GrpcClient:
 
     def onceApis(self,api_list, auth):
         try:
-            success = self._start_request(api_list, auth, True, False)
+            success = self._start_request(api_list, auth, True, True)
             if not success: return None
             self.dest = Destination(self.job_id, api_list, None, None)
             result = self.stub.RunOnce(self.dest.to_message())
@@ -131,13 +131,13 @@ class GrpcClient:
 class Runner():
     def runOnce(self):
         client = GrpcClient('localhost', str(Constants.UFM_PLUGIN_PORT), 'local')
-        result = client.onceIDApis([("Events", 10, True), ("Alarms", 10, True), ("Links", 40, False), ("stuff")])
+        result = client.onceIDApis([("Events", 10, True), ("Alarms", 10, True), ("Links", 40, False), ("stuff")],["admin","123456"],True)
         print(result)
 
 
     def runStream(self):
         client = GrpcClient('localhost', str(Constants.UFM_PLUGIN_PORT), 'local')
-        result = client.streamIDAPIs([("Events", 60, False), ("Alarms", 40, True), ("Links", 40, False)])
+        result = client.streamIDAPIs([("Events", 60, False), ("Alarms", 40, True), ("Links", 40, False),("stuff")],["admin","123456"],True)
         print(result)
 
     def runSubscribe(self):
@@ -148,4 +148,4 @@ class Runner():
 
 if __name__ == '__main__':
     runner = Runner()
-    runner.runStream()
+    runner.runOnce()
