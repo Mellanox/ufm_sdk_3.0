@@ -77,6 +77,9 @@ class UserActions:
 
     def client_actions(self,server_ip, action, id, api_list, auth):
         #['once', 'stream', 'subscribe', 'session', 'create', 'once_id', 'stream_id']
+        if server_ip is None or id is None:
+            print("Need server ip and id to continue")
+            return
 
         respond = ''
         client = GrpcClient(server_ip, Constants.UFM_PLUGIN_PORT, id)
@@ -87,9 +90,9 @@ class UserActions:
         elif action == 'subscribe':
             respond = client.subscribeTo(id)
         elif action == 'once_id':
-            respond=client.onceIDApis(api_list, auth, True)
+            respond = client.onceIDApis(api_list, auth)
         elif action == 'stream_id':
-            respond = client.streamIDAPIs(api_list, auth, True)
+            respond = client.streamIDAPIs(api_list, auth)
         elif action == 'once':
             respond = client.onceApis(api_list, auth)
         elif action == 'stream':

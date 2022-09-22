@@ -14,31 +14,7 @@
 # ================================================================
 
 set -eE
-exit 0
 # Updating /config folder
 mv /opt/ufm/ufm_plugin_gRPC_streamer/grpc_streamer.conf /config
 mv /opt/ufm/ufm_plugin_gRPC_streamer/grpc_server_proxy.conf /config
-
-
-# UFM version test
-required_ufm_version=(6 7 0)
-echo "Required UFM version: ${required_ufm_version[0]}.${required_ufm_version[1]}.${required_ufm_version[2]}"
-
-if [ "$1" == "-ufm_version" ]; then
-    actual_ufm_version_string=$2
-    actual_ufm_version=(${actual_ufm_version_string//./ })
-    echo "Actual UFM version: ${actual_ufm_version[0]}.${actual_ufm_version[1]}.${actual_ufm_version[2]}"
-    if [ ${actual_ufm_version[0]} -ge ${required_ufm_version[0]} ] \
-    && [ ${actual_ufm_version[1]} -ge ${required_ufm_version[1]} ] \
-    && [ ${actual_ufm_version[2]} -ge ${required_ufm_version[2]} ]; then
-        echo "UFM version meets the requirements"
-        exit 0
-    else
-        echo "UFM version is older than required"
-        exit 1
-    fi
-else
-    exit 1
-fi
-
-exit 1
+exit 0

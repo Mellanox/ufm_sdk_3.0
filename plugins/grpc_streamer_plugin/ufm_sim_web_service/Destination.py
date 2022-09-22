@@ -26,7 +26,7 @@ class Destination:
     job_id_messages = 1
     lock = Lock()
 
-    def __init__(self, ip, rests_calls, session, host):
+    def __init__(self, ip, rest_api_calls, session, host):
         """
         :param ip: name/ip of machine that asked this information
         :param rests_calls: list of string that represent the wanted calls
@@ -39,25 +39,26 @@ class Destination:
         self.stop_all = False
         self._session = session
         self._host = host
-        self.processing_calls(rests_calls)
+        self.processing_calls(rest_api_calls)
         self.queue = None
         self.callback = None
 
-    def processing_calls(self, rests_calls):
+    def processing_calls(self, rest_api_calls):
         """
         extract the information from rest calls
         :param rests_calls: list of params of calls
         :return:
         """
-        if rests_calls is None:return
-        for call in rests_calls:
+        if rest_api_calls is None:return
+        for call in rest_api_calls:
             is_tuple = isinstance(call,tuple) or isinstance(call,list)
             name = call[0] if is_tuple else call
             name = name.capitalize()
             if RESTCall.__contains__(name):
                 interval = int(call[1]) if len(call) > 1 and is_tuple else Constants.REST_DEFAULT_INTERVAL
                 delta = bool(call[2]) if len(call) > 2 and is_tuple else Constants.REST_DEFAULT_DELTA
-                location = RESTCall[name].location
+
+                location = RESTCall[name].location # get the location from the rest call.
                 tuple_data = (name, interval, delta, location)
                 self.calls.append(tuple_data)
             else:
@@ -84,13 +85,11 @@ class Destination:
             else:
                 result = result.json()
 
-            for item in result:
-                params = str(item)
-                message = self._encode_results_(name, params)
-                queue.put(message) # sending the result to main thread
+            message = self._encode_results_(name, result)
+            queue.put(message) # sending the result to main thread
             if len(result) > 0 and callback:
                 callback.put(self.new_data_callback) # calling a callback to get this result
-            time.sleep(interval) # sleep for some time
+            time.sleep(interval) # sleep for interval time
 
 
     def new_data_callback(self):
@@ -130,8 +129,7 @@ class Destination:
             data = respond.json()
             if not isinstance(data, list):
                 continue
-            for element in data:
-                messages.append((call[0], str(element)))
+            messages.append((call[0], str(data)))
 
         output = []
         for message in messages:
@@ -152,10 +150,8 @@ class Destination:
                 continue
             data = respond.json()
 
-            for item in data:
-                params = str(item)
-                message = self._encode_results_(call[0], params)
-                self.queue.put(message)  # sending the result to main thread
+            message = self._encode_results_(call[0], str(data))
+            self.queue.put(message)  # sending the result to main thread
             if len(data) > 0 and self.callback:
                 self.callback.put(self.new_data_callback)
 
@@ -166,11 +162,11 @@ class Destination:
         """
         params = []
         for item in self.calls:
-            params.append(grpc_plugin_streamer_pb2.DestinationParams.APIParams(name=item[0],
+            params.append(grpc_plugin_streamer_pb2.DestinationParams.APIParams(ufm_api_name=item[0],
                                                                                interval=item[1], only_delta=item[2]))
-        if len(self.calls)==0:
+        if len(self.calls) == 0:
             raise Exception(Constants.LOG_NO_REST_DESTINATION)
-        return grpc_plugin_streamer_pb2.DestinationParams(ip=self.dest_ip, apiParams=params)
+        return grpc_plugin_streamer_pb2.DestinationParams(job_id=self.dest_ip, apiParams=params)
 
     def _encode_results_(self, task_name, data):
         """
@@ -180,12 +176,12 @@ class Destination:
         :return: gRPCStreamerParams of given data and task_name
         """
         des_message = grpc_plugin_streamer_pb2.gRPCStreamerParams()
-        des_message.task_name = task_name
+        des_message.ufm_api_name = task_name
         des_message.data = str(data)
         timestamp = google.protobuf.timestamp_pb2.Timestamp()
         timestamp.FromDatetime(datetime.now())
         des_message.timestamp.CopyFrom(timestamp)
-        des_message.job_id = str(Destination.job_id_messages)
+        des_message.message_id = str(Destination.job_id_messages)
         with Destination.lock:
             Destination.job_id_messages += 1
         return des_message

@@ -9,6 +9,7 @@
 # This software product is governed by the End User License Agreement
 # provided with the software product.
 #
+import logging
 import subprocess
 from enum import Enum
 import os
@@ -38,6 +39,13 @@ class Constants:
     UFM_GRPC_STREAMER_CONF_NAME = "ufm_grpc_streamer.conf"
     GRPC_STREAMER_DEF_PATH = "/etc/grpc_streamer"
     GRPC_STREAMER_SERVICE_PATH = "/lib/systemd/system/grpc_streamer.service"
+
+    config_file_name = "../build/config/grpc_streamer.conf"
+    #config_file_name = "config/grpc_streamer.conf"
+    grpc_max_workers = 10
+    log_level = logging.INFO
+    log_file_backup_count = 5
+    log_file_max_size = 100 * 100 * 1024
 
     LOG_SERVER_START = "Starting server with host %s"
     LOG_SERVER_STOP = "Stopping server with host %s"

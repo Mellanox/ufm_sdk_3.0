@@ -10,6 +10,7 @@
 # provided with the software product.
 #
 import argparse
+import configparser
 import os.path
 import threading
 import time
@@ -45,12 +46,20 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         self.destinations = {}
         self.subscribeDict_queue = {}
         self._session = {}
-        #self.__create_session__(host, port, auth)
-        if host:
-            self.config_server(host)
-        else:
-            self.parse_args()
+        self.parse_config()
+        self.config_server(host)
         self.create_logger(Constants.CONF_LOGFILE_NAME)
+
+    def parse_config(self):
+        grpc_config = configparser.ConfigParser()
+        if os.path.exists(Constants.config_file_name):
+            grpc_config.read(Constants.config_file_name)
+            Constants.log_level = grpc_config.get("Common","log_level")
+            Constants.UFM_PLUGIN_PORT = grpc_config.getint("Common","grpc_port")
+            Constants.log_file_max_size = grpc_config.getint("Common","log_file_max_size")
+            Constants.log_file_backup_count = grpc_config.getint("Common","log_file_backup_count")
+            Constants.grpc_max_workers = grpc_config.getint("Common","grpc_max_workers")
+
 
     def config_server(self, host):
         """
@@ -58,7 +67,7 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         :param host: location/ip of the ufm machine
         :return:
         """
-        self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+        self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=Constants.grpc_max_workers))
         grpc_plugin_streamer_pb2_grpc.add_GeneralGRPCStreamerServiceServicer_to_server(self, self.server)
 
         grpc_port = Constants.UFM_PLUGIN_PORT
@@ -68,16 +77,6 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         self._host = host
         self._port = Constants.UFM_HTTP_PORT  # web https
 
-    def parse_args(self):
-        """
-        parse the args if not given a host in __init__
-        :return:
-        """
-        parser = argparse.ArgumentParser()
-        parser.add_argument('-h', '--host', action='store', dest='host_ip', default=None, help="Host ip")
-        args = parser.parse_args()
-        self._host = args.host_ip
-        self.config_server(self._host)
 
     def create_logger(self, file):
         """
@@ -89,9 +88,13 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         conf_file = GENERAL_UTILS.getGrpcStreamConfFile()
         self.log_name = Constants.DEF_LOG_FILE
 
-        logging.basicConfig(format=format_str,level=logging.INFO)
-        rotateHandler = RotatingFileHandler(self.log_name,maxBytes=10*1024*1024,backupCount=5)
-        rotateHandler.setLevel(logging.INFO)
+        logging_level=logging.getLevelName(Constants.log_level) \
+            if isinstance(Constants.log_level,str) else Constants.log_level
+
+        logging.basicConfig(format=format_str,level=logging_level)
+        rotateHandler = RotatingFileHandler(self.log_name,maxBytes=Constants.log_file_max_size,
+                                            backupCount=Constants.log_file_backup_count)
+        rotateHandler.setLevel(Constants.log_level)
         rotateHandler.setFormatter(logging.Formatter(format_str))
         logging.getLogger('').addHandler(rotateHandler)
 
@@ -147,7 +150,7 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         :param context:
         :return: SessionRespond
         """
-        ip = request.client_user
+        ip = request.job_id
         auth = (request.username,request.password)
         result = self.__create_session__(ip, auth)
         return grpc_plugin_streamer_pb2.SessionRespond(respond=result)
@@ -227,7 +230,7 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
 
         job = self.destinations[ip]
         messages = job.all_result()
-        return grpc_plugin_streamer_pb2.runOnceRespond(job_id=str(messages[0].job_id), results=messages)
+        return grpc_plugin_streamer_pb2.runOnceRespond(job_id=str(messages[0].message_id), results=messages)
 
     def EditDestination(self, request, context):
         """
@@ -280,7 +283,8 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
                     self.feeds[subscriber].put(message)
                     self.callbacks[subscriber].put(self.emptySubscriber)
 
-        return grpc_plugin_streamer_pb2.runOnceRespond(job_id=messages[0].job_id if len(messages)>0 else -1, results=messages)
+        return grpc_plugin_streamer_pb2.runOnceRespond(job_id=messages[0].message_id if len(messages)>0 else -1,
+                                                       results=messages)
 
     def RunPeriodically(self, request, context):
         """
@@ -435,7 +439,7 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
 
 
 def main():
-    server = GRPCPluginStreamerServer(host='localhost')#'10.209.36.31')
+    server = GRPCPluginStreamerServer(host='localhost')
     server.start()
     print("start server")
     try:

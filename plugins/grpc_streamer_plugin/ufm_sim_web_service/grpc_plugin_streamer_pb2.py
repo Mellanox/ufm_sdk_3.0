@@ -22,7 +22,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\x1agrpc_plugin_streamer.proto\x1a\x19google/protobuf/any.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\" \n\x0egRPCStreamerID\x12\x0e\n\x06job_id\x18\x01 \x01(\t\"t\n\x12gRPCStreamerParams\x12\x0e\n\x06job_id\x18\x01 \x01(\t\x12\x11\n\ttask_name\x18\x02 \x01(\t\x12-\n\ttimestamp\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x0c\n\x04\x64\x61ta\x18\x04 \x01(\t\"F\n\x0erunOnceRespond\x12\x0e\n\x06job_id\x18\x01 \x01(\t\x12$\n\x07results\x18\x02 \x03(\x0b\x32\x13.gRPCStreamerParams\"\xa5\x01\n\x11\x44\x65stinationParams\x12\n\n\x02ip\x18\x01 \x01(\t\x12/\n\tapiParams\x18\x02 \x03(\x0b\x32\x1c.DestinationParams.APIParams\x1aS\n\tAPIParams\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x10\n\x08interval\x18\x02 \x01(\x05\x12\x17\n\nonly_delta\x18\x03 \x01(\x08H\x00\x88\x01\x01\x42\r\n\x0b_only_delta\"A\n\x15ListDestinationParams\x12(\n\x0c\x64\x65stinations\x18\x01 \x03(\x0b\x32\x12.DestinationParams\"d\n\x0bSessionAuth\x12\x13\n\x0b\x63lient_user\x18\x01 \x01(\t\x12\x10\n\x08username\x18\x02 \x01(\t\x12\x10\n\x08password\x18\x03 \x01(\t\x12\x12\n\x05token\x18\x04 \x01(\tH\x00\x88\x01\x01\x42\x08\n\x06_token\"!\n\x0eSessionRespond\x12\x0f\n\x07respond\x18\x01 \x01(\t2\x80\x07\n\x1aGeneralGRPCStreamerService\x12\x31\n\x04Help\x12\x16.google.protobuf.Empty\x1a\x0f.SessionRespond\"\x00\x12\x34\n\x07Version\x12\x16.google.protobuf.Empty\x1a\x0f.SessionRespond\"\x00\x12\x30\n\rCreateSession\x12\x0c.SessionAuth\x1a\x0f.SessionRespond\"\x00\x12=\n\x11SubscribeToStream\x12\x0f.gRPCStreamerID\x1a\x13.gRPCStreamerParams\"\x00\x30\x01\x12\x35\n\x0cGetJobParams\x12\x0f.gRPCStreamerID\x1a\x12.DestinationParams\"\x00\x12\x38\n\x0cRunStreamJob\x12\x0f.gRPCStreamerID\x1a\x13.gRPCStreamerParams\"\x00\x30\x01\x12\x30\n\nRunOnceJob\x12\x0f.gRPCStreamerID\x1a\x0f.runOnceRespond\"\x00\x12\x30\n\x07RunOnce\x12\x12.DestinationParams\x1a\x0f.runOnceRespond\"\x00\x12>\n\x0fRunPeriodically\x12\x12.DestinationParams\x1a\x13.gRPCStreamerParams\"\x00\x30\x01\x12\x37\n\nStopStream\x12\x0f.gRPCStreamerID\x1a\x16.google.protobuf.Empty\"\x00\x12\x41\n\rSerialization\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\"\x00\x12\x44\n\x10ListDestinations\x12\x16.google.protobuf.Empty\x1a\x16.ListDestinationParams\"\x00\x12\x37\n\x0e\x41\x64\x64\x44\x65stination\x12\x12.DestinationParams\x1a\x0f.SessionRespond\"\x00\x12\x38\n\x0f\x45\x64itDestination\x12\x12.DestinationParams\x1a\x0f.SessionRespond\"\x00\x12>\n\x11\x44\x65leteDestination\x12\x0f.gRPCStreamerID\x1a\x16.google.protobuf.Empty\"\x00\x62\x06proto3'
+  serialized_pb=b'\n\x1agrpc_plugin_streamer.proto\x1a\x19google/protobuf/any.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\" \n\x0egRPCStreamerID\x12\x0e\n\x06job_id\x18\x01 \x01(\t\"{\n\x12gRPCStreamerParams\x12\x12\n\nmessage_id\x18\x01 \x01(\t\x12\x14\n\x0cufm_api_name\x18\x02 \x01(\t\x12-\n\ttimestamp\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x0c\n\x04\x64\x61ta\x18\x04 \x01(\t\"F\n\x0erunOnceRespond\x12\x0e\n\x06job_id\x18\x01 \x01(\t\x12$\n\x07results\x18\x02 \x03(\x0b\x32\x13.gRPCStreamerParams\"\xb1\x01\n\x11\x44\x65stinationParams\x12\x0e\n\x06job_id\x18\x01 \x01(\t\x12/\n\tapiParams\x18\x02 \x03(\x0b\x32\x1c.DestinationParams.APIParams\x1a[\n\tAPIParams\x12\x14\n\x0cufm_api_name\x18\x01 \x01(\t\x12\x10\n\x08interval\x18\x02 \x01(\x05\x12\x17\n\nonly_delta\x18\x03 \x01(\x08H\x00\x88\x01\x01\x42\r\n\x0b_only_delta\"A\n\x15ListDestinationParams\x12(\n\x0c\x64\x65stinations\x18\x01 \x03(\x0b\x32\x12.DestinationParams\"_\n\x0bSessionAuth\x12\x0e\n\x06job_id\x18\x01 \x01(\t\x12\x10\n\x08username\x18\x02 \x01(\t\x12\x10\n\x08password\x18\x03 \x01(\t\x12\x12\n\x05token\x18\x04 \x01(\tH\x00\x88\x01\x01\x42\x08\n\x06_token\"!\n\x0eSessionRespond\x12\x0f\n\x07respond\x18\x01 \x01(\t2\x80\x07\n\x1aGeneralGRPCStreamerService\x12\x31\n\x04Help\x12\x16.google.protobuf.Empty\x1a\x0f.SessionRespond\"\x00\x12\x34\n\x07Version\x12\x16.google.protobuf.Empty\x1a\x0f.SessionRespond\"\x00\x12\x30\n\rCreateSession\x12\x0c.SessionAuth\x1a\x0f.SessionRespond\"\x00\x12=\n\x11SubscribeToStream\x12\x0f.gRPCStreamerID\x1a\x13.gRPCStreamerParams\"\x00\x30\x01\x12\x35\n\x0cGetJobParams\x12\x0f.gRPCStreamerID\x1a\x12.DestinationParams\"\x00\x12\x38\n\x0cRunStreamJob\x12\x0f.gRPCStreamerID\x1a\x13.gRPCStreamerParams\"\x00\x30\x01\x12\x30\n\nRunOnceJob\x12\x0f.gRPCStreamerID\x1a\x0f.runOnceRespond\"\x00\x12\x30\n\x07RunOnce\x12\x12.DestinationParams\x1a\x0f.runOnceRespond\"\x00\x12>\n\x0fRunPeriodically\x12\x12.DestinationParams\x1a\x13.gRPCStreamerParams\"\x00\x30\x01\x12\x37\n\nStopStream\x12\x0f.gRPCStreamerID\x1a\x16.google.protobuf.Empty\"\x00\x12\x41\n\rSerialization\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\"\x00\x12\x44\n\x10ListDestinations\x12\x16.google.protobuf.Empty\x1a\x16.ListDestinationParams\"\x00\x12\x37\n\x0e\x41\x64\x64\x44\x65stination\x12\x12.DestinationParams\x1a\x0f.SessionRespond\"\x00\x12\x38\n\x0f\x45\x64itDestination\x12\x12.DestinationParams\x1a\x0f.SessionRespond\"\x00\x12>\n\x11\x44\x65leteDestination\x12\x0f.gRPCStreamerID\x1a\x16.google.protobuf.Empty\"\x00\x62\x06proto3'
   ,
   dependencies=[google_dot_protobuf_dot_any__pb2.DESCRIPTOR,google_dot_protobuf_dot_empty__pb2.DESCRIPTOR,google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,])
 
@@ -70,14 +70,14 @@ _GRPCSTREAMERPARAMS = _descriptor.Descriptor(
   create_key=_descriptor._internal_create_key,
   fields=[
     _descriptor.FieldDescriptor(
-      name='job_id', full_name='gRPCStreamerParams.job_id', index=0,
+      name='message_id', full_name='gRPCStreamerParams.message_id', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='task_name', full_name='gRPCStreamerParams.task_name', index=1,
+      name='ufm_api_name', full_name='gRPCStreamerParams.ufm_api_name', index=1,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -110,7 +110,7 @@ _GRPCSTREAMERPARAMS = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=153,
-  serialized_end=269,
+  serialized_end=276,
 )
 
 
@@ -148,8 +148,8 @@ _RUNONCERESPOND = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=271,
-  serialized_end=341,
+  serialized_start=278,
+  serialized_end=348,
 )
 
 
@@ -162,7 +162,7 @@ _DESTINATIONPARAMS_APIPARAMS = _descriptor.Descriptor(
   create_key=_descriptor._internal_create_key,
   fields=[
     _descriptor.FieldDescriptor(
-      name='name', full_name='DestinationParams.APIParams.name', index=0,
+      name='ufm_api_name', full_name='DestinationParams.APIParams.ufm_api_name', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -199,8 +199,8 @@ _DESTINATIONPARAMS_APIPARAMS = _descriptor.Descriptor(
       create_key=_descriptor._internal_create_key,
     fields=[]),
   ],
-  serialized_start=426,
-  serialized_end=509,
+  serialized_start=437,
+  serialized_end=528,
 )
 
 _DESTINATIONPARAMS = _descriptor.Descriptor(
@@ -212,7 +212,7 @@ _DESTINATIONPARAMS = _descriptor.Descriptor(
   create_key=_descriptor._internal_create_key,
   fields=[
     _descriptor.FieldDescriptor(
-      name='ip', full_name='DestinationParams.ip', index=0,
+      name='job_id', full_name='DestinationParams.job_id', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -237,8 +237,8 @@ _DESTINATIONPARAMS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=344,
-  serialized_end=509,
+  serialized_start=351,
+  serialized_end=528,
 )
 
 
@@ -269,8 +269,8 @@ _LISTDESTINATIONPARAMS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=511,
-  serialized_end=576,
+  serialized_start=530,
+  serialized_end=595,
 )
 
 
@@ -283,7 +283,7 @@ _SESSIONAUTH = _descriptor.Descriptor(
   create_key=_descriptor._internal_create_key,
   fields=[
     _descriptor.FieldDescriptor(
-      name='client_user', full_name='SessionAuth.client_user', index=0,
+      name='job_id', full_name='SessionAuth.job_id', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -327,8 +327,8 @@ _SESSIONAUTH = _descriptor.Descriptor(
       create_key=_descriptor._internal_create_key,
     fields=[]),
   ],
-  serialized_start=578,
-  serialized_end=678,
+  serialized_start=597,
+  serialized_end=692,
 )
 
 
@@ -359,8 +359,8 @@ _SESSIONRESPOND = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=680,
-  serialized_end=713,
+  serialized_start=694,
+  serialized_end=727,
 )
 
 _GRPCSTREAMERPARAMS.fields_by_name['timestamp'].message_type = google_dot_protobuf_dot_timestamp__pb2._TIMESTAMP
@@ -449,8 +449,8 @@ _GENERALGRPCSTREAMERSERVICE = _descriptor.ServiceDescriptor(
   index=0,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=716,
-  serialized_end=1612,
+  serialized_start=730,
+  serialized_end=1626,
   methods=[
   _descriptor.MethodDescriptor(
     name='Help',

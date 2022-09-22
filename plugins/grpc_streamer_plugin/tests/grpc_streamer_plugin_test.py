@@ -55,14 +55,15 @@ class TestPluginStreamer:
 
     def testAddSession(self):
         self.cleanup()
-        result = self._client._add_session(DEFAULT_USERNAME,DEFAULT_PASSWORD)
+        result = self._client.add_session(DEFAULT_USERNAME,DEFAULT_PASSWORD)
         self.assert_equal("create session using default logins",result,True)
 
     def testAddUser(self):
         self.cleanup()
-        result = self._client._added_job([('Events')])
+        self._client.add_session(DEFAULT_USERNAME,DEFAULT_PASSWORD)
+        result = self._client.added_job([('Events')])
         self.assert_equal("create destination(client) after session",result,True)
-        self.assert_equal("server contains only one user",len(self._server.destinations) , 1)
+        self.assert_equal("server contains only one user", len(self._server.destinations), 1)
         try:
             channel = grpc.insecure_channel(f'localhost:{Constants.UFM_PLUGIN_PORT}')
             stub = grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamerServiceStub(channel)
@@ -74,7 +75,9 @@ class TestPluginStreamer:
 
     def testGetOnce(self):
         self.cleanup()
-        result = self._client.onceApis([('Events'), ("Alarms")])
+        result = self._client.add_session(DEFAULT_USERNAME, DEFAULT_PASSWORD)
+        self.assert_equal("create session using default logins", result, True)
+        result = self._client.onceApis([('Events'), ("Alarms")],(DEFAULT_USERNAME, DEFAULT_PASSWORD))
         self.assert_equal("Receive data in get once rest api",result is not None,True)
 
     def testAddWithoutSession(self):
@@ -94,15 +97,15 @@ class TestPluginStreamer:
     def testEmptyDestination(self):
         self.cleanup()
         try:
-            self._client.onceApis(['junk'])
+            self._client.onceApis(['junk'], (DEFAULT_USERNAME, DEFAULT_PASSWORD))
         except Exception as e:
             self.assert_equal("Error have being excepted",str(e),Constants.LOG_NO_REST_DESTINATION)
 
     def testAllTaskAreRestCalls(self):
-        result = self._client.onceApis([('Events'), ("junk")])
+        result = self._client.onceApis([('Events'), ("junk")],(DEFAULT_USERNAME, DEFAULT_PASSWORD))
         all_good=0
         for message in result.results:
-            all_good+=1 if (message.task_name == 'Events') else 0
+            all_good+=1 if (message.ufm_api_name == 'Events') else 0
 
         self.assert_equal("all messages have the right task names",all_good,len(result.results))
 

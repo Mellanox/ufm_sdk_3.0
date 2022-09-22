@@ -15,21 +15,6 @@ from google.protobuf.json_format import MessageToJson
 import plugins.grpc_streamer_plugin.ufm_sim_web_service.grpc_plugin_streamer_pb2 as grpc_plugin_streamer_pb2
 
 
-def encode_message(params_dict):
-    """
-    get a dict with all data, and return a list of messages containing each of the params
-    :param params_dict: dictoary with paramters from a rest api call respond
-    :return: list of any message for a rpc send
-    """
-    output_list = []
-    for key, value in params_dict.items():
-        param = grpc_plugin_streamer_pb2.gRPCStreamerParams.Data(key=str(key), value=str(value))
-        any_message = Any()
-        any_message.Pack(param)
-        output_list.append(any_message)
-    return output_list
-
-
 def decode_message(params_list):
     """
     get a list of any params and return a dict for rest api calls
@@ -55,10 +40,10 @@ def encode_destination(job):
 
     params = []
     for item in job.calls:
-        params.append(grpc_plugin_streamer_pb2.DestinationParams.APIParams(name=item[0],
+        params.append(grpc_plugin_streamer_pb2.DestinationParams.APIParams(ufm_api_name=item[0],
                                                                              interval=item[1], only_delta=item[2]))
 
-    return grpc_plugin_streamer_pb2.DestinationParams(ip=job.dest_ip, apiParams=params)
+    return grpc_plugin_streamer_pb2.DestinationParams(job_id=job.dest_ip, apiParams=params)
 
 
 def decode_destination(request):
@@ -67,8 +52,8 @@ def decode_destination(request):
     :param request:
     :return:
     """
-    ip = request.ip
+    ip = request.job_id
     param_results = []
     for x in request.apiParams:
-        param_results.append((x.name, x.interval, x.only_delta))
+        param_results.append((x.ufm_api_name, x.interval, x.only_delta))
     return ip, param_results
