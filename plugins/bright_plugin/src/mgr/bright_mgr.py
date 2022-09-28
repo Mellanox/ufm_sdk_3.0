@@ -27,6 +27,7 @@ from utils.singleton import Singleton
 
 class BrightConstants:
     PLUGIN_NAME = "Bright"
+    CERT_DIR = '/config/cert'
 
     args_list = [
         {
@@ -54,8 +55,6 @@ class BrightConfigParser(ConfigParser):
     BRIGHT_ENDPOINT_SECTION = "bright-endpoint"
     BRIGHT_ENDPOINT_SECTION_HOST = "host"
     BRIGHT_ENDPOINT_SECTION_PORT = "port"
-    BRIGHT_ENDPOINT_SECTION_CERT_KEY = "cert_key"
-    BRIGHT_ENDPOINT_SECTION_CERT_FILE = "cert_file"
 
     META_FIELDS_SECTION = "meta-fields"
 
@@ -74,18 +73,6 @@ class BrightConfigParser(ConfigParser):
                                  self.BRIGHT_ENDPOINT_SECTION_PORT,
                                  0)
 
-    def get_bright_cert_key(self):
-        return self.get_config_value(self.args.bright_cert_key,
-                                     self.BRIGHT_ENDPOINT_SECTION,
-                                     self.BRIGHT_ENDPOINT_SECTION_CERT_KEY,
-                                     None)
-
-    def get_bright_cert_file(self):
-        return self.get_config_value(self.args.bright_cert_file,
-                                     self.BRIGHT_ENDPOINT_SECTION,
-                                     self.BRIGHT_ENDPOINT_SECTION_CERT_FILE,
-                                     None)
-
 
 class BrightMgr(Singleton):
 
@@ -95,8 +82,8 @@ class BrightMgr(Singleton):
         self.BRIGHT_IP = config_parser.get_bright_host()
         self.BRIGHT_PORT = config_parser.get_bright_port()
         self.BRIGHT_DEVICE_JSON_URL = "json?indent=1"
-        self.BRIGHT_CERT_FILE = config_parser.get_bright_cert_file()
-        self.BRIGHT_CERT_KEY = config_parser.get_bright_cert_key()
+        self.BRIGHT_CERT_FILE = os.path.join(BrightConstants.CERT_DIR, 'admin.pem')
+        self.BRIGHT_CERT_KEY = os.path.join(BrightConstants.CERT_DIR, 'admin.key')
 
     def get_bright_devices(self):
         url = self.BRIGHT_DEVICE_JSON_URL

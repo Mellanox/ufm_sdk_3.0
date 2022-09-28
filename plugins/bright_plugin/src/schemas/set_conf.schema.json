@@ -28,12 +28,6 @@
           "minimum": 1,
           "maximum": 65535,
           "err_message": "[bright-endpoint - port] attribute should be an integer between 1-65535."
-        },
-        "cert_file": {
-          "type": "string"
-        },
-        "cert_key": {
-          "type": "string"
         }
       }
     },

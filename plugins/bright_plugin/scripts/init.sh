@@ -20,12 +20,7 @@ cp /opt/ufm/ufm_plugin_bright/bright_plugin.cfg /config
 touch /config/bright_shared_volumes.conf
 
 echo /opt/ufm/files/log/:/log > /config/bright_shared_volumes.conf
-
-# you need to verify if the dir already exists; then no need to create it
-mkdir /opt/ufm/ufm_plugin_bright/bright_certfs
-
-echo /opt/ufm/ufm_plugin_bright/bright_certfs:/opt/ufm/ufm_plugin_bright/bright_certfs
-
+mkdir /config/cert
 # UFM version test
 required_ufm_version=(6 8 0)
 echo "Required UFM version: ${required_ufm_version[0]}.${required_ufm_version[1]}.${required_ufm_version[2]}"

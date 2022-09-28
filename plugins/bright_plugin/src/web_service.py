@@ -18,6 +18,7 @@
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 from api.bright_data_api import BrightDataAPI
+from api.client_cert_api import ClientCertificateAPI
 from api.conf_api import BrightConfigurationsAPI
 from utils.base_api import BaseAPIApplication
 
@@ -29,9 +30,11 @@ class BrightAPI(DispatcherMiddleware):
         frontend = BaseAPIApplication()
         self.bright_conf = BrightConfigurationsAPI(config_parser)
         self.bright_data_api = BrightDataAPI(config_parser)
+        self.bright_cert_api = ClientCertificateAPI()
         super(BrightAPI, self).__init__(
             frontend.application, {
                 "/conf": self.bright_conf.application,
-                "/bright": self.bright_data_api.application
+                "/bright": self.bright_data_api.application,
+                "/cert": self.bright_cert_api.application
             }
         )
