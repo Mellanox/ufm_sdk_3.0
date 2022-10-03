@@ -192,7 +192,7 @@ curl -XPUT 'https://10.209.36.68/ufmRest/plugin/usfs/conf/' \
  -k \
  -u admin:123456 \
  -H 'Content-Type: application/json' \
- -d '{"streaming": {"enabled": true}, "syslog-destination-endpoint":{"enabled": true,"host": "10.209.36.67","port": 514}, {"fluent-bit-endpoint": {"enabled": true,"destination_host": "10.209.36.67","destination_port": 24225}}}'
+ -d '{"streaming": {"enabled": true}, "syslog-destination-endpoint":{"enabled": true,"host": "10.209.36.67","port": 514}, "fluent-bit-endpoint": {"enabled": true,"destination_host": "10.209.36.67","destination_port": 24225}}'
 ```
 
    - Updating the configurations while the streaming is running will restart all the running streaming services automatically and the new changes will take effect immediately
