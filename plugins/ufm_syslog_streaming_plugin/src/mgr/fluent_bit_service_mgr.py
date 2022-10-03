@@ -36,7 +36,7 @@ class FluentBitServiceMgr:
             Logger.log_message('fluent-bit service not installed', LOG_LEVELS.ERROR)
             return False, status
         elif status == SERVICE_STOPPED:
-            Logger.log_message('fluent-bit service not running', LOG_LEVELS.ERROR)
+            Logger.log_message('fluent-bit service not running', LOG_LEVELS.DEBUG)
             return False, status
 
     @staticmethod

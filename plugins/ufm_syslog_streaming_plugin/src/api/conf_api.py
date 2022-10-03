@@ -8,23 +8,19 @@ from utils.flask_server.base_flask_api_server import BaseAPIApplication
 from utils.json_schema_validator import validate_schema
 from utils.utils import Utils
 
-from mgr.fluent_bit_service_mgr import FluentBitServiceMgr
-
 
 class SyslogStreamingConfigurationsAPI(BaseAPIApplication):
 
-    def __init__(self, conf):
+    def __init__(self, conf, syslog_forwarder):
         super(SyslogStreamingConfigurationsAPI, self).__init__()
         self.conf = conf
+        self.syslog_forwarder = syslog_forwarder
         # for debugging
         # self.conf_schema_path = "plugins/ufm_syslog_streaming_plugin/src/schemas/set_conf.schema.json"
         # self.fluent_bit_conf_template_path = "../conf/fluent-bit.conf.template"
 
         # for production with docker
         self.conf_schema_path = "ufm_syslog_streaming_plugin/src/schemas/set_conf.schema.json"
-        self.fluent_bit_conf_template_path = "/config/fluent-bit.conf.template"
-
-        self.fluent_bit_conf_file_path = "/etc/fluent-bit/fluent-bit.conf"
 
     def _get_error_handlers(self):
         return [
@@ -35,7 +31,7 @@ class SyslogStreamingConfigurationsAPI(BaseAPIApplication):
     def _get_routes(self):
         return {
             self.get: dict(urls=["/"], methods=["GET"]),
-            self.post: dict(urls=["/"], methods=["POST"])
+            self.put: dict(urls=["/"], methods=["PUT"])
         }
 
     def _set_new_conf(self):
@@ -49,47 +45,26 @@ class SyslogStreamingConfigurationsAPI(BaseAPIApplication):
                     raise InvalidConfRequest(f'Invalid property: {section_item} in {section}')
                 self.conf.set_item_value(section, section_item, value)
 
-    def update_fluent_bit_conf_file(self):
-        log_file = self.conf.get_logs_file_name()
-        log_level = self.conf.get_logs_level()
-        host_ip = self.conf.get_fluentd_host()
-        host_port = self.conf.get_fluentd_port()
-        message_tag_name = self.conf.get_message_tag_name()
-
-        Logger.log_message('Reading fluent-bit configuration template file', LOG_LEVELS.DEBUG)
-        template_file = open(self.fluent_bit_conf_template_path, "r")
-        template = template_file.read()
-        Logger.log_message('Update fluent-bit configuration template values', LOG_LEVELS.DEBUG)
-        template = template.replace("log_file", log_file)
-        template = template.replace("log_level", log_level.lower())
-        template = template.replace("message_tag_name", message_tag_name)
-        template = template.replace("host_ip", host_ip)
-        template = template.replace("host_port", str(host_port))
-        Logger.log_message('Generating fluent-bit configuration file', LOG_LEVELS.DEBUG)
-        with open(self.fluent_bit_conf_file_path, 'w') as config:
-            config.write(template)
-            Logger.log_message('fluent-bit configuration file generated successfully', LOG_LEVELS.DEBUG)
-
-    def post(self):
+    def put(self):
         Logger.log_message('Updating the streaming configurations')
         # validate the new conf json
-        validate_schema(self.conf_schema_path,request.json)
+        validate_schema(self.conf_schema_path, request.json)
+        # get the old ufm syslog server addr
+        ohost = self.conf.get_ufm_syslog_host()
+        oport = self.conf.get_ufm_syslog_port ()
         # update the saved conf values
         self._set_new_conf()
+        # get the old ufm syslog server addr
+        nhost = self.conf.get_ufm_syslog_host()
+        nport = self.conf.get_ufm_syslog_port()
         try:
             # update the plugin conf file
             self.conf.update_config_file(self.conf.config_file)
-            # update the fluent-bit.conf file according to the new values
-            self.update_fluent_bit_conf_file()
             # check if the streaming is enabled or not
             if self.conf.get_enable_streaming_flag():
-                result, _ = FluentBitServiceMgr.restart_service()
-                if result:
-                    Logger.log_message('The streaming is restarted with the new configurations')
+                self.syslog_forwarder.restart_forwarding(restart_ufm_syslog_server=ohost != nhost or oport != nport)
             else:
-                result, _ = FluentBitServiceMgr.stop_service()
-                if result:
-                    Logger.log_message('The streaming is stopped')
+                self.syslog_forwarder.stop_forwarding()
             return make_response("set configurations has been done successfully")
         except Exception as ex:
             raise ex
