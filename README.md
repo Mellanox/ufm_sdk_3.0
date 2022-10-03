@@ -24,7 +24,7 @@ A new open-source SDK project for NVIDIA UFM ([Unified Fabric Manager](https://w
 
 [UFM User Manual](https://docs.nvidia.com/networking/display/UFMEnterpriseUMLatest)
 
-[UFM Release Notes](https://docs.nvidia.com/networking/display/ufmenterprise610)
+[UFM Release Notes](https://docs.nvidia.com/networking/display/UFMEnterpriseUMLatest/Release+Notes)
 
 
 
