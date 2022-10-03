@@ -20,7 +20,7 @@ A new open-source SDK project for NVIDIA UFM ([Unified Fabric Manager](https://w
 
 ## Documentation
 
-[UFM REST API Documentation](https://docs.nvidia.com/networking/display/UFMEnterpriseRESTAPIv610)
+[UFM REST API Documentation](https://docs.nvidia.com/networking/display/UFMEnterpriseRESTAPILatest)
 
 [UFM User Manual](https://docs.nvidia.com/networking/display/UFMEnterpriseUMv610)
 
