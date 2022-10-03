@@ -3,7 +3,7 @@
   "title": "Update streaming configurations",
   "type": "object",
   "properties": {
-    "destination-endpoint": {
+    "UFM-syslog-endpoint": {
       "type": "object",
       "properties": {
         "host": {
@@ -11,15 +11,15 @@
           "anyOf": [
             {
               "format": "hostname",
-              "err_message": "Invalid attribute [destination-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
+              "err_message": "Invalid attribute [UFM-syslog-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
             },
             {
               "format": "ipv4",
-              "err_message": "Invalid attribute [destination-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
+              "err_message": "Invalid attribute [UFM-syslog-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
             },
             {
               "format": "ipv6",
-              "err_message": "Invalid attribute [destination-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
+              "err_message": "Invalid attribute [UFM-syslog-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
             }
           ]
         },
@@ -27,7 +27,78 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 65535,
-          "err_message": "[ufm-telemetry-endpoint - port] attribute should be an integer between 1-65535."
+          "err_message": "[UFM-syslog-endpoint - port] attribute should be an integer between 1-65535."
+        }
+      }
+    },
+    "fluent-bit-endpoint": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "source_port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "err_message": "[fluent-bit-endpoint - source_port] attribute should be an integer between 1-65535."
+        },
+        "destination_host": {
+          "type": "string",
+          "anyOf": [
+            {
+              "format": "hostname",
+              "err_message": "Invalid attribute [fluent-bit-endpoint - destination_host]: it should be one of (ipv4 address, ipv6 address or host name)"
+            },
+            {
+              "format": "ipv4",
+              "err_message": "Invalid attribute [fluent-bit-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
+            },
+            {
+              "format": "ipv6",
+              "err_message": "Invalid attribute [fluent-bit-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
+            }
+          ]
+        },
+        "destination_port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "err_message": "[fluent-bit-endpoint - destination_port] attribute should be an integer between 1-65535."
+        },
+        "message_tag_name": {
+          "type": "string"
+        }
+      }
+    },
+    "syslog-destination-endpoint": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "host": {
+          "type": "string",
+          "anyOf": [
+            {
+              "format": "hostname",
+              "err_message": "Invalid attribute [syslog-destination-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
+            },
+            {
+              "format": "ipv4",
+              "err_message": "Invalid attribute [syslog-destination-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
+            },
+            {
+              "format": "ipv6",
+              "err_message": "Invalid attribute [syslog-destination-endpoint - host]: it should be one of (ipv4 address, ipv6 address or host name)"
+            }
+          ]
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "err_message": "[syslog-destination-endpoint - port] attribute should be an integer between 1-65535."
         }
       }
     },
@@ -36,9 +107,6 @@
       "properties": {
         "enabled": {
           "type": "boolean"
-        },
-        "message_tag_name": {
-          "type": "string"
         }
       }
     },

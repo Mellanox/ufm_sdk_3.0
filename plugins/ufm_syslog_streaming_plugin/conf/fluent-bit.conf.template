@@ -9,7 +9,7 @@
     Name     syslog
     Parser   ufm-syslog
     Listen   127.0.0.1
-    Port     5140
+    Port     src_port
     Mode     udp
     Tag      message_tag_name
 

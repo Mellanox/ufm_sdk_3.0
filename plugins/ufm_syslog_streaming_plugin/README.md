@@ -1,8 +1,8 @@
-UFM syslog stream to an external endpoint (USFS)
+UFM syslog forwarder streaming (USFS)
 --------------------------------------------------------
 
 
-This plugin is used to stream the UFM events via FluentBit forwarder to any external destination (E.g. [Fluentd endpoint](https://www.fluentd.org/)).
+This plugin is used to forward and stream the UFM syslog to either a remote syslog server or/and to any external destination (E.g. [Fluentd endpoint](https://www.fluentd.org/)).
 
 Overview
 --------------------------------------------------------
@@ -108,16 +108,33 @@ Log file usfs.log is located in /opt/ufm/files/log on the host.
 Usage
 --------------------------------------------------------
 ### 1.Configure the UFM syslog:
-Configure UFM to send events via syslog to the FluentBit event forwarder in the main UFM configurations file that locates under /opt/ufm/files/conf/gv.cfg:
+Enable the syslog on the UFM side using the following REST API:
+   
+METHOD: _PUT_
+   
+URL: _https://[HOST-IP]/ufmRest/app/syslog
+   
+Payload Example:
+```json
+{
+   "active": true,
+   "destination": "127.0.0.1:5140",
+   "level":"<severity>",
+   "ufm_log":true,
+   "events_log":true
+}
+```
 
->[Logging]
-syslog_addr=127.0.0.1:5140
-syslog = true
-ufm_syslog = true
-event_syslog = true
-syslog_level = <severity>
+cURL Example:
+```bash
+curl -XPUT 'https://10.209.36.68/ufmRest/app/syslog' \
+  -k \
+  -u admin:123456 \
+  -H 'content-type: application/json' \
+  -d '{"active": true,"level": "WARNING","ufm_log": true,"events_log": true,"destination": "127.0.0.1:5140"}'
+```
 
-* <severity> may be set to any of the following values: CRITICAL, ERROR, WARNING, INFO, or DEBUG.
+* _[severity]_ could be any of the following values: CRITICAL, ERROR, WARNING, INFO, or DEBUG.
 
 ### 2.Configure the destination endpoint:
 You can forward the events to any external destination you want; we will show an example how to configure the fluentD as a destination:
@@ -135,48 +152,72 @@ You can forward the events to any external destination you want; we will show an
 
 ### 3.Set the plugin configurations by the following API:
 
-   METHOD: _POST_
+   METHOD: _PUT_
    
    URL: _https://[HOST-IP]/ufmRest/plugin/usfs/conf_
    
    Payload Example:
    ```json
 {
-  "destination-endpoint": {
-    "host": "localhost",
-    "port": 24225
-  },
-  "streaming": {
-    "enabled": true,
-    "message_tag_name": "ufm_syslog"
-  },
-  "logs-config": {
-    "log_file_backup_count": 5,
-    "log_file_max_size": 10485760,
-    "logs_file_name": "/log/usfs.log",
-    "logs_level": "INFO"
-  }
+    "UFM-syslog-endpoint": {
+        "host": "127.0.0.1",
+        "port": 5140
+    },
+    "fluent-bit-endpoint": {
+        "destination_host": "127.0.0.1",
+        "destination_port": 24226,
+        "enabled": true,
+        "message_tag_name": "ufm_syslog",
+        "source_port": 24227
+    },
+    "logs-config": {
+        "log_file_backup_count": 5,
+        "log_file_max_size": 10485760,
+        "logs_file_name": "usfs.log",
+        "logs_level": "INFO"
+    },
+    "streaming": {
+        "enabled": false
+    },
+    "syslog-destination-endpoint": {
+        "enabled": false,
+        "host": "127.0.0.1",
+        "port": 514
+    }
 }
    ```
+cURL Example:
+```bash
+curl -XPUT 'https://10.209.36.68/ufmRest/plugin/usfs/conf/' \
+ -k \
+ -H 'Content-Type: application/json' \
+ -d '{"streaming": {"enabled": true}, "syslog-destination-endpoint":{"enabled": true,"host": "10.209.36.67","port": 514}, {"fluent-bit-endpoint": {"enabled": true,"destination_host": "10.209.36.67","destination_port": 24225}}}'
+```
 
-   - Updating the configurations while the streaming is running will restart the fluent-bit collector service automatically and the new changes will take effect immediately
+   - Updating the configurations while the streaming is running will restart all the running streaming services automatically and the new changes will take effect immediately
 
       
  Configuration Parameters Details:
 --------------------------------------------------------
 
-| Parameter | Required | Description |
-| :---: | :---: |:---: |
-| [destination-endpoint.host](conf/ufm_syslog_streaming_plugin.cfg#L2) | True |  Hostname or IPv4 or IPv6 for destination endpoint
-| [destination-endpoint.port](conf/ufm_syslog_streaming_plugin.cfg#L3) | True | Port for destination endpoint [this port should be the port that is configured in [fluentd.conf](conf/fluentd.conf#L4)]
-| [streaming.enabled](conf/ufm_syslog_streaming_plugin.cfg#L6) | True | If True, the streaming will be started once the required configurations have been set [Default is False]
-| [streaming.message_tag_name](conf/ufm_syslog_streaming_plugin.cfg#7) | False | Message Tag Name for Fluentbit collector [Default is the ufm_syslog]
-| [logs-config.logs_file_name](conf/ufm_syslog_streaming_plugin.cfg#L10) | True | Log file name [Default = '/log/usfs.log']
-| [logs-config.logs_level](conf/ufm_syslog_streaming_plugin.cfg#L11) | True | Default is 'INFO'
-| [logs-config.max_log_file_size](conf/ufm_syslog_streaming_plugin.cfg#L12) | True | Maximum log file size in Bytes [Default is 10 MB]
-| [logs-config.log_file_backup_count](conf/ufm_syslog_streaming_plugin.cfg#L13) | True | Maximum number of backup log files [Default is 5]
+|                                    Parameter                                    | Required |                                                                Description                                                                |
+|:-------------------------------------------------------------------------------:|:--------:|:-----------------------------------------------------------------------------------------------------------------------------------------:|
+|       [UFM-syslog-endpoint.host](conf/ufm_syslog_streaming_plugin.cfg#L2)       |   True   |                Hostname or IPv4 or IPv6 of the UFM syslog address, which is normally the localhost [Default is 127.0.0.1]                 |
+|       [UFM-syslog-endpoint.port](conf/ufm_syslog_streaming_plugin.cfg#L3)       |   True   |                         Port the UFM syslog address [This port should be the port that is configured in step #1]                          |
+|     [fluent-bit-endpoint.enabled](conf/ufm_syslog_streaming_plugin.cfg#L6)      |   True   | If True, the logs will be forwarded to the external destination address once the required configurations have been set [Default is False] |
+|   [fluent-bit-endpoint.source_port](conf/ufm_syslog_streaming_plugin.cfg#L7)    |   True   |                                       Port of the syslog input of the fluent-bit [Default is 24227]                                       |
+| [fluent-bit-endpoint.destination_host](conf/ufm_syslog_streaming_plugin.cfg#L8) |  False   |                                           Hostname or IPv4 or IPv6 of the destination endpoint                                            |
+| [fluent-bit-endpoint.destination_port](conf/ufm_syslog_streaming_plugin.cfg#L9) |  False   | Port for destination endpoint [this port should be the port that is configured in [fluentd.conf](conf/fluentd.conf#L4), Default is 24225] |
+| [fluent-bit-endpoint.message_tag_name](conf/ufm_syslog_streaming_plugin.cfg#10) |  False   |                                   Message Tag Name for Fluentbit collector [Default is the ufm_syslog]                                    |
+| [syslog-destination-endpoint.enabled](conf/ufm_syslog_streaming_plugin.cfg#L13) |   True   |    If True, the logs will be forwarded to an external syslog server once the required configurations have been set [Default is False]     |
+|  [syslog-destination-endpoint.host](conf/ufm_syslog_streaming_plugin.cfg#L14)   |  False   |                                  Hostname or IPv4 or IPv6 of the external syslog server address endpoint                                  |
+|  [syslog-destination-endpoint.port](conf/ufm_syslog_streaming_plugin.cfg#L15)   |  False   |                                  Port of of the external syslog server address endpoint, Default is 514]                                  |
+|          [streaming.enabled](conf/ufm_syslog_streaming_plugin.cfg#L18)          |   True   |                 If True, the streaming will be started once the required configurations have been set [Default is False]                  |
+|     [logs-config.logs_file_name](conf/ufm_syslog_streaming_plugin.cfg#L21)      |   True   |                                                 Log file name [Default = '/log/usfs.log']                                                 |
+|       [logs-config.logs_level](conf/ufm_syslog_streaming_plugin.cfg#L22)        |   True   |                                                             Default is 'INFO'                                                             |
+|    [logs-config.max_log_file_size](conf/ufm_syslog_streaming_plugin.cfg#L23)    |   True   |                                             Maximum log file size in Bytes [Default is 10 MB]                                             |
+|  [logs-config.log_file_backup_count](conf/ufm_syslog_streaming_plugin.cfg#L24)  |   True   |                                             Maximum number of backup log files [Default is 5]                                             |
 
-   
 ### 4.Get the plugin configurations by the following API:
 
    METHOD: _GET_
