@@ -30,8 +30,8 @@ message runOnceRespond{
   repeated gRPCStreamerParams results = 2;
 }
 
-//message about Destination params, containing the ufm api params
-message DestinationParams{
+//message about Subscriber params, containing the ufm api params
+message SubscriberParams{
   message APIParams {
     string ufm_api_name = 1;
     int32 interval = 2;
@@ -41,9 +41,9 @@ message DestinationParams{
   repeated APIParams apiParams = 2;
 }
 
-//message for the existing destinations
-message ListDestinationParams{
-  repeated DestinationParams destinations = 1;
+//message for the existing subscribers
+message ListSubscriberParams{
+  repeated SubscriberParams subscribers = 1;
 }
 
 //message for communicate with server to create session to the ufm
@@ -66,19 +66,19 @@ service GeneralGRPCStreamerService{
   rpc CreateSession(SessionAuth) returns (SessionRespond) {} //create a session to the ufm and respond from server
 
   rpc SubscribeToStream(gRPCStreamerID) returns (stream gRPCStreamerParams){} //subscribe to stream and get those messages
-  rpc GetJobParams(gRPCStreamerID) returns (DestinationParams) {} //get information of destination using the id
+  rpc GetJobParams(gRPCStreamerID) returns (SubscriberParams) {} //get information of Subscriber using the id
 
   rpc RunStreamJob(gRPCStreamerID) returns (stream gRPCStreamerParams) {} // running the a stream of information using the id of the job.
   rpc RunOnceJob(gRPCStreamerID) returns (runOnceRespond) {} //running all the data once using the id of the job.
 
-  rpc RunOnce(DestinationParams) returns (runOnceRespond) {} // running all the data once using a destination param message.
-  rpc RunPeriodically(DestinationParams) returns (stream gRPCStreamerParams) {} //running the stream of information using the destination params.
+  rpc RunOnce(SubscriberParams) returns (runOnceRespond) {} // running all the data once using a Subscriber param message.
+  rpc RunPeriodically(SubscriberParams) returns (stream gRPCStreamerParams) {} //running the stream of information using the Subscriber params.
 
   rpc StopStream(gRPCStreamerID) returns (google.protobuf.Empty) {} //stop a stream of information using the job id.
   rpc Serialization(google.protobuf.Empty) returns (google.protobuf.Empty) {} //Serialize every job information.
 
-  rpc ListDestinations(google.protobuf.Empty) returns (ListDestinationParams) {} // get all destinations.
-  rpc AddDestination(DestinationParams) returns (SessionRespond) {} // add new destination and receive server respond.
-  rpc EditDestination(DestinationParams) returns (SessionRespond) {} // edit a known destination with new params.
-  rpc DeleteDestination(gRPCStreamerID) returns (google.protobuf.Empty) {} // delete a destination using it's job.
+  rpc ListSubscribers(google.protobuf.Empty) returns (ListSubscriberParams) {} // get all Subscriber.
+  rpc AddSubscriber(SubscriberParams) returns (SessionRespond) {} // add new Subscriber and receive server respond.
+  rpc EditSubscriber(SubscriberParams) returns (SessionRespond) {} // edit a known Subscriber with new params.
+  rpc DeleteSubscriber(gRPCStreamerID) returns (google.protobuf.Empty) {} // delete a Subscriber using it's job.
 }

@@ -19,20 +19,20 @@ class Constants:
     VERSION = '1.0.0'
     CONF_LOGFILE_NAME = 'log_file_name'
     UFM_HTTP_PORT = 443
-    UFM_PLUGIN_PORT = 8001
+    UFM_PLUGIN_PORT = 8008
     PLUGIN_HELP = f"This plugin version- {VERSION} is for getting rest apis from the UFM using grpc.\n" \
                   f"The plugin can send the rest api once or stream in intervals, " \
                   f"or even to subscribe to known client and receive all the data sending to that client.\n" \
-                  f"To start create a session using CreateSession and add destination, with AddDestination." \
+                  f"To start create a session using CreateSession and add subscriber, with Addsubscriber." \
                   f"Then choose RunOnceJob - receive once rest api, RunStreamJob - receive stream of rest api or SubscribeToStream to subscribe to a client results.\n" \
                   f"Please see the proto file in protos for the full API."
     CONF_USERNAME = 'admin'
     CONF_PASSWORD = 'password'
-    DEF_LOG_FILE = 'ufm_grpc_streamer.log'
-    REST_URL_EVENTS = "/ufmRest/app/events"
-    REST_URL_ALARMS = "/ufmRest/app/alarms"
-    REST_URL_LINKS = "/ufmRest/app/links"
-    REST_URL_JOBS = "/ufmRest/app/jobs"
+    DEF_LOG_FILE = '/log/grpc_streamer_server.log'
+    REST_URL_EVENTS = "/app/events"
+    REST_URL_ALARMS = "/app/alarms"
+    REST_URL_LINKS = "/app/links"
+    REST_URL_JOBS = "/app/jobs"
     REST_DEFAULT_INTERVAL_LOW = 10
     REST_DEFAULT_INTERVAL_HIGH = 60
 
@@ -40,8 +40,8 @@ class Constants:
     GRPC_STREAMER_DEF_PATH = "/etc/grpc_streamer"
     GRPC_STREAMER_SERVICE_PATH = "/lib/systemd/system/grpc_streamer.service"
 
-    config_file_name = "../build/config/grpc_streamer.conf"
-    #config_file_name = "config/grpc_streamer.conf"
+    #config_file_name = "../build/config/grpc_streamer.conf"
+    config_file_name = "config/grpc_streamer.conf"
     grpc_max_workers = 10
     log_level = logging.INFO
     log_file_backup_count = 5
@@ -51,32 +51,33 @@ class Constants:
     LOG_SERVER_STOP = "Stopping server with host %s"
     LOG_SERVER_HOST = "Config Server with host %s."
     LOG_CONNECT_UFM = "Connecting to UFM server, %s"
-    LOG_NO_REST_DESTINATION = "Cannot add new destination without any rest calls. check the RESTCall enum for all the rest api calls"
+    LOG_NO_REST_SUBSCRIBER = "Cannot add new subscriber without any rest calls. check the RESTCall enum for all the rest api calls"
     LOG_CANNOT_UFM = 'Cannot connect to the ufm server. %s'
     LOG_CANNOT_SESSION = "Wasn't able to create session to the ufm, Connection Error, please see this exception.%s"
-    LOG_CANNOT_DESTINATION = "Cannot create destination. %s"
+    LOG_CANNOT_SUBSCRIBER = "Cannot create subscriber. %s"
     LOG_CANNOT_NO_SESSION = "Server need a Session to the UFM to do this action, please use CreateSession"
     LOG_CREATE_SESSION = "Creating new session to the ufm. %s"
-    LOG_CREATE_DESTINATION = "Creating new destination: %s"
-    LOG_EXISTED_DESTINATION = "Already exists destination: %s"
-    LOG_NO_EXIST_DESTINATION = "No exists Destination:%s"
-    LOG_EDIT_DESTINATION = "Editing an existing destination to new params.%s"
-    LOG_DELETE_DESTINATION = "Deleting destination. %s"
-    LOG_LIST_DESTINATION = "Get the list of existing destinations."
-    LOG_CALL_SERIALIZATION = "Called to do a serialization with all destinations."
+    LOG_CREATE_SUBSCRIBER = "Creating new subscriber: %s"
+    LOG_EXISTED_SUBSCRIBER = "Already exists subscriber: %s"
+    LOG_NO_EXIST_SUBSCRIBER = "No exists subscriber:%s"
+    LOG_EDIT_SUBSCRIBER = "Editing an existing subscriber to new params.%s"
+    LOG_DELETE_SUBSCRIBER = "Deleting subscriber. %s"
+    LOG_LIST_SUBSCRIBER = "Get the list of existing subscribers."
+    LOG_CALL_SERIALIZATION = "Called to do a serialization with all subscribers."
     LOG_CALL_STOP_STREAM = "Called to stop the stream of running job. %s"
     LOG_RUN_JOB_ONCE = "Called to extract api data from a job once. %s"
     LOG_RUN_JOB_Periodically = "Called to extract api data from a job periodically. %s"
-    LOG_RUN_STREAM = "Called to run stream an api data from a new destination. %s"
-    LOG_RUN_ONCE = "Called to run once an api data from a new destination. %s"
+    LOG_RUN_STREAM = "Called to run stream an api data from a new subscriber. %s"
+    LOG_RUN_ONCE = "Called to run once an api data from a new subscriber. %s"
     LOG_CALL_SUBSCRIBE = "Called to subscribe to ID and stream data when a stream with that ID is used. %s"
     LOG_GET_PARAMS = "Called to get api params from a job. %s"
     LOG_CREATE_STREAM = "Configurate the stream with job. %s"
     LOG_START_STREAM = "String to stream job with threads. %s"
     LOG_STOP_STREAM = "Stopping stream because client stop connecting to the server. %s"
     ERROR_NO_SESSION = "Cant run client without session, please use CreateSession first. Need to create a session"
-    ERROR_NO_CLIENT = "Cant run client without creating Destination, please use AddDestination first."
+    ERROR_NO_CLIENT = "Cant run client without creating subscriber, please use AddSubscriber first."
     ERROR_NO_IP_FOUND = "CLIENT IP NOT FOUND, Cannot continue with the action."
+    ERROR_CONNECTION = "Could not connect to the ufm and thus can send you messages"
 
     REST_DEFAULT_INTERVAL = 30
     REST_DEFAULT_DELTA = False

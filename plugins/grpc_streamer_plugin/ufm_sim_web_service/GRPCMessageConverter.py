@@ -12,7 +12,7 @@
 import json
 from google.protobuf.any_pb2 import Any
 from google.protobuf.json_format import MessageToJson
-import plugins.grpc_streamer_plugin.ufm_sim_web_service.grpc_plugin_streamer_pb2 as grpc_plugin_streamer_pb2
+import grpc_plugin_streamer_pb2 as grpc_plugin_streamer_pb2
 
 
 def decode_message(params_list):
@@ -28,7 +28,7 @@ def decode_message(params_list):
     return output_dict
 
 
-def encode_destination(job):
+def encode_subscriber(job):
     """
     encode a destination to grpc DestinationParams
     :param job: Destination that we want to encode
@@ -36,17 +36,17 @@ def encode_destination(job):
     """
     if not job:
         print("COULDNT FIND THE IP:"+job.dest_ip)
-        return grpc_plugin_streamer_pb2.DestinationParams()
+        return grpc_plugin_streamer_pb2.SubscriberParams()
 
     params = []
     for item in job.calls:
-        params.append(grpc_plugin_streamer_pb2.DestinationParams.APIParams(ufm_api_name=item[0],
+        params.append(grpc_plugin_streamer_pb2.SubscriberParams.APIParams(ufm_api_name=item[0],
                                                                              interval=item[1], only_delta=item[2]))
 
-    return grpc_plugin_streamer_pb2.DestinationParams(job_id=job.dest_ip, apiParams=params)
+    return grpc_plugin_streamer_pb2.SubscriberParams(job_id=job.dest_ip, apiParams=params)
 
 
-def decode_destination(request):
+def decode_subscriber(request):
     """
     decode DestinationParams to Destination
     :param request:

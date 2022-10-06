@@ -10,10 +10,10 @@
 # provided with the software product.
 #
 import grpc
-import plugins.grpc_streamer_plugin.ufm_sim_web_service.grpc_plugin_streamer_pb2 as grpc_plugin_streamer_pb2
-import plugins.grpc_streamer_plugin.ufm_sim_web_service.grpc_plugin_streamer_pb2_grpc as grpc_plugin_streamer_pb2_grpc
-from plugins.grpc_streamer_plugin.ufm_sim_web_service.Destination import Destination
-from plugins.grpc_streamer_plugin.ufm_sim_web_service.Config import Constants
+import grpc_plugin_streamer_pb2 as grpc_plugin_streamer_pb2
+import grpc_plugin_streamer_pb2_grpc as grpc_plugin_streamer_pb2_grpc
+from Subscriber import Subscriber
+from Config import Constants
 
 
 class GrpcClient:
@@ -24,8 +24,12 @@ class GrpcClient:
 
     def _start_request(self, api_list, auth, solo_add_session=False, solo_add_job=False):
         if solo_add_session:
-            if len(auth)<2: return False
-            success = self.add_session(auth[0],auth[1])
+            if auth and (isinstance(auth,tuple) or isinstance(auth,list)):
+                success = self.add_session(auth[0],auth[1],None)
+            elif auth and isinstance(auth,str):
+                success = self.add_session(None, None, auth)
+            else:
+                return False
             if not success: return False
 
         if solo_add_job:
@@ -51,24 +55,27 @@ class GrpcClient:
 
         self.channel.close()
 
-    def add_session(self,username,password):
+    def add_session(self, username, password, token=None):
         try:
             self.channel = grpc.insecure_channel(self.grpc_channel)
             self.stub = grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamerServiceStub(self.channel)
-            self.stub.CreateSession(grpc_plugin_streamer_pb2.SessionAuth(job_id=self.job_id, username=username,
-                                                                     password=password))
+            respond = self.stub.CreateSession(grpc_plugin_streamer_pb2.SessionAuth(job_id=self.job_id, username=username,
+                                                                     password=password, token=token))
+            if respond.respond != "Success":
+                print(respond.respond)
+                return False
             self.channel.close()
             return True
         except grpc.RpcError as e:
-            print("Couldnt add a session")
+            print("Couldnt add a session because "+str(e))
         return False
 
     def added_job(self, api_list):
-        self.dest = Destination(self.job_id, api_list, None, None)
+        self.dest = Subscriber(self.job_id, api_list, None, None)
         try:
             self.channel = grpc.insecure_channel(self.grpc_channel)
             self.stub = grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamerServiceStub(self.channel)
-            self.stub.AddDestination(self.dest.to_message())
+            self.stub.AddSubscriber(self.dest.to_message())
             self.channel.close()
         except grpc.RpcError as e:
             return False
@@ -89,7 +96,7 @@ class GrpcClient:
         try:
             success = self._start_request(api_list, auth, True, True)
             if not success: return None
-            self.dest = Destination(self.job_id, api_list, None, None)
+            self.dest = Subscriber(self.job_id, api_list, None, None)
             result = self.stub.RunOnce(self.dest.to_message())
             self._end_request()
             return result
@@ -111,7 +118,7 @@ class GrpcClient:
         try:
             success = self._start_request(api_list, auth, True, False)
             if not success: return None
-            self.dest = Destination(self.job_id, api_list, None,None)
+            self.dest = Subscriber(self.job_id, api_list, None, None)
             interator = self.stub.RunPeriodically(self.dest.to_message())
             return self._end_stream(interator)
         except grpc.RpcError as e:

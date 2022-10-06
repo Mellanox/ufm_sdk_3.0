@@ -15,11 +15,11 @@ import requests
 import time
 from datetime import datetime
 from threading import Lock
-import plugins.grpc_streamer_plugin.ufm_sim_web_service.grpc_plugin_streamer_pb2 as grpc_plugin_streamer_pb2
-from plugins.grpc_streamer_plugin.ufm_sim_web_service.Config import RESTCall,Constants
+import grpc_plugin_streamer_pb2 as grpc_plugin_streamer_pb2
+from Config import RESTCall,Constants
 
 
-class Destination:
+class Subscriber:
     """
     For manage the client job, request get calls and threads
     """
@@ -29,7 +29,7 @@ class Destination:
     def __init__(self, ip, rest_api_calls, session, host):
         """
         :param ip: name/ip of machine that asked this information
-        :param rests_calls: list of string that represent the wanted calls
+        :param rest_api_calls: list of string that represent the wanted calls
         :param session: session that allow it to get rest data
         :param host: the host of machine of the ufm
         """
@@ -46,12 +46,12 @@ class Destination:
     def processing_calls(self, rest_api_calls):
         """
         extract the information from rest calls
-        :param rests_calls: list of params of calls
+        :param rest_api_calls: list of params of calls
         :return:
         """
-        if rest_api_calls is None:return
+        if rest_api_calls is None: return
         for call in rest_api_calls:
-            is_tuple = isinstance(call,tuple) or isinstance(call,list)
+            is_tuple = isinstance(call, tuple) or isinstance(call, list)
             name = call[0] if is_tuple else call
             name = name.capitalize()
             if RESTCall.__contains__(name):
@@ -64,7 +64,7 @@ class Destination:
             else:
                 print(f'{name} could not be added, it is not in rest apis')
 
-    def thread_task(self, call, queue, callback):
+    def thread_task(self, call, queue, callback, session):
         """
         function for the threading calling, extract new data if dalta is True in the call
         :param call: one of the call in self.calls (we want the thread to be in the server and not here)
@@ -77,7 +77,7 @@ class Destination:
         self.queue = queue
         self.callback = callback
         while not self.stop_all:
-            result = self.send_get_request(location)
+            result = self.send_get_request(location, session)
             if result.status_code != 200:
                 break
             if delta:
@@ -116,14 +116,16 @@ class Destination:
                 next_last_id = max(item["id"], next_last_id)
         return output, next_last_id
 
-    def all_result(self):
+    def all_result(self,session):
         """
         get all the data from all the calls and return them in messages
         :return: list of encoded messages
         """
         messages = []
         for call in self.calls:
-            respond = self.send_get_request(call[3])
+            respond = self.send_get_request(call[3],session)
+            if respond is None:
+                continue
             if respond.status_code != 200:
                 continue
             data = respond.json()
@@ -162,11 +164,11 @@ class Destination:
         """
         params = []
         for item in self.calls:
-            params.append(grpc_plugin_streamer_pb2.DestinationParams.APIParams(ufm_api_name=item[0],
+            params.append(grpc_plugin_streamer_pb2.SubscriberParams.APIParams(ufm_api_name=item[0],
                                                                                interval=item[1], only_delta=item[2]))
         if len(self.calls) == 0:
-            raise Exception(Constants.LOG_NO_REST_DESTINATION)
-        return grpc_plugin_streamer_pb2.DestinationParams(job_id=self.dest_ip, apiParams=params)
+            raise Exception(Constants.LOG_NO_REST_SUBSCRIBER)
+        return grpc_plugin_streamer_pb2.SubscriberParams(job_id=self.dest_ip, apiParams=params)
 
     def _encode_results_(self, task_name, data):
         """
@@ -181,24 +183,29 @@ class Destination:
         timestamp = google.protobuf.timestamp_pb2.Timestamp()
         timestamp.FromDatetime(datetime.now())
         des_message.timestamp.CopyFrom(timestamp)
-        des_message.message_id = str(Destination.job_id_messages)
-        with Destination.lock:
-            Destination.job_id_messages += 1
+        des_message.message_id = str(Subscriber.job_id_messages)
+        with Subscriber.lock:
+            Subscriber.job_id_messages += 1
         return des_message
 
-    def send_get_request(self, resource_path):
+    def send_get_request(self,resource_path, session):
         """
         get rest call from the path that was given
         :param resource_path: path to the api we want to get
         :return: respond from get
         """
-        if self._host is None or self._session is None:return None
-        if ':' in self._host:
-            url = 'https://[{0}]{1}'.format(self._host, resource_path)
+        if self._host is None or session is None:return None
+        addition=''
+        if 'Authorization' in session.headers:
+            addition = "V3"
         else:
-            url = 'https://{0}{1}'.format(self._host, resource_path)
+            addition = ""
+        if ':' in self._host:
+            url = 'https://[{0}]{1}{2}'.format(self._host, '/ufmRest'+addition, resource_path)
+        else:
+            url = 'https://{0}{1}{2}'.format(self._host, '/ufmRest'+addition,resource_path)
         try:
-            respond = self._session.get(url)
+            respond = session.get(url)
             return respond
         except requests.ConnectionError as e:
             print("Wasn't able to reach " + resource_path + ". Connection Error, please see this exception.\n" + str(e))
