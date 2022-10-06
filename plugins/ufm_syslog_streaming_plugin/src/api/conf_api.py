@@ -47,17 +47,17 @@ class SyslogStreamingConfigurationsAPI(BaseAPIApplication):
 
     def put(self):
         Logger.log_message('Updating the streaming configurations')
-        # validate the new conf json
-        validate_schema(self.conf_schema_path, request.json)
-        # get the old ufm syslog server addr
-        ohost = self.conf.get_ufm_syslog_host()
-        oport = self.conf.get_ufm_syslog_port ()
-        # update the saved conf values
-        self._set_new_conf()
-        # get the old ufm syslog server addr
-        nhost = self.conf.get_ufm_syslog_host()
-        nport = self.conf.get_ufm_syslog_port()
         try:
+            # validate the new conf json
+            validate_schema(self.conf_schema_path, request.json)
+            # get the old ufm syslog server addr
+            ohost = self.conf.get_ufm_syslog_host()
+            oport = self.conf.get_ufm_syslog_port()
+            # update the saved conf values
+            self._set_new_conf()
+            # get the old ufm syslog server addr
+            nhost = self.conf.get_ufm_syslog_host()
+            nport = self.conf.get_ufm_syslog_port()
             # update the plugin conf file
             self.conf.update_config_file(self.conf.config_file)
             # check if the streaming is enabled or not
@@ -67,6 +67,7 @@ class SyslogStreamingConfigurationsAPI(BaseAPIApplication):
                 self.syslog_forwarder.stop_forwarding()
             return make_response("set configurations has been done successfully")
         except Exception as ex:
+            Logger.log_message('Updating the streaming configurations has been failed', LOG_LEVELS.ERROR)
             raise ex
 
     def get(self):
