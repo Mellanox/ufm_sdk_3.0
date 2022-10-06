@@ -15,6 +15,5 @@
 
 set -eE
 # Updating /config folder
-mv /opt/ufm/ufm_plugin_gRPC_streamer/grpc_streamer.conf /config
-mv /opt/ufm/ufm_plugin_gRPC_streamer/grpc_server_proxy.conf /config
+cp /opt/ufm/ufm_plugin_gRPC_streamer/grpc_streamer.conf /config
 exit 0

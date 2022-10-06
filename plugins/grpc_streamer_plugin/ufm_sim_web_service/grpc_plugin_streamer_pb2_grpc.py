@@ -3,7 +3,7 @@
 import grpc
 
 from google.protobuf import empty_pb2 as google_dot_protobuf_dot_empty__pb2
-import plugins.grpc_streamer_plugin.ufm_sim_web_service.grpc_plugin_streamer_pb2 as grpc__plugin__streamer__pb2
+import grpc_plugin_streamer_pb2 as grpc__plugin__streamer__pb2
 
 
 class GeneralGRPCStreamerServiceStub(object):
@@ -39,7 +39,7 @@ class GeneralGRPCStreamerServiceStub(object):
         self.GetJobParams = channel.unary_unary(
                 '/GeneralGRPCStreamerService/GetJobParams',
                 request_serializer=grpc__plugin__streamer__pb2.gRPCStreamerID.SerializeToString,
-                response_deserializer=grpc__plugin__streamer__pb2.DestinationParams.FromString,
+                response_deserializer=grpc__plugin__streamer__pb2.SubscriberParams.FromString,
                 )
         self.RunStreamJob = channel.unary_stream(
                 '/GeneralGRPCStreamerService/RunStreamJob',
@@ -53,12 +53,12 @@ class GeneralGRPCStreamerServiceStub(object):
                 )
         self.RunOnce = channel.unary_unary(
                 '/GeneralGRPCStreamerService/RunOnce',
-                request_serializer=grpc__plugin__streamer__pb2.DestinationParams.SerializeToString,
+                request_serializer=grpc__plugin__streamer__pb2.SubscriberParams.SerializeToString,
                 response_deserializer=grpc__plugin__streamer__pb2.runOnceRespond.FromString,
                 )
         self.RunPeriodically = channel.unary_stream(
                 '/GeneralGRPCStreamerService/RunPeriodically',
-                request_serializer=grpc__plugin__streamer__pb2.DestinationParams.SerializeToString,
+                request_serializer=grpc__plugin__streamer__pb2.SubscriberParams.SerializeToString,
                 response_deserializer=grpc__plugin__streamer__pb2.gRPCStreamerParams.FromString,
                 )
         self.StopStream = channel.unary_unary(
@@ -71,23 +71,23 @@ class GeneralGRPCStreamerServiceStub(object):
                 request_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
                 response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
                 )
-        self.ListDestinations = channel.unary_unary(
-                '/GeneralGRPCStreamerService/ListDestinations',
+        self.ListSubscribers = channel.unary_unary(
+                '/GeneralGRPCStreamerService/ListSubscribers',
                 request_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
-                response_deserializer=grpc__plugin__streamer__pb2.ListDestinationParams.FromString,
+                response_deserializer=grpc__plugin__streamer__pb2.ListSubscriberParams.FromString,
                 )
-        self.AddDestination = channel.unary_unary(
-                '/GeneralGRPCStreamerService/AddDestination',
-                request_serializer=grpc__plugin__streamer__pb2.DestinationParams.SerializeToString,
+        self.AddSubscriber = channel.unary_unary(
+                '/GeneralGRPCStreamerService/AddSubscriber',
+                request_serializer=grpc__plugin__streamer__pb2.SubscriberParams.SerializeToString,
                 response_deserializer=grpc__plugin__streamer__pb2.SessionRespond.FromString,
                 )
-        self.EditDestination = channel.unary_unary(
-                '/GeneralGRPCStreamerService/EditDestination',
-                request_serializer=grpc__plugin__streamer__pb2.DestinationParams.SerializeToString,
+        self.EditSubscriber = channel.unary_unary(
+                '/GeneralGRPCStreamerService/EditSubscriber',
+                request_serializer=grpc__plugin__streamer__pb2.SubscriberParams.SerializeToString,
                 response_deserializer=grpc__plugin__streamer__pb2.SessionRespond.FromString,
                 )
-        self.DeleteDestination = channel.unary_unary(
-                '/GeneralGRPCStreamerService/DeleteDestination',
+        self.DeleteSubscriber = channel.unary_unary(
+                '/GeneralGRPCStreamerService/DeleteSubscriber',
                 request_serializer=grpc__plugin__streamer__pb2.gRPCStreamerID.SerializeToString,
                 response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
                 )
@@ -163,25 +163,25 @@ class GeneralGRPCStreamerServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def ListDestinations(self, request, context):
+    def ListSubscribers(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def AddDestination(self, request, context):
+    def AddSubscriber(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def EditDestination(self, request, context):
+    def EditSubscriber(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def DeleteDestination(self, request, context):
+    def DeleteSubscriber(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -213,7 +213,7 @@ def add_GeneralGRPCStreamerServiceServicer_to_server(servicer, server):
             'GetJobParams': grpc.unary_unary_rpc_method_handler(
                     servicer.GetJobParams,
                     request_deserializer=grpc__plugin__streamer__pb2.gRPCStreamerID.FromString,
-                    response_serializer=grpc__plugin__streamer__pb2.DestinationParams.SerializeToString,
+                    response_serializer=grpc__plugin__streamer__pb2.SubscriberParams.SerializeToString,
             ),
             'RunStreamJob': grpc.unary_stream_rpc_method_handler(
                     servicer.RunStreamJob,
@@ -227,12 +227,12 @@ def add_GeneralGRPCStreamerServiceServicer_to_server(servicer, server):
             ),
             'RunOnce': grpc.unary_unary_rpc_method_handler(
                     servicer.RunOnce,
-                    request_deserializer=grpc__plugin__streamer__pb2.DestinationParams.FromString,
+                    request_deserializer=grpc__plugin__streamer__pb2.SubscriberParams.FromString,
                     response_serializer=grpc__plugin__streamer__pb2.runOnceRespond.SerializeToString,
             ),
             'RunPeriodically': grpc.unary_stream_rpc_method_handler(
                     servicer.RunPeriodically,
-                    request_deserializer=grpc__plugin__streamer__pb2.DestinationParams.FromString,
+                    request_deserializer=grpc__plugin__streamer__pb2.SubscriberParams.FromString,
                     response_serializer=grpc__plugin__streamer__pb2.gRPCStreamerParams.SerializeToString,
             ),
             'StopStream': grpc.unary_unary_rpc_method_handler(
@@ -245,23 +245,23 @@ def add_GeneralGRPCStreamerServiceServicer_to_server(servicer, server):
                     request_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
                     response_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
             ),
-            'ListDestinations': grpc.unary_unary_rpc_method_handler(
-                    servicer.ListDestinations,
+            'ListSubscribers': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListSubscribers,
                     request_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
-                    response_serializer=grpc__plugin__streamer__pb2.ListDestinationParams.SerializeToString,
+                    response_serializer=grpc__plugin__streamer__pb2.ListSubscriberParams.SerializeToString,
             ),
-            'AddDestination': grpc.unary_unary_rpc_method_handler(
-                    servicer.AddDestination,
-                    request_deserializer=grpc__plugin__streamer__pb2.DestinationParams.FromString,
+            'AddSubscriber': grpc.unary_unary_rpc_method_handler(
+                    servicer.AddSubscriber,
+                    request_deserializer=grpc__plugin__streamer__pb2.SubscriberParams.FromString,
                     response_serializer=grpc__plugin__streamer__pb2.SessionRespond.SerializeToString,
             ),
-            'EditDestination': grpc.unary_unary_rpc_method_handler(
-                    servicer.EditDestination,
-                    request_deserializer=grpc__plugin__streamer__pb2.DestinationParams.FromString,
+            'EditSubscriber': grpc.unary_unary_rpc_method_handler(
+                    servicer.EditSubscriber,
+                    request_deserializer=grpc__plugin__streamer__pb2.SubscriberParams.FromString,
                     response_serializer=grpc__plugin__streamer__pb2.SessionRespond.SerializeToString,
             ),
-            'DeleteDestination': grpc.unary_unary_rpc_method_handler(
-                    servicer.DeleteDestination,
+            'DeleteSubscriber': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteSubscriber,
                     request_deserializer=grpc__plugin__streamer__pb2.gRPCStreamerID.FromString,
                     response_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
             ),
@@ -357,7 +357,7 @@ class GeneralGRPCStreamerService(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/GeneralGRPCStreamerService/GetJobParams',
             grpc__plugin__streamer__pb2.gRPCStreamerID.SerializeToString,
-            grpc__plugin__streamer__pb2.DestinationParams.FromString,
+            grpc__plugin__streamer__pb2.SubscriberParams.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -407,7 +407,7 @@ class GeneralGRPCStreamerService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/GeneralGRPCStreamerService/RunOnce',
-            grpc__plugin__streamer__pb2.DestinationParams.SerializeToString,
+            grpc__plugin__streamer__pb2.SubscriberParams.SerializeToString,
             grpc__plugin__streamer__pb2.runOnceRespond.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
@@ -424,7 +424,7 @@ class GeneralGRPCStreamerService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_stream(request, target, '/GeneralGRPCStreamerService/RunPeriodically',
-            grpc__plugin__streamer__pb2.DestinationParams.SerializeToString,
+            grpc__plugin__streamer__pb2.SubscriberParams.SerializeToString,
             grpc__plugin__streamer__pb2.gRPCStreamerParams.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
@@ -464,7 +464,7 @@ class GeneralGRPCStreamerService(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def ListDestinations(request,
+    def ListSubscribers(request,
             target,
             options=(),
             channel_credentials=None,
@@ -474,14 +474,14 @@ class GeneralGRPCStreamerService(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/GeneralGRPCStreamerService/ListDestinations',
+        return grpc.experimental.unary_unary(request, target, '/GeneralGRPCStreamerService/ListSubscribers',
             google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
-            grpc__plugin__streamer__pb2.ListDestinationParams.FromString,
+            grpc__plugin__streamer__pb2.ListSubscriberParams.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def AddDestination(request,
+    def AddSubscriber(request,
             target,
             options=(),
             channel_credentials=None,
@@ -491,14 +491,14 @@ class GeneralGRPCStreamerService(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/GeneralGRPCStreamerService/AddDestination',
-            grpc__plugin__streamer__pb2.DestinationParams.SerializeToString,
+        return grpc.experimental.unary_unary(request, target, '/GeneralGRPCStreamerService/AddSubscriber',
+            grpc__plugin__streamer__pb2.SubscriberParams.SerializeToString,
             grpc__plugin__streamer__pb2.SessionRespond.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def EditDestination(request,
+    def EditSubscriber(request,
             target,
             options=(),
             channel_credentials=None,
@@ -508,14 +508,14 @@ class GeneralGRPCStreamerService(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/GeneralGRPCStreamerService/EditDestination',
-            grpc__plugin__streamer__pb2.DestinationParams.SerializeToString,
+        return grpc.experimental.unary_unary(request, target, '/GeneralGRPCStreamerService/EditSubscriber',
+            grpc__plugin__streamer__pb2.SubscriberParams.SerializeToString,
             grpc__plugin__streamer__pb2.SessionRespond.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def DeleteDestination(request,
+    def DeleteSubscriber(request,
             target,
             options=(),
             channel_credentials=None,
@@ -525,7 +525,7 @@ class GeneralGRPCStreamerService(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/GeneralGRPCStreamerService/DeleteDestination',
+        return grpc.experimental.unary_unary(request, target, '/GeneralGRPCStreamerService/DeleteSubscriber',
             grpc__plugin__streamer__pb2.gRPCStreamerID.SerializeToString,
             google_dot_protobuf_dot_empty__pb2.Empty.FromString,
             options, channel_credentials,

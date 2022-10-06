@@ -15,10 +15,6 @@
 
 set -eE
 
-# removing log file
-LOG_FILE=/log/ufm_grpc_streamer.log
-if test -f "$LOG_FILE"; then
-    rm "$LOG_FILE"
-fi
+rm -f /log/grpc_streamer*.log*
 
 exit 0

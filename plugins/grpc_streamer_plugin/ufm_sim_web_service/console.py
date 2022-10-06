@@ -11,54 +11,11 @@
 #
 import sys
 
-import requests
 import logging
 import grpc_server
 from grpc_client import GrpcClient
 from Config import Constants
-
-
-class RestClient:
-    def __init__(self,host,auth,port):
-        self._dictCalls = {'logic': "/ufmRest/resources/logical_servers",
-                        'telemetry': "/ufmRest/monitoring/aggr_topx?object=servers&attr=bw",
-                        'network': "/ufmRest/app/network_views",
-                        'events': "/ufmRest/app/events",
-                        'alarms': "/ufmRest/app/alarms",
-                        'links': "/ufmRest/app/links",
-                        'jobs': "/ufmRest/app/jobs",
-                        'system': "/ufmRest/resources/systems"}
-
-        self._session = requests.Session()
-        self._session.auth = auth
-        self._session.verify = False
-        self._session.headers.update({'Content-Type': 'application/json; charset=utf-8'})
-
-        self._host = host
-        self._port = port  # web
-
-    def send_get_request(self, key):
-        if key not in self._dictCalls:
-            print("only those keys are available:" +str(self._dictCalls.keys()))
-            return None
-        resource_path = self._dictCalls[key]
-        if ':' in self._host:
-            url = 'https://[{0}]{1}'.format(self._host, resource_path)
-        else:
-            url = 'https://{0}{1}'.format(self._host, resource_path)
-        try:
-            respond = self._session.get(url)
-            return respond
-        except requests.ConnectionError as e:
-            print("Wasn't able to reach " + resource_path + ". Connection Error, please see this exception.\n"+str(e))
-        except requests.Timeout as e:
-            print("Wasn't able to reach " + resource_path + ". Timeout Error, please see this exception.\n" + str(e))
-        except requests.RequestException as e:
-            print("Wasn't able to reach " + resource_path + ". Request Error, please see this exception.\n" + str(e))
-        except KeyboardInterrupt as e:
-            print("Wasn't able to reach " + resource_path + ". Connection Error, please see this exception.\n" + str(e))
-        return None
-
+from utils import ufm_rest_client
 
 commands = {'get': ['events', 'alarms', 'links', 'jobs'],
             'client': ['once', 'stream', 'subscribe', 'session', 'create', 'once_id', 'stream_id'],
@@ -66,16 +23,26 @@ commands = {'get': ['events', 'alarms', 'links', 'jobs'],
 
 
 class UserActions:
-    def get_request(self,what_to_bring,host,auth):
-        self.rest_client = RestClient(host,auth,443)
-        result = self.rest_client.send_get_request(what_to_bring)
+    def __init__(self):
+        self._dictCalls = {'logic': "/resources/logical_servers",
+                           'telemetry': "/monitoring/aggr_topx?object=servers&attr=bw",
+                           'network': "/app/network_views",
+                           'events': "/app/events",
+                           'alarms': "/app/alarms",
+                           'links': "/app/links",
+                           'jobs': "/app/jobs",
+                           'system': "/resources/systems"}
+    def get_request(self,what_to_bring,host,auth,token):
+        if auth is None: auth=[None,None]
+        user=ufm_rest_client.UfmRestClient(host,"https",token,"ufmRest"+("V3" if token else ""),auth[0],auth[1])
+        result = user.send_request(self._dictCalls[what_to_bring])
         if result is None or result.status_code!=200:
             print(result)
         else:
             print(result.json())
 
 
-    def client_actions(self,server_ip, action, id, api_list, auth):
+    def client_actions(self,server_ip, action, id, api_list, auth, token):
         #['once', 'stream', 'subscribe', 'session', 'create', 'once_id', 'stream_id']
         if server_ip is None or id is None:
             print("Need server ip and id to continue")
@@ -84,20 +51,21 @@ class UserActions:
         respond = ''
         client = GrpcClient(server_ip, Constants.UFM_PLUGIN_PORT, id)
         if action == 'session':
-            respond = client.add_session(auth[0],auth[1])
+            if auth is None:
+                auth = [None, None]
+            respond = client.add_session(auth[0], auth[1], token)
         elif action == 'create':
             respond = client.added_job(api_list)
         elif action == 'subscribe':
             respond = client.subscribeTo(id)
         elif action == 'once_id':
-            respond = client.onceIDApis(api_list, auth)
+            respond = client.onceIDApis(api_list, auth,token)
         elif action == 'stream_id':
-            respond = client.streamIDAPIs(api_list, auth)
+            respond = client.streamIDAPIs(api_list, auth,token)
         elif action == 'once':
-            respond = client.onceApis(api_list, auth)
+            respond = client.onceApis(api_list, (token if token else auth))
         elif action == 'stream':
-            respond = client.streamApis(api_list, auth)
-
+            respond = client.streamApis(api_list, (token if token else auth))
         print(respond)
         return respond
 
@@ -112,7 +80,7 @@ class UserActions:
                 self.server.stop()
                 return
             elif action == 'destinations':
-                print(self.server.destinations)
+                print(self.server.subscribers)
                 return
         except Exception as e:
             print(e)
@@ -120,10 +88,15 @@ class UserActions:
 class Logger:
     def __init__(self):
         self.terminal = sys.stdout
-        self.log = open("console.log", "w")
+        self.log = open("/log/grpc_streamer_console.log", "w")
+
     def write(self,message):
         self.log.write(message)
         self.terminal.write(message)
+
+    def flush(self):
+        self.log.flush()
+        self.terminal.flush()
 
 def print_usage():
     print(f"can only use {len(commands)} main commands: {list(commands.keys())}\n")
@@ -139,7 +112,7 @@ def print_usage():
     print("or you can create a once/stream request with once/stream and provide all.")
     print("or there is possibility to subscribe to destination stream with given id.")
     print("examples :")
-    print("client session --server_ip=localhost --id=client1 --auth=username,password")
+    print("client session --server_ip=localhost --id=client1 --auth=username,password --token=token")
     print("client create --server_ip=localhost --id=client1 --apis=events,links,alarms")
     print("client once_id --server_ip=localhost --id=client1")
     print("client stream --server_ip=localhost --id=client2 --auth=username,password --apis=events;40;True,links;20;False,alarms;10")
@@ -149,7 +122,7 @@ def print_usage():
 
 
 def process_args(command_list):
-    ufm_ip, job_id, auth, apis = None, None, None, None
+    ufm_ip, job_id, auth, apis, token = None, None, None, None, None
     for arg in command_list:
         if not arg.startswith('--'): continue
         key, value = arg[2:].split('=')
@@ -160,14 +133,16 @@ def process_args(command_list):
         elif key == 'auth':
             auth = tuple(value.split(','))
         elif key == 'apis':
-            apis = [pairs.split(';') for pairs in value.split(',') ]
+            apis = [pairs.split(';') for pairs in value.split(',')]
+        elif key == 'token':
+            token = value
 
-    return ufm_ip, job_id, auth, apis
+    return ufm_ip, job_id, auth, apis, token
 
 
 def main():
-    #logger = Logger()
-    #sys.stdout = logger
+    logger = Logger()
+    sys.stdout = logger
     command = input("enter command:")
 
     user = UserActions()
@@ -182,15 +157,15 @@ def main():
             if parts[0] == 'server':
                 user.server_action(args[0], parts[1])
             elif parts[0] == 'get':
-                user.get_request(host=args[0], auth=args[2], what_to_bring=parts[1])
+                user.get_request(host=args[0], auth=args[2], what_to_bring=parts[1],token=args[4])
             elif parts[0] == 'client':
-                user.client_actions(server_ip=args[0], action=parts[1], id=args[1], api_list=args[3], auth=args[2])
+                user.client_actions(server_ip=args[0], action=parts[1], id=args[1], api_list=args[3], auth=args[2], token=args[4])
         except Exception as e:
             print(e)
 
         command = input("enter command:")
 
-    #logger.log.close()
+    logger.log.close()
 
 if __name__ == '__main__':
     main()

@@ -10,7 +10,7 @@ fi
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 
 IMAGE_VERSION=$1
-IMAGE_NAME=ufm-plugin-gRPC-streamer
+IMAGE_NAME=ufm-plugin-grpc-streamer
 OUT_DIR=$2
 RANDOM_HASH=$3
 
@@ -31,7 +31,7 @@ fi
 
 function create_out_dir()
 {
-    build_dir=$(mktemp --tmpdir -d ufm-plugin-gRPC-streamer_output_XXXXXXXX)
+    build_dir=$(mktemp --tmpdir -d ufm-plugin-grpc-streamer_output_XXXXXXXX)
     chmod 777 ${build_dir}
     echo ${build_dir}
 }
@@ -67,9 +67,9 @@ function build_docker_image()
     image_with_prefix_and_version="${prefix}/${image_name}:${image_version}"
 
     pushd ${build_dir}
-    echo "docker build --network host --no-cache --pull -t ${image_with_prefix_and_version} . --compress"
+    echo "docker build --network host --no-cache --pull -t ${image_with_prefix} . --compress"
 
-    docker build --network host --no-cache --pull -t ${image_with_prefix_and_version} . --compress
+    docker build --network host --no-cache --pull -t ${image_with_prefix} . --compress
     exit_code=$?
     popd
     if [ $exit_code -ne 0 ]; then
@@ -82,15 +82,15 @@ function build_docker_image()
     docker images | grep ${image_with_prefix}
     printf "\n\n\n"
 
-    echo "docker save ${image_with_prefix_and_version} | gzip > ${out_dir}/${full_image_version}-docker.img.gz"
-    docker save ${image_with_prefix_and_version} | gzip > ${out_dir}/${full_image_version}-docker.img.gz
+    echo "docker save ${image_with_prefix}:latest | gzip > ${out_dir}/${full_image_version}-docker.img.gz"
+    docker save ${image_with_prefix}:latest | gzip > ${out_dir}/${full_image_version}-docker.img.gz
     exit_code=$?
     if [ $exit_code -ne 0 ]; then
         echo "Failed to save image"
         return $exit_code
     fi
     if [ "$keep_image" != "y" -a "$keep_image" != "Y" ]; then
-        docker image rm -f ${image_with_prefix_and_version}
+        docker image rm -f ${image_with_prefix}:latest
     fi
     return 0
 }
@@ -105,7 +105,7 @@ cp -r ../ufm_sim_web_service ${BUILD_DIR}
 
 echo "BUILD_DIR    : [${BUILD_DIR}]"
 
-build_docker_image $BUILD_DIR $IMAGE_NAME $IMAGE_VERSION ${RANDOM_HASH} $OUT_DIR
+build_docker_image $BUILD_DIR $IMAGE_NAME $IMAGE_VERSION ${RANDOM_HASH} $OUT_DIR "Y"
 exit_code=$?
 rm -rf ${BUILD_DIR}
 popd
