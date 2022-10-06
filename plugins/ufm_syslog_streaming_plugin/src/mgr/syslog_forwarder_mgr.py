@@ -75,20 +75,35 @@ class SyslogForwarder:
             Logger.log_message(f'Error occurred during creating the UFM syslog server: {str(ex)}')
 
     def _create_remote_syslog_socket(self):
-        Logger.log_message(f'Creating the External syslog server on: '
+        Logger.log_message(f'Creating the External syslog client on: '
                            f'{self.remote_syslog_host}:{self.remote_syslog_port}', LOG_LEVELS.DEBUG)
         if self.remote_syslog_host:
             try:
                 remote_syslog_host_info, remote_syslog_socket = self._create_host_socket(self.remote_syslog_host,
-                                                                                       self.remote_syslog_port,
-                                                                                       self.socket_type)
+                                                                                         self.remote_syslog_port,
+                                                                                         self.socket_type)
                 _addr_family, socket_type, protocol, _, remote_syslog_address = remote_syslog_host_info
                 Logger.log_message(f'The External syslog server created successfully on: '
                                    f'{self.remote_syslog_host}:{self.remote_syslog_port}')
                 return remote_syslog_socket, remote_syslog_address
             except Exception as ex:
-                Logger.log_message(f'Error occurred during creating the External syslog server: {str(ex)}',
+                Logger.log_message(f'Error occurred during creating the External syslog client on '
+                                   f'{self.remote_syslog_host}:{self.remote_syslog_port}: {str(ex)}',
                                    LOG_LEVELS.ERROR)
+                return None, None
+
+    def check_fluent_destination(self):
+        host = self.conf.get_fluent_bit_destination_host()
+        port = self.conf.get_fluent_bit_destination_port()
+        try:
+            host_info, host_socket = self._create_host_socket(host,
+                                                              port,
+                                                              self.socket_type)
+            return host_info
+        except Exception as ex:
+            Logger.log_message(f'Error occurred during creating the fluent-bit destination client on '
+                               f'{host}:{port} : {str(ex)}',
+                               LOG_LEVELS.ERROR)
 
     def streaming_is_enabled(self):
         return (self.conf.get_enable_sys_log_destination_flag() or self.conf.get_enable_fluent_bit_flag()) \
@@ -107,19 +122,27 @@ class SyslogForwarder:
         if not self.ufm_syslog_socket:
             self.ufm_syslog_socket = self._create_ufm_syslog_socket()
         #####
-        if self.conf.get_enable_sys_log_destination_flag():
-            self.remote_syslog_socket, self.remote_syslog_address = self._create_remote_syslog_socket()
-        else:
-            Logger.log_message('The syslog remote destination host is not enabled or configured', LOG_LEVELS.WARNING)
-        #####
-        if self.conf.get_enable_fluent_bit_flag():
-            self.conf.update_fluent_bit_conf_file()
-            result, _ = FluentBitServiceMgr.restart_service()
-            if result:
-                Logger.log_message(f'The fluent-bit streaming created successfully on the destination: '
-                                   f'{self.conf.get_fluent_bit_destination_host()}:{self.conf.get_fluent_bit_destination_port()}')
-        else:
-            Logger.log_message('The fluent-bit destination host is not enabled or configured', LOG_LEVELS.WARNING)
+        if self.ufm_syslog_socket:
+            if self.conf.get_enable_sys_log_destination_flag():
+                self.remote_syslog_socket, self.remote_syslog_address = self._create_remote_syslog_socket()
+            else:
+                Logger.log_message('The syslog remote destination host is not enabled or configured',
+                                   LOG_LEVELS.WARNING)
+            #####
+            if self.conf.get_enable_fluent_bit_flag():
+                if self.check_fluent_destination():
+                    self.conf.update_fluent_bit_conf_file()
+                    result, _ = FluentBitServiceMgr.restart_service()
+                    if result:
+                        Logger.log_message(f'The fluent-bit streaming created successfully on the destination: '
+                                           f'{self.conf.get_fluent_bit_destination_host()}:{self.conf.get_fluent_bit_destination_port()}')
+                else:
+                    FluentBitServiceMgr.stop_service()
+            else:
+                Logger.log_message('The fluent-bit destination host is not enabled or configured', LOG_LEVELS.WARNING)
+                is_running, _ = FluentBitServiceMgr.get_service_status()
+                if is_running:
+                    FluentBitServiceMgr.stop_service()
 
     def restart_forwarding(self, restart_ufm_syslog_server=True):
         self.stop_forwarding(restart_ufm_syslog_server)
@@ -152,11 +175,12 @@ class SyslogForwarder:
                 self.remote_syslog_socket = None
                 self.remote_syslog_address = None
                 Logger.log_message('The streaming to remote syslogs client is stopped')
-            is_running, _ = FluentBitServiceMgr.get_service_status()
-            if is_running:
-                result, _ = FluentBitServiceMgr.stop_service()
-                if result:
-                    Logger.log_message('The streaming client on fluent-bit is stopped')
+            if not self.conf.get_enable_fluent_bit_flag() and self.ufm_syslog_socket is None:
+                is_running, _ = FluentBitServiceMgr.get_service_status()
+                if is_running:
+                    result, _ = FluentBitServiceMgr.stop_service()
+                    if result:
+                        Logger.log_message('The streaming client on fluent-bit is stopped')
 
         except Exception as ex:
             Logger.log_message(f'Error occurred during stopping the forwarding: {str(ex)}',
