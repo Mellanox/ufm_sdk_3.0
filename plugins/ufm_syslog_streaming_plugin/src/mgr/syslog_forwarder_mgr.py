@@ -83,7 +83,7 @@ class SyslogForwarder:
                                                                                          self.remote_syslog_port,
                                                                                          self.socket_type)
                 _addr_family, socket_type, protocol, _, remote_syslog_address = remote_syslog_host_info
-                Logger.log_message(f'The External syslog server created successfully on: '
+                Logger.log_message(f'The External syslog client created successfully on: '
                                    f'{self.remote_syslog_host}:{self.remote_syslog_port}')
                 return remote_syslog_socket, remote_syslog_address
             except Exception as ex:
