@@ -15,7 +15,6 @@ RUN apt-get update && apt-get -y install supervisor python3 python3-pip rsyslog 
 RUN python3 -m pip install flask flask_restful requests grpcio twisted urllib3
 RUN python3 -m pip install -IV protobuf==3.18.0
 
-#WORKDIR /.autodirect/mtrswgwork/egershon/git/ufm_sdk_3.0/plugins/grpc_streamer_plugin/build
 COPY ufm_sim_web_service/ ${BASE_PATH}/ufm_sim_web_service/
 
 COPY config/supervisord.conf /etc/supervisor/conf.d/
