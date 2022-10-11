@@ -17,7 +17,7 @@ import os
 
 class Constants:
     VERSION = '1.0.0'
-    CONF_LOGFILE_NAME = 'log_file_name'
+    CONF_LOGFILE_NAME = '/log/grpc_streamer_server.log'
     UFM_HTTP_PORT = 443
     UFM_PLUGIN_PORT = 8008
     PLUGIN_HELP = f"This plugin version- {VERSION} is for getting rest apis from the UFM using grpc.\n" \
