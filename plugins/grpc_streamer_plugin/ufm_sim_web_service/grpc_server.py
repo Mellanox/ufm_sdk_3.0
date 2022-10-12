@@ -87,6 +87,8 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         format_str = "%(asctime)-15s UFM-gRPC-Streamer-{0} Machine: {1}     %(levelname)-7s: %(message)s".format(file,self._host)
         conf_file = GENERAL_UTILS.getGrpcStreamConfFile()
         self.log_name = Constants.DEF_LOG_FILE
+        if not os.path.exists(self.log_name):
+            os.makedirs('/'.join(self.log_name.split('/')[:-1]))
         logger = logging.getLogger(self.log_name)
 
         logging_level=logging.getLevelName(Constants.log_level) \

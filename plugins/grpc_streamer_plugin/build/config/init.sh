@@ -15,5 +15,5 @@
 
 set -eE
 # Updating /config folder
-cp /opt/ufm/ufm_plugin_gRPC_streamer/grpc_streamer.conf /config
+cp /opt/ufm/ufm_plugin_grpc_streamer/grpc_streamer.conf /config
 exit 0
