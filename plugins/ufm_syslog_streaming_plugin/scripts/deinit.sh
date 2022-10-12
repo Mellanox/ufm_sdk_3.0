@@ -13,6 +13,6 @@
 set -eE
 
 # removing log file
-rm -rf /opt/ufm/log/usfs.log*
+rm -rf /opt/ufm/log/efs.log*
 
 exit 0

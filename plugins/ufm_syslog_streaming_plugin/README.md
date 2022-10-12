@@ -1,15 +1,18 @@
-UFM syslog forwarder streaming (USFS)
+UFM Event Stream to FluentBit endpoint (EFS)
 --------------------------------------------------------
 
 
-This plugin is used to forward and stream the UFM syslog to either a remote syslog server or/and to any external destination (E.g. [Fluentd endpoint](https://www.fluentd.org/)).
+
+
+This plugin is used to extract UFM events from UFM syslog and stream it to a remote [Fluentd](https://www.fluentd.org/) destination.
+It also has the option to duplicate current UFM syslog messages and forward them to a remote syslog destination
 
 Overview
 --------------------------------------------------------
 
-The UFM Enterprise product is Nvidia’s platform for IB fabric management. Through this platform, the various devices (switches, multi-chip systems, cables, etc.) are discovered, configured and the status of the entire fabric is reflected. As a fabric manager, it will be useful to collect the UFM Enterprise events/logs, stream them to the destination endpoint and monitor it. In order to do so, we present UFM syslog stream to an external endpoint (USFS)
+The UFM Enterprise product is Nvidia’s platform for IB fabric management. Through this platform, the various devices (switches, multi-chip systems, cables, etc.) are discovered, configured and the status of the entire fabric is reflected. As a fabric manager, it will be useful to collect the UFM Enterprise events/logs, stream them to the destination endpoint and monitor it. In order to do so, we present UFM Event Stream to FluentBit endpoint (EFS)
 
-![image](usfs-desgin.jpg)
+![image](efs-desgin.jpg)
 
 Plugin Deployment
 --------------------------------------------------------
@@ -39,18 +42,18 @@ Plugin Deployment
 - Load the latest plugin container
   - In case of HA, load the plugin on the standby node as well;
   - if your appliance is connected to the internet, you could simply run:
-    > docker pull mellanox/ufm-plugin-usfs
+    > docker pull mellanox/ufm-plugin-efs
   - if your appliance is not connected to the internet, you need to load the image offline 
     - Use a machine that is connected to the internet to save the docker image 
-      > docker save mellanox/ufm-plugin-usfs:latest | gzip > ufm-plugin-usfs.tar.gz
+      > docker save mellanox/ufm-plugin-efs:latest | gzip > ufm-plugin-efs.tar.gz
     - Move the file to scp shared location that is accessible to the appliance 
     - Fetch the image to the appliance 
-      > image fetch scp://user@hostname/path-to-file/ufm-plugin-usfs.tar.gz
+      > image fetch scp://user@hostname/path-to-file/ufm-plugin-efs.tar.gz
     - Load the image
-      > docker load ufm-plugin-usfs.tar.gz
+      > docker load ufm-plugin-efs.tar.gz
 - Enable & start the plugin 
 
-    > ufm plugin usfs add
+    > ufm plugin efs add
     
     
 -	Check that plugin is up and running with
@@ -62,16 +65,16 @@ Plugin Deployment
   - Load the latest plugin container
       - In case of HA, load the plugin on the standby node as well;
       - if your machine is connected to the internet, you could simply run:
-        > docker pull mellanox/ufm-plugin-usfs
+        > docker pull mellanox/ufm-plugin-efs
       - if your server is not connected to the internet, you need to load the image offline 
         - Use a machine that is connected to the internet to save the docker image 
-          > docker save mellanox/ufm-plugin-usfs:latest | gzip > ufm-plugin-usfs.tar.gz
+          > docker save mellanox/ufm-plugin-efs:latest | gzip > ufm-plugin-efs.tar.gz
         - Move the file to some shared location that is accessible to the UFM machine 
         - Load the image to UFM machine
-          > docker load < /[some-shared-location]/ufm-plugin-usfs.tar.gz
+          > docker load < /[some-shared-location]/ufm-plugin-efs.tar.gz
         
 - Enable & start the plugin
-    > docker exec ufm /opt/ufm/scripts/manage_ufm_plugins.sh add -p usfs 
+    > docker exec ufm /opt/ufm/scripts/manage_ufm_plugins.sh add -p efs 
 
 
 - Check that plugin is up and running with
@@ -86,23 +89,23 @@ Plugin Deployment
 - Load the latest plugin container
   - In case of HA, load the plugin on the standby node as well;
   - if your machine is connected to the internet, you could simply run:
-    > docker pull mellanox/ufm-plugin-usfs
+    > docker pull mellanox/ufm-plugin-efs
   - if your appliance is not connected to the internet, you need to load the image offline 
     - Use a machine that is connected to the internet to save the docker image 
-      > docker save mellanox/ufm-plugin-usfs:latest | gzip > ufm-plugin-usfs.tar.gz
+      > docker save mellanox/ufm-plugin-efs:latest | gzip > ufm-plugin-efs.tar.gz
     - Move the file to some shared location that is accessible to the UFM machine 
     - Load the image to UFM machine
-      > docker load < /[some-shared-location]/ufm-plugin-usfs.tar.gz
+      > docker load < /[some-shared-location]/ufm-plugin-efs.tar.gz
       
 - To enable & start the plugin, run :
 
-    > /opt/ufm/scripts/manage_ufm_plugins.sh add -p usfs
+    > /opt/ufm/scripts/manage_ufm_plugins.sh add -p efs
   
 - Check that plugin is up and running with
  
     >docker ps;
 
-Log file usfs.log is located in /opt/ufm/files/log on the host.
+Log file efs.log is located in /opt/ufm/files/log on the host.
 
 
 Usage
@@ -154,7 +157,7 @@ You can forward the events to any external destination you want; we will show an
 
    METHOD: _PUT_
    
-   URL: _https://[HOST-IP]/ufmRest/plugin/usfs/conf_
+   URL: _https://[HOST-IP]/ufmRest/plugin/efs/conf_
    
    Payload Example:
    ```json
@@ -173,7 +176,7 @@ You can forward the events to any external destination you want; we will show an
     "logs-config": {
         "log_file_backup_count": 5,
         "log_file_max_size": 10485760,
-        "logs_file_name": "usfs.log",
+        "logs_file_name": "/log/efs.log",
         "logs_level": "INFO"
     },
     "streaming": {
@@ -188,7 +191,7 @@ You can forward the events to any external destination you want; we will show an
    ```
 cURL Example:
 ```bash
-curl -XPUT 'https://10.209.36.68/ufmRest/plugin/usfs/conf/' \
+curl -XPUT 'https://10.209.36.68/ufmRest/plugin/efs/conf/' \
  -k \
  -u admin:123456 \
  -H 'Content-Type: application/json' \
@@ -214,7 +217,7 @@ curl -XPUT 'https://10.209.36.68/ufmRest/plugin/usfs/conf/' \
 |  [syslog-destination-endpoint.host](conf/ufm_syslog_streaming_plugin.cfg#L14)   |  False   |                                  Hostname or IPv4 or IPv6 of the external syslog server address endpoint                                  |
 |  [syslog-destination-endpoint.port](conf/ufm_syslog_streaming_plugin.cfg#L15)   |  False   |                                  Port of of the external syslog server address endpoint, Default is 514]                                  |
 |          [streaming.enabled](conf/ufm_syslog_streaming_plugin.cfg#L18)          |   True   |                 If True, the streaming will be started once the required configurations have been set [Default is False]                  |
-|     [logs-config.logs_file_name](conf/ufm_syslog_streaming_plugin.cfg#L21)      |   True   |                                                 Log file name [Default = '/log/usfs.log']                                                 |
+|     [logs-config.logs_file_name](conf/ufm_syslog_streaming_plugin.cfg#L21)      |   True   |                                                 Log file name [Default = '/log/efs.log']                                                 |
 |       [logs-config.logs_level](conf/ufm_syslog_streaming_plugin.cfg#L22)        |   True   |                                                             Default is 'INFO'                                                             |
 |    [logs-config.max_log_file_size](conf/ufm_syslog_streaming_plugin.cfg#L23)    |   True   |                                             Maximum log file size in Bytes [Default is 10 MB]                                             |
 |  [logs-config.log_file_backup_count](conf/ufm_syslog_streaming_plugin.cfg#L24)  |   True   |                                             Maximum number of backup log files [Default is 5]                                             |
@@ -223,5 +226,5 @@ curl -XPUT 'https://10.209.36.68/ufmRest/plugin/usfs/conf/' \
 
    METHOD: _GET_
    
-   URL: _https://[HOST-IP]/ufmRest/plugin/usfs/conf_
+   URL: _https://[HOST-IP]/ufmRest/plugin/efs/conf_
 

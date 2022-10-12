@@ -1,8 +1,8 @@
-FROM ubuntu:20.04 AS usfs_base_ubuntu20
+FROM ubuntu:20.04 AS efs_base_ubuntu20
 
 LABEL maintainer="anana@nvidia.com"
 
-ARG BASE_PATH=/opt/ufm/ufm_plugin_usfs
+ARG BASE_PATH=/opt/ufm/ufm_plugin_efs
 ARG SRC_BASE_DIR=ufm_syslog_streaming_plugin
 
 COPY ${SRC_BASE_DIR}/ ${BASE_PATH}/${SRC_BASE_DIR}/

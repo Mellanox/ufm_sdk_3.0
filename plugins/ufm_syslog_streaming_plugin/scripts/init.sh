@@ -10,21 +10,21 @@
 # provided with the software product.
 
 # ================================================================
-# This script prepares and checks USFS docker container Environment
+# This script prepares and checks efs docker container Environment
 # ================================================================
 
 set -eE
 
-SRC_DIR_PATH=/opt/ufm/ufm_plugin_usfs/ufm_syslog_streaming_plugin
+SRC_DIR_PATH=/opt/ufm/ufm_plugin_efs/ufm_syslog_streaming_plugin
 
 cp $SRC_DIR_PATH/conf/fluentd.conf /config
-cp $SRC_DIR_PATH/conf/usfs_httpd_proxy.conf /config
+cp $SRC_DIR_PATH/conf/efs_httpd_proxy.conf /config
 cp $SRC_DIR_PATH/conf/ufm_syslog_streaming_plugin.cfg /config
 cp $SRC_DIR_PATH/conf/fluent-bit.conf.template /config
 
-touch /config/usfs_shared_volumes.conf
+touch /config/efs_shared_volumes.conf
 
-echo /opt/ufm/files/log/:/log > /config/usfs_shared_volumes.conf
+echo /opt/ufm/files/log/:/log > /config/efs_shared_volumes.conf
 
 # UFM version test
 required_ufm_version=(6 8 0)
