@@ -19,7 +19,11 @@ import requests
 import queue
 import logging
 
-import google.protobuf.empty_pb2
+try:
+    import google.protobuf.empty_pb2
+except ModuleNotFoundError:
+    print("Missing module: protobuf")
+    exit(1)
 
 import grpc_plugin_streamer_pb2_grpc as grpc_plugin_streamer_pb2_grpc
 #import ufm_sim_web_service.grpc_plugin_streamer_pb2 as grpc_plugin_streamer_pb2

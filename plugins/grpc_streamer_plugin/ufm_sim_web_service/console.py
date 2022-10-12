@@ -9,13 +9,23 @@
 # This software product is governed by the End User License Agreement
 # provided with the software product.
 #
-import sys
+import sys,os,platform
 
-import logging
 import grpc_server
 from grpc_client import GrpcClient
 from Config import Constants
-from utils import ufm_rest_client
+try:
+    from utils import ufm_rest_client
+except ModuleNotFoundError as e:
+    if platform.system() == "Windows":
+        print("Error occurred while importing python modules, "
+              "Please make sure that you exported your repository to PYTHONPATH by running: "
+              f'set PYTHONPATH=%PYTHONPATH%;{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}')
+    else:
+        print("Error occurred while importing python modules, "
+              "Please make sure that you exported your repository to PYTHONPATH by running: "
+              f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}"')
+
 
 commands = {'get': ['events', 'alarms', 'links', 'jobs'],
             'client': ['once', 'stream', 'subscribe', 'session', 'create', 'once_id', 'stream_id'],
@@ -29,8 +39,8 @@ class UserActions:
                            'network': "/app/network_views",
                            'events': "/app/events",
                            'alarms': "/app/alarms",
-                           'links': "/app/links",
-                           'jobs': "/app/jobs",
+                           'links': "/resources/links",
+                           'jobs': "/jobs",
                            'system': "/resources/systems"}
     def get_request(self,what_to_bring,host,auth,token):
         if auth is None: auth=[None,None]
@@ -88,7 +98,7 @@ class UserActions:
 class Logger:
     def __init__(self):
         self.terminal = sys.stdout
-        self.log = open("/log/grpc_streamer_console.log", "w")
+        self.log = open("grpc_streamer_console.log", "w")
 
     def write(self,message):
         self.log.write(message)
