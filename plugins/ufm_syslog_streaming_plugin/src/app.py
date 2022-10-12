@@ -28,7 +28,7 @@ from api.conf_api import SyslogStreamingConfigurationsAPI
 
 def _init_logs(config_parser):
     # init logs configs
-    default_file_name = 'usfs.log'
+    default_file_name = 'efs.log'
     logs_file_name = config_parser.get_logs_file_name(default_file_name=default_file_name)
     logs_level = config_parser.get_logs_level()
     max_log_file_size = config_parser.get_log_file_max_size()
@@ -49,11 +49,11 @@ if __name__ == '__main__':
         else:
             Logger.log_message('The streaming is not enabled, '
                                'please enable it and set the streaming configurations using the REST API: '
-                               '[POST] https://<UFM_HOST>/plugin/usfs/conf', LOG_LEVELS.WARNING)
+                               '[POST] https://<UFM_HOST>/plugin/efs/conf', LOG_LEVELS.WARNING)
 
     except ValueError as ve:
         Logger.log_message('The streaming is running without at least one configured destination address, '
-                           'Please set the destination configurations using the plugin/usfs/conf API',
+                           'Please set the destination configurations using the plugin/efs/conf API',
                            LOG_LEVELS.WARNING)
 
     routes_map = {
