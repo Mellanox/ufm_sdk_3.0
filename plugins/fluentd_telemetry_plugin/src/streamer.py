@@ -17,6 +17,7 @@
 """
 import os
 import sys
+from datetime import time
 
 from utils.utils import Utils
 
@@ -59,6 +60,9 @@ class UFMTelemetryConstants:
             "name": '--enable_streaming',
             "help": "If true, the streaming will be started once the required configurations have been set"
         },{
+            "name": '--stream_only_new_samples',
+            "help": "If True, the data will be streamed only in case new samples were pulled from the telemetry"
+        },{
             "name": '--fluentd_host',
             "help": "Host name or IP of fluentd endpoint"
         },{
@@ -94,6 +98,7 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
     STREAMING_SECTION = "streaming"
     STREAMING_SECTION_INTERVAL = "interval"
     STREAMING_SECTION_BULK_STREAMING = "bulk_streaming"
+    STREAMING_SECTION_STREAM_ONLY_NEW_SAMPLES = "stream_only_new_samples"
     STREAMING_SECTION_ENABLED = "enabled"
 
     META_FIELDS_SECTION = "meta-fields"
@@ -129,6 +134,12 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
         return self.safe_get_bool(self.args.bulk_streaming,
                                   self.STREAMING_SECTION,
                                   self.STREAMING_SECTION_BULK_STREAMING,
+                                  True)
+
+    def get_stream_only_new_samples_flag(self):
+        return self.safe_get_bool(self.args.bulk_streaming,
+                                  self.STREAMING_SECTION,
+                                  self.STREAMING_SECTION_STREAM_ONLY_NEW_SAMPLES,
                                   True)
 
     def get_enable_streaming_flag(self):
@@ -194,12 +205,17 @@ class UFMTelemetryStreaming:
 
         self.streaming_interval = self.config_parser.get_streaming_interval()
         self.bulk_streaming_flag = self.config_parser.get_bulk_streaming_flag()
+        self.stream_only_new_samples = self.config_parser.get_stream_only_new_samples_flag()
         self.aliases_meta_fields , self.custom_meta_fields = self.config_parser.get_meta_fields()
 
         self.fluentd_host = self.config_parser.get_fluentd_host()
         self.fluentd_port = self.config_parser.get_fluentd_port()
         self.fluentd_timeout = self.config_parser.get_fluentd_timeout()
         self.fluentd_msg_tag = self.config_parser.get_fluentd_msg_tag(self.ufm_telemetry_host)
+
+        self.last_streamed_data_sample_timestamp = None
+
+        self.TIMESTAMP_CSV_FIELD_KEY = 'timestamp'
 
     def _get_metrics(self):
         _host = f'[{self.ufm_telemetry_host}]' if Utils.is_ipv6_address(self.ufm_telemetry_host) else self.ufm_telemetry_host
@@ -232,6 +248,7 @@ class UFMTelemetryStreaming:
         rows = data.split(line_separator)
         keys = rows[0].split(attrs_sepatator)
         output = []
+        sample_timestamp = rows[1].split(attrs_sepatator)[keys.index(self.TIMESTAMP_CSV_FIELD_KEY)]
         for row in rows[1:]:
             if len(row) > 0:
                 values = row.split(attrs_sepatator)
@@ -240,12 +257,15 @@ class UFMTelemetryStreaming:
                     dic[keys[i]] = values[i]
                 dic = self._append_meta_fields_to_dict(dic)
                 output.append(dic)
-        return output
+        return output, sample_timestamp
 
     def _parse_telemetry_prometheus_metrics_to_json(self, data):
         id_keys = ['node_guid','port_guid', 'port_num']
         elements_dict = {}
+        timestamp = None
         for family in text_string_to_metric_families(data):
+            if len(family.samples):
+                timestamp = family.samples[0].timestamp
             for sample in family.samples:
                 id = ''
                 for key in id_keys:
@@ -258,11 +278,12 @@ class UFMTelemetryStreaming:
                     }
                     row.update(sample.labels)
                     # rename source -> source_id in order to be unified with the csv format key
-                    row["source_id"] = row.pop("source")
+                    if row.get('source'):
+                        row["source_id"] = row.pop("source")
                     row = self._append_meta_fields_to_dict(row)
                     elements_dict[id] = row
                 elements_dict[id][sample.name] = sample.value
-        return list(elements_dict.values())
+        return list(elements_dict.values()), timestamp
 
     def _stream_data_to_fluentd(self, data_to_stream):
         logging.info(f'Streaming to Fluentd IP: {self.fluentd_host} port: {self.fluentd_port} timeout: {self.fluentd_timeout}')
@@ -288,16 +309,22 @@ class UFMTelemetryStreaming:
         if telemetry_data:
             try:
                 ufm_telemetry_is_prometheus_format = telemetry_data.startswith('#')
-                data_to_stream = self._parse_telemetry_prometheus_metrics_to_json(telemetry_data) \
+                data_to_stream, new_data_timestamp = self._parse_telemetry_prometheus_metrics_to_json(telemetry_data) \
                     if ufm_telemetry_is_prometheus_format else \
                     self._parse_telemetry_csv_metrics_to_json(telemetry_data)
-                if self.bulk_streaming_flag:
-                    self._stream_data_to_fluentd(data_to_stream)
-                else:
-                    for row in data_to_stream:
-                        self._stream_data_to_fluentd(row)
+                if not self.stream_only_new_samples or \
+                        (self.stream_only_new_samples and new_data_timestamp != self.last_streamed_data_sample_timestamp):
+                    if self.bulk_streaming_flag:
+                        self._stream_data_to_fluentd(data_to_stream)
+                    else:
+                        for row in data_to_stream:
+                            self._stream_data_to_fluentd(row)
+                    self.last_streamed_data_sample_timestamp = new_data_timestamp
+                elif self.stream_only_new_samples:
+                    logging.info("No new samples, nothing to stream")
+
             except Exception as e:
-                logging.error("Exception occured during parsing telemetry data: "+ str(e))
+                logging.error("Exception occurred during parsing telemetry data: "+ str(e))
         else:
             logging.error("Failed to get the telemetry data metrics")
 

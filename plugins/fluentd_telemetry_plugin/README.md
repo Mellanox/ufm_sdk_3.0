@@ -151,7 +151,8 @@ Usage
         "streaming": {
             "interval": 10,
             "bulk_streaming": true,
-            "enabled": true
+            "enabled": true,
+            "stream_only_new_samples": true
         },
         "logs-config": {
             "log_file_backup_count": 5,
@@ -173,22 +174,23 @@ Usage
  Configuration Parameters Details:
 --------------------------------------------------------
 
-| Parameter | Required | Description |
-| :---: | :---: |:---: |
-| [fluentd-endpoint.host](conf/fluentd_telemetry_plugin.cfg#L7) | True |  Hostname or IPv4 or IPv6 for Fluentd endpoint
-| [fluentd-endpoint.port](conf/fluentd_telemetry_plugin.cfg#L8) | True | Port for Fluentd endpoint [this port should be the port which is configured in [fluentd.conf](conf/fluentd.conf#L4)]
-| [fluentd-endpoint.timeout](conf/fluentd_telemetry_plugin.cfg#L9) | True | Timeout for Fluentd endpoint streaming [Default is 120 seconds]
-| [fluentd-endpoint.message_tag_name](conf/fluentd_telemetry_plugin.cfg#L10) | False | Message Tag Name for Fluentd endpoint message [Default is the ufm_telemetry_host]
-| [ufm-telemetry-endpoint.host](conf/fluentd_telemetry_plugin.cfg#L2) | True | Hostname or IPv4 or IPv6 for The UFM Telemetry Endpoint [Default is 127.0.0.1]
-| [ufm-telemetry-endpoint.port](conf/fluentd_telemetry_plugin.cfg#L3) | True | Port for The UFM Telemetry Endpoint [Default is 9001]
-| [ufm-telemetry-endpoint.url](conf/fluentd_telemetry_plugin.cfg#L4) | True | URL for The UFM Telemetry Endpoint [Default is 'labels/csv/metrics', for Prometheus format you can use 'labels/metrics']
-| [streaming.interval](conf/fluentd_telemetry_plugin.cfg#L13) | True | Streaming interval [Default is 10 seconds]
-| [streaming.bulk_streaming](conf/fluentd_telemetry_plugin.cfg#L14) | True | if True all telemetry records will be streamed in one message; otherwise, each record will be streamed in a separated message [Default is True]
-| [streaming.enabled](conf/fluentd_telemetry_plugin.cfg#L15) | True | If True, the streaming will be started once the required configurations have been set [Default is False]
-| [logs-config.logs_file_name](conf/fluentd_telemetry_plugin.cfg#L18) | True | Log file name [Default = '/log/tfs.log']
-| [logs-config.logs_level](conf/fluentd_telemetry_plugin.cfg#L20) | True | Default is 'INFO'
-| [logs-config.max_log_file_size](conf/fluentd_telemetry_plugin.cfg#L22) | True | Maximum log file size in Bytes [Default is 10 MB]
-| [logs-config.log_file_backup_count](conf/fluentd_telemetry_plugin.cfg#L24) | True | Maximum number of backup log files [Default is 5]
+|                                 Parameter                                  | Required |                                                                   Description                                                                   |
+|:--------------------------------------------------------------------------:|:--------:|:-----------------------------------------------------------------------------------------------------------------------------------------------:|
+|       [fluentd-endpoint.host](conf/fluentd_telemetry_plugin.cfg#L7)        |   True   |                                                  Hostname or IPv4 or IPv6 for Fluentd endpoint                                                  |
+|       [fluentd-endpoint.port](conf/fluentd_telemetry_plugin.cfg#L8)        |   True   |              Port for Fluentd endpoint [this port should be the port which is configured in [fluentd.conf](conf/fluentd.conf#L4)]               |
+|      [fluentd-endpoint.timeout](conf/fluentd_telemetry_plugin.cfg#L9)      |   True   |                                         Timeout for Fluentd endpoint streaming [Default is 120 seconds]                                         |
+| [fluentd-endpoint.message_tag_name](conf/fluentd_telemetry_plugin.cfg#L10) |  False   |                                Message Tag Name for Fluentd endpoint message [Default is the ufm_telemetry_host]                                |
+|    [ufm-telemetry-endpoint.host](conf/fluentd_telemetry_plugin.cfg#L2)     |   True   |                                 Hostname or IPv4 or IPv6 for The UFM Telemetry Endpoint [Default is 127.0.0.1]                                  |
+|    [ufm-telemetry-endpoint.port](conf/fluentd_telemetry_plugin.cfg#L3)     |   True   |                                              Port for The UFM Telemetry Endpoint [Default is 9001]                                              |
+|     [ufm-telemetry-endpoint.url](conf/fluentd_telemetry_plugin.cfg#L4)     |   True   |            URL for The UFM Telemetry Endpoint [Default is 'labels/csv/metrics', for Prometheus format you can use 'labels/metrics']             |
+|        [streaming.interval](conf/fluentd_telemetry_plugin.cfg#L13)         |   True   |                                                   Streaming interval [Default is 10 seconds]                                                    |
+|     [streaming.bulk_streaming](conf/fluentd_telemetry_plugin.cfg#L14)      |   True   | if True all telemetry records will be streamed in one message; otherwise, each record will be streamed in a separated message [Default is True] |
+| [streaming.stream_only_new_samples](conf/fluentd_telemetry_plugin.cfg#L15) |   True   |                  If True, the data will be streamed only in case new samples were pulled from the telemetry [Default is True]                   |
+|         [streaming.enabled](conf/fluentd_telemetry_plugin.cfg#L16)         |   True   |                    If True, the streaming will be started once the required configurations have been set [Default is False]                     |
+|    [logs-config.logs_file_name](conf/fluentd_telemetry_plugin.cfg#L19)     |   True   |                                                    Log file name [Default = '/log/tfs.log']                                                     |
+|      [logs-config.logs_level](conf/fluentd_telemetry_plugin.cfg#L21)       |   True   |                                                                Default is 'INFO'                                                                |
+|   [logs-config.max_log_file_size](conf/fluentd_telemetry_plugin.cfg#L23)   |   True   |                                                Maximum log file size in Bytes [Default is 10 MB]                                                |
+| [logs-config.log_file_backup_count](conf/fluentd_telemetry_plugin.cfg#L25) |   True   |                                                Maximum number of backup log files [Default is 5]                                                |
 
    - Records ٌMeta-fields:
    
