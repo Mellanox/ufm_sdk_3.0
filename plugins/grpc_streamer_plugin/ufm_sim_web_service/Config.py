@@ -41,7 +41,8 @@ class Constants:
     GRPC_STREAMER_SERVICE_PATH = "/lib/systemd/system/grpc_streamer.service"
 
     #config_file_name = "../build/config/grpc_streamer.conf"
-    config_file_name = "config/grpc_streamer.conf"
+    config_file_name = "config/grpc-streamer.conf"
+    config_port_file = "config/grpc-streamer_httpd_proxy.conf"
     grpc_max_workers = 10
     log_level = logging.INFO
     log_file_backup_count = 5

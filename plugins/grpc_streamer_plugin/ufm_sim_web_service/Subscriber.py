@@ -87,7 +87,7 @@ class Subscriber:
 
             message = self._encode_results_(name, result)
             queue.put(message) # sending the result to main thread
-            if len(result) > 0 and callback:
+            if callback:
                 callback.put(self.new_data_callback) # calling a callback to get this result
             time.sleep(interval) # sleep for interval time
 
