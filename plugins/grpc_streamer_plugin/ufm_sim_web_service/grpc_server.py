@@ -14,7 +14,11 @@ import configparser
 import os.path
 import threading
 import time
-import grpc
+try:
+    import grpc
+except ModuleNotFoundError:
+    print("Module missing: grpcio\n please pip install it")
+    exit(1)
 import requests
 import queue
 import logging
@@ -59,10 +63,12 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         if os.path.exists(Constants.config_file_name):
             grpc_config.read(Constants.config_file_name)
             Constants.log_level = grpc_config.get("Common","log_level")
-            Constants.UFM_PLUGIN_PORT = grpc_config.getint("Common","grpc_port")
             Constants.log_file_max_size = grpc_config.getint("Common","log_file_max_size")
             Constants.log_file_backup_count = grpc_config.getint("Common","log_file_backup_count")
             Constants.grpc_max_workers = grpc_config.getint("Common","grpc_max_workers")
+        if os.path.exists(Constants.config_port_file):
+            grpc_config.read(Constants.config_port_file)
+            Constants.UFM_PLUGIN_PORT = grpc_config.getint("Common","grpc_port")
 
 
     def config_server(self, host):

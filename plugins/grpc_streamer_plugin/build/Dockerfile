@@ -19,7 +19,7 @@ COPY ufm_sim_web_service/ ${BASE_PATH}/ufm_sim_web_service/
 
 COPY config/supervisord.conf /etc/supervisor/conf.d/
 COPY config/init.sh config/deinit.sh /
-COPY config/grpc_streamer.conf ${BASE_PATH}/
+COPY config/grpc-streamer.conf config/grpc-streamer_shared_volumes.conf ${BASE_PATH}/
 
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
