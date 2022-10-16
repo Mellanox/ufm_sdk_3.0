@@ -20,6 +20,7 @@ message gRPCStreamerID{string job_id = 1;}
 message gRPCStreamerParams{
   string message_id = 1; // unique identifier for messages
   string ufm_api_name = 2; // what rest api receive the data from
+  //currently the list of api from ufm that are supported are [Jobs, Events, Links, Alarms]
   google.protobuf.Timestamp timestamp = 3; //what time we created the message
   string data = 4; // data of rest api call
 }

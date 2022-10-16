@@ -98,7 +98,7 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         conf_file = GENERAL_UTILS.getGrpcStreamConfFile()
         self.log_name = Constants.DEF_LOG_FILE
         if not os.path.exists(self.log_name):
-            os.makedirs('/'.join(self.log_name.split('/')[:-1]))
+            os.makedirs('/'.join(self.log_name.split('/')[:-1]), exist_ok=True)
         logger = logging.getLogger(self.log_name)
 
         logging_level=logging.getLevelName(Constants.log_level) \
@@ -403,22 +403,23 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
             try:
                 try:
                     callback = self.callbacks[ip].get(True)
+                    logging.info(Constants.LOG_MESSEAGE_STREAM%ip)
                     ip = callback()
                 except queue.Empty:
                     pass
-                if self.feeds.get(context) is not None:
-                    while not self.feeds[context].empty():
-                        result = self.feeds[context].get()
+                if self.feeds.get(context) is None: continue
 
-                        if ip and ip in self.subscribeDict_queue and not is_subscriber:
-                            for subscriber in self.subscribeDict_queue[ip]:
-                                self.feeds[subscriber].put(result)
-                                self.callbacks[subscriber].put(self.emptySubscriber)
+                while not self.feeds[context].empty():
+                    result = self.feeds[context].get()
 
-                        if isinstance(result, grpc_plugin_streamer_pb2.gRPCStreamerParams):
-                            yield result
-                        else:
-                            raise StopStream('stopping stream')
+                    if ip and ip in self.subscribeDict_queue and not is_subscriber:
+                        for subscriber in self.subscribeDict_queue[ip]:
+                            self.feeds[subscriber].put(result)
+                            self.callbacks[subscriber].put(self.emptySubscriber)
+                    if isinstance(result, grpc_plugin_streamer_pb2.gRPCStreamerParams):
+                        yield result
+                    else:
+                        raise StopStream('stopping stream')
 
             except IndexError:
                 print("That not good")
