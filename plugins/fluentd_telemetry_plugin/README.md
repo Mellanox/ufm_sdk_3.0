@@ -141,7 +141,7 @@ Usage
 {
         "ufm-telemetry-endpoint": {
             "host": "127.0.0.1",
-            "url": "labels/csv/metrics",
+            "url": "csv/metrics",
             "port": 9001
         },
         "fluentd-endpoint": {
@@ -182,7 +182,7 @@ Usage
 | [fluentd-endpoint.message_tag_name](conf/fluentd_telemetry_plugin.cfg#L10) |  False   |                                Message Tag Name for Fluentd endpoint message [Default is the ufm_telemetry_host]                                |
 |    [ufm-telemetry-endpoint.host](conf/fluentd_telemetry_plugin.cfg#L2)     |   True   |                                 Hostname or IPv4 or IPv6 for The UFM Telemetry Endpoint [Default is 127.0.0.1]                                  |
 |    [ufm-telemetry-endpoint.port](conf/fluentd_telemetry_plugin.cfg#L3)     |   True   |                                              Port for The UFM Telemetry Endpoint [Default is 9001]                                              |
-|     [ufm-telemetry-endpoint.url](conf/fluentd_telemetry_plugin.cfg#L4)     |   True   |            URL for The UFM Telemetry Endpoint [Default is 'labels/csv/metrics', for Prometheus format you can use 'labels/metrics']             |
+|     [ufm-telemetry-endpoint.url](conf/fluentd_telemetry_plugin.cfg#L4)     |   True   |            URL for The UFM Telemetry Endpoint [Default is 'csv/metrics', for Prometheus format you can use 'metrics']             |
 |        [streaming.interval](conf/fluentd_telemetry_plugin.cfg#L13)         |   True   |                                                   Streaming interval [Default is 10 seconds]                                                    |
 |     [streaming.bulk_streaming](conf/fluentd_telemetry_plugin.cfg#L14)      |   True   | if True all telemetry records will be streamed in one message; otherwise, each record will be streamed in a separated message [Default is True] |
 | [streaming.stream_only_new_samples](conf/fluentd_telemetry_plugin.cfg#L15) |   True   |                  If True, the data will be streamed only in case new samples were pulled from the telemetry [Default is True]                   |

@@ -13,6 +13,6 @@
 set -eE
 
 # removing log file
-rm -rf /opt/ufm/log/tfs.log*
+rm -rf /log/tfs*.log*
 
 exit 0
