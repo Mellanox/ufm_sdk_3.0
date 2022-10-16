@@ -9,6 +9,8 @@
 # This software product is governed by the End User License Agreement
 # provided with the software product.
 #
+import time
+
 import grpc
 import grpc_plugin_streamer_pb2 as grpc_plugin_streamer_pb2
 import grpc_plugin_streamer_pb2_grpc as grpc_plugin_streamer_pb2_grpc
@@ -49,11 +51,15 @@ class GrpcClient:
 
     def _end_stream(self,interator):
         result_list = []
+        time_now=time.time()
         for x in interator:
-            print(x.data)
+            time_receive=time.time()
+            print(x.ufm_api_name+";{:.2f};".format(time_receive-time_now)+x.data)
+            time_now=time_receive
             result_list.append(x)
 
         self.channel.close()
+        return result_list
 
     def add_session(self, username, password, token=None):
         try:

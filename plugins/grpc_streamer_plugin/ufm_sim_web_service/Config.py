@@ -73,6 +73,7 @@ class Constants:
     LOG_CALL_SUBSCRIBE = "Called to subscribe to ID and stream data when a stream with that ID is used. %s"
     LOG_GET_PARAMS = "Called to get api params from a job. %s"
     LOG_CREATE_STREAM = "Configurate the stream with job. %s"
+    LOG_MESSEAGE_STREAM = "The stream got a message to transfer to %s."
     LOG_START_STREAM = "String to stream job with threads. %s"
     LOG_STOP_STREAM = "Stopping stream because client stop connecting to the server. %s"
     ERROR_NO_SESSION = "Cant run client without session, please use CreateSession first. Need to create a session"
