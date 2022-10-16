@@ -34,7 +34,7 @@ message runOnceRespond{
 //message about Subscriber params, containing the ufm api params
 message SubscriberParams{
   message APIParams {
-    string ufm_api_name = 1;
+    string ufm_api_name = 1; //currently the list of api from ufm that are supported are [Jobs, Events, Links, Alarms]
     int32 interval = 2;
     optional bool only_delta = 3;
   }

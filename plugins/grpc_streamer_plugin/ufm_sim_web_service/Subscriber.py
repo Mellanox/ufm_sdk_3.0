@@ -21,7 +21,11 @@ from Config import RESTCall,Constants
 
 class Subscriber:
     """
-    For manage the client job, request get calls and threads
+    For manage the client job, request get calls and threads (thread in streaming for each api call).
+    The grpc server uses this class to manage the rest calls, This is for one client in server.
+
+    The Functions call the rest api of the ufm once or in a stream.
+    for each result from the get calls create gRPCStreamerParams message to send by the server.
     """
     job_id_messages = 1
     lock = Lock()
@@ -29,7 +33,8 @@ class Subscriber:
     def __init__(self, ip, rest_api_calls, session, host):
         """
         :param ip: name/ip of machine that asked this information
-        :param rest_api_calls: list of string that represent the wanted calls
+        :param rest_api_calls: list of (tuples/list) that represent the wanted calls i.e
+        [('Events', 10, False), ['Alarms', 25, False]]
         :param session: session that allow it to get rest data
         :param host: the host of machine of the ufm
         """
@@ -39,14 +44,16 @@ class Subscriber:
         self.stop_all = False
         self._session = session
         self._host = host
-        self.processing_calls(rest_api_calls)
+        self.__processing_calls(rest_api_calls)
         self.queue = None
         self.callback = None
 
-    def processing_calls(self, rest_api_calls):
+    def __processing_calls(self, rest_api_calls):
         """
         extract the information from rest calls
-        :param rest_api_calls: list of params of calls
+        :param rest_api_calls: list of (tuples/list) that represent the wanted calls i.e
+        [('Events', 10, False), ['Alarms', 25, False]]
+        We want to the user the ability to have the ability to use both list and tuple for easier communication.
         :return:
         """
         if rest_api_calls is None: return
@@ -77,7 +84,7 @@ class Subscriber:
         self.queue = queue
         self.callback = callback
         while not self.stop_all:
-            result = self.send_get_request(location, session)
+            result = self.__send_get_request(location, session)
             if result.status_code != 200:
                 break
             if delta:
@@ -123,7 +130,7 @@ class Subscriber:
         """
         messages = []
         for call in self.calls:
-            respond = self.send_get_request(call[3],session)
+            respond = self.__send_get_request(call[3],session)
             if respond is None:
                 continue
             if respond.status_code != 200:
@@ -147,7 +154,7 @@ class Subscriber:
         if not(self.callback and self.queue):
             return
         for call in self.calls:
-            respond = self.send_get_request(call[3])
+            respond = self.__send_get_request(call[3])
             if respond.status_code != 200:
                 continue
             data = respond.json()
@@ -188,7 +195,7 @@ class Subscriber:
             Subscriber.job_id_messages += 1
         return des_message
 
-    def send_get_request(self,resource_path, session):
+    def __send_get_request(self,resource_path, session):
         """
         get rest call from the path that was given
         :param resource_path: path to the api we want to get

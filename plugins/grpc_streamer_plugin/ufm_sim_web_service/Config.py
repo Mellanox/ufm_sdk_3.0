@@ -31,8 +31,8 @@ class Constants:
     DEF_LOG_FILE = '/log/grpc_streamer_server.log'
     REST_URL_EVENTS = "/app/events"
     REST_URL_ALARMS = "/app/alarms"
-    REST_URL_LINKS = "/app/links"
-    REST_URL_JOBS = "/app/jobs"
+    REST_URL_LINKS = "/resources/links"
+    REST_URL_JOBS = "/jobs"
     REST_DEFAULT_INTERVAL_LOW = 10
     REST_DEFAULT_INTERVAL_HIGH = 60
 
