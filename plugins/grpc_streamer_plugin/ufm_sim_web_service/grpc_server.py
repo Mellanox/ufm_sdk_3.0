@@ -155,11 +155,11 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
             if result.status_code == 200:
                 logging.info(Constants.LOG_CREATE_SESSION % client)
                 return session, "Success"
-            logging.info(Constants.LOG_CANNOT_UFM%result.status_code)
-            return None, Constants.LOG_CANNOT_UFM + str(result.status_code)
+            logging.info(Constants.LOG_CANNOT_UFM % result.status_code)
+            return None, Constants.LOG_CANNOT_UFM % str(result.status_code)
         except requests.ConnectionError as e:
-            logging.error(Constants.LOG_CANNOT_UFM%str(e))
-            return None, Constants.LOG_CANNOT_SESSION + str(e)
+            logging.error(Constants.LOG_CANNOT_UFM % ("Connection error:"+str(e)))
+            return None, Constants.LOG_CANNOT_SESSION % ("Connection error:"+str(e))
         except Exception as e:
             logging.error(Constants.LOG_CANNOT_UFM % str(e))
             return None, Constants.LOG_CANNOT_SESSION % str(e)
@@ -202,7 +202,7 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         for key in self.subscribers:
             messages.append(encode_subscriber(self.subscribers[key]))
 
-        return grpc_plugin_streamer_pb2.ListSubscriberParams(Subscribers=messages)
+        return grpc_plugin_streamer_pb2.ListSubscriberParams(subscribers=messages)
 
     def AddSubscriber(self, request, context):
         """
@@ -219,14 +219,14 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
             return respond
 
         if ip in self.subscribers:
-            respond.respond = "WE ALREADY HAVE IT:" + ip
+            respond.respond = "The server already have the id:" + ip
             logging.info(Constants.LOG_CANNOT_SUBSCRIBER+Constants.LOG_EXISTED_SUBSCRIBER%ip)
         elif len(param_results) == 0:
             respond.respond = Constants.LOG_NO_REST_SUBSCRIBER
             logging.info(Constants.LOG_CANNOT_SUBSCRIBER+Constants.LOG_NO_REST_SUBSCRIBER)
         else:
             self.subscribers[ip] = Subscriber(ip, param_results, self._session[ip], self._host)
-            respond.respond = "Created user with session, added new ip:" + ip
+            respond.respond = "Created user with session, added new id:" + ip
             logging.info(Constants.LOG_CREATE_SUBSCRIBER % ip)
         return respond
 
@@ -268,6 +268,9 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         logging.info(Constants.LOG_EDIT_SUBSCRIBER%ip)
         if ip not in self._session:
             return grpc_plugin_streamer_pb2.SessionRespond(respond=Constants.ERROR_NO_SESSION)
+        if len(param_results) == 0:
+            logging.info(Constants.LOG_CANNOT_SUBSCRIBER + Constants.LOG_NO_REST_SUBSCRIBER)
+            return grpc_plugin_streamer_pb2.SessionRespond(respond=Constants.LOG_NO_REST_SUBSCRIBER)
         self.subscribers[ip] = Subscriber(ip, param_results, self._session[ip], self._host)
         return grpc_plugin_streamer_pb2.SessionRespond(respond="")
 
