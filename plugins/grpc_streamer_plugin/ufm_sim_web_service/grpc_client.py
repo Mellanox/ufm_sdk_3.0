@@ -14,6 +14,7 @@ import time
 import grpc
 import grpc_plugin_streamer_pb2 as grpc_plugin_streamer_pb2
 import grpc_plugin_streamer_pb2_grpc as grpc_plugin_streamer_pb2_grpc
+from google.protobuf.empty_pb2 import Empty
 from Subscriber import Subscriber
 from Config import Constants
 
@@ -139,6 +140,15 @@ class GrpcClient:
         except grpc.RpcError as e:
             print(f"client couldnt connect: {e}")
             return False
+
+    def subscriberList(self):
+        try:
+            self.channel = grpc.insecure_channel(self.grpc_channel)
+            self.stub = grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamerServiceStub(self.channel)
+            return self.stub.ListSubscribers(Empty())
+        except grpc.RpcError as e:
+            print(f"server couldnt connect: {e}")
+            return None
 
 
 class Runner():

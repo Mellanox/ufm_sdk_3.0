@@ -18,18 +18,21 @@ try:
     from utils import ufm_rest_client
 except ModuleNotFoundError as e:
     if platform.system() == "Windows":
-        print("Error occurred while importing python modules, "
+        print("Error occurred while importing python modules, Cannot use get command"
               "Please make sure that you exported your repository to PYTHONPATH by running: "
               f'set PYTHONPATH=%PYTHONPATH%;{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}')
     else:
-        print("Error occurred while importing python modules, "
+        print("Error occurred while importing python modules, Cannot use get command"
               "Please make sure that you exported your repository to PYTHONPATH by running: "
               f'export PYTHONPATH="${{PYTHONPATH}}:{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}"')
 
 
-commands = {'get': ['events', 'alarms', 'links', 'jobs'],
+COMMANDS = {'get': ['events', 'alarms', 'links', 'jobs'],
             'client': ['once', 'stream', 'subscribe', 'session', 'create', 'once_id', 'stream_id'],
-            'server': ['up', 'destinations', 'down']}
+            'server': ['up', 'subscribers', 'down'],
+            'port': [],'exit':[]}
+BOLD = '\033[1m'
+BOLD_END = '\033[0;0m'
 
 
 class UserActions:
@@ -42,6 +45,8 @@ class UserActions:
                            'links': "/resources/links",
                            'jobs': "/jobs",
                            'system': "/resources/systems"}
+        self.grpc_port = Constants.UFM_PLUGIN_PORT
+
     def get_request(self,what_to_bring,host,auth,token):
         if auth is None: auth=[None,None]
         user=ufm_rest_client.UfmRestClient(host,"https",token,"ufmRest"+("V3" if token else ""),auth[0],auth[1])
@@ -59,7 +64,7 @@ class UserActions:
             return
 
         respond = ''
-        client = GrpcClient(server_ip, Constants.UFM_PLUGIN_PORT, id)
+        client = GrpcClient(server_ip, self.grpc_port, id)
         if action == 'session':
             if auth is None:
                 auth = [None, None]
@@ -80,20 +85,34 @@ class UserActions:
         return respond
 
     def server_action(self, ufm_ip, action):
-        #['up', 'destinations', 'down']
+        #['up', 'subscribers', 'down']
         try:
             if action=='up':
                 self.server = grpc_server.GRPCPluginStreamerServer(ufm_ip)
                 self.server.start()
                 return
-            elif action == 'down':
+            if action == 'down':
                 self.server.stop()
                 return
-            elif action == 'destinations':
-                print(self.server.subscribers)
-                return
+            if action == 'subscribers':
+                if ufm_ip is None:
+                    if self.server is None:
+                        print("Server is not up in console, use argument --server_ip=server_ip for "
+                              "list of subscribers in the grpc server")
+                        return
+                    print(self.server.subscribers)
+                    return
+                print(GrpcClient(ufm_ip,self.grpc_port,"list").subscriberList())
         except Exception as e:
             print(e)
+
+    def change_port(self,new_port):
+        try:
+            self.grpc_port = int(new_port)
+        except ValueError as e:
+            print(e)
+            print("write the number of port you want, for example:"
+                  " port 8004")
 
 class Logger:
     def __init__(self):
@@ -109,24 +128,25 @@ class Logger:
         self.terminal.flush()
 
 def print_usage():
-    print(f"can only use {len(commands)} main commands: {list(commands.keys())}\n")
-    print(f"get command can get from rest api from machine, need what rest api choosing from {commands['get']}")
-    print("also needs ufm ip and and auth. for example this is a correct get command")
-    print("get events --host=localhost --auth=username,password\n")
-    print(f"server command manage a grpc server. need an action choosing from {commands['server']}")
-    print('if using up also need ufm ip to create it. for example')
-    print("server up --ufm_ip=localhost")
-    print("server destinations\n")
-    print(f"client command create client to connect to the server using any of those actions {commands['client']}.")
-    print('to get information from grpc server one need to create session>destination> once/stream with id.')
-    print("or you can create a once/stream request with once/stream and provide all.")
-    print("or there is possibility to subscribe to destination stream with given id.")
-    print("examples :")
-    print("client session --server_ip=localhost --id=client1 --auth=username,password --token=token")
-    print("client create --server_ip=localhost --id=client1 --apis=events,links,alarms")
-    print("client once_id --server_ip=localhost --id=client1")
-    print("client stream --server_ip=localhost --id=client2 --auth=username,password --apis=events;40;True,links;20;False,alarms;10")
-    print("client subscribe --server_ip=localhost --id=client1")
+    print(f"can only use {len(COMMANDS)} main commands: {list(COMMANDS.keys())}\n\n"
+          f"{BOLD}port{BOLD_END} command change the port the console is listening to grpc,\n"
+          f"The default port is {Constants.UFM_PLUGIN_PORT}, and it is on the server as well\n"
+          f"port <number_grpc_port>\n\n"
+          f"{BOLD}get{BOLD_END} command can get from rest api from machine, need what rest api choosing from {COMMANDS['get']}\n"
+          f"also needs ufm ip and and auth. for example this is a correct get command\n"
+          f"get events --host=localhost --auth=username,password\n\n"
+          f"{BOLD}server{BOLD_END} command manage a grpc server. need an action choosing from {COMMANDS['server']}\n"
+          f"if using up also need ufm ip to create it. for example\nserver up --ufm_ip=localhost\nserver subscribers\n\n"
+          f"{BOLD}client{BOLD_END} command create client to connect to the server using any of those actions {COMMANDS['client']}.\n"
+          f"to get information from grpc server one need to create session>subscribe> once/stream with id.\n"
+          f"or you can create a once/stream request with once/stream and provide all.\n"
+          f"or there is possibility to subscribe to subscriber stream with given id.\n"
+          f"examples :\n"
+          f"client session --server_ip=localhost --id=client1 --auth=username,password --token=token\n"
+          f"client create --server_ip=localhost --id=client1 --apis=events,links,alarms\n"
+          f"client once_id --server_ip=localhost --id=client1\n"
+          f"client stream --server_ip=localhost --id=client2 --auth=username,password --apis=events;40;True,links;20;False,alarms;10\n"
+          f"client subscribe --server_ip=localhost --id=client1")
     command = input("enter command:")
     return command
 
@@ -159,16 +179,23 @@ def main():
     while command != 'exit':
         print(">>" + command)
         parts = ' '.join(command.split()).split(' ')
-        if len(parts) < 2 or parts[0] not in commands.keys() or parts[1] not in commands[parts[0]]:
+        main_function = parts[0]
+        if main_function == 'port':
+            if len(parts)==2:
+                user.change_port(parts[1])
+            command = input("enter command:") if len(parts)==2 else print_usage()
+            continue
+
+        if len(parts) < 2 or main_function not in COMMANDS.keys() or parts[1] not in COMMANDS[main_function]:
             command = print_usage()
             continue
         try:
             args = process_args(parts[2:])
-            if parts[0] == 'server':
+            if main_function == 'server':
                 user.server_action(args[0], parts[1])
-            elif parts[0] == 'get':
+            elif main_function == 'get':
                 user.get_request(host=args[0], auth=args[2], what_to_bring=parts[1],token=args[4])
-            elif parts[0] == 'client':
+            elif main_function == 'client':
                 user.client_actions(server_ip=args[0], action=parts[1], id=args[1], api_list=args[3], auth=args[2], token=args[4])
         except Exception as e:
             print(e)
