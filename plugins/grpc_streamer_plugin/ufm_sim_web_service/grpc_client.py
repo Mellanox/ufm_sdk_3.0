@@ -9,7 +9,7 @@
 # This software product is governed by the End User License Agreement
 # provided with the software product.
 #
-import time
+#import time
 
 import grpc
 import grpc_plugin_streamer_pb2 as grpc_plugin_streamer_pb2
@@ -20,6 +20,9 @@ from Config import Constants
 
 
 class GrpcClient:
+    """
+    An example grpc client that the console uses, This can be extended to what users what.
+    """
 
     def __init__(self, server_ip, server_port,job_id):
         self.grpc_channel = f'{server_ip}:{server_port}'
@@ -52,11 +55,13 @@ class GrpcClient:
 
     def _end_stream(self,interator):
         result_list = []
-        time_now=time.time()
+        #time_now=time.time()
         for x in interator:
-            time_receive=time.time()
-            print(x.ufm_api_name+";{:.2f};".format(time_receive-time_now)+x.data)
-            time_now=time_receive
+            #time_receive = time.time()
+            print(x.ufm_api_name + ";" +
+                  #";{:.2f};".format(time_receive-time_now)+
+                  x.data)
+            #time_now = time_receive
             result_list.append(x)
 
         self.channel.close()

@@ -53,7 +53,7 @@ class Subscriber:
         extract the information from rest calls
         :param rest_api_calls: list of (tuples/list) that represent the wanted calls i.e
         [('Events', 10, False), ['Alarms', 25, False]]
-        We want to the user the ability to have the ability to use both list and tuple for easier communication.
+        We want the user to have the ability to use both list and tuple for easier communication with the server.
         :return:
         """
         if rest_api_calls is None: return

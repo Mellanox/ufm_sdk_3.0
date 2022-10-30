@@ -9,7 +9,6 @@
 # This software product is governed by the End User License Agreement
 # provided with the software product.
 #
-import argparse
 import configparser
 import os.path
 import threading
@@ -17,7 +16,7 @@ import time
 try:
     import grpc
 except ModuleNotFoundError:
-    print("Module missing: grpcio\n please pip install it")
+    print("Missing module: grpcio")
     exit(1)
 import requests
 import queue
@@ -48,24 +47,39 @@ class StopStream(Exception):
 
 
 class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamerServiceServicer):
+    """
+    Server of grpc that supports the function from the proto file.
+    Communicate with grpc clients that run with the same port as it.
+    Is configurable from the config file.
+    Put all the meta-data in server logger.
+    """
     def __init__(self, host=None):
-        self.callbacks = {}
-        self.feeds = {}
-        self.subscribers = {}
-        self.subscribeDict_queue = {}
+        self.clients_callbacks = {}  # dict of queues: client_context (client information) --> queue.
+        # The stream waits till it get a new callback,
+        # which is a function that return None or the client id (for subscription user or client user respectively)
+        self.clients_results = {}  # dict of queues; client_id --> queue.
+        # Once there is a callback, the stream extract the messages from this queue and send it to the user.
+        self.subscribers = {}  # dict of the clients of the server, client_id --> Subscriber (class)
+        self.subscribeDict_queue = {}  # dict of list: client_id --> list of all the clients ids that listen to this id.
         self._session = {}
         self.parse_config()
         self.config_server(host)
         self.create_logger(Constants.CONF_LOGFILE_NAME)
 
     def parse_config(self):
+        """
+        parse both config file and extract the information for the logger and the server port.
+        :return:
+        """
         grpc_config = configparser.ConfigParser()
+
         if os.path.exists(Constants.config_file_name):
             grpc_config.read(Constants.config_file_name)
             Constants.log_level = grpc_config.get("Common","log_level")
             Constants.log_file_max_size = grpc_config.getint("Common","log_file_max_size")
             Constants.log_file_backup_count = grpc_config.getint("Common","log_file_backup_count")
             Constants.grpc_max_workers = grpc_config.getint("Common","grpc_max_workers")
+
         if os.path.exists(Constants.config_port_file):
             grpc_config.read(Constants.config_port_file)
             Constants.UFM_PLUGIN_PORT = grpc_config.getint("Common","grpc_port")
@@ -81,9 +95,11 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         grpc_plugin_streamer_pb2_grpc.add_GeneralGRPCStreamerServiceServicer_to_server(self, self.server)
 
         grpc_port = Constants.UFM_PLUGIN_PORT
-        self.port_dest = f"[::]:{grpc_port}"
+        self.port_dest = f"[::]:{grpc_port}"  # requested format by grpc
         self.server.add_insecure_port(self.port_dest)
 
+        if host is None:
+            host = 'localhost'
         self._host = host
         self._port = Constants.UFM_HTTP_PORT  # web https
 
@@ -101,8 +117,8 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
             os.makedirs('/'.join(self.log_name.split('/')[:-1]), exist_ok=True)
         logger = logging.getLogger(self.log_name)
 
-        logging_level=logging.getLevelName(Constants.log_level) \
-            if isinstance(Constants.log_level,str) else Constants.log_level
+        logging_level = logging.getLevelName(Constants.log_level) \
+            if isinstance(Constants.log_level, str) else Constants.log_level
 
         logging.basicConfig(format=format_str,level=logging_level)
         rotateHandler = RotatingFileHandler(self.log_name,maxBytes=Constants.log_file_max_size,
@@ -286,8 +302,7 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         if ip in self.subscribers:
             self.subscribers.pop(ip)
         else:
-            print("WE COUDLN'T FIND AND REMOVE THIS ID:"+ip)
-            logging.error(Constants.LOG_NO_EXIST_SUBSCRIBER%ip)
+            logging.warning(Constants.LOG_NO_EXIST_SUBSCRIBER%ip)
         return google.protobuf.empty_pb2.Empty()
 
     def RunOnce(self, request, context):
@@ -309,8 +324,8 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         if ip in self.subscribeDict_queue:
             for message in messages:
                 for subscriber in self.subscribeDict_queue[ip]:
-                    self.feeds[subscriber].put(message)
-                    self.callbacks[subscriber].put(self.emptySubscriber)
+                    self.clients_results[subscriber].put(message)
+                    self.clients_callbacks[subscriber].put(self.emptySubscriber)
 
         return grpc_plugin_streamer_pb2.runOnceRespond(job_id=messages[0].message_id if len(messages)>0 else '0',
                                                        results=messages)
@@ -325,7 +340,7 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         ip, calls = decode_subscriber(request)
         logging.info(Constants.LOG_RUN_STREAM%ip)
         dest = Subscriber(ip, calls, self._session[ip], self._host)
-        self.callbacks[ip] = self.__stream_configuration(context, dest,self._session[ip])
+        self.clients_callbacks[ip] = self.__stream_configuration(context, dest, self._session[ip])
         return self.__output_generator(ip,context)
 
     def RunStreamJob(self, request, context):
@@ -339,7 +354,7 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         logging.info(Constants.LOG_RUN_JOB_Periodically%ip)
         dest = self.subscribers[ip] if ip in self.subscribers else None
         session = self._session[ip]
-        self.callbacks[ip] = self.__stream_configuration(context, dest,session)
+        self.clients_callbacks[ip] = self.__stream_configuration(context, dest, session)
         return self.__output_generator(ip, context)
 
     def SubscribeToStream(self, request, context):
@@ -355,7 +370,7 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
             self.subscribeDict_queue[ip].append(context)
         else:
             self.subscribeDict_queue[ip] = [context]
-        self.callbacks[context] = self.__stream_configuration(context, ip, None, ip)
+        self.clients_callbacks[context] = self.__stream_configuration(context, ip, None, ip)
         return self.__output_generator(ip, context, True)
 
     def StopStream(self, request, context):
@@ -369,10 +384,9 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         logging.info(Constants.LOG_CALL_STOP_STREAM%ip)
         if ip in self.subscribers:
             self.subscribers[ip].stop_all = True
-            self.callbacks[ip].put(StopStream)
+            self.clients_callbacks[ip].put(StopStream)
         else:
-            print("CANT STOP STREAM, cant find "+str(ip))
-            logging.info(Constants.LOG_NO_EXIST_SUBSCRIBER%ip)
+            logging.warning(Constants.LOG_NO_EXIST_SUBSCRIBER%ip)
         return google.protobuf.empty_pb2.Empty()
 
     def Serialization(self, request, context):
@@ -405,30 +419,34 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         while True:
             try:
                 try:
-                    callback = self.callbacks[ip].get(True)
+                    callback = self.clients_callbacks[ip].get(True)  # streams waits for an update
                     logging.info(Constants.LOG_MESSEAGE_STREAM%ip)
-                    ip = callback()
-                except queue.Empty:
+                    ip = callback()  # if it is a subscription stream ip is None, else client id
+                except queue.Empty:  # can happen when a stream is closed
                     pass
-                if self.feeds.get(context) is None: continue
+                if self.clients_results.get(context) is None: continue
 
-                while not self.feeds[context].empty():
-                    result = self.feeds[context].get()
+                while not self.clients_results[context].empty():
+                    result = self.clients_results[context].get()
 
+                    # This is the main change between subscription stream and client stream.
+                    # client can transfer the message to subscription streams
                     if ip and ip in self.subscribeDict_queue and not is_subscriber:
                         for subscriber in self.subscribeDict_queue[ip]:
-                            self.feeds[subscriber].put(result)
-                            self.callbacks[subscriber].put(self.emptySubscriber)
+                            self.clients_results[subscriber].put(result)
+                            self.clients_callbacks[subscriber].put(self.emptySubscriber)
+
                     if isinstance(result, grpc_plugin_streamer_pb2.gRPCStreamerParams):
                         yield result
                     else:
                         raise StopStream('stopping stream')
 
-            except IndexError:
-                print("That not good")
+            except IndexError as e:
+                logging.error(e)
+
             except StopStream:
-                print("stopping thread:"+str(context))
-                del self._session[ip]
+                logging.info("stopping thread:"+str(context))
+                self._session.pop(ip, None)
                 return
 
     def __stream_configuration(self, context, dest,session, subscribeTo=None):
@@ -439,13 +457,13 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
         :param subscribeTo: if the stream is subscribe to anther stream
         :return: callback queue for the iterator
         """
-        self.feeds[context] = queue.Queue()
+        self.clients_results[context] = queue.Queue()
         callbacks = queue.Queue()
 
         def stop_stream():
             logging.info(Constants.LOG_STOP_STREAM)
-            if self.feeds.get(context) is not None:
-                del self.feeds[context]
+            if self.clients_results.get(context) is not None:
+                del self.clients_results[context]
 
             def raise_stop_stream_exception():
                 raise StopStream('stopping stream')
@@ -456,7 +474,7 @@ class GRPCPluginStreamerServer(grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamer
             context.add_callback(stop_stream)
             return callbacks
 
-        threads = [threading.Thread(target=dest.thread_task, args=(call, self.feeds[context], callbacks, session))
+        threads = [threading.Thread(target=dest.thread_task, args=(call, self.clients_results[context], callbacks, session))
                    for call in dest.calls]
         logging.info(Constants.LOG_START_STREAM%f"start {len(threads)} threads for the ip {dest.dest_ip} of {context}")
         for th in threads:
