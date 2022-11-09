@@ -12,4 +12,5 @@
 #
 
 service snmptrapd start
+python3 /opt/ufm/snmp_plugin/snmp_server/plugin_registration.py
 tail -f /dev/null
