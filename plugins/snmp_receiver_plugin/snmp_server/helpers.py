@@ -19,9 +19,9 @@ def get_ufm_switches():
     resource = "/resources/systems?type=switch"
     headers = {"X-Remote-User": "ufmsystem"}
     response = get_request(ufm_host, ufm_protocol, resource, headers)
-    switch_ips = []
+    switch_ips = set()
     for switch in response.json():
-        switch_ips.append(switch["ip"])
+        switch_ips.add(switch["ip"])
     return switch_ips
 
 def send_external_event(description):

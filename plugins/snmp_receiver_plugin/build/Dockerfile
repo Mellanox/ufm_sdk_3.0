@@ -7,7 +7,7 @@ ARG BASE_PATH=/opt/ufm/snmp_plugin
 
 LABEL maintainer="atolikin@nvidia.com"
 
-RUN apt update && apt -y install supervisor python3 python3-pip mc snmpd snmp snmptrapd
+RUN apt update && apt -y install supervisor python3 python3-pip mc
 
 RUN python3 -m pip install pysnmp requests
 
@@ -16,8 +16,5 @@ COPY snmp_server/ ${BASE_PATH}/snmp_server/
 COPY config/supervisord.conf /etc/supervisor/conf.d/
 COPY config/init.sh config/deinit.sh /
 COPY config/snmp.conf config/snmp_shared_volumes.conf ${BASE_PATH}/
-
-RUN echo "disableAuthorization yes" >> /etc/snmp/snmptrapd.conf
-RUN echo "traphandle default python3 $BASE_PATH/snmp_server/snmp_parser.py" >> /etc/snmp/snmptrapd.conf
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
