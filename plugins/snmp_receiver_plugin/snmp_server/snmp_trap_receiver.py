@@ -25,8 +25,8 @@ from plugin_registrator import PluginRegistrator
 
 class SnmpTrapReceiver:
     def __init__(self):
-        self.description = "empty description"
-        self.test_trap_oid = "1.3.6.1.4.1.33049.2.1.2.13"
+        self.mellanox_oid = "1.3.6.1.4.1.33049"
+        self.test_trap_oid = self.mellanox_oid + ".2.1.2.13"
 
         import urllib3
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -82,15 +82,24 @@ class SnmpTrapReceiver:
                                                                                        contextEngineId.prettyPrint(),
                                                                                        contextName.prettyPrint()))
 
-        for name, val in varBinds:
-            logging.info('  %s = %s' % (name.prettyPrint(), val.prettyPrint()))
-            if val.prettyPrint() == self.test_trap_oid:
-                self.description = "test trap"
+        description = ""
+        for oid_obj, val_obj in varBinds:
+            oid = oid_obj.prettyPrint()
+            val = val_obj.prettyPrint()
+            logging.info('  %s = %s' % (oid, val))
+            if val == self.test_trap_oid:
+                description = "test trap"
+            if self.mellanox_oid in oid:
+                description = val
+
         # send trap as an external event to UFM
-        send_external_event(f"SNMP trap from {switch_address}: {self.description}")
+        # TODO: need to send switch name, not IP, in logs - maybe both
+        # TODO: coalescing events?
+        send_external_event(f"SNMP trap from {switch_address}: {description}")
 
     def _setup_snmp_v1_v2c(self):
         # SecurityName <-> CommunityName mapping
+        # TODO: community and transport should be configurable
         config.addV1System(self.snmpEngine, 'my-area', 'public')
 
         # Register SNMP Application at the SNMP engine
