@@ -11,7 +11,7 @@ COPY utils/ ${BASE_PATH}/utils/
 COPY ${SRC_BASE_DIR}/conf/supervisord.conf /etc/supervisor/conf.d/
 COPY ${SRC_BASE_DIR}/scripts/init.sh ${SRC_BASE_DIR}/scripts/deinit.sh /
 
-RUN apt-get update && apt-get -y install supervisor python3 python3-pip vim rsyslog curl sudo wget systemctl
+RUN apt-get update && apt-get -y install supervisor python3 python3-pip vim curl sudo
 
 RUN python3 -m pip install -r ${BASE_PATH}/${SRC_BASE_DIR}/requirements.txt
 
