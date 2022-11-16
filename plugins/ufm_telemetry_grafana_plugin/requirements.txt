@@ -1,0 +1,6 @@
+requests
+configparser
+flask
+flask_restful
+twisted
+jsonschema
