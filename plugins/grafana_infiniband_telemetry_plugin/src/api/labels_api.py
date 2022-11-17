@@ -11,10 +11,24 @@
 # @author: Anan Al-Aghbar
 # @date:   Nov 09, 2022
 #
+from http import HTTPStatus
+from requests.exceptions import ConnectionError
 from utils.flask_server.base_flask_api_server import BaseAPIApplication
 from utils.utils import Logger, LOG_LEVELS
 import requests
 import re
+
+
+class UFMConnectionErr(Exception):
+
+    def __init__(self, message):
+        Exception.__init__(self, message)
+
+
+class TelemetryConnectionErr(Exception):
+
+    def __init__(self, message):
+        Exception.__init__(self, message)
 
 
 class PortLabelObj:
@@ -31,6 +45,14 @@ class MetricLabelsGeneratorAPI(BaseAPIApplication):
         self.labels_hash = ''
         self.ports_labels_string_map = {}
 
+    def _get_error_handlers(self):
+        return [
+            (UFMConnectionErr,
+             lambda e: (str(e), HTTPStatus.BAD_REQUEST)),
+            (TelemetryConnectionErr,
+             lambda e: (str(e), HTTPStatus.BAD_REQUEST))
+        ]
+
     def _get_routes(self):
         return {
             self.get: dict(urls=["/enterprise"], methods=["GET"])
@@ -39,12 +61,17 @@ class MetricLabelsGeneratorAPI(BaseAPIApplication):
     def _get_metrics(self):
         telemetry_endpoint_url = f'http://{self.conf.get_telemetry_host()}:{self.conf.get_telemetry_port()}' \
                                  f'/{self.conf.get_telemetry_url()}'
-
-        Logger.log_message(f'Polling the UFM telemetry metrics: {telemetry_endpoint_url}', LOG_LEVELS.DEBUG)
-        response = requests.get(telemetry_endpoint_url)
-        Logger.log_message(f'UFM telemetry metrics Request Status [ {str(response.status_code)} ]', LOG_LEVELS.DEBUG)
-        response.raise_for_status()
-        return response.text
+        try:
+            Logger.log_message(f'Polling the UFM telemetry metrics: {telemetry_endpoint_url}', LOG_LEVELS.DEBUG)
+            response = requests.get(telemetry_endpoint_url)
+            Logger.log_message(f'UFM telemetry metrics Request Status [ {str(response.status_code)} ]', LOG_LEVELS.DEBUG)
+            response.raise_for_status()
+            return response.text
+        except ConnectionError as ec:
+            err_msg = f'Failed to connect to UFM Telemetry: {telemetry_endpoint_url}'
+            raise TelemetryConnectionErr(err_msg)
+        except Exception as ex:
+            raise ex
 
     def _get_ufm_labels(self):
         headers = {
@@ -54,11 +81,17 @@ class MetricLabelsGeneratorAPI(BaseAPIApplication):
                               f'/app/fabric_snapshot?output=json&levels=true&hash=%s'
 
         url = fabric_snapshot_url % self.labels_hash
-        Logger.log_message(f'Polling the UFM Labels: {url}', LOG_LEVELS.DEBUG)
-        response = requests.get(url=url, headers=headers)
-        Logger.log_message(f'UFM Labels Request Status [ {str(response.status_code)} ]', LOG_LEVELS.DEBUG)
-        response.raise_for_status()
-        return response.json()
+        try:
+            Logger.log_message(f'Polling the UFM Labels: {url}', LOG_LEVELS.DEBUG)
+            response = requests.get(url=url, headers=headers)
+            Logger.log_message(f'UFM Labels Request Status [ {str(response.status_code)} ]', LOG_LEVELS.DEBUG)
+            response.raise_for_status()
+            return response.json()
+        except ConnectionError as ce:
+            err_msg = f'Failed to connect to UFM on port: {self.conf.get_ufm_rest_server_port()}'
+            raise UFMConnectionErr(err_msg)
+        except Exception as ex:
+            raise ex
 
     def _update_labels(self):
         labels_response = self._get_ufm_labels()
@@ -101,3 +134,4 @@ class MetricLabelsGeneratorAPI(BaseAPIApplication):
             return "\n".join(lines)
         except Exception as ex:
             Logger.log_message(f'Failed to get UFM telemetry metrics with labels due to: {str(ex)}', LOG_LEVELS.ERROR)
+            raise ex

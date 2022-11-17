@@ -100,12 +100,12 @@ function build_docker_image()
 
 pushd ${SCRIPT_DIR}
 
-echo ${IMAGE_VERSION} > ../../ufm_telemetry_grafana_plugin/version
+echo ${IMAGE_VERSION} > ../../grafana_infiniband_telemetry_plugin/version
 
 BUILD_DIR=$(create_out_dir)
 cp Dockerfile ${BUILD_DIR}
 cp -r ../../../utils ${BUILD_DIR}
-cp -r ../../ufm_telemetry_grafana_plugin ${BUILD_DIR}
+cp -r ../../grafana_infiniband_telemetry_plugin ${BUILD_DIR}
 
 echo "BUILD_DIR    : [${BUILD_DIR}]"
 

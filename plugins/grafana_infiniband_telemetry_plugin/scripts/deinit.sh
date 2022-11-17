@@ -13,6 +13,6 @@
 set -eE
 
 # removing log file
-rm -rf /log/utg*.log*
+rm -rf /log/git*.log*
 
 exit 0

@@ -3,7 +3,7 @@ FROM ubuntu:20.04 AS utg_base_ubuntu20
 LABEL maintainer="anana@nvidia.com"
 
 ARG BASE_PATH=/opt/ufm/ufm_plugin_utg
-ARG SRC_BASE_DIR=ufm_telemetry_grafana_plugin
+ARG SRC_BASE_DIR=grafana_infiniband_telemetry_plugin
 
 COPY ${SRC_BASE_DIR}/ ${BASE_PATH}/${SRC_BASE_DIR}/
 COPY utils/ ${BASE_PATH}/utils/
