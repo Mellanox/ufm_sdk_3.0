@@ -27,10 +27,10 @@ class UFMTelemetryGrafanaConfigurationsAPI(BaseAPIApplication):
         self.conf = conf
 
         # for debugging
-        # self.conf_schema_path = "plugins/ufm_telemetry_grafana_plugin/src/schemas/set_conf.schema.json"
+        # self.conf_schema_path = "plugins/grafana_infiniband_telemetry_plugin/src/schemas/set_conf.schema.json"
 
         # for production with docker
-        self.conf_schema_path = "ufm_telemetry_grafana_plugin/src/schemas/set_conf.schema.json"
+        self.conf_schema_path = "grafana_infiniband_telemetry_plugin/src/schemas/set_conf.schema.json"
 
     def _get_error_handlers(self):
         return [
@@ -62,5 +62,5 @@ class UFMTelemetryGrafanaConfigurationsAPI(BaseAPIApplication):
             self.conf.update_config_file(self.conf.config_file)
             return make_response("set configurations has been done successfully")
         except Exception as ex:
-            Logger.log_message('Updating the plugin configurations has been failed', LOG_LEVELS.ERROR)
+            Logger.log_message(f'Updating the plugin configurations has been failed: {str(ex)}', LOG_LEVELS.ERROR)
             raise ex

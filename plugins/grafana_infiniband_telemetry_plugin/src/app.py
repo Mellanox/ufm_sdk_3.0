@@ -16,7 +16,7 @@ import os
 import sys
 sys.path.append(os.getcwd())
 
-from mgr.utg_configurations_mgr import UFMTelemetryLabelsConfigParser
+from mgr.git_configurations_mgr import UFMTelemetryLabelsConfigParser
 from utils.logger import Logger, LOG_LEVELS
 from api.labels_api import MetricLabelsGeneratorAPI
 from api.conf_api import UFMTelemetryGrafanaConfigurationsAPI

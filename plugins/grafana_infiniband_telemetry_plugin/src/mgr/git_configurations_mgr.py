@@ -20,10 +20,10 @@ from utils.config_parser import ConfigParser
 
 class UFMTelemetryLabelsConfigParser(ConfigParser):
     # for debugging
-    # config_file = "../conf/ufm_telemetry_grafana_plugin.cfg"
+    # config_file = "../conf/grafana_infiniband_telemetry_plugin.cfg"
 
     # for production with docker
-    config_file = "/config/ufm_telemetry_grafana_plugin.cfg"
+    config_file = "/config/grafana_infiniband_telemetry_plugin.cfg"
 
     UFM_TELEMETRY_ENDPOINT_SECTION = "ufm-telemetry-endpoint"
     UFM_TELEMETRY_ENDPOINT_SECTION_HOST = "host"

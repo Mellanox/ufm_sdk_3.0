@@ -1,4 +1,4 @@
-UFM Grafana Infiniband Telemetry (UGT)
+UFM Grafana Infiniband Telemetry (GIT)
 --------------------------------------------------------
 
 This plugin provides a new UFM telemetry prometheus endpoint with more human-readable labels (e.g. the device name, port number,etc...) instead of the labels that based on the GUIDs on the original UFM telemetry endpoint.
@@ -38,18 +38,18 @@ Plugin Deployment
 - Load the latest plugin container
   - In case of HA, load the plugin on the standby node as well;
   - if your appliance is connected to the internet, you could simply run:
-    > docker pull mellanox/ufm-plugin-utg
+    > docker pull mellanox/ufm-plugin-git
   - if your appliance is not connected to the internet, you need to load the image offline 
     - Use a machine that is connected to the internet to save the docker image 
-      > docker save mellanox/ufm-plugin-utg:latest | gzip > ufm-plugin-utg.tar.gz
+      > docker save mellanox/ufm-plugin-git:latest | gzip > ufm-plugin-git.tar.gz
     - Move the file to scp shared location that is accessible to the appliance 
     - Fetch the image to the appliance 
-      > image fetch scp://user@hostname/path-to-file/ufm-plugin-utg.tar.gz
+      > image fetch scp://user@hostname/path-to-file/ufm-plugin-git.tar.gz
     - Load the image
-      > docker load ufm-plugin-utg.tar.gz
+      > docker load ufm-plugin-git.tar.gz
 - Enable & start the plugin 
 
-    > ufm plugin utg add
+    > ufm plugin git add
     
     
 -	Check that plugin is up and running with
@@ -61,16 +61,16 @@ Plugin Deployment
   - Load the latest plugin container
       - In case of HA, load the plugin on the standby node as well;
       - if your machine is connected to the internet, you could simply run:
-        > docker pull mellanox/ufm-plugin-utg
+        > docker pull mellanox/ufm-plugin-git
       - if your appliance is not connected to the internet, you need to load the image offline 
         - Use a machine that is connected to the internet to save the docker image 
-          > docker save mellanox/ufm-plugin-utg:latest | gzip > ufm-plugin-utg.tar.gz
+          > docker save mellanox/ufm-plugin-git:latest | gzip > ufm-plugin-git.tar.gz
         - Move the file to some shared location that is accessible to the UFM machine 
         - Load the image to UFM machine
-          > docker load < /[some-shared-location]/ufm-plugin-utg.tar.gz
+          > docker load < /[some-shared-location]/ufm-plugin-git.tar.gz
         
 - Enable & start the plugin
-    > docker exec ufm /opt/ufm/scripts/manage_ufm_plugins.sh add -p utg  
+    > docker exec ufm /opt/ufm/scripts/manage_ufm_plugins.sh add -p git  
 
 
 - Check that plugin is up and running with
@@ -85,23 +85,23 @@ Plugin Deployment
 - Load the latest plugin container
   - In case of HA, load the plugin on the standby node as well;
   - if your machine is connected to the internet, you could simply run:
-    > docker pull mellanox/ufm-plugin-utg
+    > docker pull mellanox/ufm-plugin-git
   - if your appliance is not connected to the internet, you need to load the image offline 
     - Use a machine that is connected to the internet to save the docker image 
-      > docker save mellanox/ufm-plugin-utg:latest | gzip > ufm-plugin-utg.tar.gz
+      > docker save mellanox/ufm-plugin-git:latest | gzip > ufm-plugin-git.tar.gz
     - Move the file to some shared location that is accessible to the UFM machine 
     - Load the image to UFM machine
-      > docker load < /[some-shared-location]/ufm-plugin-utg.tar.gz
+      > docker load < /[some-shared-location]/ufm-plugin-git.tar.gz
       
 - To enable & start the plugin, run :
 
-    > /opt/ufm/scripts/manage_ufm_plugins.sh add -p utg
+    > /opt/ufm/scripts/manage_ufm_plugins.sh add -p git
   
 - Check that plugin is up and running with
  
     >docker ps;
 
-Log file utg.log is located in /opt/ufm/files/log on the host.
+Log file git.log is located in /opt/ufm/files/log on the host.
 
 Usage
 --------------------------------------------------------
@@ -132,18 +132,18 @@ This endpoint provides the metrics and could be consumed by any Prometheus serve
     "logs-config": {
         "log_file_backup_count": 5,
         "log_file_max_size": 10485760,
-        "logs_file_name": "/log/utg.log",
+        "logs_file_name": "/log/git.log",
         "logs_level": "INFO"
     }
 }
    ```
 cURL Example:
 ```bash
-curl -XPUT 'https://10.209.36.68/ufmRest/plugin/utg/conf/' \
+curl -XPUT 'https://10.209.36.68/ufmRest/plugin/git/conf/' \
  -k \
  -u admin:123456 \
  -H 'Content-Type: application/json' \
- -d '{"ufm-telemetry-endpoint":{"host": "127.0.0.1","port": 9002,"url": "enterprise"}'
+ -d '{"ufm-telemetry-endpoint":{"host": "127.0.0.1","port": 9002,"url": "enterprise"}}'
 ```
 
 Configuration Parameters Details:
@@ -151,13 +151,13 @@ Configuration Parameters Details:
 
 |                                   Parameter                                    | Required |                                                       Description                                                       |
 |:------------------------------------------------------------------------------:|:--------:|:-----------------------------------------------------------------------------------------------------------------------:|
-|    [ufm-telemetry-endpoint.host](conf/ufm_telemetry_grafana_plugin.cfg#L2)     |   True   | Hostname or IPv4 or IPv6 of the original UFM Telemetry Endpoint, which is normally the localhost [Default is 127.0.0.1] |
-|    [ufm-telemetry-endpoint.port](conf/ufm_telemetry_grafana_plugin.cfg#L3)     |   True   |                              Port of the original UFM Telemetry Endpoint [Default is 9001]                              |
-|     [ufm-telemetry-endpoint.url](conf/ufm_telemetry_grafana_plugin.cfg#L3)     |   True   |                          URL of the original UFM Telemetry Endpoint [Default is 'enterprise']                           |
-|    [logs-config.logs_file_name](conf/ufm_telemetry_grafana_plugin.cfg#L10)     |   True   |                                        Log file name [Default = '/log/utg.log']                                         |
-|      [logs-config.logs_level](conf/ufm_telemetry_grafana_plugin.cfg#L11)       |   True   |                                                    Default is 'INFO'                                                    |
-|   [logs-config.max_log_file_size](conf/ufm_telemetry_grafana_plugin.cfg#L12)   |   True   |                                    Maximum log file size in Bytes [Default is 10 MB]                                    |
-| [logs-config.log_file_backup_count](conf/ufm_telemetry_grafana_plugin.cfg#L13) |   True   |                                    Maximum number of backup log files [Default is 5]                                    |
+|    [ufm-telemetry-endpoint.host](conf/grafana_infiniband_telemetry_plugin.cfg#L2)     |   True   | Hostname or IPv4 or IPv6 of the original UFM Telemetry Endpoint, which is normally the localhost [Default is 127.0.0.1] |
+|    [ufm-telemetry-endpoint.port](conf/grafana_infiniband_telemetry_plugin.cfg#L3)     |   True   |                              Port of the original UFM Telemetry Endpoint [Default is 9001]                              |
+|     [ufm-telemetry-endpoint.url](conf/grafana_infiniband_telemetry_plugin.cfg#L3)     |   True   |                          URL of the original UFM Telemetry Endpoint [Default is 'enterprise']                           |
+|    [logs-config.logs_file_name](conf/grafana_infiniband_telemetry_plugin.cfg#L10)     |   True   |                                        Log file name [Default = '/log/git.log']                                         |
+|      [logs-config.logs_level](conf/grafana_infiniband_telemetry_plugin.cfg#L11)       |   True   |                                                    Default is 'INFO'                                                    |
+|   [logs-config.max_log_file_size](conf/grafana_infiniband_telemetry_plugin.cfg#L12)   |   True   |                                    Maximum log file size in Bytes [Default is 10 MB]                                    |
+| [logs-config.log_file_backup_count](conf/grafana_infiniband_telemetry_plugin.cfg#L13) |   True   |                                    Maximum number of backup log files [Default is 5]                                    |
 
 
 Notes
