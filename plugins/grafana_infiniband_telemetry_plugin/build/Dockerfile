@@ -1,8 +1,8 @@
-FROM ubuntu:20.04 AS utg_base_ubuntu20
+FROM ubuntu:20.04 AS git_base_ubuntu20
 
 LABEL maintainer="anana@nvidia.com"
 
-ARG BASE_PATH=/opt/ufm/ufm_plugin_utg
+ARG BASE_PATH=/opt/ufm/ufm_plugin_git
 ARG SRC_BASE_DIR=grafana_infiniband_telemetry_plugin
 
 COPY ${SRC_BASE_DIR}/ ${BASE_PATH}/${SRC_BASE_DIR}/
