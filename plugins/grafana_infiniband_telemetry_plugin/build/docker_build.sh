@@ -9,7 +9,7 @@ fi
 
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 
-PLUGIN_NAME=utg
+PLUGIN_NAME=git
 IMAGE_NAME="ufm-plugin-${PLUGIN_NAME}"
 IMAGE_VERSION=$1
 OUT_DIR=$2
