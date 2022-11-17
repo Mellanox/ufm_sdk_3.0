@@ -1,4 +1,3 @@
-#!/bin/bash
 #
 # Copyright © 2013-2022 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
@@ -10,16 +9,18 @@
 # This software product is governed by the End User License Agreement
 # provided with the software product.
 #
-import configparser
+# @author: Alexander Tolikin
+# @date:   November, 2022
+#
 import logging
-from logging.handlers import RotatingFileHandler
-import os
 from pysnmp.entity import engine, config
 from pysnmp.carrier.asyncore.dgram import udp
 from pysnmp.entity.rfc3413 import ntfrcv
+import signal
 import threading
 
-from helpers import send_external_event
+from helpers import ConfigParser
+import helpers
 from plugin_registrator import PluginRegistrator
 
 
@@ -30,14 +31,10 @@ class SnmpTrapReceiver:
 
         import urllib3
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        # register plugin as traps receiver on every switch in the fabric
-        plugin_registrator = PluginRegistrator()
-        self.plugin_registration_thread = threading.Thread(target=plugin_registrator.run)
-        self.plugin_registration_thread.start()
-
-        # self.config_file_name = "build/config/snmp.conf"
-        self.config_file_name = "/config/snmp.conf"
-        self._parse_config()
+        # # register plugin as traps receiver on every switch in the fabric
+        # plugin_registrator = PluginRegistrator()
+        # self.plugin_registration_thread = threading.Thread(target=plugin_registrator.run)
+        # self.plugin_registration_thread.start()
 
         # Create SNMP engine with autogenernated engineID and pre-bound
         # to socket transport dispatcher
@@ -45,31 +42,10 @@ class SnmpTrapReceiver:
         self._setup_transport()
         self._setup_snmp_v1_v2c()
 
-    def _parse_config(self):
-        snmp_config = configparser.ConfigParser()
-        if os.path.exists(self.config_file_name):
-            snmp_config.read(self.config_file_name)
-            self.log_file_path = snmp_config.get("Log", "log_file_path")
-            self.log_level = snmp_config.get("Log", "log_level")
-            self.log_file_max_size = snmp_config.getint("Log", "log_file_max_size")
-            self.log_file_backup_count = snmp_config.getint("Log", "log_file_backup_count")
-
-            log_format = '%(asctime)-15s %(levelname)s %(message)s'
-            logging.basicConfig(handlers=[RotatingFileHandler(self.log_file_path,
-                                                              maxBytes=self.log_file_max_size,
-                                                              backupCount=self.log_file_backup_count)],
-                                level=logging.getLevelName(self.log_level),
-                                format=log_format)
-
-            self.ip = snmp_config.get("Common", "ip")
-            self.port = snmp_config.getint("Common", "port")
-        else:
-            logging.error(f"No config file {self.config_file_name} found!")
-
     def _setup_transport(self):
         # UDP over IPv4, first listening interface/port
         config.addTransport(self.snmpEngine, udp.domainName + (1,),
-                            udp.UdpTransport().openServerMode((self.ip, self.port)))
+                            udp.UdpTransport().openServerMode((ConfigParser.snmp_ip, ConfigParser.snmp_port)))
 
     # noinspection PyUnusedLocal,PyUnusedLocal
     def trapCallback(self, snmpEngine, stateReference, contextEngineId, contextName,
@@ -93,19 +69,22 @@ class SnmpTrapReceiver:
                 description = val
 
         # send trap as an external event to UFM
-        # TODO: need to send switch name, not IP, in logs - maybe both
-        # TODO: coalescing events?
-        send_external_event(f"SNMP trap from {switch_address}: {description}")
+        self.send_external_event(f"SNMP trap from {switch_address}: {description}")
 
     def _setup_snmp_v1_v2c(self):
         # SecurityName <-> CommunityName mapping
-        # TODO: community and transport should be configurable
-        config.addV1System(self.snmpEngine, 'my-area', 'public')
+        config.addV1System(self.snmpEngine, 'my-area', ConfigParser.community)
 
         # Register SNMP Application at the SNMP engine
         ntfrcv.NotificationReceiver(self.snmpEngine, self.trapCallback)
 
         self.snmpEngine.transportDispatcher.jobStarted(1)  # this job would never finish
+
+    def send_external_event(self, description):
+        resource = "/app/events/external_event"
+        payload = {"event_id": 551, "description": description}
+        response = helpers.post_request(resource, json=payload)
+        logging.info(f"Post external event status code: {response.status_code},\nresponse: {response.text}")
 
     def run(self):
         # Run I/O dispatcher which would receive queries and send confirmations
@@ -113,7 +92,6 @@ class SnmpTrapReceiver:
             self.snmpEngine.transportDispatcher.runDispatcher()
         except:
             self.snmpEngine.transportDispatcher.closeDispatcher()
-            self.plugin_registration_thread.join()
             raise
 
 
