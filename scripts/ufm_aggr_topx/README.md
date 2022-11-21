@@ -30,12 +30,12 @@ Running using configuration file:
 
     cp ufm_aggr_topx.sample.cfg ufm_aggr_topx.cfg
 
-  - Edit config file with relevant parameters
+- Edit config file with relevant parameters
 
 
     vi ufm_aggr_topx.cfg
 
-  - Run
+- Run
 
 
     python3 ufm_aggr_topx.py
