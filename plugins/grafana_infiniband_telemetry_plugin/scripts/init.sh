@@ -15,7 +15,7 @@
 
 set -eE
 
-SRC_DIR_PATH=/opt/ufm/ufm_plugin_git/grafana_infiniband_telemetry_plugin
+SRC_DIR_PATH=/opt/ufm/ufm_plugin_grafana-dashboard/grafana_infiniband_telemetry_plugin
 CONFIG_PATH=/config
 
 cp $SRC_DIR_PATH/conf/grafana-dashboard_httpd_proxy.conf ${CONFIG_PATH}
