@@ -13,6 +13,6 @@
 set -eE
 
 # removing log file
-rm -rf /log/git*.log*
+rm -rf /log/grafana-dashboard-plugin*.log*
 
 exit 0
