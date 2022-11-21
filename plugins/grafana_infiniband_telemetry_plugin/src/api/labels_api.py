@@ -101,11 +101,11 @@ class MetricLabelsGeneratorAPI(BaseAPIApplication):
             for port in labels_response.get("labels"):
                 port_label_obj = PortLabelObj(port)
                 status = port_label_obj.status
-                port_id = port_label_obj.port_id
+                port_guid = port_label_obj.port_id.split("_")[0]
                 if status == "R":
-                    del self.ports_labels_string_map[port_id]
+                    del self.ports_labels_string_map[port_guid]
                 else:
-                    self.ports_labels_string_map[port_id] = '{device_name="%s",device_type="%s",fabric="compute",hostname="%s",' \
+                    self.ports_labels_string_map[port_guid] = '{device_name="%s",device_type="%s",fabric="compute",hostname="%s",' \
                                                        'level="%s",node_desc="%s",peer_level="%s",port_id="%s"}' % (
                         port_label_obj.device_name if port_label_obj.device_type == 'switch' else '',
                         port_label_obj.device_type,
@@ -119,17 +119,16 @@ class MetricLabelsGeneratorAPI(BaseAPIApplication):
             response = self._get_metrics()
             labels_regex = r'\{.*?\}'
             port_guid_regex = r'(?<=port_guid=)"0x([^"]*)"'
-            port_num_regex = r'(?<=port_num=)"([^"]*)"'
-
             lines = []
             for line in response.split("\n"):
                 port_guid = re.findall(port_guid_regex, line)
                 if len(port_guid) == 1:
-                    port_num = re.findall(port_num_regex, line)
-                    if len(port_num) == 1:
-                        port_id = f'{port_guid[0]}_{port_num[0]}'
-                        new_labels_string = self.ports_labels_string_map[port_id]
+                    port_guid = port_guid[0]
+                    new_labels_string = self.ports_labels_string_map.get(port_guid, None)
+                    if new_labels_string is not None:
                         line = re.sub(labels_regex, new_labels_string, line)
+                    else:
+                        Logger.log_message(f'Failed to get labels of the port: {port_guid}', LOG_LEVELS.WARNING)
                 lines.append(line)
             return "\n".join(lines)
         except Exception as ex:
