@@ -40,6 +40,17 @@ def post_request(resource, json=None):
     except Exception as e:
         logging.error(f"{request} failed with exception: {e}")
 
+def get_ufm_switches():
+    resource = "/resources/systems?type=switch"
+    response = get_request(resource)
+    switch_ips = set()
+    for switch in response.json():
+        ip = switch["ip"]
+        if not ip == EMPTY_IP:
+            switch_ips.add(switch["ip"])
+    logging.info(f"List of switches to register plugin on: {switch_ips}")
+    return switch_ips
+
 class ConfigParser:
     config_file_name = "../build/config/snmp.conf"
     # config_file_name = "/config/snmp.conf"
@@ -57,5 +68,3 @@ class ConfigParser:
     snmp_ip = snmp_config.get("SNMP", "snmp_ip")
     snmp_port = snmp_config.getint("SNMP", "snmp_port")
     community = snmp_config.get("SNMP", "community")
-
-    server_port = snmp_config.get("Server", "server_port")

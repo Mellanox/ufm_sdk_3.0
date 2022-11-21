@@ -23,25 +23,27 @@ import signal
 # from twisted.internet import reactor
 # from twisted.web import server
 
-from api import Dummy
+from api import Dummy, Register, Unregister
 from helpers import ConfigParser
 from trap_receiver import SnmpTrapReceiver
 
 class SNMPWebServer:
     def __init__(self):
+        self.port_number = 8780
         self.app = Flask(__name__)
         self.api = Api(self.app)
         self.init_apis()
 
     def init_apis(self):
         apis = {
+            Register: "/register",
+            Unregister: "/unregister",
             Dummy: "/dummy",
         }
         for resource, path in apis.items():
             self.api.add_resource(resource, path)
 
-    async def run(self):
-        self.app.run(port=ConfigParser.server_port, debug=True)
+    async def run(self):        self.app.run(port=self.port_number, debug=True)
         # resource = WSGIResource(reactor, reactor.getThreadPool(), self.app)
         # reactor.listenTCP(ConfigParser.server_port, server.Site(resource))
         # reactor.run()
