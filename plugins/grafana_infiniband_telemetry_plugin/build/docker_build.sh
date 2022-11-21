@@ -9,7 +9,7 @@ fi
 
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 
-PLUGIN_NAME=git
+PLUGIN_NAME=grafana-dashboard
 IMAGE_NAME="ufm-plugin-${PLUGIN_NAME}"
 IMAGE_VERSION=$1
 OUT_DIR=$2
