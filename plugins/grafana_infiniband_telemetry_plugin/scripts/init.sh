@@ -10,7 +10,7 @@
 # provided with the software product.
 
 # ================================================================
-# This script prepares and checks git docker container Environment
+# This script prepares and checks grafana-dashboard docker container Environment
 # ================================================================
 
 set -eE
@@ -18,12 +18,12 @@ set -eE
 SRC_DIR_PATH=/opt/ufm/ufm_plugin_git/grafana_infiniband_telemetry_plugin
 CONFIG_PATH=/config
 
-cp $SRC_DIR_PATH/conf/git_httpd_proxy.conf ${CONFIG_PATH}
+cp $SRC_DIR_PATH/conf/grafana-dashboard_httpd_proxy.conf ${CONFIG_PATH}
 cp $SRC_DIR_PATH/conf/grafana_infiniband_telemetry_plugin.cfg ${CONFIG_PATH}
 
-touch ${CONFIG_PATH}/git_shared_volumes.conf
+touch ${CONFIG_PATH}/grafana-dashboard_shared_volumes.conf
 
-echo /opt/ufm/files/log/:/log > ${CONFIG_PATH}/git_shared_volumes.conf
+echo /opt/ufm/files/log/:/log > ${CONFIG_PATH}/grafana-dashboard_shared_volumes.conf
 
 # UFM version test
 required_ufm_version=(6 10 0)
