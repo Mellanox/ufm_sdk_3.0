@@ -199,20 +199,6 @@ class UFMTelemetryStreaming(Singleton):
 
         self.config_parser = config_parser
 
-        self.ufm_telemetry_host = self.config_parser.get_telemetry_host()
-        self.ufm_telemetry_port = self.config_parser.get_telemetry_port()
-        self.ufm_telemetry_url = self.config_parser.get_telemetry_url()
-
-        self.streaming_interval = self.config_parser.get_streaming_interval()
-        self.bulk_streaming_flag = self.config_parser.get_bulk_streaming_flag()
-        self.stream_only_new_samples = self.config_parser.get_stream_only_new_samples_flag()
-        self.aliases_meta_fields , self.custom_meta_fields = self.config_parser.get_meta_fields()
-
-        self.fluentd_host = self.config_parser.get_fluentd_host()
-        self.fluentd_port = self.config_parser.get_fluentd_port()
-        self.fluentd_timeout = self.config_parser.get_fluentd_timeout()
-        self.fluentd_msg_tag = self.config_parser.get_fluentd_msg_tag(self.ufm_telemetry_host)
-
         self.last_streamed_data_sample_timestamp = None
 
         self.TIMESTAMP_CSV_FIELD_KEY = 'timestamp'
@@ -220,6 +206,51 @@ class UFMTelemetryStreaming(Singleton):
         self.streaming_attributes_file = "/config/tfs_streaming_attributes.json"  # this path on the docker
         self.streaming_attributes = {}
         self.init_streaming_attributes()
+
+    @property
+    def ufm_telemetry_host(self):
+        return self.config_parser.get_telemetry_host()
+
+    @property
+    def ufm_telemetry_port(self):
+        return self.config_parser.get_telemetry_port()
+
+    @property
+    def ufm_telemetry_url(self):
+        return self.config_parser.get_telemetry_url()
+
+    @property
+    def streaming_interval(self):
+        return self.config_parser.get_streaming_interval()
+
+    @property
+    def bulk_streaming_flag(self):
+        return self.config_parser.get_bulk_streaming_flag()
+
+    @property
+    def stream_only_new_samples(self):
+        return self.config_parser.get_stream_only_new_samples_flag()
+
+    @property
+    def meta_fields(self):
+        # aliases_meta_fields, self.custom_meta_fields
+        return self.config_parser.get_meta_fields()
+
+    @property
+    def fluentd_host(self):
+        return self.config_parser.get_fluentd_host()
+
+    @property
+    def fluentd_port(self):
+        return self.config_parser.get_fluentd_port()
+
+    @property
+    def fluentd_timeout(self):
+        return self.config_parser.get_fluentd_timeout()
+
+    @property
+    def fluentd_msg_tag(self):
+        return self.config_parser.get_fluentd_msg_tag(self.ufm_telemetry_host)
 
     def _get_metrics(self):
         _host = f'[{self.ufm_telemetry_host}]' if Utils.is_ipv6_address(self.ufm_telemetry_host) else self.ufm_telemetry_host
@@ -235,7 +266,8 @@ class UFMTelemetryStreaming(Singleton):
 
     def _append_meta_fields_to_dict(self, dic):
         keys = dic.keys()
-        for alias in self.aliases_meta_fields:
+        aliases_meta_fields, custom_meta_fields = self.meta_fields
+        for alias in aliases_meta_fields:
             alias_key = alias["key"]
             alias_value = alias["value"]
             value = dic.get(alias_key, None)
@@ -244,7 +276,7 @@ class UFMTelemetryStreaming(Singleton):
                     "The alias : {} does not exist in the telemetry response keys: {}".format(alias_key, str(keys)))
                 continue
             dic[alias_value] = value
-        for custom_field in self.custom_meta_fields:
+        for custom_field in custom_meta_fields:
             dic[custom_field["key"]] = custom_field["value"]
         return dic
 
@@ -262,34 +294,55 @@ class UFMTelemetryStreaming(Singleton):
         keys_length = len(keys)
         output = []
         sample_timestamp = rows[1].split(attrs_separator)[keys.index(self.TIMESTAMP_CSV_FIELD_KEY)]
+        port_id_keys_indices = None
+        if self.stream_only_new_samples:
+            port_id_keys_indices = []
+            for pIDKey in self.port_id_keys:
+                port_id_keys_indices.append(
+                    keys.index(pIDKey)
+                )
+
         for row in rows[1:]:
             if len(row) > 0:
                 values = row.split(attrs_separator)
+                port_key = current_port_values = None
+                if self.stream_only_new_samples:
+                    port_key = ":".join([values[index] for index in port_id_keys_indices])
+                    current_port_values = self.last_streamed_data_sample_per_port.get(port_key, {})
                 dic = {}
+                #######
                 for i in range(keys_length):
                     value = values[i]
                     key = keys[i]
                     attr_obj = self.streaming_attributes.get(key, None)
                     if attr_obj and attr_obj.get('enabled', False) and len(value):
-                        # if the attribute/counter is enabled and also the value of this counter not empty -> stream it
-                        dic[attr_obj.get("name", key)] = value
+                        # if the attribute/counter is enabled and
+                        # also the value of this counter not empty
+                        if self.stream_only_new_samples and value != current_port_values.get(key):
+                            # and the value was changed -> stream it
+                            dic[attr_obj.get("name", key)] = value
+                            current_port_values[key] = value
+                        elif not self.stream_only_new_samples:
+                            dic[attr_obj.get("name", key)] = value
+                ########
+                if self.stream_only_new_samples:
+                    self.last_streamed_data_sample_per_port[port_key] = current_port_values
                 dic = self._append_meta_fields_to_dict(dic)
                 output.append(dic)
         return output, sample_timestamp
 
     def _parse_telemetry_prometheus_metrics_to_json(self, data):
-        id_keys = ['node_guid','port_guid', 'port_num']
         elements_dict = {}
-        timestamp = None
+        timestamp = current_port_values = None
         for family in text_string_to_metric_families(data):
             if len(family.samples):
                 timestamp = family.samples[0].timestamp
             for sample in family.samples:
-                id = ''
-                for key in id_keys:
-                    id += sample.labels.get(key, '') + ":"
-                id += str(sample.timestamp)
+                id = port_key = ":".join([sample.labels.get(key, '') for key in self.port_id_keys])
+                id += f':{str(sample.timestamp)}'
                 current_row = elements_dict.get(id)
+                if self.stream_only_new_samples:
+                    current_port_values = self.last_streamed_data_sample_per_port.get(port_key, {})
                 if current_row is None:
                     # if you add custom attributes here, you should add them to init_streaming_attributes function
                     # current custom attributes timestamp, source_id
@@ -302,13 +355,26 @@ class UFMTelemetryStreaming(Singleton):
                         key = key if key != 'source' else 'source_id'
                         attr_obj = self.streaming_attributes.get(key, None)
                         if attr_obj and attr_obj.get('enabled', False) and len(value):
-                            row[attr_obj.get("name", key)] = value
+                            if self.stream_only_new_samples and value != current_port_values.get(key):
+                                # and the value was changed -> stream it
+                                row[attr_obj.get("name", key)] = value
+                                current_port_values[key] = value
+                            elif not self.stream_only_new_samples:
+                                row[attr_obj.get("name", key)] = value
                     row = self._append_meta_fields_to_dict(row)
                     elements_dict[id] = row
                 # main sample's counter value
                 attr_obj = self.streaming_attributes.get(sample.name, None)
+                key = attr_obj.get("name", sample.name)
                 if attr_obj and attr_obj.get('enabled', False):
-                    elements_dict[id][attr_obj.get("name", sample.name)] = sample.value
+                    if self.stream_only_new_samples and sample.value != current_port_values.get(key):
+                        elements_dict[id][key] = sample.value
+                        current_port_values[key] = sample.value
+                    elif not self.stream_only_new_samples:
+                        elements_dict[id][key] = sample.value
+                if self.stream_only_new_samples:
+                    self.last_streamed_data_sample_per_port[port_key] = current_port_values
+
         return list(elements_dict.values()), timestamp
 
     def _stream_data_to_fluentd(self, data_to_stream):
