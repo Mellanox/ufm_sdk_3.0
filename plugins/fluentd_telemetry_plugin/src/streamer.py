@@ -29,12 +29,12 @@ import time
 import datetime
 from prometheus_client.parser import text_string_to_metric_families
 from utils.fluentd.fluent import asyncsender as asycsender
-
+from utils.utils import Utils
 
 from utils.args_parser import ArgsParser
 from utils.config_parser import ConfigParser
-from utils.logger import Logger
-
+from utils.logger import Logger, LOG_LEVELS
+from utils.singleton import Singleton
 
 class UFMTelemetryConstants:
     PLUGIN_NAME = "UFM_Telemetry_Streaming"
@@ -193,7 +193,7 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
         return aliases,custom
 
 
-class UFMTelemetryStreaming:
+class UFMTelemetryStreaming(Singleton):
 
     def __init__(self, config_parser):
 
@@ -216,6 +216,10 @@ class UFMTelemetryStreaming:
         self.last_streamed_data_sample_timestamp = None
 
         self.TIMESTAMP_CSV_FIELD_KEY = 'timestamp'
+
+        self.streaming_attributes_file = "/config/tfs_streaming_attributes.json"  # this path on the docker
+        self.streaming_attributes = {}
+        self.init_streaming_attributes()
 
     def _get_metrics(self):
         _host = f'[{self.ufm_telemetry_host}]' if Utils.is_ipv6_address(self.ufm_telemetry_host) else self.ufm_telemetry_host
@@ -244,17 +248,31 @@ class UFMTelemetryStreaming:
             dic[custom_field["key"]] = custom_field["value"]
         return dic
 
-    def _parse_telemetry_csv_metrics_to_json(self, data, line_separator = "\n", attrs_sepatator = ","):
+    def _get_saved_streaming_attributes(self):
+        if os.path.exists(self.streaming_attributes_file):
+            return Utils.read_json_from_file(self.streaming_attributes_file)
+        return {}
+
+    def update_saved_streaming_attributes(self, attributes):
+        Utils.write_json_to_file(self.streaming_attributes_file, attributes)
+
+    def _parse_telemetry_csv_metrics_to_json(self, data, line_separator="\n", attrs_separator=","):
         rows = data.split(line_separator)
-        keys = rows[0].split(attrs_sepatator)
+        keys = rows[0].split(attrs_separator)
+        keys_length = len(keys)
         output = []
-        sample_timestamp = rows[1].split(attrs_sepatator)[keys.index(self.TIMESTAMP_CSV_FIELD_KEY)]
+        sample_timestamp = rows[1].split(attrs_separator)[keys.index(self.TIMESTAMP_CSV_FIELD_KEY)]
         for row in rows[1:]:
             if len(row) > 0:
-                values = row.split(attrs_sepatator)
+                values = row.split(attrs_separator)
                 dic = {}
-                for i in range(len(keys)):
-                    dic[keys[i]] = values[i]
+                for i in range(keys_length):
+                    value = values[i]
+                    key = keys[i]
+                    attr_obj = self.streaming_attributes.get(key, None)
+                    if attr_obj and attr_obj.get('enabled', False) and len(value):
+                        # if the attribute/counter is enabled and also the value of this counter not empty -> stream it
+                        dic[attr_obj.get("name", key)] = value
                 dic = self._append_meta_fields_to_dict(dic)
                 output.append(dic)
         return output, sample_timestamp
@@ -273,16 +291,24 @@ class UFMTelemetryStreaming:
                 id += str(sample.timestamp)
                 current_row = elements_dict.get(id)
                 if current_row is None:
-                    row = {
-                        'timestamp': int(sample.timestamp * 1000)  # to be unified with the csv value
-                    }
-                    row.update(sample.labels)
-                    # rename source -> source_id in order to be unified with the csv format key
-                    if row.get('source'):
-                        row["source_id"] = row.pop("source")
+                    # if you add custom attributes here, you should add them to init_streaming_attributes function
+                    # current custom attributes timestamp, source_id
+                    row = {}
+                    attr_obj = self.streaming_attributes.get('timestamp', None)
+                    if attr_obj and attr_obj.get('enabled', False):
+                        row[attr_obj.get("name", 'timestamp')] = int(sample.timestamp * 1000)  # to be unified with the csv value
+                    for key, value in sample.labels.items():
+                        # rename source -> source_id in order to be unified with the csv format key
+                        key = key if key != 'source' else 'source_id'
+                        attr_obj = self.streaming_attributes.get(key, None)
+                        if attr_obj and attr_obj.get('enabled', False) and len(value):
+                            row[attr_obj.get("name", key)] = value
                     row = self._append_meta_fields_to_dict(row)
                     elements_dict[id] = row
-                elements_dict[id][sample.name] = sample.value
+                # main sample's counter value
+                attr_obj = self.streaming_attributes.get(sample.name, None)
+                if attr_obj and attr_obj.get('enabled', False):
+                    elements_dict[id][attr_obj.get("name", sample.name)] = sample.value
         return list(elements_dict.values()), timestamp
 
     def _stream_data_to_fluentd(self, data_to_stream):
@@ -304,11 +330,14 @@ class UFMTelemetryStreaming:
         except Exception as e:
             logging.error(e)
 
+    def _check_data_prometheus_format(self, telemetry_data):
+        return telemetry_data and telemetry_data.startswith('#')
+
     def stream_data(self):
         telemetry_data = self._get_metrics()
         if telemetry_data:
             try:
-                ufm_telemetry_is_prometheus_format = telemetry_data.startswith('#')
+                ufm_telemetry_is_prometheus_format = self._check_data_prometheus_format(telemetry_data)
                 data_to_stream, new_data_timestamp = self._parse_telemetry_prometheus_metrics_to_json(telemetry_data) \
                     if ufm_telemetry_is_prometheus_format else \
                     self._parse_telemetry_csv_metrics_to_json(telemetry_data)
@@ -327,6 +356,44 @@ class UFMTelemetryStreaming:
                 logging.error("Exception occurred during parsing telemetry data: "+ str(e))
         else:
             logging.error("Failed to get the telemetry data metrics")
+
+    def _add_streaming_attribute(self, attribute):
+        if self.streaming_attributes.get(attribute, None) is None:
+            # if the attribute is new and wasn't set before --> set default values for the new attribute
+            self.streaming_attributes[attribute] = {
+                'name': attribute,
+                'enabled': True
+            }
+
+    def init_streaming_attributes(self):
+        Logger.log_message('Updating The streaming attributes', LOG_LEVELS.DEBUG)
+        # load the saved attributes
+        self.streaming_attributes = self._get_saved_streaming_attributes()
+        telemetry_data = self._get_metrics()
+        ufm_telemetry_is_prometheus_format = self._check_data_prometheus_format(telemetry_data)
+        if not ufm_telemetry_is_prometheus_format:
+            # CSV format
+            rows = telemetry_data.split("\n")
+            if len(rows):
+                headers = rows[0].split(",")
+                for attribute in headers:
+                    self._add_streaming_attribute(attribute)
+        else:
+            # prometheus format
+            for family in text_string_to_metric_families(telemetry_data):
+                # add the counter attribute
+                self._add_streaming_attribute(family.name)
+                for sample in family.samples:
+                    # add the labels/metadata attributes
+                    for attribute in list(sample.labels.keys()):
+                        attribute = attribute if attribute != 'source' else 'source_id'
+                        self._add_streaming_attribute(attribute)
+            # custom attribute won't be found in the prometheus format, should be added manually
+            self._add_streaming_attribute('timestamp')
+        # update the streaming attributes files
+        self.update_saved_streaming_attributes(self.streaming_attributes)
+        Logger.log_message('The streaming attributes were updated successfully')
+
 
 if __name__ == "__main__":
     # init app args
