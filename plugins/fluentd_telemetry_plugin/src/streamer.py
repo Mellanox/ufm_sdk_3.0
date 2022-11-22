@@ -200,6 +200,8 @@ class UFMTelemetryStreaming(Singleton):
         self.config_parser = config_parser
 
         self.last_streamed_data_sample_timestamp = None
+        self.port_id_keys = ['node_guid', 'port_guid', 'port_num']
+        self.last_streamed_data_sample_per_port = {}
 
         self.TIMESTAMP_CSV_FIELD_KEY = 'timestamp'
 
