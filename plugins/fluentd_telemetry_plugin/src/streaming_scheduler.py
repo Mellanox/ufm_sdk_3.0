@@ -13,6 +13,8 @@
 @author: Anan Al-Aghbar
 @date:   Jan 25, 2022
 """
+
+from streamer import UFMTelemetryStreaming
 from utils.singleton import Singleton
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.schedulers.base import STATE_RUNNING
@@ -34,11 +36,13 @@ class StreamingScheduler(Singleton):
         self.streaming_job = None
         pass
 
-    def start_streaming(self, streaming_func, streaming_interval):
-
+    def start_streaming(self, update_attributes=False):
+        streamer = UFMTelemetryStreaming.getInstance()
+        if update_attributes:
+            streamer.init_streaming_attributes()
         if not self.streaming_job:
-            self.streaming_job = self.scheduler.add_job(streaming_func, 'interval',
-                                                        seconds=streaming_interval,
+            self.streaming_job = self.scheduler.add_job(streamer.stream_data, 'interval',
+                                                        seconds=streamer.streaming_interval,
                                                         next_run_time=datetime.now())
             if not self.scheduler.running:
                 self.scheduler.start()

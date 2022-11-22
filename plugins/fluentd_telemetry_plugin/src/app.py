@@ -60,11 +60,10 @@ if __name__ == '__main__':
     _init_logs(config_parser)
 
     try:
+        streamer = UFMTelemetryStreaming.getInstance(config_parser)
         if config_parser.get_enable_streaming_flag():
-            streamer = UFMTelemetryStreaming(config_parser=config_parser)
             scheduler = StreamingScheduler.getInstance()
-            job_id = scheduler.start_streaming(streamer.stream_data,
-                                            streamer.streaming_interval)
+            job_id = scheduler.start_streaming()
             logging.info("Streaming has been started successfully")
         else:
             logging.warning("Streaming was not started, need to enable the streaming & set the required configurations")
