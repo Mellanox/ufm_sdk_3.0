@@ -81,6 +81,9 @@
         "bulk_streaming": {
           "type": "boolean"
         },
+        "compressed_streaming": {
+          "type": "boolean"
+        },
         "stream_only_new_samples": {
           "type": "boolean"
         },
