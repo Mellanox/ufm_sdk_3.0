@@ -19,14 +19,14 @@ import os
 import sys
 from datetime import time
 
-from utils.utils import Utils
-
 sys.path.append(os.getcwd())
-
+import json
+import gzip
 import requests
 import logging
 import time
 import datetime
+from requests.exceptions import ConnectionError
 from prometheus_client.parser import text_string_to_metric_families
 from utils.fluentd.fluent import asyncsender as asycsender
 from utils.utils import Utils
@@ -56,6 +56,10 @@ class UFMTelemetryConstants:
             "name": '--bulk_streaming',
             "help": "Bulk streaming flag, i.e. if True all telemetry rows will be streamed in one message; "
                     "otherwise, each row will be streamed in a separated message"
+        },{
+            "name": '--compressed_streaming',
+            "help": "Compressed streaming flag, i.e. if True the streamed data will be sent gzipped json; "
+                    "otherwise, will be sent plain text as json"
         },{
             "name": '--enable_streaming',
             "help": "If true, the streaming will be started once the required configurations have been set"
@@ -97,6 +101,7 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
 
     STREAMING_SECTION = "streaming"
     STREAMING_SECTION_INTERVAL = "interval"
+    STREAMING_SECTION_COMPRESSED_STREAMING = "compressed_streaming"
     STREAMING_SECTION_BULK_STREAMING = "bulk_streaming"
     STREAMING_SECTION_STREAM_ONLY_NEW_SAMPLES = "stream_only_new_samples"
     STREAMING_SECTION_ENABLED = "enabled"
@@ -134,6 +139,12 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
         return self.safe_get_bool(self.args.bulk_streaming,
                                   self.STREAMING_SECTION,
                                   self.STREAMING_SECTION_BULK_STREAMING,
+                                  True)
+
+    def get_compressed_streaming_flag(self):
+        return self.safe_get_bool(self.args.compressed_streaming,
+                                  self.STREAMING_SECTION,
+                                  self.STREAMING_SECTION_COMPRESSED_STREAMING,
                                   True)
 
     def get_stream_only_new_samples_flag(self):
@@ -228,6 +239,10 @@ class UFMTelemetryStreaming(Singleton):
     @property
     def bulk_streaming_flag(self):
         return self.config_parser.get_bulk_streaming_flag()
+
+    @property
+    def compressed_streaming_flag(self):
+        return self.config_parser.get_compressed_streaming_flag()
 
     @property
     def stream_only_new_samples(self):
@@ -382,21 +397,31 @@ class UFMTelemetryStreaming(Singleton):
     def _stream_data_to_fluentd(self, data_to_stream):
         logging.info(f'Streaming to Fluentd IP: {self.fluentd_host} port: {self.fluentd_port} timeout: {self.fluentd_timeout}')
         try:
-            fluent_sender = asycsender.FluentSender(UFMTelemetryConstants.PLUGIN_NAME,
-                                                    self.fluentd_host,
-                                                    self.fluentd_port, timeout=self.fluentd_timeout)
-
             fluentd_message = {
                 "timestamp": datetime.datetime.fromtimestamp(int(time.time())).strftime('%Y-%m-%d %H:%M:%S'),
                 "type": "full",
                 "values": data_to_stream
             }
 
-            fluent_sender.emit(self.fluentd_msg_tag, fluentd_message)
-            fluent_sender.close()
+            if self.compressed_streaming_flag:
+                compressed = gzip.compress(json.dumps(fluentd_message).encode('utf-8'))
+                res = requests.post(
+                    url=f'http://{self.fluentd_host}:{self.fluentd_port}/'
+                        f'{UFMTelemetryConstants.PLUGIN_NAME}.{self.fluentd_msg_tag}',
+                    data=compressed,
+                    headers={"Content-Encoding": "gzip", "Content-Type": "application/json"})
+                res.raise_for_status()
+            else:
+                fluent_sender = asycsender.FluentSender(UFMTelemetryConstants.PLUGIN_NAME,
+                                                    self.fluentd_host,
+                                                    self.fluentd_port, timeout=self.fluentd_timeout)
+                fluent_sender.emit(self.fluentd_msg_tag, fluentd_message)
+                fluent_sender.close()
             logging.info(f'Finished Streaming to Fluentd Host: {self.fluentd_host} port: {self.fluentd_port}')
+        except ConnectionError as e:
+            logging.error(f'Failed to connect to stream destination due to the error :{str(e)}')
         except Exception as e:
-            logging.error(e)
+            logging.error(f'Failed to stream the data due to the error: {str(e)}')
 
     def _check_data_prometheus_format(self, telemetry_data):
         return telemetry_data and telemetry_data.startswith('#')
