@@ -119,6 +119,7 @@ FluentdD Deployment configurations
     > docker run -ti --rm --network host -v /tmp/fluentd:/fluentd/etc fluentd -c /fluentd/etc/fluentd.conf -v
 
 * We provide [fluentd.conf](conf/fluentd.conf) as a fluentd configurations sample.
+* In case of enabling [streaming.compressed_streaming](conf/fluentd_telemetry_plugin.cfg#L15) the source type should be **http**; otherwise the type should be **forward**
 
 IPv6 configurations
 --------------------------------------------------------
@@ -174,23 +175,24 @@ Usage
  Configuration Parameters Details:
 --------------------------------------------------------
 
-|                                 Parameter                                  | Required |                                                                   Description                                                                   |
-|:--------------------------------------------------------------------------:|:--------:|:-----------------------------------------------------------------------------------------------------------------------------------------------:|
-|       [fluentd-endpoint.host](conf/fluentd_telemetry_plugin.cfg#L7)        |   True   |                                                  Hostname or IPv4 or IPv6 for Fluentd endpoint                                                  |
-|       [fluentd-endpoint.port](conf/fluentd_telemetry_plugin.cfg#L8)        |   True   |              Port for Fluentd endpoint [this port should be the port which is configured in [fluentd.conf](conf/fluentd.conf#L4)]               |
-|      [fluentd-endpoint.timeout](conf/fluentd_telemetry_plugin.cfg#L9)      |   True   |                                         Timeout for Fluentd endpoint streaming [Default is 120 seconds]                                         |
-| [fluentd-endpoint.message_tag_name](conf/fluentd_telemetry_plugin.cfg#L10) |  False   |                                Message Tag Name for Fluentd endpoint message [Default is the ufm_telemetry_host]                                |
-|    [ufm-telemetry-endpoint.host](conf/fluentd_telemetry_plugin.cfg#L2)     |   True   |                                 Hostname or IPv4 or IPv6 for The UFM Telemetry Endpoint [Default is 127.0.0.1]                                  |
-|    [ufm-telemetry-endpoint.port](conf/fluentd_telemetry_plugin.cfg#L3)     |   True   |                                              Port for The UFM Telemetry Endpoint [Default is 9001]                                              |
-|     [ufm-telemetry-endpoint.url](conf/fluentd_telemetry_plugin.cfg#L4)     |   True   |            URL for The UFM Telemetry Endpoint [Default is 'csv/metrics', for Prometheus format you can use 'metrics']             |
-|        [streaming.interval](conf/fluentd_telemetry_plugin.cfg#L13)         |   True   |                                                   Streaming interval [Default is 10 seconds]                                                    |
-|     [streaming.bulk_streaming](conf/fluentd_telemetry_plugin.cfg#L14)      |   True   | if True all telemetry records will be streamed in one message; otherwise, each record will be streamed in a separated message [Default is True] |
-| [streaming.stream_only_new_samples](conf/fluentd_telemetry_plugin.cfg#L15) |   True   |                  If True, the data will be streamed only in case new samples were pulled from the telemetry [Default is True]                   |
-|         [streaming.enabled](conf/fluentd_telemetry_plugin.cfg#L16)         |   True   |                    If True, the streaming will be started once the required configurations have been set [Default is False]                     |
-|    [logs-config.logs_file_name](conf/fluentd_telemetry_plugin.cfg#L19)     |   True   |                                                    Log file name [Default = '/log/tfs.log']                                                     |
-|      [logs-config.logs_level](conf/fluentd_telemetry_plugin.cfg#L21)       |   True   |                                                                Default is 'INFO'                                                                |
-|   [logs-config.max_log_file_size](conf/fluentd_telemetry_plugin.cfg#L23)   |   True   |                                                Maximum log file size in Bytes [Default is 10 MB]                                                |
-| [logs-config.log_file_backup_count](conf/fluentd_telemetry_plugin.cfg#L25) |   True   |                                                Maximum number of backup log files [Default is 5]                                                |
+|                                 Parameter                                  | Required |                                                                                                                                   Description                                                                                                                                   |
+|:--------------------------------------------------------------------------:|:--------:|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
+|       [fluentd-endpoint.host](conf/fluentd_telemetry_plugin.cfg#L7)        |   True   |                                                                                                                  Hostname or IPv4 or IPv6 for Fluentd endpoint                                                                                                                  |
+|       [fluentd-endpoint.port](conf/fluentd_telemetry_plugin.cfg#L8)        |   True   |                                                                              Port for Fluentd endpoint [this port should be the port which is configured in [fluentd.conf](conf/fluentd.conf#L4)]                                                                               |
+|      [fluentd-endpoint.timeout](conf/fluentd_telemetry_plugin.cfg#L9)      |   True   |                                                                                                         Timeout for Fluentd endpoint streaming [Default is 120 seconds]                                                                                                         |
+| [fluentd-endpoint.message_tag_name](conf/fluentd_telemetry_plugin.cfg#L10) |  False   |                                                                                                Message Tag Name for Fluentd endpoint message [Default is the ufm_telemetry_host]                                                                                                |
+|    [ufm-telemetry-endpoint.host](conf/fluentd_telemetry_plugin.cfg#L2)     |   True   |                                                                                                 Hostname or IPv4 or IPv6 for The UFM Telemetry Endpoint [Default is 127.0.0.1]                                                                                                  |
+|    [ufm-telemetry-endpoint.port](conf/fluentd_telemetry_plugin.cfg#L3)     |   True   |                                                                                                              Port for The UFM Telemetry Endpoint [Default is 9001]                                                                                                              |
+|     [ufm-telemetry-endpoint.url](conf/fluentd_telemetry_plugin.cfg#L4)     |   True   |                                                                                   URL for The UFM Telemetry Endpoint [Default is 'csv/metrics', for Prometheus format you can use 'metrics']                                                                                    |
+|        [streaming.interval](conf/fluentd_telemetry_plugin.cfg#L13)         |   True   |                                                                                                                   Streaming interval [Default is 10 seconds]                                                                                                                    |
+|     [streaming.bulk_streaming](conf/fluentd_telemetry_plugin.cfg#L14)      |   True   |                                                                 if True all telemetry records will be streamed in one message; otherwise, each record will be streamed in a separated message [Default is True]                                                                 |
+|  [streaming.compressed_streaming](conf/fluentd_telemetry_plugin.cfg#L15)   |   True   | if True, the streamed data will be sent gzipped json and you have to make sure to configure the FluentD receiver with the right configurations (Check the FluentdD Deployment configurations section); otherwise, the message will be sent plain text as json [Default is True] |
+| [streaming.stream_only_new_samples](conf/fluentd_telemetry_plugin.cfg#L16) |   True   |                                                                                                    If True, the plugin will stream only the changed values [Default is True]                                                                                                    |
+|         [streaming.enabled](conf/fluentd_telemetry_plugin.cfg#L17)         |   True   |                                                                                    If True, the streaming will be started once the required configurations have been set [Default is False]                                                                                     |
+|    [logs-config.logs_file_name](conf/fluentd_telemetry_plugin.cfg#L20)     |   True   |                                                                                                                    Log file name [Default = '/log/tfs.log']                                                                                                                     |
+|      [logs-config.logs_level](conf/fluentd_telemetry_plugin.cfg#L22)       |   True   |                                                                                                                                Default is 'INFO'                                                                                                                                |
+|   [logs-config.max_log_file_size](conf/fluentd_telemetry_plugin.cfg#L24)   |   True   |                                                                                                                Maximum log file size in Bytes [Default is 10 MB]                                                                                                                |
+| [logs-config.log_file_backup_count](conf/fluentd_telemetry_plugin.cfg#L26) |   True   |                                                                                                                Maximum number of backup log files [Default is 5]                                                                                                                |
 
    - Records ٌMeta-fields:
    
@@ -240,3 +242,66 @@ The output record after adding these meta-fields will be:
    
    URL: _https://[HOST-IP]/ufmRest/plugin/tfs/conf_
 
+### 3. Get the streaming attributes configurations by the following API:
+
+   METHOD: _GET_
+   
+   URL: _https://[HOST-IP]/ufmRest/plugin/tfs/conf/attributes_
+   
+   Response: JSON contains all the attributes and their configurations:
+   
+```json lines   
+{ ...
+  "ExcessiveBufferOverrunErrorsExtended": {
+    "enabled": true,
+    "name": "ExcessiveBufferOverrunErrorsExtended"
+  },
+  "LinkDownedCounterExtended": {
+    "enabled": true,
+    "name": "LinkDownedCounterExtended"
+  },
+  "LinkErrorRecoveryCounterExtended": {
+    "enabled": true,
+    "name": "LinkErrorRecoveryCounterExtended"
+  },
+  "LocalLinkIntegrityErrorsExtended": {
+    "enabled": true,
+    "name": "LocalLinkIntegrityErrorsExtended"
+  }
+  ...
+}
+```
+
+### 3. Update the streaming attributes configurations by the following API:
+
+   METHOD: _POST_
+   
+   URL: _https://[HOST-IP]/ufmRest/plugin/tfs/conf/attributes_
+   
+   Payload: JSON contains the attributes and their configurations:
+   
+```json lines   
+{ ...
+  "ExcessiveBufferOverrunErrorsExtended": {
+    "enabled": true,
+    "name": "ExcBuffOverrunErrExt"
+  },
+  "LinkDownedCounterExtended": {
+    "enabled": false
+  },
+  "LinkErrorRecoveryCounterExtended": {
+    "enabled": true,
+    "name": "linkErrRecCountExt"
+  },
+  "LocalLinkIntegrityErrorsExtended": {
+    "enabled": true,
+    "name": "localLinkIntErrExt"
+  }
+  ...
+}
+```
+
+|     Parameter     | Required |                         Description                          |
+|:-----------------:|:--------:|:------------------------------------------------------------:|
+| attribute.enabled |   True   | If True, the **attribute** will be part of the streamed data |
+|  attribute.name   |   True   |   The name of the **attribute** in the streamed json data    |
