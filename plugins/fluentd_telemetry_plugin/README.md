@@ -305,3 +305,5 @@ The output record after adding these meta-fields will be:
 |:-----------------:|:--------:|:------------------------------------------------------------:|
 | attribute.enabled |   True   | If True, the **attribute** will be part of the streamed data |
 |  attribute.name   |   True   |   The name of the **attribute** in the streamed json data    |
+
+*Updating the streaming attributes configurations will be reflected automatically and applied on the next streaming period. 
