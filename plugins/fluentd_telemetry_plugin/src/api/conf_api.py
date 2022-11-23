@@ -55,12 +55,18 @@ class StreamingConfigurationsAPI(BaseAPIApplication):
                         raise InvalidConfRequest(f'Invalid property: {section_item} in {section}')
                     self.conf.set_item_value(section, section_item, value)
 
+    def _validate_required_configurations_on_enable(self):
+        # just checking the required attributes
+        # if one of the attributes below was missing it will throw an exception
+        fluentd_host = self.conf.get_fluentd_host()
+
     def post(self):
         # validate the new conf json
         validate_schema(self.conf_schema_path, request.json)
         self._set_new_conf()
         try:
             if self.conf.get_enable_streaming_flag():
+                self._validate_required_configurations_on_enable()
                 self.scheduler.start_streaming(update_attributes=True)
             else:
                 self.scheduler.stop_streaming()
