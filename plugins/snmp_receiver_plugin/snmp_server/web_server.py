@@ -23,15 +23,16 @@ import signal
 # from twisted.internet import reactor
 # from twisted.web import server
 
-from api import Dummy, Register, Unregister
-from helpers import ConfigParser
+from resources import Dummy, Register, Unregister
+from helpers import ConfigParser, get_ufm_switches
 from trap_receiver import SnmpTrapReceiver
 
 class SNMPWebServer:
-    def __init__(self):
+    def __init__(self, switch_ip_to_name):
         self.port_number = 8780
         self.app = Flask(__name__)
         self.api = Api(self.app)
+        self.switch_ip_to_name = switch_ip_to_name
         self.init_apis()
 
     def init_apis(self):
@@ -41,9 +42,10 @@ class SNMPWebServer:
             Dummy: "/dummy",
         }
         for resource, path in apis.items():
-            self.api.add_resource(resource, path)
+            self.api.add_resource(resource, path, resource_class_kwargs={'switch_ip_to_name': self.switch_ip_to_name})
 
-    async def run(self):        self.app.run(port=self.port_number, debug=True)
+    async def run(self):
+        self.app.run(port=self.port_number, debug=True)
         # resource = WSGIResource(reactor, reactor.getThreadPool(), self.app)
         # reactor.listenTCP(ConfigParser.server_port, server.Site(resource))
         # reactor.run()
@@ -63,9 +65,10 @@ class SNMPWebProc:
                                                           backupCount=ConfigParser.log_file_backup_count)],
                             level=logging.getLevelName(ConfigParser.log_level),
                             format=ConfigParser.log_format)
-        self.web_server = SNMPWebServer()
-        snmp_traps_receiver = SnmpTrapReceiver()
-        self.snmp_proc = multiprocessing.Process(target=snmp_traps_receiver.run)
+        self.switch_ip_to_name = get_ufm_switches()
+        self.web_server = SNMPWebServer(self.switch_ip_to_name)
+        snmp_trap_receiver = SnmpTrapReceiver(self.switch_ip_to_name)
+        self.snmp_proc = multiprocessing.Process(target=snmp_trap_receiver.run)
         self.snmp_proc.start()
 
     def start_web_server(self):

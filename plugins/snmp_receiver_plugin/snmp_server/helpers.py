@@ -13,6 +13,7 @@
 # @date:   November, 2022
 #
 import configparser
+from http import HTTPStatus
 import logging
 import requests
 import os
@@ -22,33 +23,43 @@ PROTOCOL = "http"
 HEADERS = {"X-Remote-User": "ufmsystem"}
 EMPTY_IP = "0.0.0.0"
 
+def succeded(status_code):
+    return status_code in [HTTPStatus.OK, HTTPStatus.ACCEPTED]
+
 def get_request(resource):
     request = PROTOCOL + '://' + HOST + resource
     logging.info(f"GET {request}")
     try:
         response = requests.get(request, verify=False, headers=HEADERS)
-        return response
+        return response.status_code, response.json()
     except Exception as e:
-        logging.error(f"{request} failed with exception: {e}")
+        error = f"{request} failed with exception: {e}"
+        logging.error(error)
+        return HTTPStatus.INTERNAL_SERVER_ERROR, {error}
 
 def post_request(resource, json=None):
     request = PROTOCOL + '://' + HOST + resource
     logging.info(f"POST {request}")
     try:
         response = requests.post(request, verify=False, headers=HEADERS, json=json)
-        return response
+        return response.status_code, response.text
     except Exception as e:
-        logging.error(f"{request} failed with exception: {e}")
+        error = f"{request} failed with exception: {e}"
+        logging.error(error)
+        return HTTPStatus.INTERNAL_SERVER_ERROR, error
 
 def get_ufm_switches():
     resource = "/resources/systems?type=switch"
-    response = get_request(resource)
-    switch_ips = set()
-    for switch in response.json():
+    status_code, json = get_request(resource)
+    if not succeded(status_code):
+        return {}
+    switch_ips = {}
+    for switch in json:
         ip = switch["ip"]
+        system_name = switch["system_name"]
         if not ip == EMPTY_IP:
-            switch_ips.add(switch["ip"])
-    logging.info(f"List of switches to register plugin on: {switch_ips}")
+            switch_ips[ip] = system_name
+    logging.info(f"List of switches to register plugin on: {switch_ips.keys()}")
     return switch_ips
 
 class ConfigParser:
