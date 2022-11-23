@@ -127,7 +127,7 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
         return self.get_config_value(self.args.ufm_telemetry_url,
                                      self.UFM_TELEMETRY_ENDPOINT_SECTION,
                                      self.UFM_TELEMETRY_ENDPOINT_SECTION_URL,
-                                     "labels/csv/metrics")
+                                     "csv/metrics")
 
     def get_streaming_interval(self):
         return self.safe_get_int(self.args.streaming_interval,
