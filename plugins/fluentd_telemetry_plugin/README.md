@@ -151,6 +151,7 @@ Usage
         },
         "streaming": {
             "interval": 10,
+            "compressed_streaming": true,
             "bulk_streaming": true,
             "enabled": true,
             "stream_only_new_samples": true
