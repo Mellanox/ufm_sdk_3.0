@@ -122,7 +122,6 @@ class MetricLabelsGeneratorAPI(BaseAPIApplication):
                         del self.ports_labels_string_map[port_label_obj.port_id]
                     except KeyError as ex:
                         del self.ports_labels_string_map[port_label_obj.port_id.split('_')[0]]
-                    Logger.log_message('Anan Removing the port: '+ port_label_obj.port_id, LOG_LEVELS.WARNING)
                 else:
                     port_id = self._get_port_id(port_label_obj.port_id, port_label_obj.device_type)
                     self.ports_labels_string_map[port_id] = \
