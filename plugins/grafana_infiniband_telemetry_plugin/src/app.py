@@ -39,13 +39,19 @@ if __name__ == '__main__':
     _init_logs(conf)
 
     try:
-        routes_map = {
-            "/labels": MetricLabelsGeneratorAPI(conf=conf).application,
+        app_routes_map = {
             "/conf": UFMTelemetryGrafanaConfigurationsAPI(conf=conf).application
         }
 
-        app = BaseFlaskAPIApp(routes_map)
-        run_api(app=app, port_number=8982)
+        app = BaseFlaskAPIApp(app_routes_map)
+        run_api(app=app, port_number=8983, run_reactor=True)
+
+        endpoint_routes_map = {
+            "/labels": MetricLabelsGeneratorAPI(conf=conf).application
+        }
+
+        endpoint_app = BaseFlaskAPIApp(endpoint_routes_map)
+        run_api(app=endpoint_app, port_number=8982, interface='0.0.0.0')
 
     except ValueError as ve:
         Logger.log_message(f'Missing configurations: {str(ve)}', LOG_LEVELS.ERROR)
