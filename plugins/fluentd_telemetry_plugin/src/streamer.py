@@ -212,6 +212,12 @@ class UFMTelemetryStreaming(Singleton):
 
         self.last_streamed_data_sample_timestamp = None
         self.port_id_keys = ['node_guid', 'port_guid', 'port_num']
+        self.port_constants_keys = {
+            'timestamp': 'timestamp', 'source_id': 'source_id', 'tag': 'tag', 'node_guid': 'node_guid', 'port_guid': 'port_guid',
+            'port_num': 'port_num', 'node_description': 'node_description','m_label': 'm_label', 'status_message': 'status_message',
+            'mvcr_sensor_name': 'mvcr_sensor_name', 'mtmp_sensor_name': 'mtmp_sensor_name',
+            'switch_serial_number': 'switch_serial_number', 'switch_part_number': 'switch_part_number'
+        }
         self.last_streamed_data_sample_per_port = {}
 
         self.TIMESTAMP_CSV_FIELD_KEY = 'timestamp'
@@ -328,24 +334,29 @@ class UFMTelemetryStreaming(Singleton):
                     current_port_values = self.last_streamed_data_sample_per_port.get(port_key, {})
                 dic = {}
                 #######
+                is_data_changed = False
                 for i in range(keys_length):
                     value = values[i]
                     key = keys[i]
+                    is_constant_value = self.port_constants_keys.get(key)
                     attr_obj = self.streaming_attributes.get(key, None)
                     if attr_obj and attr_obj.get('enabled', False) and len(value):
                         # if the attribute/counter is enabled and
                         # also the value of this counter not empty
-                        if self.stream_only_new_samples and value != current_port_values.get(key):
+                        if is_constant_value is None and \
+                                self.stream_only_new_samples and value != current_port_values.get(key):
                             # and the value was changed -> stream it
                             dic[attr_obj.get("name", key)] = value
                             current_port_values[key] = value
-                        elif not self.stream_only_new_samples:
+                            is_data_changed = True
+                        elif not self.stream_only_new_samples or is_constant_value:
                             dic[attr_obj.get("name", key)] = value
                 ########
                 if self.stream_only_new_samples:
                     self.last_streamed_data_sample_per_port[port_key] = current_port_values
-                dic = self._append_meta_fields_to_dict(dic)
-                output.append(dic)
+                if is_data_changed:
+                    dic = self._append_meta_fields_to_dict(dic)
+                    output.append(dic)
         return output, sample_timestamp
 
     def _parse_telemetry_prometheus_metrics_to_json(self, data):
@@ -357,38 +368,37 @@ class UFMTelemetryStreaming(Singleton):
             for sample in family.samples:
                 id = port_key = ":".join([sample.labels.get(key, '') for key in self.port_id_keys])
                 id += f':{str(sample.timestamp)}'
-                current_row = elements_dict.get(id)
+                current_row = elements_dict.get(id, {})
                 if self.stream_only_new_samples:
                     current_port_values = self.last_streamed_data_sample_per_port.get(port_key, {})
-                if current_row is None:
+
+                # main sample's counter value
+                attr_obj = self.streaming_attributes.get(sample.name, None)
+                key = attr_obj.get("name", sample.name)
+                is_value_changed = False
+                if attr_obj and attr_obj.get('enabled', False):
+                    if self.stream_only_new_samples and sample.value != current_port_values.get(key):
+                        current_row[key] = sample.value
+                        current_port_values[key] = sample.value
+                        is_value_changed = True
+                    elif not self.stream_only_new_samples:
+                        current_row[key] = sample.value
+
+                if is_value_changed:
                     # if you add custom attributes here, you should add them to init_streaming_attributes function
                     # current custom attributes timestamp, source_id
-                    row = {}
                     attr_obj = self.streaming_attributes.get('timestamp', None)
                     if attr_obj and attr_obj.get('enabled', False):
-                        row[attr_obj.get("name", 'timestamp')] = int(sample.timestamp * 1000)  # to be unified with the csv value
+                        current_row[attr_obj.get("name", 'timestamp')] = int(sample.timestamp * 1000)  # to be unified with the csv value
                     for key, value in sample.labels.items():
                         # rename source -> source_id in order to be unified with the csv format key
                         key = key if key != 'source' else 'source_id'
                         attr_obj = self.streaming_attributes.get(key, None)
                         if attr_obj and attr_obj.get('enabled', False) and len(value):
-                            if self.stream_only_new_samples and value != current_port_values.get(key):
-                                # and the value was changed -> stream it
-                                row[attr_obj.get("name", key)] = value
-                                current_port_values[key] = value
-                            elif not self.stream_only_new_samples:
-                                row[attr_obj.get("name", key)] = value
-                    row = self._append_meta_fields_to_dict(row)
-                    elements_dict[id] = row
-                # main sample's counter value
-                attr_obj = self.streaming_attributes.get(sample.name, None)
-                key = attr_obj.get("name", sample.name)
-                if attr_obj and attr_obj.get('enabled', False):
-                    if self.stream_only_new_samples and sample.value != current_port_values.get(key):
-                        elements_dict[id][key] = sample.value
-                        current_port_values[key] = sample.value
-                    elif not self.stream_only_new_samples:
-                        elements_dict[id][key] = sample.value
+                            current_row[attr_obj.get("name", key)] = value
+                    current_row = self._append_meta_fields_to_dict(current_row)
+                    elements_dict[id] = current_row
+                ####
                 if self.stream_only_new_samples:
                     self.last_streamed_data_sample_per_port[port_key] = current_port_values
 
