@@ -18,10 +18,11 @@ from twisted.web.wsgi import WSGIResource
 from twisted.internet import reactor
 
 
-def run_api(app, port_number):
+def run_api(app, port_number, interface='127.0.0.1', run_reactor=True):
     resource = WSGIResource(reactor, reactor.getThreadPool(), app)
-    reactor.listenTCP(port_number, server.Site(resource,logPath=None))
-    reactor.run()
+    reactor.listenTCP(port_number, server.Site(resource, logPath=None), interface=interface)
+    if run_reactor:
+        reactor.run()
 
 
 def _callable_wrap(_callable, *args, **kw):
