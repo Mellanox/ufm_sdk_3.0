@@ -41,7 +41,7 @@ if __name__ == '__main__':
 
     try:
         Logger.log_message("Initializing the Apache configurations", LOG_LEVELS.DEBUG)
-        subprocess.call('/opt/ufm/ufm_plugin_utg/ufm_telemetry_grafana_plugin/scripts/init_apache.sh')
+        subprocess.call('/opt/ufm/ufm_plugin_grafana-dashboard/grafana_infiniband_telemetry_plugin/scripts/init_apache.sh')
         Logger.log_message("Initializing the Apache configurations completed successfully", LOG_LEVELS.DEBUG)
     except Exception as ex:
         Logger.log_message(f'Initializing the Apache configurations completed with errors: {str(ex)}', LOG_LEVELS.ERROR)
