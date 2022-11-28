@@ -25,6 +25,20 @@ touch ${CONFIG_PATH}/grafana-dashboard_shared_volumes.conf
 
 echo /opt/ufm/files/log/:/log > ${CONFIG_PATH}/grafana-dashboard_shared_volumes.conf
 
+# configure the apache to work on 8982 instead of 80
+sed -i 's/80/8982/' /etc/apache2/ports.conf
+# adding the reverse proxy configurations for the endpoint server
+# endpoint server works internally on port 8984
+touch /etc/apache2/conf-available/grafana-plugin.conf
+cat > /etc/apache2/conf-available/grafana-plugin.conf << EOL
+<Location /labels>
+    ProxyPass http://127.0.0.1:8984 retry=1 Keepalive=On
+    ProxyPassReverse http://127.0.0.1:8984
+</Location>
+EOL
+ln -s /etc/apache2/conf-available/grafana-plugin.conf /etc/apache2/conf-enabled/grafana-plugin.conf
+a2enmod proxy_http
+systemctl restart apache2
 # UFM version test
 required_ufm_version=(6 10 0)
 echo "Required UFM version: ${required_ufm_version[0]}.${required_ufm_version[1]}.${required_ufm_version[2]}"
