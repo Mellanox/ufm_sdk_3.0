@@ -38,6 +38,7 @@ class StreamingScheduler(Singleton):
 
     def start_streaming(self, update_attributes=False):
         streamer = UFMTelemetryStreaming.getInstance()
+        streamer.clear_cached_streaming_data()
         if update_attributes:
             streamer.init_streaming_attributes()
         if not self.streaming_job:
