@@ -497,6 +497,10 @@ class UFMTelemetryStreaming(Singleton):
         self.update_saved_streaming_attributes(self.streaming_attributes)
         Logger.log_message('The streaming attributes were updated successfully')
 
+    def clear_cached_streaming_data(self):
+        self.last_streamed_data_sample_timestamp = None
+        self.last_streamed_data_sample_per_port = {}
+
 
 if __name__ == "__main__":
     # init app args
