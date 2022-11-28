@@ -16,6 +16,7 @@ import os
 import sys
 sys.path.append(os.getcwd())
 
+import subprocess
 from mgr.grafana_dashboard_configurations_mgr import UFMTelemetryLabelsConfigParser
 from utils.logger import Logger, LOG_LEVELS
 from api.labels_api import MetricLabelsGeneratorAPI
@@ -37,6 +38,13 @@ if __name__ == '__main__':
 
     conf = UFMTelemetryLabelsConfigParser()
     _init_logs(conf)
+
+    try:
+        Logger.log_message("Initializing the Apache configurations", LOG_LEVELS.DEBUG)
+        subprocess.call('/opt/ufm/ufm_plugin_utg/ufm_telemetry_grafana_plugin/scripts/init_apache.sh')
+        Logger.log_message("Initializing the Apache configurations completed successfully", LOG_LEVELS.DEBUG)
+    except Exception as ex:
+        Logger.log_message(f'Initializing the Apache configurations completed with errors: {str(ex)}', LOG_LEVELS.ERROR)
 
     try:
         app_routes_map = {
