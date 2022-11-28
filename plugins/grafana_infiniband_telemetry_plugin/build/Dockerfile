@@ -2,6 +2,7 @@ FROM ubuntu:20.04 AS grafana-dashboard_base_ubuntu20
 
 LABEL maintainer="anana@nvidia.com"
 
+ARG DEBIAN_FRONTEND=noninteractive
 ARG BASE_PATH=/opt/ufm/ufm_plugin_grafana-dashboard
 ARG SRC_BASE_DIR=grafana_infiniband_telemetry_plugin
 
