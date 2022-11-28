@@ -1,0 +1,85 @@
+//
+// Copyright © 2013-2022 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+//
+// This software product is a proprietary product of Nvidia Corporation and its affiliates
+// (the "Company") and all right, title, and interest in and to the software
+// product, including all associated intellectual property rights, are and
+// shall remain exclusively with the Company.
+//
+// This software product is governed by the End User License Agreement
+// provided with the software product.
+//
+syntax = "proto3";
+import "google/protobuf/any.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+message gRPCStreamerID{string job_id = 1;}
+
+//messages returning from server contains data about
+message gRPCStreamerParams{
+  string message_id = 1; // unique identifier for messages
+  string ufm_api_name = 2; // what rest api receive the data from
+  //currently the list of api from ufm that are supported are [Jobs, Events, Links, Alarms]
+  google.protobuf.Timestamp timestamp = 3; //what time we created the message
+  string data = 4; // data of rest api call
+}
+
+//message returning from run once contains
+message runOnceRespond{
+  string job_id=1;
+  repeated gRPCStreamerParams results = 2;
+}
+
+//message about Subscriber params, containing the ufm api params
+message SubscriberParams{
+  message APIParams {
+    string ufm_api_name = 1; //currently the list of api from ufm that are supported are [Jobs, Events, Links, Alarms]
+    int32 interval = 2;
+    optional bool only_delta = 3;
+  }
+  string job_id = 1; //unique identifier for this job
+  repeated APIParams apiParams = 2;
+}
+
+//message for the existing subscribers
+message ListSubscriberParams{
+  repeated SubscriberParams subscribers = 1;
+}
+
+//message for communicate with server to create session to the ufm
+message SessionAuth{
+  string job_id=1;
+  string username = 2;
+  string password = 3 ;
+  optional string token = 4;
+}
+//message for returning from server
+message SessionRespond{
+  string respond=1;
+}
+
+//API for communicate with the server, all the function the server most to support those function.
+service GeneralGRPCStreamerService{
+  rpc Help(google.protobuf.Empty) returns (SessionRespond){} // get help to communicate with the server
+  rpc Version(google.protobuf.Empty) returns (SessionRespond){} // same as help
+
+  rpc CreateSession(SessionAuth) returns (SessionRespond) {} //create a session to the ufm and respond from server
+
+  rpc SubscribeToStream(gRPCStreamerID) returns (stream gRPCStreamerParams){} //subscribe to stream and get those messages
+  rpc GetJobParams(gRPCStreamerID) returns (SubscriberParams) {} //get information of Subscriber using the id
+
+  rpc RunStreamJob(gRPCStreamerID) returns (stream gRPCStreamerParams) {} // running the a stream of information using the id of the job.
+  rpc RunOnceJob(gRPCStreamerID) returns (runOnceRespond) {} //running all the data once using the id of the job.
+
+  rpc RunOnce(SubscriberParams) returns (runOnceRespond) {} // running all the data once using a Subscriber param message.
+  rpc RunPeriodically(SubscriberParams) returns (stream gRPCStreamerParams) {} //running the stream of information using the Subscriber params.
+
+  rpc StopStream(gRPCStreamerID) returns (google.protobuf.Empty) {} //stop a stream of information using the job id.
+  rpc Serialization(google.protobuf.Empty) returns (google.protobuf.Empty) {} //Serialize every job information.
+
+  rpc ListSubscribers(google.protobuf.Empty) returns (ListSubscriberParams) {} // get all Subscriber.
+  rpc AddSubscriber(SubscriberParams) returns (SessionRespond) {} // add new Subscriber and receive server respond.
+  rpc EditSubscriber(SubscriberParams) returns (SessionRespond) {} // edit a known Subscriber with new params.
+  rpc DeleteSubscriber(gRPCStreamerID) returns (google.protobuf.Empty) {} // delete a Subscriber using it's job.
+}
