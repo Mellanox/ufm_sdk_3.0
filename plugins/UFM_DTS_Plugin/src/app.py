@@ -15,12 +15,12 @@
 import os
 import sys
 sys.path.append(os.getcwd())
+sys.path.insert(0, os.path.abspath(__file__)[:os.path.abspath(__file__).rfind('ufm_sdk_3.0')] + 'ufm_sdk_3.0')
 
 
 from utils.flask_server import run_api
 from utils.flask_server.base_flask_api_app import BaseFlaskAPIApp
 from mgr.data_model import DataModel
-from mgr.data_mock_loader import DataMockLoader
 from mgr.dts_sync_manager import DTSSyncManager
 from api.conf_api import DTSConfigurationsAPI
 from api.package_info import PackageInfoAPI
@@ -29,16 +29,12 @@ from api.inventory import InventoryAPI
 
 if __name__ == '__main__':
 
-
+    dataMgr = DataModel.getInstance()
     routes_map = {
         "/conf": DTSConfigurationsAPI().application,
-        "/package_info": PackageInfoAPI().application,
-        "/inventory": InventoryAPI().application
+        "/package_info": PackageInfoAPI(dataMgr).application,
+        "/inventory": InventoryAPI(dataMgr).application
     }
-    dts_sync_manager = DTSSyncManager.getInstance()
-    dataMockMgr = DataMockLoader.getInstance()
-    dataMgr = DataModel.getInstance()
-    dataMockMgr.set_data()
-    #print (dataMgr.get_package_info("c-237-153-80-083-bf2"))
+    dts_sync_manager = DTSSyncManager.getInstance(dataMgr)
     app = BaseFlaskAPIApp(routes_map)
     run_api(app=app, port_number=8687)

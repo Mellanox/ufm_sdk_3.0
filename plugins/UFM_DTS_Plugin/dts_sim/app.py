@@ -15,6 +15,7 @@
 import os
 import sys
 sys.path.append(os.getcwd())
+sys.path.insert(0, os.path.abspath(__file__)[:os.path.abspath(__file__).rfind('ufm_sdk_3.0')] + 'ufm_sdk_3.0')
 from utils.flask_server import run_api
 from utils.flask_server.base_flask_api_app import BaseFlaskAPIApp
 from api.json import JSONAPI

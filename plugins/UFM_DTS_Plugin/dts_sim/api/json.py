@@ -28,16 +28,23 @@ class JSONAPI(BaseAPIApplication):
         self.package_info = {}
         self.inventory = {}
         self.resource_util = {}
-        with open(os.path.join('plugins', 'UFM_DTS_Plugin', 'dts_sim', 'json_files', 'full.json'), 'r') as f:
+        self.inventory_hash = {}
+        self.package_info_hash = {}
+        abs_dts_sim_path = os.path.abspath(__file__)[:os.path.abspath(__file__).rfind('dts_sim')] + 'dts_sim'
+        with open(os.path.join(abs_dts_sim_path, 'json_files', 'full.json'), 'r') as f:
             self.full = json.load(f)
-        with open(os.path.join('plugins', 'UFM_DTS_Plugin', 'dts_sim', 'json_files', 'node.json'), 'r') as f:
+        with open(os.path.join(abs_dts_sim_path, 'json_files', 'node.json'), 'r') as f:
             self.node = json.load(f)
-        with open(os.path.join('plugins', 'UFM_DTS_Plugin', 'dts_sim', 'json_files', 'package_info.json'), 'r') as f:
+        with open(os.path.join(abs_dts_sim_path, 'json_files', 'package_info.json'), 'r') as f:
             self.package_info = json.load(f)
-        with open(os.path.join('plugins', 'UFM_DTS_Plugin', 'dts_sim', 'json_files', 'resource_util.json'), 'r') as f:
+        with open(os.path.join(abs_dts_sim_path, 'json_files', 'resource_util.json'), 'r') as f:
             self.resource_util = json.load(f)
-        with open(os.path.join('plugins', 'UFM_DTS_Plugin', 'dts_sim', 'json_files', 'inventory.json'), 'r') as f:
+        with open(os.path.join(abs_dts_sim_path, 'json_files', 'inventory.json'), 'r') as f:
             self.inventory = json.load(f)
+        with open(os.path.join(abs_dts_sim_path, 'json_files', 'inventory_hash.json'), 'r') as f:
+            self.inventory_hash = json.load(f)
+        with open(os.path.join(abs_dts_sim_path, 'json_files', 'package_info_hash.json'), 'r') as f:
+            self.package_info_hash = json.load(f)
 
     def _get_error_handlers(self):
         return [
@@ -62,6 +69,10 @@ class JSONAPI(BaseAPIApplication):
                 result = self.inventory
             elif args["message_type"] == "ResourceUtil":
                 result = self.resource_util
+            elif args["message_type"] == "InventoryHash":
+                result = self.inventory_hash
+            elif args["message_type"] == "PackageInfoHash":
+                result = self.package_info_hash
 
         try:
             res  = make_response(result)
