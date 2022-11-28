@@ -56,7 +56,7 @@ class MetricLabelsGeneratorAPI(BaseAPIApplication):
 
     def _get_routes(self):
         return {
-            self.get: dict(urls=["/enterprise"], methods=["GET"])
+            self.get: dict(urls=["/"], methods=["GET"])
         }
 
     def _get_metrics(self):

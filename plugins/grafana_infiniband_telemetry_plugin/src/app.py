@@ -44,10 +44,10 @@ if __name__ == '__main__':
         }
 
         app = BaseFlaskAPIApp(app_routes_map)
-        run_api(app=app, port_number=8983, run_reactor=True)
+        run_api(app=app, port_number=8983, run_reactor=False)
 
         endpoint_routes_map = {
-            "/": MetricLabelsGeneratorAPI(conf=conf).application
+            "/enterprise": MetricLabelsGeneratorAPI(conf=conf).application
         }
 
         endpoint_app = BaseFlaskAPIApp(endpoint_routes_map)
