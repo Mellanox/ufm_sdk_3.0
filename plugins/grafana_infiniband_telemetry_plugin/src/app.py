@@ -23,7 +23,7 @@ from api.labels_api import MetricLabelsGeneratorAPI
 from api.conf_api import UFMTelemetryGrafanaConfigurationsAPI
 from utils.flask_server import run_api
 from utils.flask_server.base_flask_api_app import BaseFlaskAPIApp
-
+from utils.utils import Utils
 
 def _init_logs(config_parser):
     # init logs configs
@@ -36,12 +36,16 @@ def _init_logs(config_parser):
 
 if __name__ == '__main__':
 
+    DEFAULT_PLUGIN_PORT = 8983
+    DEFAULT_EXTERNAL_ENDPOINT_PORT = 8982
+    DEFAULT_INTERNAL_ENDPOINT_PORT = 8984
     conf = UFMTelemetryLabelsConfigParser()
     _init_logs(conf)
 
     try:
         Logger.log_message("Initializing the Apache configurations", LOG_LEVELS.DEBUG)
-        subprocess.call('/opt/ufm/ufm_plugin_grafana-dashboard/grafana_infiniband_telemetry_plugin/scripts/init_apache.sh')
+        subprocess.call(f'/opt/ufm/ufm_plugin_grafana-dashboard/grafana_infiniband_telemetry_plugin/'
+                        f'scripts/init_apache.sh {DEFAULT_EXTERNAL_ENDPOINT_PORT} {DEFAULT_INTERNAL_ENDPOINT_PORT}')
         Logger.log_message("Initializing the Apache configurations completed successfully", LOG_LEVELS.DEBUG)
     except Exception as ex:
         Logger.log_message(f'Initializing the Apache configurations completed with errors: {str(ex)}', LOG_LEVELS.ERROR)
@@ -52,14 +56,18 @@ if __name__ == '__main__':
         }
 
         app = BaseFlaskAPIApp(app_routes_map)
-        run_api(app=app, port_number=8983, run_reactor=False)
+        port = Utils.get_plugin_port('/config/grafana-dashboard_httpd_proxy.conf', DEFAULT_PLUGIN_PORT)
+        run_api(app=app, port_number=port, run_reactor=False)
 
         endpoint_routes_map = {
             "/enterprise": MetricLabelsGeneratorAPI(conf=conf).application
         }
 
         endpoint_app = BaseFlaskAPIApp(endpoint_routes_map)
-        run_api(app=endpoint_app, port_number=8984)
+        ports = Utils.get_plugin_port('/config/endpoint_ports.conf',
+                                      f'{DEFAULT_EXTERNAL_ENDPOINT_PORT},{DEFAULT_INTERNAL_ENDPOINT_PORT}')
+        server_port = int(ports.split(",")[1])
+        run_api(app=endpoint_app, port_number=server_port)
 
     except ValueError as ve:
         Logger.log_message(f'Missing configurations: {str(ve)}', LOG_LEVELS.ERROR)
