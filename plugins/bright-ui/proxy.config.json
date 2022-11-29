@@ -1,0 +1,22 @@
+{
+  "/ufmRestV2": {
+    "target": "http://10.209.36.80",
+    "secure": false
+  },
+  "/ufm_web":{
+    "target": "http://10.209.36.80",
+    "secure": false
+  },
+  "/ufm":{
+    "target": "http://10.209.36.80",
+    "secure": false
+  },
+  "/dologin":{
+    "target": "http://10.209.36.80",
+    "secure": false
+  },
+  "/logout":{
+    "target": "http://10.209.36.80",
+    "secure": false
+  }
+}
