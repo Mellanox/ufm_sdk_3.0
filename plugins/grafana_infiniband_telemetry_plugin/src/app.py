@@ -44,8 +44,9 @@ if __name__ == '__main__':
 
     try:
         Logger.log_message("Initializing the Apache configurations", LOG_LEVELS.DEBUG)
-        subprocess.call(f'/opt/ufm/ufm_plugin_grafana-dashboard/grafana_infiniband_telemetry_plugin/'
-                        f'scripts/init_apache.sh {DEFAULT_EXTERNAL_ENDPOINT_PORT} {DEFAULT_INTERNAL_ENDPOINT_PORT}')
+        subprocess.check_call(['/opt/ufm/ufm_plugin_grafana-dashboard'
+                               '/grafana_infiniband_telemetry_plugin/scripts/init_apache.sh',
+                               f'{DEFAULT_EXTERNAL_ENDPOINT_PORT} {DEFAULT_INTERNAL_ENDPOINT_PORT}'])
         Logger.log_message("Initializing the Apache configurations completed successfully", LOG_LEVELS.DEBUG)
     except Exception as ex:
         Logger.log_message(f'Initializing the Apache configurations completed with errors: {str(ex)}', LOG_LEVELS.ERROR)
@@ -57,7 +58,7 @@ if __name__ == '__main__':
 
         app = BaseFlaskAPIApp(app_routes_map)
         port = Utils.get_plugin_port('/config/grafana-dashboard_httpd_proxy.conf', DEFAULT_PLUGIN_PORT)
-        run_api(app=app, port_number=port, run_reactor=False)
+        run_api(app=app, port_number=int(port), run_reactor=False)
 
         endpoint_routes_map = {
             "/enterprise": MetricLabelsGeneratorAPI(conf=conf).application
