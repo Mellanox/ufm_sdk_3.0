@@ -16,7 +16,7 @@ external_endpoint_port=$1
 internal_endpoint_port=$2
 
 # configure the apache to work on external_endpoint_port instead of 80
-sed -i 's/80/${external_endpoint_port}/' /etc/apache2/ports.conf
+sed -i "0,/Listen [0-9]*/{s/Listen [0-9]*/Listen $external_endpoint_port/}" /etc/apache2/ports.conf
 # adding the reverse proxy configurations for the endpoint server
 # endpoint server works internally on port internal_endpoint_port
 touch /etc/apache2/conf-available/grafana-plugin.conf
