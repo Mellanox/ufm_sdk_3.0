@@ -21,7 +21,7 @@ import logging
 from utils.flask_server import run_api
 from utils.args_parser import ArgsParser
 from utils.logger import Logger
-
+from utils.utils import Utils
 from web_service import UFMTelemetryFluentdStreamingAPI
 from streamer import \
     UFMTelemetryStreaming,\
@@ -61,4 +61,5 @@ if __name__ == '__main__':
         logging.warning("Streaming was not started, need to enable the streaming & set the required configurations")
 
     app = UFMTelemetryFluentdStreamingAPI(config_parser)
-    run_api(app=app, port_number=8981)
+    port = Utils.get_plugin_port('/config/tfs_httpd_proxy.conf', 8981)
+    run_api(app=app, port_number=port)
