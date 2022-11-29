@@ -12,15 +12,18 @@
 
 set -eE
 
-# configure the apache to work on 8982 instead of 80
-sed -i 's/80/8982/' /etc/apache2/ports.conf
+external_endpoint_port=$1
+internal_endpoint_port=$2
+
+# configure the apache to work on external_endpoint_port instead of 80
+sed -i 's/80/${external_endpoint_port}/' /etc/apache2/ports.conf
 # adding the reverse proxy configurations for the endpoint server
-# endpoint server works internally on port 8984
+# endpoint server works internally on port internal_endpoint_port
 touch /etc/apache2/conf-available/grafana-plugin.conf
 cat > /etc/apache2/conf-available/grafana-plugin.conf << EOL
 <Location /labels>
-    ProxyPass http://127.0.0.1:8984 retry=1 Keepalive=On
-    ProxyPassReverse http://127.0.0.1:8984
+    ProxyPass http://127.0.0.1:${internal_endpoint_port} retry=1 Keepalive=On
+    ProxyPassReverse http://127.0.0.1:${internal_endpoint_port}
 </Location>
 EOL
 ln -s /etc/apache2/conf-available/grafana-plugin.conf /etc/apache2/conf-enabled/grafana-plugin.conf

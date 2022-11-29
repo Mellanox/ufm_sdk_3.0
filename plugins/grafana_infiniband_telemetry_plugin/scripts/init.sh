@@ -19,6 +19,7 @@ SRC_DIR_PATH=/opt/ufm/ufm_plugin_grafana-dashboard/grafana_infiniband_telemetry_
 CONFIG_PATH=/config
 
 cp $SRC_DIR_PATH/conf/grafana-dashboard_httpd_proxy.conf ${CONFIG_PATH}
+cp $SRC_DIR_PATH/conf/endpoint_ports.conf ${CONFIG_PATH}
 cp $SRC_DIR_PATH/conf/grafana_infiniband_telemetry_plugin.cfg ${CONFIG_PATH}
 
 touch ${CONFIG_PATH}/grafana-dashboard_shared_volumes.conf
