@@ -13,7 +13,7 @@ As a fabric manager, the UFM Telemetry holds a real-time network telemetry infor
 Plugin Deployment
 --------------------------------------------------------
 
-### To deploy the plugin on UFM-SDN Appliance:
+### To deploy the plugin on UFM-SDN Appliance Gen2.5:
 
 - Login as admin
 - Run 
@@ -57,7 +57,7 @@ Plugin Deployment
     > show ufm plugin
 
 
-### To deploy the plugin on UFM Docker container:
+### To deploy the plugin on UFM Docker container / UFM-SDN Appliance Gen 3:
   - Load the latest plugin container
       - In case of HA, load the plugin on the standby node as well;
       - if your machine is connected to the internet, you could simply run:
@@ -68,6 +68,10 @@ Plugin Deployment
         - Move the file to some shared location that is accessible to the UFM machine 
         - Load the image to UFM machine
           > docker load < /[some-shared-location]/ufm-plugin-grafana-dashboard.tar.gz
+      - In case of UFM-SDN Appliance Gen 3, you need to make sure that the port of endpoint is opened:
+          >ufw show
+          * You should see the port 8982 listed, otherwise you need open it by:
+            > ufw allow 8982
         
 - Enable & start the plugin
     > docker exec ufm /opt/ufm/scripts/manage_ufm_plugins.sh add -p grafana-dashboard  
