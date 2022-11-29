@@ -1,0 +1,18 @@
+<div>
+  <spinner class="spinnerInsteadOfTable" *ngIf="!tableData"></spinner>
+  <app-x-core-ag-grid
+          data-qa="jobs-table"
+          *ngIf="tableData"
+          [rowData]="tableData"
+          [options]="tableOptions"
+          (onContextMenuClick)="onContextMenuClick($event)">
+
+  </app-x-core-ag-grid>
+</div>
+
+<ng-template #statusTemp let-data>
+  <div style="text-align:left;">
+    <i [class]="JOB_STATUS_MAP[data.col]" style="display:inline-block"></i>
+    {{ data.col }}
+  </div>
+</ng-template>
