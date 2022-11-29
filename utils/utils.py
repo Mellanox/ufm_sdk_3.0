@@ -17,6 +17,7 @@ import logging
 import json
 import ipaddress
 import os
+import re
 from datetime import datetime
 from utils.logger import Logger, LOG_LEVELS
 
@@ -68,3 +69,18 @@ class Utils:
         dirname = os.path.dirname(__file__)
         current_abs_path = os.path.abspath(os.path.join(dirname, os.pardir))
         return os.path.join(current_abs_path, path)
+
+
+    @staticmethod
+    def get_plugin_port(port_conf_file, default_port_value):
+        port = default_port_value
+        port_regex = re.compile("^port[ =\t]*(?P<web_port>[0-9]{1,5})")
+        try:
+            with open(port_conf_file, 'r') as f:
+                data = f.read()
+            match = port_regex.search(data)
+            if match:
+                port = match.group('web_port')
+        except:
+            pass
+        return port
