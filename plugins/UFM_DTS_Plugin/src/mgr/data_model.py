@@ -45,6 +45,24 @@ class DataModel(Singleton):
             package_info = self.Hosts[host_name][MESSAGE_TYPES.PACKAGE_INFO.value][DataModelConstants.MESSAGE]
         return package_info
 
+    def get_node_data(self):
+        node_data = []
+        for hostname in self.Hosts:
+            if MESSAGE_TYPES.NODE.value in self.Hosts[hostname]:
+                node = self.Hosts[hostname][MESSAGE_TYPES.NODE.value]
+                msg = self.get_host_message(node)
+                node_data.append(msg)
+        return node_data
+
+    def get_resource_util_data(self):
+        node_data = []
+        for hostname in self.Hosts:
+            if MESSAGE_TYPES.RESOURCE_UTIL.value in self.Hosts[hostname]:
+                node = self.Hosts[hostname][MESSAGE_TYPES.RESOURCE_UTIL.value]
+                msg = self.get_host_message(node)
+                node_data.append(msg)
+        return node_data
+
     def get_host_message(self, host):
         msg = None
         if DataModelConstants.MESSAGE in host and len(host[DataModelConstants.MESSAGE]):

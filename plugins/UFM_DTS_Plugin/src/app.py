@@ -25,6 +25,8 @@ from mgr.dts_sync_manager import DTSSyncManager
 from api.conf_api import DTSConfigurationsAPI
 from api.package_info import PackageInfoAPI
 from api.inventory import InventoryAPI
+from api.node_api import NodeAPI
+from api.resource_util_api import ResourceUtilAPI
 
 
 if __name__ == '__main__':
@@ -33,7 +35,9 @@ if __name__ == '__main__':
     routes_map = {
         "/conf": DTSConfigurationsAPI().application,
         "/package_info": PackageInfoAPI(dataMgr).application,
-        "/inventory": InventoryAPI(dataMgr).application
+        "/inventory": InventoryAPI(dataMgr).application,
+        "/node": NodeAPI(dataMgr).application,
+        "/resource_util": ResourceUtilAPI(dataMgr).application
     }
     dts_sync_manager = DTSSyncManager.getInstance(dataMgr)
     app = BaseFlaskAPIApp(routes_map)
