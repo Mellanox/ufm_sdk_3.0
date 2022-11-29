@@ -20,7 +20,8 @@ import os
 
 HOST = "127.0.0.1:8000"
 PROTOCOL = "http"
-HEADERS = {"X-Remote-User": "ufmsystem"}
+SESSION = requests.Session()
+SESSION.headers = {"X-Remote-User": "ufmsystem"}
 EMPTY_IP = "0.0.0.0"
 
 def succeded(status_code):
@@ -30,7 +31,7 @@ def get_request(resource):
     request = PROTOCOL + '://' + HOST + resource
     logging.info(f"GET {request}")
     try:
-        response = requests.get(request, verify=False, headers=HEADERS)
+        response = SESSION.get(request, verify=False)
         return response.status_code, response.json()
     except Exception as e:
         error = f"{request} failed with exception: {e}"
@@ -41,12 +42,19 @@ def post_request(resource, json=None):
     request = PROTOCOL + '://' + HOST + resource
     logging.info(f"POST {request}")
     try:
-        response = requests.post(request, verify=False, headers=HEADERS, json=json)
+        response = SESSION.post(request, verify=False, json=json)
         return response.status_code, response.text
     except Exception as e:
         error = f"{request} failed with exception: {e}"
         logging.error(error)
         return HTTPStatus.INTERNAL_SERVER_ERROR, error
+
+async def async_post(session, resource, json=None):
+    request = PROTOCOL + '://' + HOST + resource
+    logging.info(f"POST {request}")
+    async with session.post(request, json=json) as resp:
+        text = await resp.text()
+        return resp.status, text
 
 def get_ufm_switches():
     resource = "/resources/systems?type=switch"
@@ -59,7 +67,7 @@ def get_ufm_switches():
         system_name = switch["system_name"]
         if not ip == EMPTY_IP:
             switch_ips[ip] = system_name
-    logging.info(f"List of switches to register plugin on: {switch_ips.keys()}")
+    logging.debug(f"List of switches in the fabric: {switch_ips.keys()}")
     return switch_ips
 
 class ConfigParser:

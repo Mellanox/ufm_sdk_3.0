@@ -66,14 +66,14 @@ class SNMPWebProc:
                             level=logging.getLevelName(ConfigParser.log_level),
                             format=ConfigParser.log_format)
         self.switch_ip_to_name = get_ufm_switches()
+        self.loop = asyncio.get_event_loop()
         self.web_server = SNMPWebServer(self.switch_ip_to_name)
         snmp_trap_receiver = SnmpTrapReceiver(self.switch_ip_to_name)
         self.snmp_proc = multiprocessing.Process(target=snmp_trap_receiver.run)
         self.snmp_proc.start()
 
     def start_web_server(self):
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.web_server.run())
+        self.loop.run_until_complete(self.web_server.run())
 
     async def cleanup(self):
         await self.web_server.stop()
