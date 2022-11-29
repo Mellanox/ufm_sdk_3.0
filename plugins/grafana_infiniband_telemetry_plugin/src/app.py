@@ -42,11 +42,14 @@ if __name__ == '__main__':
     conf = UFMTelemetryLabelsConfigParser()
     _init_logs(conf)
 
+    internal_endpoint_port = Utils.get_plugin_port('/config/internal_endpoint_port.conf',DEFAULT_INTERNAL_ENDPOINT_PORT)
+    external_endpoint_port = Utils.get_plugin_port('/config/external_endpoint_port.conf',{DEFAULT_EXTERNAL_ENDPOINT_PORT})
+
     try:
         Logger.log_message("Initializing the Apache configurations", LOG_LEVELS.DEBUG)
         subprocess.check_call(['/opt/ufm/ufm_plugin_grafana-dashboard'
                                '/grafana_infiniband_telemetry_plugin/scripts/init_apache.sh',
-                               f'{DEFAULT_EXTERNAL_ENDPOINT_PORT} {DEFAULT_INTERNAL_ENDPOINT_PORT}'])
+                               f'{external_endpoint_port} {internal_endpoint_port}'])
         Logger.log_message("Initializing the Apache configurations completed successfully", LOG_LEVELS.DEBUG)
     except Exception as ex:
         Logger.log_message(f'Initializing the Apache configurations completed with errors: {str(ex)}', LOG_LEVELS.ERROR)
@@ -65,10 +68,7 @@ if __name__ == '__main__':
         }
 
         endpoint_app = BaseFlaskAPIApp(endpoint_routes_map)
-        ports = Utils.get_plugin_port('/config/endpoint_ports.conf',
-                                      f'{DEFAULT_EXTERNAL_ENDPOINT_PORT},{DEFAULT_INTERNAL_ENDPOINT_PORT}')
-        server_port = int(ports.split(",")[1])
-        run_api(app=endpoint_app, port_number=server_port)
+        run_api(app=endpoint_app, port_number=int(internal_endpoint_port))
 
     except ValueError as ve:
         Logger.log_message(f'Missing configurations: {str(ve)}', LOG_LEVELS.ERROR)
