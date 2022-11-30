@@ -45,7 +45,7 @@ class SNMPWebServer:
             self.api.add_resource(resource, path, resource_class_kwargs={'switch_ip_to_name': self.switch_ip_to_name})
 
     async def run(self):
-        self.app.run(port=self.port_number, debug=True)
+        self.app.run(port=self.port_number, debug=True, use_reloader=False)
         # resource = WSGIResource(reactor, reactor.getThreadPool(), self.app)
         # reactor.listenTCP(ConfigParser.server_port, server.Site(resource))
         # reactor.run()
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     _loop = asyncio.get_event_loop()
     snmp_web_server = SNMPWebProc()
     try:
-        signal.signal(signal.SIGTERM, snmp_web_server.shutdown)
+        # signal.signal(signal.SIGTERM, snmp_web_server.shutdown)
         snmp_web_server.start_web_server()
         _loop.run_forever()
     except KeyboardInterrupt:

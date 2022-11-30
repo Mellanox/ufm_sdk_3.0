@@ -52,9 +52,14 @@ def post_request(resource, json=None):
 async def async_post(session, resource, json=None):
     request = PROTOCOL + '://' + HOST + resource
     logging.info(f"POST {request}")
-    async with session.post(request, json=json) as resp:
-        text = await resp.text()
-        return resp.status, text
+    try:
+        async with session.post(request, json=json) as resp:
+            text = await resp.text()
+            return resp.status, text
+    except Exception as e:
+        error = f"{request} failed with exception: {e}"
+        logging.error(error)
+        return HTTPStatus.INTERNAL_SERVER_ERROR, error
 
 def get_ufm_switches():
     resource = "/resources/systems?type=switch"
