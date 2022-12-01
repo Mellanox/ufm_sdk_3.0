@@ -18,6 +18,7 @@ import logging
 import requests
 import os
 
+HTTP_ERROR = HTTPStatus.INTERNAL_SERVER_ERROR
 HOST = "127.0.0.1:8000"
 PROTOCOL = "http"
 SESSION = requests.Session()
@@ -36,7 +37,7 @@ def get_request(resource):
     except Exception as e:
         error = f"{request} failed with exception: {e}"
         logging.error(error)
-        return HTTPStatus.INTERNAL_SERVER_ERROR, {error}
+        return HTTP_ERROR, {error}
 
 def post_request(resource, json=None):
     request = PROTOCOL + '://' + HOST + resource
@@ -47,7 +48,7 @@ def post_request(resource, json=None):
     except Exception as e:
         error = f"{request} failed with exception: {e}"
         logging.error(error)
-        return HTTPStatus.INTERNAL_SERVER_ERROR, error
+        return HTTP_ERROR, error
 
 async def async_post(session, resource, json=None):
     request = PROTOCOL + '://' + HOST + resource
@@ -59,7 +60,7 @@ async def async_post(session, resource, json=None):
     except Exception as e:
         error = f"{request} failed with exception: {e}"
         logging.error(error)
-        return HTTPStatus.INTERNAL_SERVER_ERROR, error
+        return HTTP_ERROR, error
 
 def get_ufm_switches():
     resource = "/resources/systems?type=switch"

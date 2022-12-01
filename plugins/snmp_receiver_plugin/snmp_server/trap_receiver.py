@@ -44,6 +44,8 @@ class SnmpTrapReceiver:
         self.traps_n = 0
         self.throttle_interval = 10
         self.st_t = 0
+        self.events_at_time = 10
+        self.event_id = 551
 
     def _setup_transport(self):
         # UDP over IPv4, first listening interface/port
@@ -105,17 +107,24 @@ class SnmpTrapReceiver:
     async def send_events(self):
         async with aiohttp.ClientSession(headers={"X-Remote-User": "ufmsystem"}) as session:
             tasks = []
-            for switch_name, event_to_count in self.ip_to_event_to_count.items():
-                base_description = f"SNMP traps from {switch_name}: "
-                description = ', '.join(f'{event} happened {count} times' for event, count in event_to_count.items())
-                tasks.append(asyncio.ensure_future(self.post_external_event(session, base_description + description)))
-            # for i in range(1000):
-            #     tasks.append(asyncio.ensure_future(self.post_external_event(session, f"SNMP trap #{i} from swithc: event happened!")))
+            multiple_events = []
+            # for switch_name, event_to_count in self.ip_to_event_to_count.items():
+            #     base_description = f"SNMP traps from {switch_name}: "
+            #     description = ', '.join(f'{event} happened {count} times' for event, count in event_to_count.items())
+                # concatenate events into set to improve performance
+            for i in range(5000):
+                multiple_events.append({"event_id": self.event_id, "description": f"event {i} happened"})
+                if len(multiple_events) >= self.events_at_time:
+                    tasks.append(asyncio.ensure_future(self.post_external_event(session, multiple_events)))
+                    multiple_events = []
+            # sending rest events
+            tasks.append(asyncio.ensure_future(self.post_external_event(session, multiple_events)))
             await asyncio.gather(*tasks)
 
-    async def post_external_event(self, session, description):
-        resource = "/app/events/external_event"
-        payload = {"event_id": 551, "description": description}
+    async def post_external_event(self, session, payload):
+        if not payload:
+            return
+        resource = "/app/events/external_event?multiple_events=true"
         status_code, text = await helpers.async_post(session, resource, json=payload)
         if not helpers.succeded(status_code):
             logging.error(f"Failed to send external event, status code: {status_code}, response: {text}")

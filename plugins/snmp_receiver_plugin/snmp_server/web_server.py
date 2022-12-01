@@ -23,7 +23,7 @@ import signal
 # from twisted.internet import reactor
 # from twisted.web import server
 
-from resources import Dummy, Register, Unregister
+from resources import Dummy, RegisterSwitch, UnregisterSwitch, AddEvent, RemoveEvent
 from helpers import ConfigParser, get_ufm_switches
 from trap_receiver import SnmpTrapReceiver
 
@@ -37,8 +37,10 @@ class SNMPWebServer:
 
     def init_apis(self):
         apis = {
-            Register: "/register",
-            Unregister: "/unregister",
+            RegisterSwitch: "/register",
+            UnregisterSwitch: "/unregister",
+            AddEvent: "/add_event",
+            RemoveEvent: "/remove_event",
             Dummy: "/dummy",
         }
         for resource, path in apis.items():
