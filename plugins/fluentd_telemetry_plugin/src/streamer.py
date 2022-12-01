@@ -384,6 +384,7 @@ class UFMTelemetryStreaming(Singleton):
                         is_value_changed = True
                     elif not self.stream_only_new_samples:
                         current_row[key] = sample.value
+                        is_value_changed = True
 
                 if is_value_changed:
                     # if you add custom attributes here, you should add them to init_streaming_attributes function
