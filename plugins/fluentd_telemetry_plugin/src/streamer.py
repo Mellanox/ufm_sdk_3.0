@@ -351,6 +351,7 @@ class UFMTelemetryStreaming(Singleton):
                             is_data_changed = True
                         elif not self.stream_only_new_samples or is_constant_value:
                             dic[attr_obj.get("name", key)] = value
+                            is_data_changed = True
                 ########
                 if self.stream_only_new_samples:
                     self.last_streamed_data_sample_per_port[port_key] = current_port_values
