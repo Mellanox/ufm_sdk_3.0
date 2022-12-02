@@ -26,14 +26,14 @@ class UFMResource(Resource):
         self.resource = "/actions"
     
     @staticmethod
-    def get_json_api_payload(cli, switches):
+    def get_json_api_payload(cli, description, switches):
         return {
             "action": "run_cli",
             "identifier": "ip",
             "params": {
                 "commandline": [cli]
             },
-            "description": "register plugin as SNMP traps receiver",
+            "description": description,
             "object_ids": switches,
             "object_type": "System"
         }
@@ -82,8 +82,9 @@ class Switch(UFMResource):
             incorrect_switches = set(switches) - self.switch_ip_to_name.keys()
             if incorrect_switches:
                 return self.report_error(HTTPStatus.BAD_REQUEST, f"Switches {incorrect_switches} don't exist in the fabric or don't have an ip")
+            description = "plugin registration as SNMP traps receiver"
             for ip in hosts:
-                status_code, text = self.post_json_api(self.get_cli(ip, unregister), switches)
+                status_code, text = self.post_json_api(self.get_cli(ip, unregister), description, switches)
                 if not helpers.succeded(status_code):
                     return self.report_error(status_code, text)
             return self.report_success()
@@ -132,8 +133,9 @@ class Event(UFMResource):
             incorrect_switches = set(switches) - self.switch_ip_to_name.keys()
             if incorrect_switches:
                 return self.report_error(HTTPStatus.BAD_REQUEST, f"Switches {incorrect_switches} don't exist in the fabric or don't have an ip")
+            description = "UFM event monitoring settings"
             for event in events:
-                status_code, text = self.post_json_api(self.get_cli(event, remove), switches)
+                status_code, text = self.post_json_api(self.get_cli(event, remove), description, switches)
                 if not helpers.succeded(status_code):
                     return self.report_error(status_code, text)
             return self.report_success()

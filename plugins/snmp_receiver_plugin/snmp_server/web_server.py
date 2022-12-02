@@ -41,7 +41,7 @@ class SNMPWebServer:
             UnregisterSwitch: "/unregister",
             AddEvent: "/add_event",
             RemoveEvent: "/remove_event",
-            Dummy: "/dummy",
+            Dummy: "/dummy"
         }
         for resource, path in apis.items():
             self.api.add_resource(resource, path, resource_class_kwargs={'switch_ip_to_name': self.switch_ip_to_name})

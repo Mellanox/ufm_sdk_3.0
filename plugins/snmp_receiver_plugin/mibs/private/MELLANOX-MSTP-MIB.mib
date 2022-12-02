@@ -1,0 +1,338 @@
+MELLANOX-MSTP-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, Integer32
+        FROM SNMPv2-SMI
+    BridgeId
+        FROM BRIDGE-MIB
+    MODULE-COMPLIANCE, OBJECT-GROUP
+        FROM SNMPv2-CONF
+	mellanoxMstp
+		FROM MELLANOX-SMI-MIB;
+		
+-- Mellanox MSTP MIB
+-- 
+
+mellanoxMstpMib MODULE-IDENTITY
+	LAST-UPDATED "202108120000Z"
+	ORGANIZATION 
+		"Mellanox Technologies, Inc."
+	CONTACT-INFO 
+		"
+		Mellanox Technologies, Inc.
+		350 Oakmead Parkway, Suite 100
+		Sunnyvale, CA 94085
+		Tel: 408-970-3400
+		Fax: 408-970-3403
+		E-mail: info@mellanox.com
+		        "
+	DESCRIPTION 
+		"Mellanox MSTP MIB"
+
+	REVISION "202108120000Z"
+	DESCRIPTION 
+		"MSTP Device OID code alignment."
+::= { mellanoxMstp 10 }
+		
+mellanoxMstpNotifications  OBJECT IDENTIFIER ::= { mellanoxMstp 1 }
+mellanoxMstpObjects        OBJECT IDENTIFIER ::= { mellanoxMstp 2 }
+
+mellanoxMstpTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF mellanoxMstpEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        "Table of MSTP instances"
+    ::= { mellanoxMstpObjects 1 }
+	
+mellanoxMstpEntry OBJECT-TYPE
+    SYNTAX      mellanoxMstpEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        "A MSTP Table entry."
+    INDEX { mellanoxMstpId }
+    ::= { mellanoxMstpTable 1 }
+	
+MellanoxMstpEntry ::= SEQUENCE {
+      mellanoxMstpId                       Unsigned32 (1..4094),
+      mellanoxMstpBridgeId                 BridgeId,
+      mellanoxMstpDesignatedRoot           BridgeId,
+      mellanoxMstpRootPathCost             Integer32,
+      mellanoxMstpRootPort                 Unsigned32 (1..65535),
+      mellanoxMstpBridgePriority           Integer32,
+      mellanoxMstpVids0                    OCTET STRING,
+      mellanoxMstpVids1                    OCTET STRING,
+      mellanoxMstpVids2                    OCTET STRING,
+      mellanoxMstpVids3                    OCTET STRING
+}
+
+mellanoxMstpId OBJECT-TYPE
+    SYNTAX      Unsigned32 (1..4094)
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        "MST Instance identifier."
+    ::= { mellanoxMstpEntry 1 }
+
+mellanoxMstpBridgeId OBJECT-TYPE
+    SYNTAX      BridgeId
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Bridge Identifier for the MSTI."
+    ::= { mellanoxMstpEntry 2 }
+
+mellanoxMstpDesignatedRoot OBJECT-TYPE
+    SYNTAX      BridgeId
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Bridge Identifier of the Root Bridge for the MSTI."
+    ::= { mellanoxMstpEntry 3 }
+
+mellanoxMstpRootPathCost OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Path cost from the transmitting Bridge to the Root Bridge for
+         the MSTI."
+    ::= { mellanoxMstpEntry 4 }
+
+mellanoxMstpRootPort OBJECT-TYPE
+    SYNTAX      Unsigned32 (1..65535)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Root port for the MSTI."
+    ::= { mellanoxMstpEntry 5 }
+
+mellanoxMstpBridgePriority OBJECT-TYPE
+    SYNTAX      Integer32 (0..61440)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Bridge Priority parameter for the MSTI 
+		(the four most significant bits of the Bridge 
+		 Identifier for the MSTI)"
+    ::= { mellanoxMstpEntry 6 }
+
+mellanoxMstpVids0 OBJECT-TYPE
+    SYNTAX      OCTET STRING (SIZE(128))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "The first 1024 bits of the 4096 bit vector
+         indicating which VIDs are assigned to this MSTID.  The high order
+         bit of the first octet corresponds to the first bit of the vector,
+         while the low order bit of the last octet corresponds to the last
+         bit of this portion of the vector.  A bit that is on (equal to 1)
+         indicates that the corresponding VID is assigned to this MSTID."
+    ::= { mellanoxMstpEntry 7 }
+
+mellanoxMstpVids1 OBJECT-TYPE
+    SYNTAX      OCTET STRING (SIZE(128))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "The second 1024 bits of the 4096 bit vector
+         indicating which VIDs are assigned to this MSTID.  The high order
+         bit of the first octet corresponds to the first bit of this
+         portion of the vector, while the low order bit of the last octet
+         corresponds to the last bit of this portion of the vector.  A bit
+         that is on (equal to 1) indicates that the corresponding VID is
+         assigned to this MSTID."
+    ::= { mellanoxMstpEntry 8 }
+
+mellanoxMstpVids2 OBJECT-TYPE
+    SYNTAX      OCTET STRING (SIZE(128))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "The third 1024 bits of the 4096 bit vector
+         indicating which VIDs are assigned to this MSTID.  The high order
+         bit of the first octet corresponds to the first bit of this
+         portion of the vector, while the low order bit of the last octet
+         corresponds to the last bit of this portion of the vector.  A bit
+         that is on (equal to 1) indicates that the corresponding VID is
+         assigned to this MSTID."
+    ::= { mellanoxMstpEntry 9 }
+
+mellanoxMstpVids3 OBJECT-TYPE
+    SYNTAX      OCTET STRING (SIZE(128))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "The fourth 1024 bits of the 4096 bit vector
+         indicating which VIDs are assigned to this MSTID.  The high order
+         bit of the first octet corresponds to the first bit of this
+         portion of the vector, while the low order bit of the last octet
+         corresponds to the last bit of this portion of the vector.  A bit
+         that is on (equal to 1) indicates that the corresponding VID is
+         assigned to this MSTID."
+    ::= { mellanoxMstpEntry 10 }
+
+mellanoxMstpPortTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF MellanoxMstpPortEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        "MSTP Port Table. Each row in the Table represents information
+         regarding a specific Port within the Bridge's Bridge Protocol
+         Entity, per MSTI."
+    ::= { mellanoxMstpObjects 2 }
+
+mellanoxMstpPortEntry OBJECT-TYPE
+    SYNTAX      MellanoxMstpPortEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        "MSTP Port Table entry."
+    INDEX { mellanoxMstpPortMstId,
+            mellanoxMstpPortNum }
+    ::= { mellanoxMstpPortTable 1 }
+	
+MellanoxMstpPortEntry ::= SEQUENCE {
+      mellanoxMstpPortMstId             Unsigned32 (1..4094),
+      mellanoxMstpPortNum               Unsigned32 (1..65535),
+      mellanoxMstpPortState             INTEGER,
+      mellanoxMstpPortPriority          Integer32,
+      mellanoxMstpPortPathCost          Integer32,
+      mellanoxMstpPortRole              INTEGER
+}
+
+mellanoxMstpPortMstId OBJECT-TYPE
+    SYNTAX      Unsigned32 (1..4094)
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        "Spanning Tree (or MST) Instance id."
+    ::= { mellanoxMstpPortEntry 1 }
+
+mellanoxMstpPortNum OBJECT-TYPE
+    SYNTAX      Unsigned32 (1..65535)
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        "Number of the Bridge Port"
+    ::= { mellanoxMstpPortEntry 2 }
+
+mellanoxMstpPortState OBJECT-TYPE
+    SYNTAX      INTEGER {
+                    disabled(1),
+                    listening(2),
+                    learning(3),
+                    forwarding(4),
+                    blocking(5)
+                }
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "The current state of the Port (i.e., Disabled,
+         Listening, Learning, Forwarding, or Blocking), for the MSTI."
+    ::= { mellanoxMstpPortEntry 3 }
+
+mellanoxMstpPortPriority OBJECT-TYPE
+    SYNTAX      Integer32 (0..240)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Priority of the port for the MSTI."
+    ::= { mellanoxMstpPortEntry 4 }
+
+mellanoxMstpPortPathCost OBJECT-TYPE
+    SYNTAX      Integer32 (1..200000000)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Port path cost for the MSTI."
+    ::= { mellanoxMstpPortEntry 5 }
+
+mellanoxMstpPortRole OBJECT-TYPE
+    SYNTAX      INTEGER {
+                    root(1),
+                    alternate(2),
+                    designated(3),
+                    backup(4)
+                }
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Current Port Role for the Port (i.e., Root,
+         Alternate, Designated, or Backup), for the MSTI."
+    ::= { mellanoxMstpPortEntry 6 }
+
+mellanoxMstpVlanTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF MellanoxMstpVlanEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        "Table containing VLAN mapping to spanning tree instances (MSTI)."
+    ::= { mellanoxMstpObjects 3 }
+
+mellanoxMstpVlanEntry OBJECT-TYPE
+    SYNTAX      MellanoxMstpVlanEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        "MSTP VLAN table entry."
+    INDEX { mellanoxMstpVlanId }
+    ::= { mellanoxMstpVlanTable 1 }
+	
+MellanoxMstpVlanEntry ::= SEQUENCE {
+      mellanoxMstpVlanId           Unsigned32 (1..4096),
+      mellanoxMstpVlanMstId        Unsigned32 (1..4094)
+}
+
+mellanoxMstpVlanId OBJECT-TYPE
+    SYNTAX      Unsigned32 (1..4096)
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        "VLAN id."
+    ::= { mellanoxMstpVlanEntry 1 }
+
+mellanoxMstpVlanMstId OBJECT-TYPE
+    SYNTAX      Unsigned32 (1..4094)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "MSTID corresponding to the VLAN id."
+    ::= { mellanoxMstpVlanEntry 2 }
+
+mstpRootBridgeChange NOTIFICATION-TYPE
+             OBJECTS { mellanoxMstpId }
+             STATUS  current
+             DESCRIPTION
+               "Indicates that the sending agent has become 
+			   the new root of a Spanning Tree."
+            ::= { mellanoxMstpNotifications 1 }
+
+mstpRootPortChange NOTIFICATION-TYPE
+             OBJECTS { mellanoxMstpId, mellanoxMstpPortNum}
+             STATUS  current
+             DESCRIPTION
+               "Indicates that the sending agent has changed 
+			   the root Port of a Spanning Tree."
+            ::= { mellanoxMstpNotifications 2 }
+
+mstpTopologyChange NOTIFICATION-TYPE
+             OBJECTS { mellanoxMstpId, mellanoxMstpPortNum, mellanoxMstpPortState}
+             STATUS  current
+             DESCRIPTION
+               "A mstpTopologyChange trap is sent by a bridge when
+               any of its configured ports in any instance transitions 
+			   from the Learning state to the Forwarding state,
+			   or from the Forwarding state to the Blocking state.  
+			   The trap is not sent if a mstpNewRootBridge trap
+               is sent for the same transition."
+            ::= { mellanoxMstpNotifications 3 }
+END
+
+
+
+
+
+
+

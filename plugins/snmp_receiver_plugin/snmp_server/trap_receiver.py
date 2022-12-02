@@ -19,6 +19,7 @@ import logging
 from pysnmp.entity import engine, config
 from pysnmp.carrier.asyncore.dgram import udp
 from pysnmp.entity.rfc3413 import ntfrcv
+from pysnmp.smi import builder, view, compiler, rfc1902
 import threading
 import time
 
@@ -40,6 +41,9 @@ class SnmpTrapReceiver:
         self.ip_to_event_to_count = {}
         self._setup_transport()
         self._setup_snmp_v1_v2c()
+        self.mibBuilder = None
+        self.mibViewController = None
+        self._init_mib_controller()
         self.switch_ip_to_name = switch_ip_to_name
         self.traps_n = 0
         self.throttle_interval = 10
@@ -61,10 +65,22 @@ class SnmpTrapReceiver:
 
         self.snmp_engine.transportDispatcher.jobStarted(1)  # this job would never finish
 
+    def _init_mib_controller(self):
+        # Assemble MIB viewer
+        self.mibBuilder = builder.MibBuilder()
+        compiler.addMibCompiler(self.mibBuilder, sources=[
+            'file:///auto/mtrswgwork/atolikin/ufm_sdk_3.0/plugins/snmp_receiver_plugin/mibs/standard',
+            'file:///auto/mtrswgwork/atolikin/ufm_sdk_3.0/plugins/snmp_receiver_plugin/mibs/standard'
+            ])
+        self.mibViewController = view.MibViewController(self.mibBuilder)
+        # Pre-load MIB modules
+        self.mibBuilder.loadModules()
+
     # noinspection PyUnusedLocal,PyUnusedLocal
     def trap_callback(self, snmpEngine, stateReference, contextEngineId, contextName,
               varBinds, cbCtx):
         self.traps_n += 1
+        varBindsResolved = [rfc1902.ObjectType(rfc1902.ObjectIdentity(x[0]), x[1]).resolveWithMib(self.mibViewController) for x in varBinds]
         # Get an execution context and use inner SNMP engine data to figure out peer address
         execContext = snmpEngine.observer.getExecutionContext('rfc3412.receiveMessage:request')
         switch_address = execContext['transportAddress'][0]
@@ -75,15 +91,20 @@ class SnmpTrapReceiver:
 
         logging.info('Notification from %s' % (switch_name))
 
-        description = ""
-        for oid_obj, val_obj in varBinds:
+        # description = ""
+        # for oid_obj, val_obj in varBinds:
+        #     oid = oid_obj.prettyPrint()
+        #     val = val_obj.prettyPrint()
+        #     logging.info('  %s = %s' % (oid, val))
+        #     if val == self.test_trap_oid:
+        #         description = "test trap"
+        #     if self.mellanox_oid in oid:
+        #         description = val
+
+        for oid_obj, val_obj in varBindsResolved:
             oid = oid_obj.prettyPrint()
             val = val_obj.prettyPrint()
-            logging.debug('  %s = %s' % (oid, val))
-            if val == self.test_trap_oid:
-                description = "test trap"
-            if self.mellanox_oid in oid:
-                description = val
+            logging.info('  %s = %s' % (oid, val))
 
         self.ip_to_event_to_count.setdefault(switch_name, {}).setdefault(description, 0)
         self.ip_to_event_to_count[switch_name][description] += 1
@@ -108,12 +129,13 @@ class SnmpTrapReceiver:
         async with aiohttp.ClientSession(headers={"X-Remote-User": "ufmsystem"}) as session:
             tasks = []
             multiple_events = []
-            # for switch_name, event_to_count in self.ip_to_event_to_count.items():
-            #     base_description = f"SNMP traps from {switch_name}: "
-            #     description = ', '.join(f'{event} happened {count} times' for event, count in event_to_count.items())
+            for switch_name, event_to_count in self.ip_to_event_to_count.items():
+                base_description = f"SNMP traps from {switch_name}: "
+                description = ', '.join(f'{event} happened {count} times' for event, count in event_to_count.items())
                 # concatenate events into set to improve performance
-            for i in range(5000):
-                multiple_events.append({"event_id": self.event_id, "description": f"event {i} happened"})
+                multiple_events.append({"event_id": self.event_id, "description": base_description + description})
+            # for i in range(5000):
+            #     multiple_events.append({"event_id": self.event_id, "description": f"event {i} happened"})
                 if len(multiple_events) >= self.events_at_time:
                     tasks.append(asyncio.ensure_future(self.post_external_event(session, multiple_events)))
                     multiple_events = []
