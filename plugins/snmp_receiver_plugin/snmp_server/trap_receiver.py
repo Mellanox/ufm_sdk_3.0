@@ -101,10 +101,14 @@ class SnmpTrapReceiver:
         #     if self.mellanox_oid in oid:
         #         description = val
 
+        description = ""
         for oid_obj, val_obj in varBindsResolved:
             oid = oid_obj.prettyPrint()
             val = val_obj.prettyPrint()
-            logging.info('  %s = %s' % (oid, val))
+            logging.debug('  %s = %s' % (oid, val))
+            if self.mellanox_oid in oid:
+                description = val
+                logging.info('  %s = %s' % (oid, val))
 
         self.ip_to_event_to_count.setdefault(switch_name, {}).setdefault(description, 0)
         self.ip_to_event_to_count[switch_name][description] += 1
