@@ -21,8 +21,8 @@ import logging
 
 
 class UFMResource(Resource):
-    def __init__(self, switch_ip_to_name):
-        self.switch_ip_to_name = switch_ip_to_name
+    def __init__(self, switch_ip_to_name_and_guid):
+        self.switch_ip_to_name_and_guid = switch_ip_to_name_and_guid
         self.resource = "/actions"
     
     @staticmethod
@@ -78,8 +78,8 @@ class Switch(UFMResource):
                 hosts = json_data["hosts"]
             except KeyError as ke:
                 return self.report_error(HTTPStatus.BAD_REQUEST, f"No key {ke} found")
-            self.switch_ip_to_name = helpers.get_ufm_switches()
-            incorrect_switches = set(switches) - self.switch_ip_to_name.keys()
+            self.switch_ip_to_name_and_guid = helpers.get_ufm_switches()
+            incorrect_switches = set(switches) - self.switch_ip_to_name_and_guid.keys()
             if incorrect_switches:
                 return self.report_error(HTTPStatus.BAD_REQUEST, f"Switches {incorrect_switches} don't exist in the fabric or don't have an ip")
             description = "plugin registration as SNMP traps receiver"
@@ -129,8 +129,8 @@ class Event(UFMResource):
                 events = json_data["events"]
             except KeyError as ke:
                 return self.report_error(HTTPStatus.BAD_REQUEST, f"No key {ke} found")
-            self.switch_ip_to_name = helpers.get_ufm_switches()
-            incorrect_switches = set(switches) - self.switch_ip_to_name.keys()
+            self.switch_ip_to_name_and_guid = helpers.get_ufm_switches()
+            incorrect_switches = set(switches) - self.switch_ip_to_name_and_guid.keys()
             if incorrect_switches:
                 return self.report_error(HTTPStatus.BAD_REQUEST, f"Switches {incorrect_switches} don't exist in the fabric or don't have an ip")
             description = "UFM event monitoring settings"

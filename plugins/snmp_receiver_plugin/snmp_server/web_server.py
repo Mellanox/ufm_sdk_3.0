@@ -28,11 +28,11 @@ from helpers import ConfigParser, get_ufm_switches
 from trap_receiver import SnmpTrapReceiver
 
 class SNMPWebServer:
-    def __init__(self, switch_ip_to_name):
+    def __init__(self, switch_ip_to_name_and_guid):
         self.port_number = 8780
         self.app = Flask(__name__)
         self.api = Api(self.app)
-        self.switch_ip_to_name = switch_ip_to_name
+        self.switch_ip_to_name_and_guid = switch_ip_to_name_and_guid
         self.init_apis()
 
     def init_apis(self):
@@ -44,7 +44,7 @@ class SNMPWebServer:
             Dummy: "/dummy"
         }
         for resource, path in apis.items():
-            self.api.add_resource(resource, path, resource_class_kwargs={'switch_ip_to_name': self.switch_ip_to_name})
+            self.api.add_resource(resource, path, resource_class_kwargs={'switch_ip_to_name_and_guid': self.switch_ip_to_name_and_guid})
 
     async def run(self):
         self.app.run(port=self.port_number, debug=True, use_reloader=False)
@@ -67,10 +67,10 @@ class SNMPWebProc:
                                                           backupCount=ConfigParser.log_file_backup_count)],
                             level=logging.getLevelName(ConfigParser.log_level),
                             format=ConfigParser.log_format)
-        self.switch_ip_to_name = get_ufm_switches()
+        self.switch_ip_to_name_and_guid = get_ufm_switches()
         self.loop = asyncio.get_event_loop()
-        self.web_server = SNMPWebServer(self.switch_ip_to_name)
-        snmp_trap_receiver = SnmpTrapReceiver(self.switch_ip_to_name)
+        self.web_server = SNMPWebServer(self.switch_ip_to_name_and_guid)
+        snmp_trap_receiver = SnmpTrapReceiver(self.switch_ip_to_name_and_guid)
         self.snmp_proc = multiprocessing.Process(target=snmp_trap_receiver.run)
         self.snmp_proc.start()
 

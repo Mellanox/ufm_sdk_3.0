@@ -28,7 +28,7 @@ import helpers
 
 
 class SnmpTrapReceiver:
-    def __init__(self, switch_ip_to_name={}):
+    def __init__(self, switch_ip_to_name_and_guid={}):
         self.mellanox_oid = "1.3.6.1.4.1.33049"
         self.test_trap_oid = self.mellanox_oid + ".2.1.2.13"
 
@@ -44,7 +44,7 @@ class SnmpTrapReceiver:
         self.mibBuilder = None
         self.mibViewController = None
         self._init_mib_controller()
-        self.switch_ip_to_name = switch_ip_to_name
+        self.switch_ip_to_name_and_guid = switch_ip_to_name_and_guid
         self.traps_n = 0
         self.throttle_interval = 10
         self.st_t = 0
@@ -83,23 +83,8 @@ class SnmpTrapReceiver:
         varBindsResolved = [rfc1902.ObjectType(rfc1902.ObjectIdentity(x[0]), x[1]).resolveWithMib(self.mibViewController) for x in varBinds]
         # Get an execution context and use inner SNMP engine data to figure out peer address
         execContext = snmpEngine.observer.getExecutionContext('rfc3412.receiveMessage:request')
-        switch_address = execContext['transportAddress'][0]
-        switch_name = self.switch_ip_to_name.get(switch_address, "")
-        if not switch_name:
-            logging.warning(f"Cannot translate {switch_address} to switch name")
-            switch_name = switch_address
-
-        logging.info('Notification from %s' % (switch_name))
-
-        # description = ""
-        # for oid_obj, val_obj in varBinds:
-        #     oid = oid_obj.prettyPrint()
-        #     val = val_obj.prettyPrint()
-        #     logging.info('  %s = %s' % (oid, val))
-        #     if val == self.test_trap_oid:
-        #         description = "test trap"
-        #     if self.mellanox_oid in oid:
-        #         description = val
+        switch_ip = execContext['transportAddress'][0]
+        logging.info('Notification from %s' % (switch_ip))
 
         description = ""
         for oid_obj, val_obj in varBindsResolved:
@@ -110,8 +95,8 @@ class SnmpTrapReceiver:
                 description = val
                 logging.info('  %s = %s' % (oid, val))
 
-        self.ip_to_event_to_count.setdefault(switch_name, {}).setdefault(description, 0)
-        self.ip_to_event_to_count[switch_name][description] += 1
+        self.ip_to_event_to_count.setdefault(switch_ip, {}).setdefault(description, 0)
+        self.ip_to_event_to_count[switch_ip][description] += 1
 
         current_t = time.time()
         diff = current_t - self.st_t
@@ -133,24 +118,30 @@ class SnmpTrapReceiver:
         async with aiohttp.ClientSession(headers={"X-Remote-User": "ufmsystem"}) as session:
             tasks = []
             multiple_events = []
-            for switch_name, event_to_count in self.ip_to_event_to_count.items():
+            for switch_ip, event_to_count in self.ip_to_event_to_count.items():
+                (switch_name, switch_guid) = self.switch_ip_to_name_and_guid.get(switch_ip, (switch_ip, ""))
                 base_description = f"SNMP traps from {switch_name}: "
                 description = ', '.join(f'{event} happened {count} times' for event, count in event_to_count.items())
-                # concatenate events into set to improve performance
-                multiple_events.append({"event_id": self.event_id, "description": base_description + description})
-            # for i in range(5000):
-            #     multiple_events.append({"event_id": self.event_id, "description": f"event {i} happened"})
-                if len(multiple_events) >= self.events_at_time:
+                payload = {"event_id": self.event_id, "description": base_description + description,
+                           "otype": "Switch", "object_name": switch_guid}
+                if ConfigParser.multiple_events:
+                    # concatenate events into set to improve performance
+                    multiple_events.append(payload)
+                    if len(multiple_events) >= self.events_at_time:
+                        tasks.append(asyncio.ensure_future(self.post_external_event(session, multiple_events)))
+                        multiple_events = []
+                    # sending rest events
                     tasks.append(asyncio.ensure_future(self.post_external_event(session, multiple_events)))
-                    multiple_events = []
-            # sending rest events
-            tasks.append(asyncio.ensure_future(self.post_external_event(session, multiple_events)))
+                else:
+                    tasks.append(asyncio.ensure_future(self.post_external_event(session, payload)))
             await asyncio.gather(*tasks)
 
     async def post_external_event(self, session, payload):
         if not payload:
             return
-        resource = "/app/events/external_event?multiple_events=true"
+        resource = "/app/events/external_event"
+        if ConfigParser.multiple_events:
+            resource += "?multiple_events=true"
         status_code, text = await helpers.async_post(session, resource, json=payload)
         if not helpers.succeded(status_code):
             logging.error(f"Failed to send external event, status code: {status_code}, response: {text}")

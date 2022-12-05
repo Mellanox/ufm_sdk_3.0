@@ -71,8 +71,9 @@ def get_ufm_switches():
     for switch in json:
         ip = switch["ip"]
         system_name = switch["system_name"]
+        guid = switch["guid"]
         if not ip == EMPTY_IP:
-            switch_ips[ip] = system_name
+            switch_ips[ip] = (system_name, guid)
     logging.debug(f"List of switches in the fabric: {switch_ips.keys()}")
     return switch_ips
 
@@ -93,3 +94,4 @@ class ConfigParser:
     snmp_ip = snmp_config.get("SNMP", "snmp_ip")
     snmp_port = snmp_config.getint("SNMP", "snmp_port")
     community = snmp_config.get("SNMP", "community")
+    multiple_events = snmp_config.getboolean("SNMP", "multiple_events")
