@@ -26,7 +26,7 @@ import logging
 
 
 class Constants:
-    SLURM_DEF_PATH = '/etc/slurm'
+    SLURM_DEF_PATH = '/.autodirect/mtrswgwork/anasb/ufm_sdk_3.0/plugins/SLURM-Integration/'
     UFM_SLURM_CONF_NAME = 'ufm_slurm.conf'
     SLURM_SERVICE_PATH = '/lib/systemd/system/slurmctld.service'
     CONF_UFM_IP = 'ufm_server'
@@ -48,7 +48,7 @@ class Constants:
     LS_JOB_NAME = 'slurm_job_'
     DEF_LOG_FILE = 'ufm_slurm.log'
     UFM_VER_URL = "/ufmRest/app/ufm_version"
-    CREATE_SHARP_ALLOCATION_URL = "/ufmRest/app/sharp/allocate_resources"
+    CREATE_SHARP_ALLOCATION_URL = "/ufmRest/app/sharp/resources"
     DELETE_SHARP_ALLOCATION_URL = "/ufmRest/app/sharp/resources/{0}"
     ADD_HOSTS_TO_PKEY_URL = "/ufmRest/resources/pkeys/hosts"
     REMOVE_HOSTS_FROM_PKEY_URL = "/ufmRest/resources/pkeys/{0}/hosts/{1}"

@@ -45,7 +45,7 @@ class UfmSlurmBase():
         self.sharp_allocation = self._toBoolean(self.sharp_allocation, Constants.CONF_SHARP_ALLOCATION, False)
         self.partially_alloc = self.general_utils.read_conf_file(Constants.CONF_PARTIALLY_ALLOC)
         self.partially_alloc = self._toBoolean(self.partially_alloc, Constants.CONF_PARTIALLY_ALLOC, True)
-        self.app_resources_limit = self.general_utils.read_conf_file(Constants.CONF_PARTIALLY_ALLOC)
+        self.app_resources_limit = self.general_utils.read_conf_file(Constants.CONF_APP_RESOURCES_LIMIT)
         if self.app_resources_limit and int(self.app_resources_limit) < -1:
             logging.error("app_resources_limit param must be an integer number greater than -1!")
             sys.exit(1)
@@ -101,7 +101,7 @@ class UfmSlurmBase():
     def create_sharp_allocation(self, job_id, job_nodes):
         try:
             logging.info("Allocate Job's node guids (%s) to app_id: %s" % (job_nodes, job_id))
-            response = self.ufm._set_sharp_reservation(self.server, self.session, self.auth_type, job_id, job_nodes,
+            response = self.ufm._create_sharp_allocation(self.server, self.session, self.auth_type, job_id, job_nodes,
                                                        self.pkey, self.app_resources_limit, self.partially_alloc)
             logging.info("Request Response: %s" % str(response))
         except Exception as exc:
