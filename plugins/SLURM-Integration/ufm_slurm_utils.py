@@ -30,39 +30,28 @@ class Constants:
     UFM_SLURM_CONF_NAME = 'ufm_slurm.conf'
     SLURM_SERVICE_PATH = '/lib/systemd/system/slurmctld.service'
     CONF_UFM_IP = 'ufm_server'
+    AUTH_TYPE = "auth_type"
     CONF_UFM_USER = 'ufm_server_user'
     CONF_UFM_PASSWORD = 'ufm_server_pass'
-    CONF_PARTIALLY_ALLOC = "partially_alloc"
-    CONF_PKEY_PARAM = 'pkey'
-    CONF_PROTOCOL = "protocol"
-    CONF_LOGFILE_NAME = 'log_file_name'
-    CONF_ADD_RELATED_HOSTS = 'add_related_nics'
-    CONF_DEBUG_MODE = 'debug_mode'
     CONF_TOKEN = 'token'
-    CONF_CLEAN_UP = 'clean_up_ls'
-    ENVIRONMENTS_MODULE = 'environments'
-    SYSTEMS_MODULE = 'systems'
-    SERVERS_MODULE = 'servers'
-    COMPUTES_MODULE = 'computes'
-    NETWORKS_MODULE = 'networks'
-    NETWORKIFS_MODULE = 'network_interfaces'
+    CONF_PKEY_ALLOCATION = 'pkey_allocation'
+    CONF_PKEY_PARAM = 'pkey'
+    CONF_IP_OVER_IB_PARAM = 'ip_over_ib'
+    CONF_INDEX0_PARAM = 'index0'
+    CONF_SHARP_ALLOCATION = 'sharp_allocation'
+    CONF_PARTIALLY_ALLOC = "partially_alloc"
+    CONF_APP_RESOURCES_LIMIT = 'app_resources_limit'
+    CONF_LOGFILE_NAME = 'log_file_name'
+    CONF_DEBUG_MODE = 'debug_mode'
+    BASIC_AUTH = "basic_auth"
+    TOKEN_AUTH = "token_auth"
     LS_JOB_NAME = 'slurm_job_'
-    SLURM_ENV_NAME = 'slurm_env'
-    SLURM_NETWORK = 'slurm_net'
     DEF_LOG_FILE = 'ufm_slurm.log'
-    SYSTEMS_URL = "/ufmRest/resources/systems?type=host"
-    SYSTEM_URL = "/ufmRest/resources/systems/%s"
     UFM_VER_URL = "/ufmRest/app/ufm_version"
-    ENV_URL = "/ufmRest/resources/environments/"
-    SET_NODES_TO_PKEY_URL = "/ufmRest/app/sharp/allocate_resources"
-    DELETE_SHARP_ALLOCATION_URL = "/ufmRest/app/sharp/allocate_resources/{0}"
-    NET_URL = "/ufmRest/resources/networks/"
-    COMPUTES_URL = "/ufmRest/resources/environments/%s/logical_servers/%s/computes"
-    LS_URL = "/ufmRest/resources/environments/%s/logical_servers/"
-    ALL_LS_URL = "/ufmRest/resources/logical_servers"
-    LS_ALLOCATE_URL = "/ufmRest/resources/environments/%s/logical_servers/%s/allocate-computes"
-    NETIF_URL = "/ufmRest/resources/environments/%s/logical_servers/%s/network_interfaces"
-    UFM_SLURM_CONF_NOT_EXIST = 'UFM-SLURM configuration file is not found. Check the path: %s'
+    CREATE_SHARP_ALLOCATION_URL = "/ufmRest/app/sharp/allocate_resources"
+    DELETE_SHARP_ALLOCATION_URL = "/ufmRest/app/sharp/resources/{0}"
+    ADD_HOSTS_TO_PKEY_URL = "/ufmRest/resources/pkeys/hosts"
+    REMOVE_HOSTS_FROM_PKEY_URL = "/ufmRest/resources/pkeys/{0}/hosts/{1}"
     UFM_NOT_RESPONDING = 'UFM server is not responding'
     UFM_NOT_AVAILABLE = 'UFM is not available'
     UFM_AUTH_ERROR = 'Could not reach UFM. Check the authentication info.'
@@ -72,39 +61,10 @@ class Constants:
     LOG_UFM_RUNNING = 'UFM: %s is running..'
     LOG_CANNOT_UFM = 'Cannot connect to the UFM server. %s'
     LOG_CANNOT_GET_NODES = 'Could not get nodes of the job.'
-    LOG_CANNOT_GUID_NODES = 'Could not get GUID of the job nodes.'
-    LOG_GUID_NOT_FOUND = ' guid is not found in UFM fabric. It could not be added to the logical server.'
-    LOG_NODE_NOT_FOUND = ' is not part of the UFM fabric. It could not be added to the logical server.'
-    LOG_NO_GUIDS_FOUND = 'No GUIDS of nodes are found to add.'
-    LOG_CREATE_ENV = 'Creating environment %s ...'
-    LOG_FAIL_CREATE_ENV = 'Failed to create environment: %s'
-    LOG_ERROR_CREATE_ENV = 'Error in creating Environment %s: %s'
-    LOG_CREATE_NETWORK = 'Creating private network %s ...'
-    LOG_FAIL_CREATE_NETW = 'Failed to create private network: %s'
-    LOG_ERROR_CREATE_NETW = 'Error in creating private network %s: %s'
-    ALLOCATE_NODES = 'Allocate nodes to LS'
-    LOG_ERR_ALLOCATE_NODES = 'Error in allocate nodes to LS %s: No nodes related to UFM server are found.'
-    LOG_SUCCESS_ALLOCATION = 'Success. The allocation of the nodes to LS is passed'
-    LOG_CREATE_LS = 'Creating logical server: %s ...'
-    LOG_LS_CREATED = 'LS %s is created.'
-    LOG_FAILED_CREATE_LS = 'Failed to create LS: %s.'
-    LOG_ERROR_CREATE_LS = 'Error in creating LS %s: %s'
-    LOG_CREATE_NWIF = 'Creating network interface for LS: %s ...'
-    LOG_NWIF_CREATED = 'Network Interface for LS: %s is created.'
-    LOG_FAILED_CREATE_NWIF = 'Failed to create Network Interface for LS: %s.'
-    LOG_ERROR_CREATE_NWIF = 'Error in creating Network Interface for LS %s: %s'
-    LOG_NOT_ALL_ALLOCATED = 'Not all the nodes are allocated to the logical server.'
-    LOG_LST_NODES_NOT_ADDED = 'The following nodes are not added:'
-    LOG_ERR_ALLOCATE = 'Error in allocating nodes to LS. %s'
     LOG_ERROR_GET_NODES = 'Error in getting nodes: %s'
     LOG_ERROR_UFM_CONNECT = 'Error in connecting to the UFM: %s'
     LOG_ERR_PROLOG = 'Error during executing ufm prolog: %s'
     LOG_ERR_EPILOG = 'Error during executing ufm epilog: %s'
-    LOG_REMOVE_LS = 'Removing LS..'
-    LOG_LS_REMOVED_SUCC = 'Logical Server: %s is removed successfully'
-    LOG_LS_NOT_REMOVED = 'LS: %s is not removed'
-    LOG_LS_NOT_EXIST_REMOVE = 'LS: %s is not exist to be removed'
-    LOG_LS_ERR_REMOVE = 'Error in removing LS: %s'
     ERROR_503 = '503 service temporarily unavailable'
     ERROR_401 = 'error 401'
     NOT_FOUND = 'not found'
@@ -112,10 +72,6 @@ class Constants:
     BAD_REQUEST = "400 BAD REQUEST"
     ERROR_404 = "404 NOT FOUND"
     SBS = "ufmRest"
-    CLEAN_LS = "Cleaning up the the existing LS of the this job nodes if any ..."
-    AUTH_TYPE = "auth_type"
-    BASIC_AUTH = "basic_auth"
-    TOKEN_AUTH = "token_auth"
 
 
 class GeneralUtils:
@@ -157,27 +113,10 @@ class GeneralUtils:
         else:
             return False
 
-    def getAddRelatedHosts(self):
-        add_related = self.read_conf_file(Constants.CONF_ADD_RELATED_HOSTS)
-        if add_related is not None:
-            if "false" in add_related.lower():
-                return False
-        return True
-
     def is_debug_mode(self):
         debug_value = self.read_conf_file(Constants.CONF_DEBUG_MODE)
         if debug_value:
             if debug_value.lower() == "true":
-                return True
-            else:
-                return False
-        else:
-            return False
-
-    def is_clean_up_activated(self):
-        value = self.read_conf_file(Constants.CONF_CLEAN_UP)
-        if value:
-            if value.lower() == "true":
                 return True
             else:
                 return False
@@ -285,16 +224,16 @@ class UFM:
             else:
                 return False, Constants.UFM_CONNECT_ERROR
 
-    def _set_sharp_reservation(self, ufm_server, session, auth_type, job_id, job_nodes, app_resources_limit, pkey=None,
-                               partially_alloc=True):
-        resource_path = Constants.SET_NODES_TO_PKEY_URL
+    def _create_sharp_allocation(self, ufm_server, session, auth_type, job_id, job_nodes, pkey,
+                                 app_resources_limit, partially_alloc):
+        resource_path = Constants.CREATE_SHARP_ALLOCATION_URL
         url = self.getUrl(resource_path, auth_type)
         if not partially_alloc:
             url = url + "?partially_alloc=false"
 
         body_obj = {
             "app_id": job_id,
-            "nodes": job_nodes,
+            "hosts_names": job_nodes,
             "app_resources_limit": app_resources_limit
         }
 
@@ -305,7 +244,28 @@ class UFM:
         logging.info("Sending POST Request to URL:%s, with request data::: %s" % (url, body))
         return self.utils.sendPostRequestAsJSON(session, ufm_server, body, url)
 
-    def _delete_sharp_reservation(self, ufm_server, session, auth_type, job_id):
+    def _add_hosts_to_pkey(self, ufm_server, session, auth_type, job_nodes, pkey, ip_over_ib, index0):
+        resource_path = Constants.ADD_HOSTS_TO_PKEY_URL
+        url = self.getUrl(resource_path, auth_type)
+        body_obj = {
+            "hosts_names": job_nodes,
+            "pkey": pkey,
+            "ip_over_ib": ip_over_ib,
+            "index0": index0
+        }
+
+        body = json.dumps(body_obj)
+        logging.info("Sending POST Request to URL:%s, with request data::: %s" % (url, body))
+        return self.utils.sendPostRequestAsJSON(session, ufm_server, body, url)
+
+    def _remove_hosts_from_pkey(self, ufm_server, session, auth_type, job_nodes, pkey):
+        resource_path = Constants.REMOVE_HOSTS_FROM_PKEY_URL.format(pkey, job_nodes)
+        url = self.getUrl(resource_path, auth_type)
+
+        logging.info("Sending DELETE Request to URL:%s" % url)
+        return self.utils.sendDeleteRequest(session, ufm_server, url)
+
+    def _delete_sharp_allocation(self, ufm_server, session, auth_type, job_id):
 
         resource_path = Constants.DELETE_SHARP_ALLOCATION_URL.format(job_id)
         url = self.getUrl(resource_path, auth_type)
