@@ -48,6 +48,18 @@ class UfmSlurmEpilog(UfmSlurmBase):
             logging.error("error in epilog init function: %s" % str(exc) )
             sys.exit(self.should_fail)
 
+    def get_job_nodes(self):
+        try:
+            slurm_job_nodelist = self.integration.getJobNodesName()
+            logging.info("SLURM_JOB_NODELIST: {0}".format(slurm_job_nodelist))
+            if not slurm_job_nodelist:
+                logging.error(Constants.LOG_CANNOT_GET_NODES)
+                sys.exit(self.should_fail)
+            return slurm_job_nodelist
+        except Exception as exc:
+            logging.error(Constants.LOG_ERROR_GET_NODES % str(exc))
+            sys.exit(self.should_fail)
+
 
 if __name__ == '__main__':
     try:
