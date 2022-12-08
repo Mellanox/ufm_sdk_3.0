@@ -26,7 +26,7 @@ import logging
 
 
 class Constants:
-    SLURM_DEF_PATH = '/.autodirect/mtrswgwork/anasb/ufm_sdk_3.0/plugins/SLURM-Integration/'
+    SLURM_DEF_PATH = '/etc/slurm'
     UFM_SLURM_CONF_NAME = 'ufm_slurm.conf'
     SLURM_SERVICE_PATH = '/lib/systemd/system/slurmctld.service'
     CONF_UFM_IP = 'ufm_server'
