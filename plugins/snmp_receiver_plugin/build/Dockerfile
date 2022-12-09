@@ -15,6 +15,6 @@ COPY snmp_server/ ${BASE_PATH}/snmp_server/
 
 COPY config/supervisord.conf /etc/supervisor/conf.d/
 COPY config/init.sh config/deinit.sh /
-COPY config/snmp.conf config/snmp_shared_volumes.conf ${BASE_PATH}/
+COPY config/snmp.conf config/snmp_shared_volumes.conf config/snmp_httpd_proxy.conf ${BASE_PATH}/
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]

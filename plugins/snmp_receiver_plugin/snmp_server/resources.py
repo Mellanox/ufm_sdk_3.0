@@ -15,16 +15,18 @@
 from flask_restful import Resource
 from flask import request
 from http import HTTPStatus
+import socket
 
 import helpers
 import logging
 
 
 class UFMResource(Resource):
-    def __init__(self, switch_ip_to_name_and_guid):
+    def __init__(self, switch_ip_to_name_and_guid, registered_switches):
         self.switch_ip_to_name_and_guid = switch_ip_to_name_and_guid
         self.resource = "/actions"
-    
+        self.registered_switches = registered_switches
+
     @staticmethod
     def get_json_api_payload(cli, description, switches):
         return {
@@ -51,15 +53,12 @@ class UFMResource(Resource):
     def report_not_allowed():
         return UFMResource.report_error(HTTPStatus.METHOD_NOT_ALLOWED, "Method is not allowed")
 
-    def post_json_api(self, cli, switches):
-        payload = self.get_json_api_payload(cli, switches)
+    def post_json_api(self, cli, description, switches):
+        payload = self.get_json_api_payload(cli, description, switches)
         status_code, text = helpers.post_request(self.resource, json=payload)
         return status_code, text
 
 class Switch(UFMResource):
-    def get(self):
-        return self.report_error(405, "Method is not allowed")
-
     @staticmethod
     def get_cli(ip, unregister=False):
         cli_register = f"snmp-server host {ip} traps"
@@ -69,31 +68,47 @@ class Switch(UFMResource):
     def post(self, unregister=False):
         resource = "unregister" if unregister == True else "register"
         logging.info(f"POST /plugin/snmp/{resource}")
+        self.switch_ip_to_name_and_guid = helpers.get_ufm_switches()
         if not request.json:
-            return self.report_error(HTTPStatus.BAD_REQUEST, "Upload request is empty")
+            switches = list(self.switch_ip_to_name_and_guid.keys())
+            hosts = []
         else:
             json_data = request.get_json(force=True)
             try:
                 switches = json_data["switches"]
-                hosts = json_data["hosts"]
             except KeyError as ke:
                 return self.report_error(HTTPStatus.BAD_REQUEST, f"No key {ke} found")
-            self.switch_ip_to_name_and_guid = helpers.get_ufm_switches()
-            incorrect_switches = set(switches) - self.switch_ip_to_name_and_guid.keys()
-            if incorrect_switches:
-                return self.report_error(HTTPStatus.BAD_REQUEST, f"Switches {incorrect_switches} don't exist in the fabric or don't have an ip")
-            description = "plugin registration as SNMP traps receiver"
-            for ip in hosts:
-                status_code, text = self.post_json_api(self.get_cli(ip, unregister), description, switches)
-                if not helpers.succeded(status_code):
-                    return self.report_error(status_code, text)
-            return self.report_success()
+            hosts = json_data.get("hosts", [])
+        if not hosts:
+            local_hostname = socket.gethostname()
+            local_ip = socket.gethostbyname(local_hostname)
+            hosts.append(local_ip)
+        incorrect_switches = set(switches) - self.switch_ip_to_name_and_guid.keys()
+        if incorrect_switches:
+            return self.report_error(HTTPStatus.BAD_REQUEST, f"Switches {incorrect_switches} don't exist in the fabric or don't have an ip")
+        description = "plugin registration as SNMP traps receiver"
+        for ip in hosts:
+            status_code, text = self.post_json_api(self.get_cli(ip, unregister), description, switches)
+            if not helpers.succeded(status_code):
+                return self.report_error(status_code, text)
+        if unregister:
+            self.registered_switches = self.registered_switches - set(switches)
+        else:
+            self.registered_switches.update(switches)
+        return self.report_success()
 
 class RegisterSwitch(Switch):
+    def get(self):
+        logging.info(f"GET /plugin/snmp/register")
+        return list(self.registered_switches), HTTPStatus.OK
+
     def post(self):
         return super().post()
 
 class UnregisterSwitch(Switch):
+    def get(self):
+        return self.report_error(405, "Method is not allowed")
+
     def post(self):
         return super().post(unregister=True)
 
@@ -142,7 +157,7 @@ class Event(UFMResource):
 
 class AddEvent(Event):
     def post(self):
-        return super().post(remove=True)
+        return super().post()
 
 class RemoveEvent(Event):
     def post(self):

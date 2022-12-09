@@ -20,6 +20,7 @@ from pysnmp.entity import engine, config
 from pysnmp.carrier.asyncore.dgram import udp
 from pysnmp.entity.rfc3413 import ntfrcv
 from pysnmp.smi import builder, view, compiler, rfc1902
+from pysnmp import proto
 import threading
 import time
 
@@ -29,7 +30,7 @@ import helpers
 
 class SnmpTrapReceiver:
     def __init__(self, switch_ip_to_name_and_guid={}):
-        self.mellanox_oid = "1.3.6.1.4.1.33049"
+        self.mellanox_oid = "33049"
         self.test_trap_oid = self.mellanox_oid + ".2.1.2.13"
 
         import urllib3
@@ -49,7 +50,7 @@ class SnmpTrapReceiver:
         self.throttle_interval = 10
         self.st_t = 0
         self.events_at_time = 10
-        self.event_id = 551
+        self.event_id = 553 # warning
 
     def _setup_transport(self):
         # UDP over IPv4, first listening interface/port
@@ -59,6 +60,15 @@ class SnmpTrapReceiver:
     def _setup_snmp_v1_v2c(self):
         # SecurityName <-> CommunityName mapping
         config.addV1System(self.snmp_engine, 'my-area', ConfigParser.community)
+        # config.addV3User(
+        #     self.snmp_engine,
+        #     "user3",
+        #     config.usmHMACMD5AuthProtocol,
+        #     "user3password",
+        #     config.usmDESPrivProtocol,
+        #     "user3encryption",
+        #     proto.rfc1902.OctetString(hexValue='8000000004030201')
+        # )
 
         # Register SNMP Application at the SNMP engine
         ntfrcv.NotificationReceiver(self.snmp_engine, self.trap_callback)
@@ -79,24 +89,27 @@ class SnmpTrapReceiver:
     # noinspection PyUnusedLocal,PyUnusedLocal
     def trap_callback(self, snmpEngine, stateReference, contextEngineId, contextName,
               varBinds, cbCtx):
+        logging.debug('Trap received')
         self.traps_n += 1
         varBindsResolved = [rfc1902.ObjectType(rfc1902.ObjectIdentity(x[0]), x[1]).resolveWithMib(self.mibViewController) for x in varBinds]
         # Get an execution context and use inner SNMP engine data to figure out peer address
         execContext = snmpEngine.observer.getExecutionContext('rfc3412.receiveMessage:request')
         switch_ip = execContext['transportAddress'][0]
-        logging.info('Notification from %s' % (switch_ip))
+        (switch_name, _) = self.switch_ip_to_name_and_guid.get(switch_ip, (switch_ip, ""))
 
         description = ""
         for oid_obj, val_obj in varBindsResolved:
             oid = oid_obj.prettyPrint()
             val = val_obj.prettyPrint()
             logging.debug('  %s = %s' % (oid, val))
+            if self.test_trap_oid in val:
+                description = "test trap"
             if self.mellanox_oid in oid:
                 description = val
-                logging.info('  %s = %s' % (oid, val))
 
         self.ip_to_event_to_count.setdefault(switch_ip, {}).setdefault(description, 0)
         self.ip_to_event_to_count[switch_ip][description] += 1
+        logging.info('Notification from %s: %s' % (switch_name, description))
 
         current_t = time.time()
         diff = current_t - self.st_t
@@ -116,14 +129,19 @@ class SnmpTrapReceiver:
 
     async def send_events(self):
         async with aiohttp.ClientSession(headers={"X-Remote-User": "ufmsystem"}) as session:
+
             tasks = []
             multiple_events = []
             for switch_ip, event_to_count in self.ip_to_event_to_count.items():
                 (switch_name, switch_guid) = self.switch_ip_to_name_and_guid.get(switch_ip, (switch_ip, ""))
                 base_description = f"SNMP traps from {switch_name}: "
-                description = ', '.join(f'{event} happened {count} times' for event, count in event_to_count.items())
-                payload = {"event_id": self.event_id, "description": base_description + description,
-                           "otype": "Switch", "object_name": switch_guid}
+                description = ', '.join(f"'{event}' happened {count} times" for event, count in event_to_count.items())
+                payload = {"event_id": self.event_id, "description": base_description + description}
+                if switch_guid:
+                    payload["object_name"] = switch_guid
+                    payload["otype"] = "Switch"
+                else:
+                    logging.warning(f"Event from unknown switch")
                 if ConfigParser.multiple_events:
                     # concatenate events into set to improve performance
                     multiple_events.append(payload)

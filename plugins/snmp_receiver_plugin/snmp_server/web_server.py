@@ -33,6 +33,7 @@ class SNMPWebServer:
         self.app = Flask(__name__)
         self.api = Api(self.app)
         self.switch_ip_to_name_and_guid = switch_ip_to_name_and_guid
+        self.registered_switches = set()
         self.init_apis()
 
     def init_apis(self):
@@ -44,7 +45,9 @@ class SNMPWebServer:
             Dummy: "/dummy"
         }
         for resource, path in apis.items():
-            self.api.add_resource(resource, path, resource_class_kwargs={'switch_ip_to_name_and_guid': self.switch_ip_to_name_and_guid})
+            self.api.add_resource(resource, path, resource_class_kwargs={
+                'switch_ip_to_name_and_guid': self.switch_ip_to_name_and_guid,
+                'registered_switches': self.registered_switches})
 
     async def run(self):
         self.app.run(port=self.port_number, debug=True, use_reloader=False)
