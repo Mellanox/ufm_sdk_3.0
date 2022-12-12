@@ -50,7 +50,7 @@ class SnmpTrapReceiver:
         self.throttle_interval = 10
         self.st_t = 0
         self.events_at_time = 10
-        self.event_id = 553 # warning
+        self.event_id = 555 # warning
 
     def _setup_transport(self):
         # UDP over IPv4, first listening interface/port

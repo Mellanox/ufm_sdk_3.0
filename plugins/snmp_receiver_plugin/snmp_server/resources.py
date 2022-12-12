@@ -16,6 +16,7 @@ from flask_restful import Resource
 from flask import request
 from http import HTTPStatus
 import socket
+import time
 
 import helpers
 import logging
@@ -53,9 +54,9 @@ class UFMResource(Resource):
     def report_not_allowed():
         return UFMResource.report_error(HTTPStatus.METHOD_NOT_ALLOWED, "Method is not allowed")
 
-    def post_json_api(self, cli, description, switches):
+    def post_json_api(self, cli, description, switches, return_headers=False):
         payload = self.get_json_api_payload(cli, description, switches)
-        status_code, text = helpers.post_request(self.resource, json=payload)
+        status_code, text = helpers.post_request(self.resource, json=payload, return_headers=return_headers)
         return status_code, text
 
 class Switch(UFMResource):
@@ -111,6 +112,44 @@ class UnregisterSwitch(Switch):
 
     def post(self):
         return super().post(unregister=True)
+
+class EventList(UFMResource):
+    def _extract_job_id(self, headers):
+        # extract job ID from location header
+        location = headers.get("Location")
+        if not location:
+            return None
+        job_id = location.split('/')[-1]
+        return job_id
+
+    def get(self):
+        logging.info(f"GET /plugin/snmp/event_list")
+        skip_lines = ["", "show snmp events", "Events for which traps will be sent:"]
+        self.switch_ip_to_name_and_guid = helpers.get_ufm_switches()
+        switch = next(iter(self.switch_ip_to_name_and_guid))
+        status_code, headers = self.post_json_api("show snmp events", "Requesting the list of events", [switch], return_headers=True)
+        if not helpers.succeded(status_code):
+            return self.report_error(status_code, "")
+        job_id = self._extract_job_id(headers)
+        for _ in range(20):
+            status_code, json = helpers.get_request(f"/jobs/{job_id}.1")
+            if not helpers.succeded(status_code):
+                return self.report_error(status_code, json)
+            try:
+                status = json["Status"]
+                events = json["Summary"]
+            except KeyError as ke:
+                return self.report_error(HTTPStatus.BAD_REQUEST, f"No key {ke} found")
+            if status == "Completed":
+                events = events.split("\n")
+                events = list(set(events) - set(skip_lines))
+                return events, HTTPStatus.OK
+            time.sleep(1)
+        else:
+            return self.report_error(HTTPStatus.INTERNAL_SERVER_ERROR, f"Failed to complete the job")
+
+    def post(self):
+        return self.report_error(405, "Method is not allowed")
 
 class Event(UFMResource):
     def get(self):

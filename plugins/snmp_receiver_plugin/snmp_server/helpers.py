@@ -39,11 +39,13 @@ def get_request(resource):
         logging.error(error)
         return HTTP_ERROR, {error}
 
-def post_request(resource, json=None):
+def post_request(resource, json=None, return_headers=False):
     request = PROTOCOL + '://' + HOST + resource
     logging.info(f"POST {request}")
     try:
         response = SESSION.post(request, verify=False, json=json)
+        if return_headers:
+            return response.status_code, response.headers
         return response.status_code, response.text
     except Exception as e:
         error = f"{request} failed with exception: {e}"
