@@ -69,15 +69,18 @@ def get_ufm_switches():
     status_code, json = get_request(resource)
     if not succeded(status_code):
         return {}
-    switch_ips = {}
+    switch_dict = {}
     for switch in json:
         ip = switch["ip"]
-        system_name = switch["system_name"]
-        guid = switch["guid"]
         if not ip == EMPTY_IP:
-            switch_ips[ip] = (system_name, guid)
-    logging.debug(f"List of switches in the fabric: {switch_ips.keys()}")
-    return switch_ips
+            switch_dict[ip] = Switch(switch["system_name"], switch["guid"])
+    logging.debug(f"List of switches in the fabric: {switch_dict.keys()}")
+    return switch_dict
+
+class Switch:
+    def __init__(self, name="", guid=""):
+        self.name = name
+        self.guid = guid
 
 class ConfigParser:
     config_file_name = "../build/config/snmp.conf"

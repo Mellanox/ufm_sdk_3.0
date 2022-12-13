@@ -24,33 +24,35 @@ from pysnmp import proto
 import threading
 import time
 
-from helpers import ConfigParser
-import helpers
+from helpers import Switch, ConfigParser, async_post, succeded
 
 
 class SnmpTrapReceiver:
-    def __init__(self, switch_ip_to_name_and_guid={}):
+    def __init__(self, switch_dict={}):
         self.mellanox_oid = "33049"
         self.test_trap_oid = self.mellanox_oid + ".2.1.2.13"
-
         import urllib3
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
         # Create SNMP engine with autogenernated engineID and pre-bound
         # to socket transport dispatcher
         self.snmp_engine = engine.SnmpEngine()
-        self.ip_to_event_to_count = {}
+        self.switch_dict = switch_dict
+        # creating global to pass into trap_callback
+        global SWITCH_DICT
+        SWITCH_DICT = []
         self._setup_transport()
         self._setup_snmp_v1_v2c()
         self.mibBuilder = None
         self.mibViewController = None
         self._init_mib_controller()
-        self.switch_ip_to_name_and_guid = switch_ip_to_name_and_guid
         self.traps_n = 0
-        self.throttle_interval = 10
+        self.throttling_interval = 10
         self.st_t = 0
         self.events_at_time = 10
-        self.event_id = 555 # warning
+        # TODO: change to 555
+        self.event_id = 553 # warning
+        self.throttling_thread = None
+        self.ip_to_event_to_count = {}
 
     def _setup_transport(self):
         # UDP over IPv4, first listening interface/port
@@ -72,7 +74,6 @@ class SnmpTrapReceiver:
 
         # Register SNMP Application at the SNMP engine
         ntfrcv.NotificationReceiver(self.snmp_engine, self.trap_callback)
-
         self.snmp_engine.transportDispatcher.jobStarted(1)  # this job would never finish
 
     def _init_mib_controller(self):
@@ -80,65 +81,65 @@ class SnmpTrapReceiver:
         self.mibBuilder = builder.MibBuilder()
         compiler.addMibCompiler(self.mibBuilder, sources=[
             'file:///auto/mtrswgwork/atolikin/ufm_sdk_3.0/plugins/snmp_receiver_plugin/mibs/standard',
-            'file:///auto/mtrswgwork/atolikin/ufm_sdk_3.0/plugins/snmp_receiver_plugin/mibs/standard'
+            'file:///auto/mtrswgwork/atolikin/ufm_sdk_3.0/plugins/snmp_receiver_plugin/mibs/private'
             ])
         self.mibViewController = view.MibViewController(self.mibBuilder)
         # Pre-load MIB modules
         self.mibBuilder.loadModules()
 
     # noinspection PyUnusedLocal,PyUnusedLocal
-    def trap_callback(self, snmpEngine, stateReference, contextEngineId, contextName,
-              varBinds, cbCtx):
+    def trap_callback(self, snmpEngine, stateReference, contextEngineId, contextName, varBinds, cbCtx):
         logging.debug('Trap received')
         self.traps_n += 1
         varBindsResolved = [rfc1902.ObjectType(rfc1902.ObjectIdentity(x[0]), x[1]).resolveWithMib(self.mibViewController) for x in varBinds]
         # Get an execution context and use inner SNMP engine data to figure out peer address
         execContext = snmpEngine.observer.getExecutionContext('rfc3412.receiveMessage:request')
         switch_ip = execContext['transportAddress'][0]
-        (switch_name, _) = self.switch_ip_to_name_and_guid.get(switch_ip, (switch_ip, ""))
 
         description = ""
         for oid_obj, val_obj in varBindsResolved:
             oid = oid_obj.prettyPrint()
             val = val_obj.prettyPrint()
-            logging.debug('  %s = %s' % (oid, val))
+            logging.debug(f'  {oid} = {val}')
             if self.test_trap_oid in val:
                 description = "test trap"
             if self.mellanox_oid in oid:
                 description = val
 
+        switch_obj = self.switch_dict.get(switch_ip, None)
+        if not switch_obj:
+            logging.warning(f'Notification from unknown ip {switch_ip}: {description}')
+        else:
+            logging.info(f'Notification from switch {switch_obj.name}: {description}')
         self.ip_to_event_to_count.setdefault(switch_ip, {}).setdefault(description, 0)
         self.ip_to_event_to_count[switch_ip][description] += 1
-        logging.info('Notification from %s: %s' % (switch_name, description))
-
-        current_t = time.time()
-        diff = current_t - self.st_t
-        if diff >= self.throttle_interval:
-            t = threading.Thread(target=self.throttle_events)
-            t.start()
-        self.st_t = current_t
+        
+        if not self.throttling_thread:
+            # TODO: figure out why it works only whtn the thread started in callbacks context
+            self.throttling_thread = threading.Thread(target=self.throttle_events)
+            self.throttling_thread.start()
 
     def throttle_events(self):
-        s_t = time.time()
-        asyncio.run(self.send_events())
-        e_t = time.time()
-        throughput = self.traps_n / (e_t - s_t)
-        logging.warning(f"Throughput is {throughput} traps/second")
-        self.traps_n = 0
-        self.ip_to_event_to_count = {}
+        while True:
+            s_t = time.time()
+            asyncio.run(self.send_events())
+            e_t = time.time()
+            throughput = self.traps_n / (e_t - s_t)
+            logging.warning(f"Throughput is {throughput} traps/second")
+            self.traps_n = 0
+            time.sleep(self.throttling_interval)
 
     async def send_events(self):
         async with aiohttp.ClientSession(headers={"X-Remote-User": "ufmsystem"}) as session:
-
             tasks = []
             multiple_events = []
             for switch_ip, event_to_count in self.ip_to_event_to_count.items():
-                (switch_name, switch_guid) = self.switch_ip_to_name_and_guid.get(switch_ip, (switch_ip, ""))
-                base_description = f"SNMP traps from {switch_name}: "
+                switch = self.switch_dict.get(switch_ip, Switch(switch_ip))
+                base_description = f"SNMP traps from {switch.name}: "
                 description = ', '.join(f"'{event}' happened {count} times" for event, count in event_to_count.items())
                 payload = {"event_id": self.event_id, "description": base_description + description}
-                if switch_guid:
-                    payload["object_name"] = switch_guid
+                if switch.guid:
+                    payload["object_name"] = switch.guid
                     payload["otype"] = "Switch"
                 else:
                     logging.warning(f"Event from unknown switch")
@@ -152,6 +153,8 @@ class SnmpTrapReceiver:
                     tasks.append(asyncio.ensure_future(self.post_external_event(session, multiple_events)))
                 else:
                     tasks.append(asyncio.ensure_future(self.post_external_event(session, payload)))
+                # clear events dict
+            self.ip_to_event_to_count = {}
             await asyncio.gather(*tasks)
 
     async def post_external_event(self, session, payload):
@@ -160,8 +163,8 @@ class SnmpTrapReceiver:
         resource = "/app/events/external_event"
         if ConfigParser.multiple_events:
             resource += "?multiple_events=true"
-        status_code, text = await helpers.async_post(session, resource, json=payload)
-        if not helpers.succeded(status_code):
+        status_code, text = await async_post(session, resource, json=payload)
+        if not succeded(status_code):
             logging.error(f"Failed to send external event, status code: {status_code}, response: {text}")
         logging.debug(f"Post external event status code: {status_code}, response: {text}")
 
@@ -171,6 +174,7 @@ class SnmpTrapReceiver:
             self.snmp_engine.transportDispatcher.runDispatcher()
         except:
             self.snmp_engine.transportDispatcher.closeDispatcher()
+            self.throttling_thread.join(timeout=self.throttling_interval)
             raise
 
 if __name__ == "__main__":

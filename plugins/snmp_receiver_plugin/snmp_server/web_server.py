@@ -24,15 +24,15 @@ import signal
 # from twisted.web import server
 
 from resources import Dummy, RegisterSwitch, UnregisterSwitch, EventList, AddEvent, RemoveEvent
-from helpers import ConfigParser, get_ufm_switches
+from helpers import Switch, ConfigParser, get_ufm_switches
 from trap_receiver import SnmpTrapReceiver
 
 class SNMPWebServer:
-    def __init__(self, switch_ip_to_name_and_guid):
+    def __init__(self, switch_dict):
         self.port_number = 8780
         self.app = Flask(__name__)
         self.api = Api(self.app)
-        self.switch_ip_to_name_and_guid = switch_ip_to_name_and_guid
+        self.switch_dict = switch_dict
         self.registered_switches = set()
         self.init_apis()
 
@@ -47,7 +47,7 @@ class SNMPWebServer:
         }
         for resource, path in apis.items():
             self.api.add_resource(resource, path, resource_class_kwargs={
-                'switch_ip_to_name_and_guid': self.switch_ip_to_name_and_guid,
+                'switch_dict': self.switch_dict,
                 'registered_switches': self.registered_switches})
 
     async def run(self):
@@ -71,10 +71,10 @@ class SNMPWebProc:
                                                           backupCount=ConfigParser.log_file_backup_count)],
                             level=logging.getLevelName(ConfigParser.log_level),
                             format=ConfigParser.log_format)
-        self.switch_ip_to_name_and_guid = get_ufm_switches()
+        self.switch_dict = get_ufm_switches()
         self.loop = asyncio.get_event_loop()
-        self.web_server = SNMPWebServer(self.switch_ip_to_name_and_guid)
-        snmp_trap_receiver = SnmpTrapReceiver(self.switch_ip_to_name_and_guid)
+        self.web_server = SNMPWebServer(self.switch_dict)
+        snmp_trap_receiver = SnmpTrapReceiver(self.switch_dict)
         self.snmp_proc = multiprocessing.Process(target=snmp_trap_receiver.run)
         self.snmp_proc.start()
 

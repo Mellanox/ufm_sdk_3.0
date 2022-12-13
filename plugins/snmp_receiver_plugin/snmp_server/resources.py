@@ -23,8 +23,8 @@ import logging
 
 
 class UFMResource(Resource):
-    def __init__(self, switch_ip_to_name_and_guid, registered_switches):
-        self.switch_ip_to_name_and_guid = switch_ip_to_name_and_guid
+    def __init__(self, switch_dict, registered_switches):
+        self.switch_dict = switch_dict
         self.resource = "/actions"
         self.registered_switches = registered_switches
 
@@ -69,9 +69,9 @@ class Switch(UFMResource):
     def post(self, unregister=False):
         resource = "unregister" if unregister == True else "register"
         logging.info(f"POST /plugin/snmp/{resource}")
-        self.switch_ip_to_name_and_guid = helpers.get_ufm_switches()
+        self.switch_dict = helpers.get_ufm_switches()
         if not request.json:
-            switches = list(self.switch_ip_to_name_and_guid.keys())
+            switches = list(self.switch_dict.keys())
             hosts = []
         else:
             json_data = request.get_json(force=True)
@@ -84,7 +84,7 @@ class Switch(UFMResource):
             local_hostname = socket.gethostname()
             local_ip = socket.gethostbyname(local_hostname)
             hosts.append(local_ip)
-        incorrect_switches = set(switches) - self.switch_ip_to_name_and_guid.keys()
+        incorrect_switches = set(switches) - self.switch_dict.keys()
         if incorrect_switches:
             return self.report_error(HTTPStatus.BAD_REQUEST, f"Switches {incorrect_switches} don't exist in the fabric or don't have an ip")
         description = "plugin registration as SNMP traps receiver"
@@ -125,8 +125,8 @@ class EventList(UFMResource):
     def get(self):
         logging.info(f"GET /plugin/snmp/event_list")
         skip_lines = ["", "show snmp events", "Events for which traps will be sent:"]
-        self.switch_ip_to_name_and_guid = helpers.get_ufm_switches()
-        switch = next(iter(self.switch_ip_to_name_and_guid))
+        self.switch_dict = helpers.get_ufm_switches()
+        switch = next(iter(self.switch_dict))
         status_code, headers = self.post_json_api("show snmp events", "Requesting the list of events", [switch], return_headers=True)
         if not helpers.succeded(status_code):
             return self.report_error(status_code, "")
@@ -183,8 +183,8 @@ class Event(UFMResource):
                 events = json_data["events"]
             except KeyError as ke:
                 return self.report_error(HTTPStatus.BAD_REQUEST, f"No key {ke} found")
-            self.switch_ip_to_name_and_guid = helpers.get_ufm_switches()
-            incorrect_switches = set(switches) - self.switch_ip_to_name_and_guid.keys()
+            self.switch_dict = helpers.get_ufm_switches()
+            incorrect_switches = set(switches) - self.switch_dict.keys()
             if incorrect_switches:
                 return self.report_error(HTTPStatus.BAD_REQUEST, f"Switches {incorrect_switches} don't exist in the fabric or don't have an ip")
             description = "UFM event monitoring settings"
