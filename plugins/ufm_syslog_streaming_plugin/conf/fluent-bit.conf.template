@@ -1,0 +1,20 @@
+[SERVICE]
+    Flush        1
+    Daemon       Off
+    Log_Level    log_level
+    Log_File     log_file
+    Parsers_File /etc/fluent-bit/parsers.conf
+
+[INPUT]
+    Name     syslog
+    Parser   ufm-syslog
+    Listen   127.0.0.1
+    Port     src_port
+    Mode     udp
+    Tag      message_tag_name
+
+[OUTPUT]
+    Name          forward
+    Match         *
+    Host          host_ip
+    Port          host_port

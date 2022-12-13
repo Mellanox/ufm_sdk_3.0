@@ -18,19 +18,16 @@ import sys
 sys.path.append(os.getcwd())
 
 import logging
-from twisted.web import server
+from utils.flask_server import run_api
 from utils.args_parser import ArgsParser
 from utils.logger import Logger
-
+from utils.utils import Utils
 from web_service import UFMTelemetryFluentdStreamingAPI
 from streamer import \
     UFMTelemetryStreaming,\
     UFMTelemetryStreamingConfigParser,\
     UFMTelemetryConstants
 from streaming_scheduler import StreamingScheduler
-
-from twisted.web.wsgi import WSGIResource
-from twisted.internet import reactor
 
 
 def _init_logs(config_parser):
@@ -43,14 +40,6 @@ def _init_logs(config_parser):
     Logger.init_logs_config(logs_file_name, logs_level, max_log_file_size, log_file_backup_count)
 
 
-def run_api(app):
-    port_number = 8981
-    # for debugging
-    #self.app.run(port=port_number, debug=True)
-    resource = WSGIResource(reactor, reactor.getThreadPool(), app)
-    reactor.listenTCP(port_number, server.Site(resource,logPath=None))
-    reactor.run()
-
 if __name__ == '__main__':
 
     # init app config parser & load config files
@@ -60,11 +49,10 @@ if __name__ == '__main__':
     _init_logs(config_parser)
 
     try:
+        streamer = UFMTelemetryStreaming.getInstance(config_parser)
         if config_parser.get_enable_streaming_flag():
-            streamer = UFMTelemetryStreaming(config_parser=config_parser)
             scheduler = StreamingScheduler.getInstance()
-            job_id = scheduler.start_streaming(streamer.stream_data,
-                                            streamer.streaming_interval)
+            job_id = scheduler.start_streaming()
             logging.info("Streaming has been started successfully")
         else:
             logging.warning("Streaming was not started, need to enable the streaming & set the required configurations")
@@ -72,5 +60,9 @@ if __name__ == '__main__':
     except ValueError as ex:
         logging.warning("Streaming was not started, need to enable the streaming & set the required configurations")
 
-    app = UFMTelemetryFluentdStreamingAPI(config_parser)
-    run_api(app)
+    try:
+        app = UFMTelemetryFluentdStreamingAPI(config_parser)
+        port = Utils.get_plugin_port('/config/tfs_httpd_proxy.conf', 8981)
+        run_api(app=app, port_number=int(port))
+    except Exception as ex:
+        logging.error(f'Streaming server was not started due to the following error: {str(ex)}')
