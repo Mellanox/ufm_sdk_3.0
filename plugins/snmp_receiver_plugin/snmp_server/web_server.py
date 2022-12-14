@@ -17,14 +17,13 @@ from flask import Flask
 from flask_restful import Api
 import logging
 from logging.handlers import RotatingFileHandler
-import multiprocessing
-import signal
+from multiprocessing import Process, Manager
 # from twisted.web.wsgi import WSGIResource
 # from twisted.internet import reactor
 # from twisted.web import server
 
 from resources import Dummy, RegisterSwitch, UnregisterSwitch, EventList, AddEvent, RemoveEvent
-from helpers import Switch, ConfigParser, get_ufm_switches
+from helpers import ConfigParser, get_ufm_switches
 from trap_receiver import SnmpTrapReceiver
 
 class SNMPWebServer:
@@ -63,7 +62,6 @@ class SNMPWebServer:
 class SNMPWebProc:
     """Main class of the SNMP web sim daemon
     """
-
     def __init__(self):
         print("Starting SNMP web server", flush=True)
         logging.basicConfig(handlers=[RotatingFileHandler(ConfigParser.log_file_path,
@@ -71,11 +69,13 @@ class SNMPWebProc:
                                                           backupCount=ConfigParser.log_file_backup_count)],
                             level=logging.getLevelName(ConfigParser.log_level),
                             format=ConfigParser.log_format)
-        self.switch_dict = get_ufm_switches()
         self.loop = asyncio.get_event_loop()
+        self.manager = Manager()
+        switch_dict = get_ufm_switches()
+        self.switch_dict = self.manager.dict(switch_dict)
         self.web_server = SNMPWebServer(self.switch_dict)
         snmp_trap_receiver = SnmpTrapReceiver(self.switch_dict)
-        self.snmp_proc = multiprocessing.Process(target=snmp_trap_receiver.run)
+        self.snmp_proc = Process(target=snmp_trap_receiver.run)
         self.snmp_proc.start()
 
     def start_web_server(self):

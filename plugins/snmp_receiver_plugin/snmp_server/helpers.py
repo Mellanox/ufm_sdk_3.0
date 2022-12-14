@@ -17,6 +17,7 @@ from http import HTTPStatus
 import logging
 import requests
 import os
+import time
 
 HTTP_ERROR = HTTPStatus.INTERNAL_SERVER_ERROR
 HOST = "127.0.0.1:8000"
@@ -24,6 +25,10 @@ PROTOCOL = "http"
 SESSION = requests.Session()
 SESSION.headers = {"X-Remote-User": "ufmsystem"}
 EMPTY_IP = "0.0.0.0"
+PROVISIONING_TIMEOUT = 20
+SNMP_USER = "snmpuser"
+SNMP_PASSWORD = "snmppassword"
+SNMP_PRIV_PASSWORD = "snmpprivpassword"
 
 def succeded(status_code):
     return status_code in [HTTPStatus.OK, HTTPStatus.ACCEPTED]
@@ -36,7 +41,6 @@ def get_request(resource):
         return response.status_code, response.json()
     except Exception as e:
         error = f"{request} failed with exception: {e}"
-        logging.error(error)
         return HTTP_ERROR, {error}
 
 def post_request(resource, json=None, return_headers=False):
@@ -49,8 +53,64 @@ def post_request(resource, json=None, return_headers=False):
         return response.status_code, response.text
     except Exception as e:
         error = f"{request} failed with exception: {e}"
-        logging.error(error)
         return HTTP_ERROR, error
+
+def get_json_api_payload(cli, description, switches):
+    return {
+        "action": "run_cli",
+        "identifier": "ip",
+        "params": {
+            "commandline": [cli]
+        },
+        "description": description,
+        "object_ids": switches,
+        "object_type": "System"
+    }
+
+def post_json_api(cli, description, switches, return_headers=False):
+    payload = get_json_api_payload(cli, description, switches)
+    status_code, text = post_request("/actions", json=payload, return_headers=return_headers)
+    return status_code, text
+
+def _extract_job_id(headers):
+        # extract job ID from location header
+        location = headers.get("Location")
+        if not location:
+            return None
+        job_id = location.split('/')[-1]
+        return job_id
+
+def get_provisioning_output(cli, description, switches):
+    status_code, headers = post_json_api(cli, description, switches, return_headers=True)
+    if not succeded(status_code):
+        return status_code, f"Failed to post json api '{cli}' to switches {switches}"
+    job_id = _extract_job_id(headers)
+    for _ in range(PROVISIONING_TIMEOUT):
+        status_code, json = get_request(f"/jobs/{job_id}")
+        if not succeded(status_code):
+            return status_code, f"Failed to get job {job_id} output"
+        try:
+            status = json["Status"]
+            if status == "Completed":
+                break
+        except KeyError as ke:
+            return HTTPStatus.BAD_REQUEST, f"No key {ke} found"
+        time.sleep(1)
+    else:
+        return HTTPStatus.INTERNAL_SERVER_ERROR, f"Failed to complete the job {job_id} in {PROVISIONING_TIMEOUT} seconds"
+
+    result = {}
+    status_code, jobs = get_request(f"/jobs?parent_id={job_id}")
+    if not succeded(status_code):
+        return status_code, f"Failed to get childs of {job_id}"
+    try:
+        for job in jobs:
+            guid = job["RelatedObjects"][0]
+            summary = job["Summary"]
+            result[guid] = summary
+    except KeyError as ke:
+        return HTTPStatus.BAD_REQUEST, f"get_provisioning_output: No key {ke} found"
+    return HTTPStatus.OK, result
 
 async def async_post(session, resource, json=None):
     request = PROTOCOL + '://' + HOST + resource
@@ -61,26 +121,50 @@ async def async_post(session, resource, json=None):
             return resp.status, text
     except Exception as e:
         error = f"{request} failed with exception: {e}"
-        logging.error(error)
         return HTTP_ERROR, error
 
 def get_ufm_switches():
     resource = "/resources/systems?type=switch"
     status_code, json = get_request(resource)
     if not succeded(status_code):
+        logging.error(f"Failed to get list of UFM switches")
         return {}
     switch_dict = {}
+    guid_to_ip = {}
     for switch in json:
         ip = switch["ip"]
         if not ip == EMPTY_IP:
             switch_dict[ip] = Switch(switch["system_name"], switch["guid"])
+            guid_to_ip[switch["guid"]] = ip
+    cli = "show snmp engineID"
+    status_code, guid_to_engine_id = get_provisioning_output(cli, "Requesting engine IDs", list(switch_dict.keys()))
+    if not succeded(status_code):
+        logging.error(f"Failed to get engine IDs")
+        return {}
+    skip_lines = ["", cli, "Events for which traps will be sent:"]
+    for guid, engine_id_raw in guid_to_engine_id.items():
+        # example of engine_id: "show snmp engineID\n\nLocal SNMP engineID: 0x80004f4db1aadcadbc89affa118db\n"
+        engine_id_strs = engine_id_raw.split("\n")
+        engine_id_str = list(set(engine_id_strs) - set(skip_lines))
+        if len(engine_id_str) != 1:
+            logging.error(f"Failed to parse engine ID string")
+            return {}
+        for word in engine_id_str[0].split():
+            if word.startswith("0x"):
+                try:
+                    switch_obj = switch_dict[guid_to_ip[guid]]
+                    switch_obj.engine_id = word[2:]
+                except KeyError as ke:
+                    return HTTPStatus.BAD_REQUEST, f"get_ufm_switches: No key {ke} found"
     logging.debug(f"List of switches in the fabric: {switch_dict.keys()}")
     return switch_dict
 
 class Switch:
-    def __init__(self, name="", guid=""):
+    def __init__(self, name="", guid="", engine_id="", event_to_count={}):
         self.name = name
         self.guid = guid
+        engine_id = engine_id
+        self.event_to_count = event_to_count
 
 class ConfigParser:
     config_file_name = "../build/config/snmp.conf"

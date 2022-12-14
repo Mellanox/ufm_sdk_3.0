@@ -14,7 +14,6 @@
 #
 import aiohttp
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
 import logging
 from pysnmp.entity import engine, config
 from pysnmp.carrier.asyncore.dgram import udp
@@ -24,7 +23,7 @@ from pysnmp import proto
 import threading
 import time
 
-from helpers import Switch, ConfigParser, async_post, succeded
+import helpers
 
 
 class SnmpTrapReceiver:
@@ -33,44 +32,47 @@ class SnmpTrapReceiver:
         self.test_trap_oid = self.mellanox_oid + ".2.1.2.13"
         import urllib3
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        # Create SNMP engine with autogenernated engineID and pre-bound
-        # to socket transport dispatcher
+
         self.snmp_engine = engine.SnmpEngine()
         self.switch_dict = switch_dict
-        # creating global to pass into trap_callback
-        global SWITCH_DICT
-        SWITCH_DICT = []
         self._setup_transport()
         self._setup_snmp_v1_v2c()
         self.mibBuilder = None
         self.mibViewController = None
         self._init_mib_controller()
         self.traps_n = 0
-        self.throttling_interval = 10
         self.st_t = 0
         self.events_at_time = 10
         # TODO: change to 555
         self.event_id = 553 # warning
+        self.throttling_interval = 10
         self.throttling_thread = None
         self.ip_to_event_to_count = {}
 
     def _setup_transport(self):
         # UDP over IPv4, first listening interface/port
         config.addTransport(self.snmp_engine, udp.domainName + (1,),
-                            udp.UdpTransport().openServerMode((ConfigParser.snmp_ip, ConfigParser.snmp_port)))
+                            udp.UdpTransport().openServerMode(
+                                (helpers.ConfigParser.snmp_ip,
+                                helpers.ConfigParser.snmp_port)))
+
+    def register_v3_switch(self, engine_id):
+        # TODO: change to sha512 and aes-256
+        config.addV3User(
+            self.snmp_engine,
+            helpers.SNMP_USER,
+            config.usmHMACSHAAuthProtocol,
+            helpers.SNMP_PASSWORD,
+            config.usmAesCfb128Protocol,
+            helpers.SNMP_PRIV_PASSWORD,
+            proto.rfc1902.OctetString(hexValue=engine_id)
+        )
 
     def _setup_snmp_v1_v2c(self):
         # SecurityName <-> CommunityName mapping
-        config.addV1System(self.snmp_engine, 'my-area', ConfigParser.community)
-        # config.addV3User(
-        #     self.snmp_engine,
-        #     "user3",
-        #     config.usmHMACMD5AuthProtocol,
-        #     "user3password",
-        #     config.usmDESPrivProtocol,
-        #     "user3encryption",
-        #     proto.rfc1902.OctetString(hexValue='8000000004030201')
-        # )
+        # config.addV1System(self.snmp_engine, 'my-area', ConfigParser.community)
+        for switch_obj in self.switch_dict.values():
+            self.register_v3_switch(switch_obj.engine_id)
 
         # Register SNMP Application at the SNMP engine
         ntfrcv.NotificationReceiver(self.snmp_engine, self.trap_callback)
@@ -134,7 +136,7 @@ class SnmpTrapReceiver:
             tasks = []
             multiple_events = []
             for switch_ip, event_to_count in self.ip_to_event_to_count.items():
-                switch = self.switch_dict.get(switch_ip, Switch(switch_ip))
+                switch = self.switch_dict.get(switch_ip, helpers.Switch(switch_ip))
                 base_description = f"SNMP traps from {switch.name}: "
                 description = ', '.join(f"'{event}' happened {count} times" for event, count in event_to_count.items())
                 payload = {"event_id": self.event_id, "description": base_description + description}
@@ -143,7 +145,7 @@ class SnmpTrapReceiver:
                     payload["otype"] = "Switch"
                 else:
                     logging.warning(f"Event from unknown switch")
-                if ConfigParser.multiple_events:
+                if helpers.ConfigParser.multiple_events:
                     # concatenate events into set to improve performance
                     multiple_events.append(payload)
                     if len(multiple_events) >= self.events_at_time:
@@ -161,10 +163,10 @@ class SnmpTrapReceiver:
         if not payload:
             return
         resource = "/app/events/external_event"
-        if ConfigParser.multiple_events:
+        if helpers.ConfigParser.multiple_events:
             resource += "?multiple_events=true"
-        status_code, text = await async_post(session, resource, json=payload)
-        if not succeded(status_code):
+        status_code, text = await helpers.async_post(session, resource, json=payload)
+        if not helpers.succeded(status_code):
             logging.error(f"Failed to send external event, status code: {status_code}, response: {text}")
         logging.debug(f"Post external event status code: {status_code}, response: {text}")
 
