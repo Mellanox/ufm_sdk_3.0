@@ -46,6 +46,18 @@ class Utils:
         return data
 
     @staticmethod
+    def write_text_to_file(path, text):
+        try:
+            if not os.path.exists(os.path.dirname(path)):
+                os.makedirs(os.path.dirname(path))
+            f = open(path, "w")
+            f.write(text)
+            f.close()
+            Logger.log_message(f'Finished writing to text file {path}', LOG_LEVELS.DEBUG)
+        except Exception as e:
+            logging.error(e)
+
+    @staticmethod
     def get_timebased_filename():
         dateTimeObj = datetime.now()
         file_name = f'{dateTimeObj.year}_{dateTimeObj.month}_{dateTimeObj.day}_' \
