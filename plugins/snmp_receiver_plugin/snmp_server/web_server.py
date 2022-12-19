@@ -22,8 +22,8 @@ from multiprocessing import Process, Manager
 # from twisted.internet import reactor
 # from twisted.web import server
 
-from resources import Dummy, RegisterSwitch, UnregisterSwitch, EventList, AddEvent, RemoveEvent
-from helpers import ConfigParser, get_ufm_switches
+from resources import Dummy, RegisterSwitch, UnregisterSwitch, TrapList, AddTrap, RemoveTrap, SwitchList
+import helpers
 from trap_receiver import SnmpTrapReceiver
 
 class SNMPWebServer:
@@ -32,22 +32,21 @@ class SNMPWebServer:
         self.app = Flask(__name__)
         self.api = Api(self.app)
         self.switch_dict = switch_dict
-        self.registered_switches = set()
         self.init_apis()
 
     def init_apis(self):
         apis = {
             RegisterSwitch: "/register",
             UnregisterSwitch: "/unregister",
-            EventList: "/event_list",
-            AddEvent: "/add_event",
-            RemoveEvent: "/remove_event",
+            SwitchList: "/switch_list",
+            TrapList: "/trap_list",
+            AddTrap: "/add_trap",
+            RemoveTrap: "/remove_trap",
             Dummy: "/dummy"
         }
         for resource, path in apis.items():
             self.api.add_resource(resource, path, resource_class_kwargs={
-                'switch_dict': self.switch_dict,
-                'registered_switches': self.registered_switches})
+                'switch_dict': self.switch_dict})
 
     async def run(self):
         self.app.run(port=self.port_number, debug=True, use_reloader=False)
@@ -64,14 +63,14 @@ class SNMPWebProc:
     """
     def __init__(self):
         print("Starting SNMP web server", flush=True)
-        logging.basicConfig(handlers=[RotatingFileHandler(ConfigParser.log_file_path,
-                                                          maxBytes=ConfigParser.log_file_max_size,
-                                                          backupCount=ConfigParser.log_file_backup_count)],
-                            level=logging.getLevelName(ConfigParser.log_level),
-                            format=ConfigParser.log_format)
+        logging.basicConfig(handlers=[RotatingFileHandler(helpers.ConfigParser.log_file_path,
+                                                          maxBytes=helpers.ConfigParser.log_file_max_size,
+                                                          backupCount=helpers.ConfigParser.log_file_backup_count)],
+                            level=logging.getLevelName(helpers.ConfigParser.log_level),
+                            format=helpers.ConfigParser.log_format)
         self.loop = asyncio.get_event_loop()
         self.manager = Manager()
-        switch_dict = get_ufm_switches()
+        switch_dict = helpers.get_ufm_switches()
         self.switch_dict = self.manager.dict(switch_dict)
         self.web_server = SNMPWebServer(self.switch_dict)
         snmp_trap_receiver = SnmpTrapReceiver(self.switch_dict)

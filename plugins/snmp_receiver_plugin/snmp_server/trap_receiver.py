@@ -14,6 +14,7 @@
 #
 import aiohttp
 import asyncio
+import json
 import logging
 from pysnmp.entity import engine, config
 from pysnmp.carrier.asyncore.dgram import udp
@@ -24,6 +25,7 @@ import threading
 import time
 
 import helpers
+from resources import Switch
 
 
 class SnmpTrapReceiver:
@@ -56,7 +58,7 @@ class SnmpTrapReceiver:
                                 (helpers.ConfigParser.snmp_ip,
                                 helpers.ConfigParser.snmp_port)))
 
-    def register_v3_switch(self, engine_id):
+    def _register_v3_switch(self, engine_id):
         # TODO: change to sha512 and aes-256
         config.addV3User(
             self.snmp_engine,
@@ -70,9 +72,20 @@ class SnmpTrapReceiver:
 
     def _setup_snmp_v1_v2c(self):
         # SecurityName <-> CommunityName mapping
-        # config.addV1System(self.snmp_engine, 'my-area', ConfigParser.community)
-        for switch_obj in self.switch_dict.values():
-            self.register_v3_switch(switch_obj.engine_id)
+        if helpers.ConfigParser.snmp_version == 3:
+            for switch_obj in self.switch_dict.values():
+                self._register_v3_switch(switch_obj.engine_id)
+        else:
+            config.addV1System(self.snmp_engine, 'my-area', helpers.ConfigParser.community)
+
+        if helpers.ConfigParser.snmp_mode == "auto":
+            switches = list(self.switch_dict.keys())
+            status_code, text = helpers.post_provisioning_api(Switch.get_cli(helpers.LOCAL_IP),
+                                "Initial registration", switches)
+            if not helpers.succeded(status_code):
+                logging.error(f"Failed to auto register, status code: {status_code}, response: {text}")
+            with open(helpers.SWITCHES_FILE, "w") as file:
+                json.dump(switches, file)
 
         # Register SNMP Application at the SNMP engine
         ntfrcv.NotificationReceiver(self.snmp_engine, self.trap_callback)
@@ -134,6 +147,9 @@ class SnmpTrapReceiver:
     async def send_events(self):
         async with aiohttp.ClientSession(headers={"X-Remote-User": "ufmsystem"}) as session:
             tasks = []
+            # for i in range(self.traps_n):
+            #     tasks.append(asyncio.ensure_future(self.post_external_event(session,
+            #     {"event_id": self.event_id, "description": f"test trap {i}"})))
             multiple_events = []
             for switch_ip, event_to_count in self.ip_to_event_to_count.items():
                 switch = self.switch_dict.get(switch_ip, helpers.Switch(switch_ip))

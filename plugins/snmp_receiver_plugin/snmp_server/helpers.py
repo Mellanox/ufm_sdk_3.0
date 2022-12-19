@@ -17,10 +17,13 @@ from http import HTTPStatus
 import logging
 import requests
 import os
+import socket
 import time
 
 HTTP_ERROR = HTTPStatus.INTERNAL_SERVER_ERROR
 HOST = "127.0.0.1:8000"
+LOCAL_HOSTNAME = socket.gethostname()
+LOCAL_IP = socket.gethostbyname(LOCAL_HOSTNAME)
 PROTOCOL = "http"
 SESSION = requests.Session()
 SESSION.headers = {"X-Remote-User": "ufmsystem"}
@@ -29,6 +32,7 @@ PROVISIONING_TIMEOUT = 20
 SNMP_USER = "snmpuser"
 SNMP_PASSWORD = "snmppassword"
 SNMP_PRIV_PASSWORD = "snmpprivpassword"
+SWITCHES_FILE = "registered_switches.json"
 
 def succeded(status_code):
     return status_code in [HTTPStatus.OK, HTTPStatus.ACCEPTED]
@@ -67,7 +71,7 @@ def get_json_api_payload(cli, description, switches):
         "object_type": "System"
     }
 
-def post_json_api(cli, description, switches, return_headers=False):
+def post_provisioning_api(cli, description, switches, return_headers=False):
     payload = get_json_api_payload(cli, description, switches)
     status_code, text = post_request("/actions", json=payload, return_headers=return_headers)
     return status_code, text
@@ -81,7 +85,7 @@ def _extract_job_id(headers):
         return job_id
 
 def get_provisioning_output(cli, description, switches):
-    status_code, headers = post_json_api(cli, description, switches, return_headers=True)
+    status_code, headers = post_provisioning_api(cli, description, switches, return_headers=True)
     if not succeded(status_code):
         return status_code, f"Failed to post json api '{cli}' to switches {switches}"
     job_id = _extract_job_id(headers)
@@ -123,6 +127,29 @@ async def async_post(session, resource, json=None):
         error = f"{request} failed with exception: {e}"
         return HTTP_ERROR, error
 
+def init_engine_ids(switch_dict, guid_to_ip):
+    if ConfigParser.snmp_version == 3:
+        cli = "show snmp engineID"
+        status_code, guid_to_engine_id = get_provisioning_output(cli, "Requesting engine IDs", list(switch_dict.keys()))
+        if not succeded(status_code):
+            logging.error(f"Failed to get engine IDs")
+            return {}
+        skip_lines = ["", cli, "Events for which traps will be sent:"]
+        for guid, engine_id_raw in guid_to_engine_id.items():
+            # e.g.: "show snmp engineID\n\nLocal SNMP engineID: 0x80004f4db1aadcadbc89affa118db\n"
+            engine_id_strs = engine_id_raw.split("\n")
+            engine_id_str = list(set(engine_id_strs) - set(skip_lines))
+            if len(engine_id_str) != 1:
+                logging.error(f"Failed to parse engine ID string")
+                return {}
+            for word in engine_id_str[0].split():
+                if word.startswith("0x"):
+                    try:
+                        switch_obj = switch_dict[guid_to_ip[guid]]
+                        switch_obj.engine_id = word[2:]
+                    except KeyError as ke:
+                        return HTTPStatus.BAD_REQUEST, f"get_ufm_switches: No key {ke} found"
+
 def get_ufm_switches():
     resource = "/resources/systems?type=switch"
     status_code, json = get_request(resource)
@@ -136,26 +163,7 @@ def get_ufm_switches():
         if not ip == EMPTY_IP:
             switch_dict[ip] = Switch(switch["system_name"], switch["guid"])
             guid_to_ip[switch["guid"]] = ip
-    cli = "show snmp engineID"
-    status_code, guid_to_engine_id = get_provisioning_output(cli, "Requesting engine IDs", list(switch_dict.keys()))
-    if not succeded(status_code):
-        logging.error(f"Failed to get engine IDs")
-        return {}
-    skip_lines = ["", cli, "Events for which traps will be sent:"]
-    for guid, engine_id_raw in guid_to_engine_id.items():
-        # example of engine_id: "show snmp engineID\n\nLocal SNMP engineID: 0x80004f4db1aadcadbc89affa118db\n"
-        engine_id_strs = engine_id_raw.split("\n")
-        engine_id_str = list(set(engine_id_strs) - set(skip_lines))
-        if len(engine_id_str) != 1:
-            logging.error(f"Failed to parse engine ID string")
-            return {}
-        for word in engine_id_str[0].split():
-            if word.startswith("0x"):
-                try:
-                    switch_obj = switch_dict[guid_to_ip[guid]]
-                    switch_obj.engine_id = word[2:]
-                except KeyError as ke:
-                    return HTTPStatus.BAD_REQUEST, f"get_ufm_switches: No key {ke} found"
+    init_engine_ids(switch_dict, guid_to_ip)
     logging.debug(f"List of switches in the fabric: {switch_dict.keys()}")
     return switch_dict
 
@@ -180,7 +188,9 @@ class ConfigParser:
     log_file_backup_count = snmp_config.getint("Log", "log_file_backup_count")
     log_format = '%(asctime)-15s %(levelname)s %(message)s'
 
-    snmp_ip = snmp_config.get("SNMP", "snmp_ip")
-    snmp_port = snmp_config.getint("SNMP", "snmp_port")
-    community = snmp_config.get("SNMP", "community")
-    multiple_events = snmp_config.getboolean("SNMP", "multiple_events")
+    snmp_ip = snmp_config.get("SNMP", "snmp_ip", fallback="0.0.0.0")
+    snmp_port = snmp_config.getint("SNMP", "snmp_port", fallback=162)
+    community = snmp_config.get("SNMP", "community", fallback="public")
+    multiple_events = snmp_config.getboolean("SNMP", "multiple_events", fallback=False)
+    snmp_version = snmp_config.getint("SNMP", "snmp_version", fallback=3)
+    snmp_mode = snmp_config.get("SNMP", "snmp_mode", fallback="auto")
