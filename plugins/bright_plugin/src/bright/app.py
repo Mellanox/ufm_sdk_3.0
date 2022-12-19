@@ -19,10 +19,26 @@ sys.path.append(os.getcwd())
 from utils.utils import Utils
 from utils.flask_server import run_api
 from utils.flask_server.base_flask_api_app import BaseFlaskAPIApp
+from utils.logger import Logger
 from api.conf_api import UFMBrightPluginConfigurationsAPI
+from mgr.bright_configurations_mgr import BrightConfigParser
+
+
+def _init_logs(config_parser):
+    # init logs configs
+    logs_file_name = config_parser.get_logs_file_name()
+    logs_level = config_parser.get_logs_level()
+    max_log_file_size = config_parser.get_log_file_max_size()
+    log_file_backup_count = config_parser.get_log_file_backup_count()
+    Logger.init_logs_config(logs_file_name, logs_level, max_log_file_size, log_file_backup_count)
+
 
 if __name__ == '__main__':
     try:
+
+        conf = BrightConfigParser.getInstance()
+        _init_logs(conf)
+
         plugin_port = Utils.get_plugin_port(
             port_conf_file='/config/bright_httpd_proxy.conf',
             default_port_value=8985)
@@ -32,7 +48,7 @@ if __name__ == '__main__':
         }
 
         app = BaseFlaskAPIApp(routes)
-        run_api(app=app,port_number= plugin_port)
+        run_api(app=app, port_number= plugin_port)
 
     except Exception as ex:
-        pass
+        print(f'Failed to run the app due to: {str(ex)}')

@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Update bright configurations",
+  "type": "object",
+  "properties": {
+    "bright-config": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string",
+          "anyOf": [
+            {
+              "format": "hostname",
+              "err_message": "Invalid attribute [bright-config - host]: it should be one of (ipv4 address, ipv6 address or host name)"
+            },
+            {
+              "format": "ipv4",
+              "err_message": "Invalid attribute [bright-config - host]: it should be one of (ipv4 address, ipv6 address or host name)"
+            },
+            {
+              "format": "ipv6",
+              "err_message": "Invalid attribute [bright-config - host]: it should be one of (ipv4 address, ipv6 address or host name)"
+            }
+          ]
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "err_message": "[bright-config - port] attribute should be an integer between 1-65535."
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "data_retention_period": {
+          "type": "string",
+          "pattern": "^[\\d]+([\/d]|[\/h])$",
+          "err_message": "Invalid attribute [bright-config - data_retention_period]: it should be number with the units d:days or h:hours (e.g. 30d)"
+        },
+        "certificate": {
+          "type": "string"
+        },
+        "certificate_key": {
+          "type": "string"
+        }
+      }
+    },
+    "logs-config": {
+      "type": "object",
+      "properties": {
+        "logs_file_name": {
+          "type": "string"
+        },
+        "logs_level": {
+          "type": "string",
+          "enum": [ "FATAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET" ]
+        },
+        "log_file_max_size": {
+          "type": "integer",
+          "minimum": 1,
+          "err_message": "[logs-config - log_file_max_size] attribute should be an integer greater than 0"
+        },
+        "log_file_backup_count": {
+          "type": "integer",
+          "minimum": 1,
+          "err_message": "[logs-config - log_file_max_size] attribute should be an integer greater than 0"
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}
