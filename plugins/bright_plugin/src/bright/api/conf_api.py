@@ -21,6 +21,7 @@ from utils.logger import Logger, LOG_LEVELS
 from utils.json_schema_validator import validate_schema
 
 from mgr.bright_configurations_mgr import BrightConfigParser
+from mgr.bright_data_polling_mgr import BrightDataPollingMgr
 
 
 class UFMBrightPluginConfigurationsAPI(BaseAPIApplication):
@@ -62,9 +63,13 @@ class UFMBrightPluginConfigurationsAPI(BaseAPIApplication):
             # validate the new data
             validate_schema(self.conf_schema_path, request_data)
             # update the new values
-            if request_data.get(self.conf.BRIGHT_CONFIG_SECTION):
+            self.conf.update_config_file_values(request_data)
+            self.conf.update_config_file(self.conf.config_file)
+            ####
+            bright_config_payload_section = request_data.get(self.conf.BRIGHT_CONFIG_SECTION)
+            if bright_config_payload_section:
                 # if the payload contains bright-config.cert info, update the relevant files
-                cert = request_data.get(self.conf.BRIGHT_CONFIG_SECTION).get(self.conf.BRIGHT_CONFIG_SECTION_CERTIFICATE)
+                cert = bright_config_payload_section.get(self.conf.BRIGHT_CONFIG_SECTION_CERTIFICATE)
                 if cert:
                     Utils.write_text_to_file(
                         self.conf.cert_file_path,
@@ -79,9 +84,13 @@ class UFMBrightPluginConfigurationsAPI(BaseAPIApplication):
                         cert_key
                     )
 
-            self.conf.update_config_file_values(request_data)
-            self.conf.update_config_file(self.conf.config_file)
-            return make_response("set configurations has been done successfully")
+                # if the payload contains the bright-config.enabled flag, update the polling
+                enabled = bright_config_payload_section.get(self.conf.BRIGHT_CONFIG_SECTION_ENABLED, None)
+                if enabled is not None:
+                    polling_mgr = BrightDataPollingMgr.getInstance()
+                    polling_mgr.trigger_polling()
+
+            return make_response(self.conf.conf_to_dict(self.conf_schema_path))
         except Exception as ex:
             Logger.log_message(f'Updating the plugin configurations has been failed: {str(ex)}', LOG_LEVELS.ERROR)
             raise ex
