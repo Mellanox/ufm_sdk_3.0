@@ -174,6 +174,11 @@ class Switch:
         engine_id = engine_id
         self.event_to_count = event_to_count
 
+class Trap:
+    def __init__(self, oid="", details=""):
+        self.oid = oid
+        self.details = details
+
 class ConfigParser:
     config_file_name = "../build/config/snmp.conf"
     # config_file_name = "/config/snmp.conf"

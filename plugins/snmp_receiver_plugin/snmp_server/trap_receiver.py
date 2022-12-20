@@ -18,7 +18,7 @@ import json
 import logging
 from pysnmp.entity import engine, config
 from pysnmp.carrier.asyncore.dgram import udp
-from pysnmp.entity.rfc3413 import ntfrcv
+from pysnmp.entity.rfc3413 import ntfrcv, context
 from pysnmp.smi import builder, view, compiler, rfc1902
 from pysnmp import proto
 import threading
@@ -30,8 +30,6 @@ from resources import Switch
 
 class SnmpTrapReceiver:
     def __init__(self, switch_dict={}):
-        self.mellanox_oid = "33049"
-        self.test_trap_oid = self.mellanox_oid + ".2.1.2.13"
         import urllib3
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -39,8 +37,8 @@ class SnmpTrapReceiver:
         self.switch_dict = switch_dict
         self._setup_transport()
         self._setup_snmp_v1_v2c()
-        self.mibBuilder = None
-        self.mibViewController = None
+        self.mib_builder = None
+        self.mib_view_controller = None
         self._init_mib_controller()
         self.traps_n = 0
         self.st_t = 0
@@ -93,41 +91,44 @@ class SnmpTrapReceiver:
 
     def _init_mib_controller(self):
         # Assemble MIB viewer
-        self.mibBuilder = builder.MibBuilder()
-        compiler.addMibCompiler(self.mibBuilder, sources=[
-            'file:///auto/mtrswgwork/atolikin/ufm_sdk_3.0/plugins/snmp_receiver_plugin/mibs/standard',
-            'file:///auto/mtrswgwork/atolikin/ufm_sdk_3.0/plugins/snmp_receiver_plugin/mibs/private'
-            ])
-        self.mibViewController = view.MibViewController(self.mibBuilder)
+        snmp_context = context.SnmpContext(self.snmp_engine)
+        self.mib_builder = snmp_context.getMibInstrum().getMibBuilder()
+        mibs = ['/auto/mtrswgwork/atolikin/ufm_sdk_3.0/plugins/snmp_receiver_plugin/mibs/standard/',
+                '/auto/mtrswgwork/atolikin/ufm_sdk_3.0/plugins/snmp_receiver_plugin/mibs/private/']
+        compiler.addMibCompiler(self.mib_builder, sources=mibs)
+        for mib in mibs:
+            self.mib_builder.addMibSources(builder.DirMibSource(mib))
+        self.mib_view_controller = view.MibViewController(self.mib_builder)
         # Pre-load MIB modules
-        self.mibBuilder.loadModules()
+        from pysmi import debug
+        debug.setLogger(debug.Debug('all'))
+        self.mib_builder.loadModules()
 
     # noinspection PyUnusedLocal,PyUnusedLocal
     def trap_callback(self, snmpEngine, stateReference, contextEngineId, contextName, varBinds, cbCtx):
         logging.debug('Trap received')
         self.traps_n += 1
-        varBindsResolved = [rfc1902.ObjectType(rfc1902.ObjectIdentity(x[0]), x[1]).resolveWithMib(self.mibViewController) for x in varBinds]
+        varBindsResolved = [rfc1902.ObjectType(rfc1902.ObjectIdentity(x[0]), x[1]).resolveWithMib(self.mib_view_controller) for x in varBinds]
         # Get an execution context and use inner SNMP engine data to figure out peer address
         execContext = snmpEngine.observer.getExecutionContext('rfc3412.receiveMessage:request')
         switch_ip = execContext['transportAddress'][0]
 
-        description = ""
-        for oid_obj, val_obj in varBindsResolved:
-            oid = oid_obj.prettyPrint()
-            val = val_obj.prettyPrint()
-            logging.debug(f'  {oid} = {val}')
-            if self.test_trap_oid in val:
-                description = "test trap"
-            if self.mellanox_oid in oid:
-                description = val
+        try:
+            trap_oid = varBindsResolved[1][1].prettyPrint()
+            trap_details = varBindsResolved[2][0].prettyPrint() + " = " + varBindsResolved[2][1].prettyPrint()
+        except:
+            trap_oid = "unknown"
+            trap_oid = "failed to decode trap"
+        trap = helpers.Trap(trap_oid, trap_details)
+        logging.debug(f'  {trap_oid}: {trap_details}')
 
         switch_obj = self.switch_dict.get(switch_ip, None)
         if not switch_obj:
-            logging.warning(f'Notification from unknown ip {switch_ip}: {description}')
+            logging.warning(f'Notification from unknown ip {switch_ip}: {trap_oid}')
         else:
-            logging.info(f'Notification from switch {switch_obj.name}: {description}')
-        self.ip_to_event_to_count.setdefault(switch_ip, {}).setdefault(description, 0)
-        self.ip_to_event_to_count[switch_ip][description] += 1
+            logging.info(f'Notification from switch {switch_obj.name}: {trap_oid}')
+        self.ip_to_event_to_count.setdefault(switch_ip, {}).setdefault(trap, 0)
+        self.ip_to_event_to_count[switch_ip][trap] += 1
         
         if not self.throttling_thread:
             # TODO: figure out why it works only whtn the thread started in callbacks context
@@ -147,14 +148,11 @@ class SnmpTrapReceiver:
     async def send_events(self):
         async with aiohttp.ClientSession(headers={"X-Remote-User": "ufmsystem"}) as session:
             tasks = []
-            # for i in range(self.traps_n):
-            #     tasks.append(asyncio.ensure_future(self.post_external_event(session,
-            #     {"event_id": self.event_id, "description": f"test trap {i}"})))
             multiple_events = []
             for switch_ip, event_to_count in self.ip_to_event_to_count.items():
                 switch = self.switch_dict.get(switch_ip, helpers.Switch(switch_ip))
                 base_description = f"SNMP traps from {switch.name}: "
-                description = ', '.join(f"'{event}' happened {count} times" for event, count in event_to_count.items())
+                description = '; '.join(f"'oid={event.oid}, {event.details}', happened {count} times" for event, count in event_to_count.items())
                 payload = {"event_id": self.event_id, "description": base_description + description}
                 if switch.guid:
                     payload["object_name"] = switch.guid
