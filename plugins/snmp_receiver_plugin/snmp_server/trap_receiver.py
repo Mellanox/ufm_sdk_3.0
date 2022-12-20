@@ -14,6 +14,7 @@
 #
 import aiohttp
 import asyncio
+import csv
 import json
 import logging
 from pysnmp.entity import engine, config
@@ -44,10 +45,19 @@ class SnmpTrapReceiver:
         self.st_t = 0
         self.events_at_time = 10
         # TODO: change to 555
-        self.event_id = 553 # warning
+        self.event_id = helpers.WARNING_EVENT
         self.throttling_interval = 10
         self.throttling_thread = None
         self.ip_to_event_to_count = {}
+        self.traps_info_file = "traps_info.csv"
+        self.oid_to_traps_info = {}
+        self._init_traps_info()
+
+    def _init_traps_info(self):
+        with open(self.traps_info_file, 'r') as traps_info_file:
+            csv_traps_info = csv.DictReader(traps_info_file)
+            for row in csv_traps_info:
+                self.oid_to_traps_info[row['OID']] = row
 
     def _setup_transport(self):
         # UDP over IPv4, first listening interface/port
@@ -100,8 +110,6 @@ class SnmpTrapReceiver:
             self.mib_builder.addMibSources(builder.DirMibSource(mib))
         self.mib_view_controller = view.MibViewController(self.mib_builder)
         # Pre-load MIB modules
-        from pysmi import debug
-        debug.setLogger(debug.Debug('all'))
         self.mib_builder.loadModules()
 
     # noinspection PyUnusedLocal,PyUnusedLocal
@@ -116,10 +124,13 @@ class SnmpTrapReceiver:
         try:
             trap_oid = varBindsResolved[1][1].prettyPrint()
             trap_details = varBindsResolved[2][0].prettyPrint() + " = " + varBindsResolved[2][1].prettyPrint()
+            trap_info = self.oid_to_traps_info[trap_oid]
+            event_id = int(trap_info["EventId"])
         except:
             trap_oid = "unknown"
             trap_oid = "failed to decode trap"
-        trap = helpers.Trap(trap_oid, trap_details)
+            event_id = helpers.WARNING_EVENT
+        trap = helpers.Trap(trap_oid, trap_details, event_id)
         logging.debug(f'  {trap_oid}: {trap_details}')
 
         switch_obj = self.switch_dict.get(switch_ip, None)

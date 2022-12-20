@@ -33,6 +33,7 @@ SNMP_USER = "snmpuser"
 SNMP_PASSWORD = "snmppassword"
 SNMP_PRIV_PASSWORD = "snmpprivpassword"
 SWITCHES_FILE = "registered_switches.json"
+WARNING_EVENT = 553
 
 def succeded(status_code):
     return status_code in [HTTPStatus.OK, HTTPStatus.ACCEPTED]
