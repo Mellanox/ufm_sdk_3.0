@@ -13,6 +13,7 @@
 #
 
 import os
+import site
 from utils.config_parser import ConfigParser
 from utils.singleton import Singleton
 
@@ -27,6 +28,8 @@ class BrightConfigParser(ConfigParser, Singleton):
     cert_path = "/config/cert"
     cert_file_path = os.path.join(cert_path, "admin.pem")
     cert_key_file_path = os.path.join(cert_path, "admin.key")
+    # /usr/local/lib/python3.9/site-packages
+    cacert_file_path = f'{site.getsitepackages()[0]}/pythoncm/etc/cacert.pem'
 
     BRIGHT_CONFIG_SECTION = "bright-config"
     BRIGHT_CONFIG_SECTION_HOST = "host"
