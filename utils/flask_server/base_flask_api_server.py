@@ -36,6 +36,8 @@ class BaseAPIApplication:
 
     def _get_default_error_handlers(self):
         return [
+            (InvalidRequestError,
+             lambda e: (str(e), HTTPStatus.BAD_REQUEST)),
             (ValidationError,
              lambda e: (str(e), HTTPStatus.BAD_REQUEST)),
             (SchemaValidationError,
