@@ -172,7 +172,6 @@ class BrightDataMgr(Singleton):
         return self.djson
 
     def clean_old_data(self):
-        Logger.log_message('Clean old history data based on the data retention period', LOG_LEVELS.DEBUG)
         current_datetime = datetime.datetime.now()
         data_retention_period, data_retention_timeunit = self.conf.get_bright_data_retention_period()
         data_retention_date = None
@@ -188,6 +187,7 @@ class BrightDataMgr(Singleton):
                 (current_datetime - self.last_clean_time).total_seconds() / 3600
             ) >= 1 # do retention if the current unit is h & last clean has been done before 1 hour
         if do_retention:
+            Logger.log_message('Clean old history data based on the data retention period', LOG_LEVELS.DEBUG)
             data_retention_date = current_datetime - data_retention_date
             saved_data = self.get_bright_cluster_saved_data()
             saved_data_list = list(saved_data.items())
@@ -196,12 +196,17 @@ class BrightDataMgr(Singleton):
                 if node_jobs:
                     node_jobs_list = list(node_jobs.items())
                     for job_key, job in node_jobs_list:
-                        job_submit_time_str = job.get('submittime')
-                        job_submit_time = datetime.datetime.strptime(job_submit_time_str, self.bright_time_format)
+                        job_submit_time = self.get_job_submit_time(job)
                         if job_submit_time < data_retention_date:
                             del node_jobs[job_key]
                     node_jobs_list = list(node_jobs.items())
                     if len(node_jobs_list) == 0:
                         del saved_data[node]
             self.last_clean_time = current_datetime
-        Logger.log_message('Clean old history data based on the data retention period completed succseffuly')
+            Logger.log_message('Clean old history data based on the data retention period completed successfully')
+
+    def convert_bright_time_to_datetime(self, time_str):
+        return datetime.datetime.strptime(time_str, self.bright_time_format)
+
+    def get_job_submit_time(self, job):
+        return self.convert_bright_time_to_datetime(job.get('submittime'))
