@@ -12,6 +12,7 @@
 # @date:   Dec 15, 2022
 #
 
+import re
 import os
 import site
 from utils.config_parser import ConfigParser
@@ -61,10 +62,12 @@ class BrightConfigParser(ConfigParser, Singleton):
                                   False)
 
     def get_bright_data_retention_period(self):
-        return self.get_config_value(None,
-                                     self.BRIGHT_CONFIG_SECTION,
-                                     self.BRIGHT_CONFIG_SECTION_DATA_RETENTION_PERIOD,
-                                     '30d')
+        value = self.get_config_value(None,
+                                      self.BRIGHT_CONFIG_SECTION,
+                                      self.BRIGHT_CONFIG_SECTION_DATA_RETENTION_PERIOD,
+                                      '30d')
+        period_list = list(filter(None, re.split(f'(\d+)', value))) # filter to remove empty string
+        return int(period_list[0]), period_list[1] # return period,period_unit
 
     def get_bright_cert(self):
         cert = self.get_config_value(None,
