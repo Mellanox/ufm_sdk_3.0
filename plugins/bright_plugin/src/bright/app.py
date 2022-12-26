@@ -21,6 +21,7 @@ from utils.flask_server import run_api
 from utils.flask_server.base_flask_api_app import BaseFlaskAPIApp
 from utils.logger import Logger, LOG_LEVELS
 from api.conf_api import UFMBrightPluginConfigurationsAPI
+from api.bright_api import BrightAPI
 from mgr.bright_configurations_mgr import BrightConfigParser
 from mgr.bright_data_polling_mgr import BrightDataPollingMgr
 
@@ -56,7 +57,8 @@ if __name__ == '__main__':
             default_port_value=8985)
 
         routes = {
-            "/conf": UFMBrightPluginConfigurationsAPI().application
+            "/conf": UFMBrightPluginConfigurationsAPI().application,
+            "/data": BrightAPI().application
         }
 
         app = BaseFlaskAPIApp(routes)
