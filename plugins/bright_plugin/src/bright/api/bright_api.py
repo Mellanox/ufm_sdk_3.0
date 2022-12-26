@@ -49,18 +49,19 @@ class BrightAPI(BaseAPIApplication):
         if value is None:
             return value
         time = datetime.datetime.now()
-        if value.lower().endswith('min'):
-            time = time - datetime.timedelta(minutes=int(value[1:-3]))
-        elif value.lower().endswith('h'):
-            time = time - datetime.timedelta(hours=int(value[1:-1]))
-        else:
-            # milliseconds
-            try:
+        try:
+            if value.lower().endswith('min'):
+                time = time - datetime.timedelta(minutes=int(value[1:-3]))
+            elif value.lower().endswith('h'):
+                time = time - datetime.timedelta(hours=int(value[1:-1]))
+            else:
+                # milliseconds
                 milliseconds = int(value) / 1000.0
                 time = datetime.datetime.fromtimestamp(milliseconds)
-            except Exception as e:
-                Logger.log_message(f'Error during parsing time filter in the API: {request.url}, {str(e)}', LOG_LEVELS.ERROR)
-                raise InvalidRequestError(f'Unsupported format for time request argument: {key}')
+        except Exception as e:
+            Logger.log_message(f'Error during parsing time filter in the API: {request.url}, {str(e)}',
+                               LOG_LEVELS.ERROR)
+            raise InvalidRequestError(f'Unsupported format for time request argument: {key}, {str(e)}')
         return time
 
     def _is_job_within_date(self, job, start_time, end_time):
@@ -76,7 +77,7 @@ class BrightAPI(BaseAPIApplication):
         bcm_data = self.bright_data_mgr.get_bright_cluster_saved_data()
         nodes = self._get_request_arg(self.API_PARAM_NODES)
         start_time = self.get_time_req_arg(self.API_PARAM_FROM)
-        end_time = self.get_time_req_arg(self.API_PARAM_TO)
+        end_time = self.get_time_req_arg(self.API_PARAM_TO, '-0min')
         if nodes:
             nodes = nodes.split(",")
             for node in nodes:
