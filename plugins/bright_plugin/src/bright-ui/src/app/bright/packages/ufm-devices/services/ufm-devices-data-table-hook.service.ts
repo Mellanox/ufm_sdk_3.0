@@ -15,8 +15,6 @@ import {UfmDevicesConstants} from "../constants/ufm-devices.constants";
 })
 export class UfmDevicesDataTableHookService {
 
-  public ufmDevicesMap = {};
-
   constructor(private brightBackendService: BrightBackendService) {
   }
 
@@ -24,11 +22,10 @@ export class UfmDevicesDataTableHookService {
     return new Observable<any>((observable) => {
       this.brightBackendService.getBrightNodes().subscribe({
         next: (nodes: Array<string>) => {
-          this.ufmDevicesMap = {};
           ufmDevices = ufmDevices.map((ufmDevice: any) => {
             const name = ufmDevice[UfmDevicesConstants.DEVICE_SERVER_KEYS.system_name];
-            ufmDevice['is_bright'] = nodes.includes(name);
-            if (ufmDevice['is_bright']) {
+            ufmDevice['plugin.is_bright'] = nodes.includes(name);
+            if (ufmDevice['plugin.is_bright']) {
               if (!ufmDevice['plugin.templates']) {
                 ufmDevice['plugin.templates'] = [];
               }
@@ -36,7 +33,6 @@ export class UfmDevicesDataTableHookService {
                 '<ng-template><i title="Bright node" class="fas fa-cogs" style="margin-right: 4px;"></i>Bright Node</ng-template>'
               );
             }
-            this.ufmDevicesMap[ufmDevice[UfmDevicesConstants.DEVICE_SERVER_KEYS.guid]] = ufmDevice;
             return ufmDevice;
           });
           observable.next(ufmDevices);
