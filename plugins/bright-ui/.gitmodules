@@ -1,5 +1,0 @@
-[submodule "sms-ui-suite"]
-	path = sms-ui-suite
-	url = git@github.com:Mellanox-lab/sw_mng_ui.git
-	branch = standalone-suite
-	ignore = all

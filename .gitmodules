@@ -2,3 +2,7 @@
 	path = utils/fluentd
 	url = git@github.com:Mellanox-lab/fluent-logger-python.git
 	branch = master
+[submodule "plugins/bright_plugin/src/bright-ui/sms-ui-suite"]
+	path = plugins/bright_plugin/src/bright-ui/sms-ui-suite
+	url = git@github.com:Mellanox-lab/sw_mng_ui.git
+	branch = standalone-suite
