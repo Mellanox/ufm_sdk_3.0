@@ -1,11 +1,6 @@
-import {Injectable} from '@angular/core';
-import {Constants} from "../../../../constants/constants";
+export class UfmDevicesConstants {
 
-
-@Injectable()
-export class DevicesConstants {
-
-    constructor(private globalConstants:Constants){}
+    constructor(){}
 
 
     public static DEVICE_SERVER_KEYS = {

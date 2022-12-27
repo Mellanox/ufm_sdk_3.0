@@ -20,19 +20,38 @@ import {HttpClient} from "@angular/common/http";
 import {map, Observable} from "rxjs";
 
 
-@Injectable()
+@Injectable({
+  providedIn: 'root'
+})
 export class BrightBackendService {
-    constructor(private httpService: HttpClient,
-                private brightConstants: BrightConstants) {
-    }
+  constructor(private httpService: HttpClient,
+              private brightConstants: BrightConstants) {
+  }
 
-    getDeviceJobs(devices: string): Observable<any> {
-        let url = this.brightConstants.brightAPIsUrls.getDeviceJobs.concat("?device="+ devices)
-        return this.httpService.get(url)
-            .pipe(map(response => {
-              console.log(response);
-              return <any>response;
-            }
-            ));
+  getBrightNodes(): Observable<any> {
+    const url = this.brightConstants.brightAPIsUrls.nodes;
+    return this.httpService.get(url);
+  }
+
+  getDeviceJobs(nodes?: Array<string>, from?: string, to?: string): Observable<any> {
+    let filters = '';
+    if (nodes) {
+      filters = filters + `?nodes=${nodes.join(',')}`;
     }
+    if (from) {
+      const sign = filters.length ? '&' : '';
+      filters = filters + `${sign}from=${from}`;
+    }
+    if (to) {
+      const sign = filters.length ? '&' : '';
+      filters = filters + `${sign}to=${to}`;
+    }
+    const url = this.brightConstants.brightAPIsUrls.jobs.concat(filters)
+    return this.httpService.get(url)
+      .pipe(map(response => {
+          console.log(response);
+          return <any>response;
+        }
+      ));
+  }
 }
