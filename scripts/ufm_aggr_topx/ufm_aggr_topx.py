@@ -1,8 +1,8 @@
 import platform
-import os
+import os, sys
 import logging
 from tabulate import tabulate
-
+sys.path.insert(0,os.path.abspath(__file__)[:os.path.abspath(__file__).rfind('ufm_sdk_3.0')] + 'ufm_sdk_3.0')
 try:
     from utils.utils import Utils
     from utils.args_parser import ArgsParser
@@ -24,8 +24,8 @@ except ModuleNotFoundError as e:
 
 
 class TopXErrorMessages(object):
-    Invalid_Mode = f"Invalid Topx Mode, please enter one of the following %s"
-    Invalid_Member_type = f"Invalid Topx Members Type, please enter one of the following %s"
+    Invalid_Mode = f"Invalid Topx mode, please enter one of the following %s"
+    Invalid_Member_type = f"Invalid Topx members_type, please enter one of the following %s"
 
 
 class UFMAggrTopXConstants:
@@ -111,7 +111,7 @@ class UfmAggrTopXConfigParser(ConfigParser):
             return value
         else:
             ExceptionHandler.handel_exception(
-                TopXErrorMessages.Invalid_Member_type % UFMAggrTopXConstants.TOPX_ATTRS_INFO[attr][
+                TopXErrorMessages.Invalid_Mode % UFMAggrTopXConstants.TOPX_ATTRS_INFO[attr][
                     'available_modes'])
 
     def get_members_type(self, attr):
