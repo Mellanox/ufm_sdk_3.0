@@ -14,7 +14,7 @@ import {ActivatedRoute} from '@angular/router';
  */
 import {DeviceJobsConstants} from "./constants/device-jobs.constants";
 import {XCoreAgGridConstants} from "sms-ui-suite/x-core-ag-grid/constants/x-core-ag-grid.constants";
-import {DevicesConstants} from "../../packages/devices/constants/devices.constants";
+import {UfmDevicesConstants} from "../../packages/ufm-devices/constants/ufm-devices.constants";
 
 /**
  * @SERVICES
@@ -106,7 +106,7 @@ export class DevicesJobsViewComponent implements OnInit {
 
     public loadData(): void {
         this.tableData = undefined;
-        /*this.backend.getDeviceJobs(this.selectedDevice[DevicesConstants.DEVICE_SERVER_KEYS.system_name]).subscribe(data => {
+        /*this.backend.getDeviceJobs(this.selectedDevice[UfmDevicesConstants.DEVICE_SERVER_KEYS.system_name]).subscribe(data => {
             this.tableData = data;
         })*/
     }

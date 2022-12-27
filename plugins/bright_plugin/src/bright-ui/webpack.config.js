@@ -1,4 +1,4 @@
-const { shareAll, withModuleFederationPlugin } = require('@angular-architects/module-federation/webpack');
+const {shareAll, withModuleFederationPlugin} = require('@angular-architects/module-federation/webpack');
 
 module.exports = withModuleFederationPlugin({
 
@@ -6,10 +6,11 @@ module.exports = withModuleFederationPlugin({
 
   exposes: {
     './Component': './src/app/app.component.ts',
+    'UfmDevicesModule': './src/app/bright/packages/ufm-devices/ufm-devices.module.ts'
   },
 
   shared: {
-    ...shareAll({ singleton: true, strictVersion: true, requiredVersion: 'auto' }),
+    ...shareAll({singleton: true, strictVersion: false, requiredVersion: 'auto'}),
   },
 
 });

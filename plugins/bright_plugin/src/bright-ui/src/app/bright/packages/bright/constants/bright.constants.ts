@@ -18,13 +18,16 @@ import {Injectable} from '@angular/core';
 import {Constants} from "../../../../constants/constants";
 
 
-@Injectable()
+@Injectable({
+  providedIn: 'root'
+})
 export class BrightConstants {
 
     constructor(private globalConstants:Constants){}
 
     public readonly brightAPIsUrls ={
-        "getDeviceJobs": this.globalConstants.baseAppApiURL.concat("/bright/jobs")
+        jobs: this.globalConstants.baseBrightPluginApiURL.concat("/jobs"),
+        nodes: this.globalConstants.baseBrightPluginApiURL.concat("/nodes")
     };
 
 }
