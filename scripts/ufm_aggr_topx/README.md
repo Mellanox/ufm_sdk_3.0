@@ -1,8 +1,8 @@
-UFM Devices
+UFM Aggregation TopX
 --------------------------------------------------------
 
 
-This script is used to get topx data by category. it will support three categories conv ,bw and alarms.
+This script is used to get topx data by category. it will support three categories cong ,bw and alarms.
 
 
 Prerequisites
@@ -21,6 +21,7 @@ Running using command line arguments :
 --------------------------------------------------------
      python3 ufm_aggr_topx.py --object=object --attr=attr --mode=mode --members_type=members_type --ufm_host=ufm_host --ufm_protocol=ufm_protocol --ufm_username=ufm_username --ufm_password=ufm_password
 
+Note: the script should be run under ufm_sdk_3.0 directory
 
 
 Running using configuration file:
@@ -54,7 +55,7 @@ Running using configuration file:
 | --logs_level <logs_level> | [logs-config.logs_level](../../conf/ufm-sdk.sample.cfg#L14) | False | Default is 'info'
 | --object <object_type> | [ufm-aggr-topx.object](ufm_aggr_topx.sample.cfg#L2) | True | TopX object type (servers, switches)
 | --attr <attr> | [ufm-aggr-topx.attr](ufm_aggr_topx.sample.cfg#L3) | True | TopX attribute (bw, cong, alarms)
-| --mode <mode> | [ufm-aggr-topx.mode](ufm_aggr_topx.sample.cfg#L4) | True | Option to decide which data to show, sender data or reciever data. this option is not rquired if attr=alarms (the value should be (RxBW or TxBW) if attr=bw and (RCBW or TCBW) if attr=cong)
+| --mode <mode> | [ufm-aggr-topx.mode](ufm_aggr_topx.sample.cfg#L4) | True | Option to decide which data to show, sender data or receiver data. this option is not required if attr=alarms. the value should be (RxBW or TxBW) if attr=bw and (RCBW or TCBW) if attr=cong
 | --members_type <members_type> | [ufm-aggr-topx.members_type](ufm_aggr_topx.sample.cfg#L5) | True | device or port [Default = device if attr=alarms]
 
 
