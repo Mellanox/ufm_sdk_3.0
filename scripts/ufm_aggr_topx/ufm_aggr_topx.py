@@ -42,12 +42,20 @@ class UFMAggrTopXConstants:
 
     TOPX_ATTRS_INFO = {
         'bw': {
-            'available_modes': ['TxBW', 'RxBW'],
-            'available_members_type': ['device', 'port']
+            'available_modes': ['Tx', 'Rx'],
+            'available_members_type': ['device', 'port'],
+            'server_modes_map':{
+                'Tx':'TxBW',
+                'Rx':'RxBW',
+            }
         },
         'cong': {
-            'available_modes': ['TCBW', 'RCBW'],
-            'available_members_type': ['device', 'port']
+            'available_modes': ['Tx', 'Rx'],
+            'available_members_type': ['device', 'port'],
+            'server_modes_map': {
+                'Tx': 'TCBW',
+                'Rx': 'RCBW',
+            }
         },
         'alarms': {
             'available_modes': ['Alarms'],
@@ -136,7 +144,7 @@ class UfmAggrTopX:
         self.ufm_rest_client = ufm_rest_client
         self.object_type = object_type
         self.attr = attr
-        self.mode = mode
+        self.mode = self.get_server_mode_value(attr, mode)
         self.members_type = members_type
 
     def send_topX_request(self):
@@ -154,6 +162,13 @@ class UfmAggrTopX:
 
         else:
             Logger.log_message(response.text, LOG_LEVELS.ERROR)
+
+    def get_server_mode_value(self, attr, mode):
+        topx_info = UFMAggrTopXConstants.TOPX_ATTRS_INFO[attr]
+        if 'server_modes_map' in topx_info and mode in topx_info['server_modes_map']:
+            return topx_info['server_modes_map'][mode]
+        else:
+            return mode
 
 
 # if run as main module
