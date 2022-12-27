@@ -1,10 +1,9 @@
 <div>
-  <spinner class="spinnerInsteadOfTable" *ngIf="!tableData"></spinner>
   <app-x-core-ag-grid
           data-qa="jobs-table"
-          *ngIf="tableData"
           [rowData]="tableData"
           [options]="tableOptions"
+          [dataIsLoading]="dataIsLoading"
           (onContextMenuClick)="onContextMenuClick($event)">
 
   </app-x-core-ag-grid>

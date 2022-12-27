@@ -3,7 +3,11 @@ import {DevicesJobsViewComponent} from "./devices-jobs-view.component";
 
 export const DevicesJobsRoutes:Routes = [
   {
-    path: 'device-jobs',
-    component: DevicesJobsViewComponent,
+    path: 'jobs',
+    component: DevicesJobsViewComponent
+  },
+  {
+    path: '**',
+    redirectTo: 'jobs',
   }
 ];
