@@ -55,7 +55,7 @@ Running using configuration file:
 | --logs_level <logs_level> | [logs-config.logs_level](../../conf/ufm-sdk.sample.cfg#L14) | False | Default is 'info'
 | --object <object_type> | [ufm-aggr-topx.object](ufm_aggr_topx.sample.cfg#L2) | True | TopX object type (servers, switches)
 | --attr <attr> | [ufm-aggr-topx.attr](ufm_aggr_topx.sample.cfg#L3) | True | TopX attribute (bw, cong, alarms)
-| --mode <mode> | [ufm-aggr-topx.mode](ufm_aggr_topx.sample.cfg#L4) | True | Option to decide which data to show, sender data or receiver data. this option is not required if attr=alarms. the value should be (RxBW or TxBW) if attr=bw and (RCBW or TCBW) if attr=cong
+| --mode <mode> | [ufm-aggr-topx.mode](ufm_aggr_topx.sample.cfg#L4) | True | Option to decide which data to show, sender data or receiver data (Tx, Rx). this option is not required if attr=alarms
 | --members_type <members_type> | [ufm-aggr-topx.members_type](ufm_aggr_topx.sample.cfg#L5) | True | device or port [Default = device if attr=alarms]
 
 
