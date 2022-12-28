@@ -69,15 +69,18 @@ export class DevicesJobsViewComponent implements OnInit {
   }
 
   get bright_ip() {
-    return this.brightConf[BrightConstants.brightConfKeys.brightConfig][BrightConstants.brightConfKeys.host];
+    return this.brightConf[BrightConstants.brightConfKeys.brightConfig] &&
+      this.brightConf[BrightConstants.brightConfKeys.brightConfig][BrightConstants.brightConfKeys.host];
   }
 
   get bright_port() {
-    return this.brightConf[BrightConstants.brightConfKeys.brightConfig][BrightConstants.brightConfKeys.port];
+    return this.brightConf[BrightConstants.brightConfKeys.brightConfig] &&
+      this.brightConf[BrightConstants.brightConfKeys.brightConfig][BrightConstants.brightConfKeys.port];
   }
 
   get bright_status() {
-    return this.brightConf[BrightConstants.brightConfKeys.brightConfig][BrightConstants.brightConfKeys.status];
+    return this.brightConf[BrightConstants.brightConfKeys.brightConfig] &&
+      this.brightConf[BrightConstants.brightConfKeys.brightConfig][BrightConstants.brightConfKeys.status];
   }
 
   get BrightConstants() {
@@ -133,21 +136,25 @@ export class DevicesJobsViewComponent implements OnInit {
                 error: (err) => {
                   console.error(err);
                   this.dataIsLoading = false;
+                  this.cdr.detectChanges();
                 }
               });
             },
             error: (err) => {
               console.error(err);
               this.dataIsLoading = false;
+              this.cdr.detectChanges();
             }
           });
         } else {
           this.dataIsLoading = false;
+          this.cdr.detectChanges();
         }
       },
       error: (err) => {
         console.error(err);
         this.dataIsLoading = false;
+        this.cdr.detectChanges();
       }
     });
   }
