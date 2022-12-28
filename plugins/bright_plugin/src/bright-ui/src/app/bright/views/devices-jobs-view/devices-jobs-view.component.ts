@@ -1,7 +1,7 @@
 /**
  * @MODULES
  */
-import {ChangeDetectorRef, Component, EventEmitter, Input, OnInit, ViewChild} from '@angular/core';
+import {ChangeDetectorRef, Component, EventEmitter, OnInit, ViewChild} from '@angular/core';
 
 /**
  * @COMPONENTS
@@ -26,6 +26,7 @@ import {
 } from "sms-ui-suite/x-core-ag-grid/x-core-ag-grid-options/x-core-ag-grid-extra-options.interface";
 import {ContextMenuItem, DevicesJobsContextMenu} from "./classes/devices-jobs-context-menu";
 import {UfmDevicesBackendService} from "../../packages/ufm-devices/services/ufm-devices-backend.service";
+import {BrightConstants} from "../../packages/bright/constants/bright.constants";
 
 
 @Component({
@@ -36,21 +37,15 @@ import {UfmDevicesBackendService} from "../../packages/ufm-devices/services/ufm-
 export class DevicesJobsViewComponent implements OnInit {
 
   /**
-   * @Inputs
-   */
-  @Input() selectedDevice;
-  @Input() bright_ip: string;
-  @Input() bright_port: string;
-
-  /**
-     * @VARIABLES
-     * */
-    private routerParamsSub:Subscription;
-    public dataIsLoading = true;
-    public tableData = [];
-    public tableOptions: XCoreAgGridOptions = new XCoreAgGridOptions();
-    public contextMenuItems:[ContextMenuItem];
-    public devicesJobsContextMenu:DevicesJobsContextMenu = new DevicesJobsContextMenu();
+   * @VARIABLES
+   * */
+  private routerParamsSub: Subscription;
+  public dataIsLoading = true;
+  public tableData = [];
+  public tableOptions: XCoreAgGridOptions = new XCoreAgGridOptions();
+  public brightConf = {};
+  public contextMenuItems: [ContextMenuItem];
+  public devicesJobsContextMenu: DevicesJobsContextMenu = new DevicesJobsContextMenu();
 
   /**
    * @CHILDREN
@@ -62,8 +57,8 @@ export class DevicesJobsViewComponent implements OnInit {
               private router: Router,
               private ufmDevicesBackendService: UfmDevicesBackendService,
               private cdr: ChangeDetectorRef) {
-    this.routerParamsSub = this.router.events.subscribe((event)=>{
-      if(event instanceof NavigationEnd) {
+    this.routerParamsSub = this.router.events.subscribe((event) => {
+      if (event instanceof NavigationEnd) {
         this.loadData();
       }
     });
@@ -73,6 +68,22 @@ export class DevicesJobsViewComponent implements OnInit {
     return DeviceJobsConstants.JOB_STATUS_MAP;
   }
 
+  get bright_ip() {
+    return this.brightConf[BrightConstants.brightConfKeys.brightConfig][BrightConstants.brightConfKeys.host];
+  }
+
+  get bright_port() {
+    return this.brightConf[BrightConstants.brightConfKeys.brightConfig][BrightConstants.brightConfKeys.port];
+  }
+
+  get bright_status() {
+    return this.brightConf[BrightConstants.brightConfKeys.brightConfig][BrightConstants.brightConfKeys.status];
+  }
+
+  get BrightConstants() {
+    return BrightConstants;
+  }
+
   ngOnInit() {
     this.setTableOptions();
     this.loadData();
@@ -80,7 +91,7 @@ export class DevicesJobsViewComponent implements OnInit {
   }
 
   ngOnDestroy() {
-    if(this.routerParamsSub) {
+    if (this.routerParamsSub) {
       this.routerParamsSub.unsubscribe();
     }
     this.cdr.detectChanges();
@@ -107,12 +118,37 @@ export class DevicesJobsViewComponent implements OnInit {
 
   public loadData(): void {
     this.dataIsLoading = true;
-    this.ufmDevicesBackendService.getDeviceInfo(this.getDeviceGUIDFromURL()).subscribe((data) => {
-      this.backend.getDeviceJobs([data[0][UfmDevicesConstants.DEVICE_SERVER_KEYS.system_name]]).subscribe(data => {
-        this.tableData = data;
+    this.backend.getBrightConf().subscribe({
+      next: (confData) => {
+        this.brightConf = confData;
+        if (this.bright_status == BrightConstants.brightStatusValues.healthy) {
+          this.ufmDevicesBackendService.getDeviceInfo(this.getDeviceGUIDFromURL()).subscribe({
+            next: (data) => {
+              this.backend.getDeviceJobs([data[0][UfmDevicesConstants.DEVICE_SERVER_KEYS.system_name]]).subscribe({
+                next: (data) => {
+                  this.tableData = data;
+                  this.dataIsLoading = false;
+                  this.cdr.detectChanges();
+                },
+                error: (err) => {
+                  console.error(err);
+                  this.dataIsLoading = false;
+                }
+              });
+            },
+            error: (err) => {
+              console.error(err);
+              this.dataIsLoading = false;
+            }
+          });
+        } else {
+          this.dataIsLoading = false;
+        }
+      },
+      error: (err) => {
+        console.error(err);
         this.dataIsLoading = false;
-        this.cdr.detectChanges();
-      });
+      }
     });
   }
 
@@ -176,6 +212,7 @@ export class DevicesJobsViewComponent implements OnInit {
   }
 
   onContextMenuClick($event: any) {
+    // NOT FULLY IMPLEMENTED YET
     this.tableOptions.extraOptions[XCoreAgGridConstants.showContextMenu].emit($event);
   }
 

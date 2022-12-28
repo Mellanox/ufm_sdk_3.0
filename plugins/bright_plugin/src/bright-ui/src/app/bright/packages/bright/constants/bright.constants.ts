@@ -26,8 +26,26 @@ export class BrightConstants {
     constructor(private globalConstants:Constants){}
 
     public readonly brightAPIsUrls ={
-        jobs: this.globalConstants.baseBrightPluginApiURL.concat("/jobs"),
-        nodes: this.globalConstants.baseBrightPluginApiURL.concat("/nodes")
+        jobs: this.globalConstants.baseBrightPluginApiURL.concat("/data/jobs"),
+        nodes: this.globalConstants.baseBrightPluginApiURL.concat("/data/nodes"),
+        conf: this.globalConstants.baseBrightPluginApiURL.concat("/conf")
     };
+
+    public static brightConfKeys = {
+      brightConfig: "bright-config" as "bright-config",
+      status: "status" as "status",
+      enabled: "enabled" as "enabled",
+      host: "host" as "host",
+      port: "port" as "port",
+      dataRetentionPeriod: "data_retention_period" as "data_retention_period",
+      certificate: "certificate" as "certificate",
+      certificateKey: "certificate_key" as "certificate_key"
+    };
+
+    public static brightStatusValues = {
+      healthy: "Healthy",
+      unhealthy: "Unhealthy",
+      disabled: "Disabled"
+    }
 
 }

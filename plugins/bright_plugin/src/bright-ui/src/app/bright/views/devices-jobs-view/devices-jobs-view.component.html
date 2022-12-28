@@ -1,4 +1,10 @@
 <div>
+  <ng-container *ngIf="!dataIsLoading && bright_status == BrightConstants.brightStatusValues.unhealthy">
+    <label>
+      <i class="fas fa-exclamation-triangle warning"></i>
+      The connection with bright cluster manager is unhealthy, please check the bright configurations.
+    </label>
+  </ng-container>
   <app-x-core-ag-grid
           data-qa="jobs-table"
           [rowData]="tableData"

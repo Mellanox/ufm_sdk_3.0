@@ -28,6 +28,12 @@ export class BrightBackendService {
               private brightConstants: BrightConstants) {
   }
 
+  getBrightConf(): Observable<any> {
+    const url = this.brightConstants.brightAPIsUrls.conf;
+    return this.httpService.get(url);
+  }
+
+
   getBrightNodes(): Observable<any> {
     const url = this.brightConstants.brightAPIsUrls.nodes;
     return this.httpService.get(url);
@@ -47,11 +53,6 @@ export class BrightBackendService {
       filters = filters + `${sign}to=${to}`;
     }
     const url = this.brightConstants.brightAPIsUrls.jobs.concat(filters)
-    return this.httpService.get(url)
-      .pipe(map(response => {
-          console.log(response);
-          return <any>response;
-        }
-      ));
+    return this.httpService.get(url);
   }
 }
