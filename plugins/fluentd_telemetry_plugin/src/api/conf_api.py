@@ -16,15 +16,20 @@ class StreamingConfigurationsAPI(BaseAPIApplication):
         super(StreamingConfigurationsAPI, self).__init__()
         self.conf = conf
         self.scheduler = StreamingScheduler.getInstance()
+        self.streamer = UFMTelemetryStreaming.getInstance()
         #to debug
-        #self.conf_schema_path = "plugins/fluentd_telemetry_plugin/src/schemas/set_conf.schema.json"
+        # self.conf_schema_path = "plugins/fluentd_telemetry_plugin/src/schemas/set_conf.schema.json"
+        # self.conf_attributes_schema_path = "plugins/fluentd_telemetry_plugin/src/schemas/set_attributes.schema.json"
 
         self.conf_schema_path = "fluentd_telemetry_plugin/src/schemas/set_conf.schema.json"
+        self.conf_attributes_schema_path = "fluentd_telemetry_plugin/src/schemas/set_attributes.schema.json"
 
     def _get_routes(self):
         return {
             self.get: dict(urls=["/"], methods=["GET"]),
-            self.post: dict(urls=["/"], methods=["POST"])
+            self.post: dict(urls=["/"], methods=["POST"]),
+            self.get_streaming_attributes: dict(urls=["/attributes"], methods=["GET"]),
+            self.update_streaming_attributes: dict(urls=["/attributes"], methods=["POST"])
         }
 
     def _set_new_conf(self):
@@ -50,15 +55,19 @@ class StreamingConfigurationsAPI(BaseAPIApplication):
                         raise InvalidConfRequest(f'Invalid property: {section_item} in {section}')
                     self.conf.set_item_value(section, section_item, value)
 
+    def _validate_required_configurations_on_enable(self):
+        # just checking the required attributes
+        # if one of the attributes below was missing it will throw an exception
+        fluentd_host = self.conf.get_fluentd_host()
+
     def post(self):
         # validate the new conf json
-        validate_schema(self.conf_schema_path,request.json)
+        validate_schema(self.conf_schema_path, request.json)
         self._set_new_conf()
         try:
             if self.conf.get_enable_streaming_flag():
-                streamer = UFMTelemetryStreaming(config_parser=self.conf)
-                self.scheduler.start_streaming(streamer.stream_data,
-                                               streamer.streaming_interval)
+                self._validate_required_configurations_on_enable()
+                self.scheduler.start_streaming(update_attributes=True)
             else:
                 self.scheduler.stop_streaming()
 
@@ -103,3 +112,18 @@ class StreamingConfigurationsAPI(BaseAPIApplication):
                 return make_response(conf_dict)
         except Exception as e:
             logging.error("Error occurred while getting the current streaming configurations: " + str(e))
+
+    def get_streaming_attributes(self):
+        return make_response(self.streamer.streaming_attributes)
+
+    def update_streaming_attributes(self):
+        payload = request.json
+        # validate the new payload
+        validate_schema(self.conf_attributes_schema_path, payload)
+        for key,value in payload.items():
+            current_attr_obj = self.streamer.streaming_attributes.get(key, None)
+            if current_attr_obj is None:
+                raise InvalidConfRequest(f'The streaming attribute : {key} not found in the attributes list')
+            self.streamer.streaming_attributes[key] = value
+        self.streamer.update_saved_streaming_attributes(self.streamer.streaming_attributes)
+        return make_response('set streaming attributes has been done successfully')

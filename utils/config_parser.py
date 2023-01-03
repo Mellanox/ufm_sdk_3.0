@@ -15,9 +15,11 @@
 """
 import configparser
 import os
+import json
 from utils.args_parser import ArgsParser
 from utils.ufm_rest_client import UfmProtocols, ApiErrorMessages
 from utils.exception_handler import  ExceptionHandler
+from utils.utils import Utils
 
 SDK_CONFIG_FILE = 'conf/ufm-sdk.cfg'
 
@@ -34,11 +36,18 @@ SDK_CONFIG_LOGS_SECTION_LOGS_LEVEL = "logs_level"
 SDK_CONFIG_LOGS_SECTION_LOGS_FILE_MAX_SIZE = "log_file_max_size"
 SDK_CONFIG_LOGS_SECTION_LOGS_FILE_BACKUP_COUNT = "log_file_backup_count"
 
+class InvalidConfRequest(Exception):
+
+    def __init__(self, message):
+        Exception.__init__(self, message)
+
 
 class ConfigParser(object):
 
-    def __init__(self, args = ArgsParser.parse_args("UFM SDK", []),
+    def __init__(self, args = None,
                  read_sdk_config = True):
+        if not args:
+            ArgsParser.parse_args("UFM SDK", [])
         self.sdk_config = configparser.RawConfigParser()
         if read_sdk_config:
             self.sdk_config.read(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),SDK_CONFIG_FILE))
@@ -169,6 +178,48 @@ class ConfigParser(object):
     def set_item_value(self, section, item, value):
         self.sdk_config.set(section, item, value)
 
+    def update_config_file_values(self, new_data):
+        sections = self.get_conf_sections()
+        for section, section_items in new_data.items():
+            if section not in sections:
+                raise InvalidConfRequest(f'Invalid section: {section}')
+            for section_item, value in section_items.items():
+                if section_item not in dict(self.get_section_items(section)).keys():
+                    raise InvalidConfRequest(f'Invalid property: {section_item} in {section}')
+                self.set_item_value(section, section_item, value)
+
     def update_config_file(self, file_path):
         with open(file_path, 'w') as configfile:
             self.sdk_config.write(configfile)
+
+    def conf_to_dict(self, json_schema_path):
+        with open(Utils.get_absolute_path(json_schema_path)) as json_data:
+            schema = json.load(json_data)
+            properties = schema.get('properties', None)
+            if properties is None:
+                raise Exception("Failed to get the configurations schema properties")
+            conf_dict = {}
+            for section in self.get_conf_sections():
+                section_properties = properties.get(section, None)
+                if section_properties is None:
+                    raise Exception("Failed to get the configurations schema for the section: " + section)
+                section_properties = section_properties.get('properties', None)
+                section_items = self.get_section_items(section)
+                if section_properties:
+                    conf_dict[section] = {}
+                    for item in section_items:
+                        item_type = section_properties.get(item[0], None)
+                        item_value = item[1]
+                        if item_type is None:
+                            raise Exception(f"Failed to get the configurations schema for the item {item[0]} "
+                                            f"under the section: {section}")
+                        item_type = item_type.get('type', None)
+                        if isinstance(item_value, str):
+                            if item_type == "integer":
+                                item_value = int(item_value)
+                            elif item_type == "boolean":
+                                item_value = item_value.lower() == 'true'
+                        conf_dict[section][item[0]] = item_value
+                else:
+                    conf_dict[section] = dict(section_items)
+            return conf_dict
