@@ -12,12 +12,12 @@
 # @author: Alexander Tolikin
 # @date:   November, 2022
 #
+import csv
 from flask_restful import Resource
 from flask import request
 from http import HTTPStatus
 import json
 import os
-import socket
 
 import helpers
 import logging
@@ -60,7 +60,7 @@ class UFMResource(Resource):
 
 class Switch(UFMResource):
     def get(self):
-        return self.report_error(405, "Method is not allowed")
+        return self.report_error(HTTPStatus.METHOD_NOT_ALLOWED, "Method is not allowed")
 
     @staticmethod
     def get_cli(ip, unregister=False):
@@ -112,44 +112,25 @@ class SwitchList(UFMResource):
         return list(self.registered_switches), HTTPStatus.OK
 
     def post(self):
-        return self.report_error(405, "Method is not allowed")
+        return self.report_error(HTTPStatus.METHOD_NOT_ALLOWED, "Method is not allowed")
 
 class TrapList(UFMResource):
-    def _extract_job_id(self, headers):
-        # extract job ID from location header
-        location = headers.get("Location")
-        if not location:
-            return None
-        job_id = location.split('/')[-1]
-        return job_id
-
     def get(self):
         logging.info(f"GET /plugin/snmp/trap_list")
-        cli = "show snmp events"
-        skip_lines = ["", cli, "Events for which traps will be sent:"]
-        switch = next(iter(self.switch_dict))
-        status_code, guid_to_events = helpers.get_provisioning_output(cli, "Requesting the list of traps", [switch])
-        if not helpers.succeded(status_code):
-            return self.report_error(status_code, guid_to_events)
-        events_raw = list(guid_to_events.values())[0].split("\n")
-        events_lines = list(set(events_raw) - set(skip_lines))
-        result = []
-        for event_line in events_lines:
-            try:
-                # e.g.: "  cpu-util-high: CPU utilization has risen too high"
-                event_arr = event_line.split()
-                event = event_arr[0][:-1]
-                result.append(event)
-            except KeyError as ke:
-                return self.report_error(HTTPStatus.INTERNAL_SERVER_ERROR, f"Failed to parse event: {ke}")
-        return result, HTTPStatus.OK
+        with open(helpers.TRAPS_POLICY_FILE, 'r') as traps_info_file:
+            result = []
+            csvreader = csv.reader(traps_info_file)
+            for row in csvreader:
+                result.append(row)
+            return result, HTTPStatus.OK
 
     def post(self):
-        return self.report_error(405, "Method is not allowed")
+        return self.report_error(HTTPStatus.METHOD_NOT_ALLOWED, "Method is not allowed")
 
+# internal API
 class Trap(UFMResource):
     def get(self):
-        return self.report_error(405, "Method is not allowed")
+        return self.report_error(HTTPStatus.METHOD_NOT_ALLOWED, "Method is not allowed")
 
     @staticmethod
     def get_cli(event, remove=False):

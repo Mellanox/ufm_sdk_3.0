@@ -13,6 +13,7 @@
 # @date:   November, 2022
 #
 import configparser
+from enum import Enum
 from http import HTTPStatus
 import logging
 import requests
@@ -33,7 +34,7 @@ SNMP_USER = "snmpuser"
 SNMP_PASSWORD = "snmppassword"
 SNMP_PRIV_PASSWORD = "snmpprivpassword"
 SWITCHES_FILE = "registered_switches.json"
-WARNING_EVENT = 553
+TRAPS_POLICY_FILE = "traps_policy.csv"
 
 def succeded(status_code):
     return status_code in [HTTPStatus.OK, HTTPStatus.ACCEPTED]
@@ -175,14 +176,39 @@ class Switch:
         engine_id = engine_id
         self.event_to_count = event_to_count
 
+class Severity:
+    INFO_ID = 551
+    MINOR_ID = 552
+    WARNING_ID = 553
+    CRITICAL_ID = 554
+    INFO_STR = "Info"
+    MINOR_STR = "Minor"
+    WARNING_STR = "Warning"
+    CRITICAL_STR = "Critical"
+    LEVEL_TO_EVENT_ID = {
+        INFO_STR: INFO_ID,
+        MINOR_STR: MINOR_ID,
+        WARNING_STR: WARNING_ID,
+        CRITICAL_STR: CRITICAL_ID,
+    }
+    def __init__(self, level=INFO_STR):
+        self.level = level
+        self.event_id = self.LEVEL_TO_EVENT_ID[level]
+    def update_level(self, level):
+        event_id = self.LEVEL_TO_EVENT_ID[level]
+        if event_id > self.event_id:
+            self.level = level
+            self.event_id = event_id
+
 class Trap:
-    def __init__(self, oid="", details=""):
+    def __init__(self, oid="", details="", severity="severity"):
         self.oid = oid
         self.details = details
+        self.severity = severity
 
 class ConfigParser:
-    config_file_name = "../build/config/snmp.conf"
-    # config_file_name = "/config/snmp.conf"
+    # config_file_name = "../build/config/snmp.conf"
+    config_file_name = "/config/snmp.conf"
 
     snmp_config = configparser.ConfigParser()
     if not os.path.exists(config_file_name):

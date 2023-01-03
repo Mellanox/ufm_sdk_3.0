@@ -102,6 +102,7 @@ BUILD_DIR=$(create_out_dir)
 cp Dockerfile ${BUILD_DIR}
 cp -r config ${BUILD_DIR}
 cp -r ../snmp_server ${BUILD_DIR}
+cp -r ../mibs ${BUILD_DIR}
 
 echo "BUILD_DIR    : [${BUILD_DIR}]"
 

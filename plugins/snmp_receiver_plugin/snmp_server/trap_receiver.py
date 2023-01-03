@@ -17,6 +17,7 @@ import asyncio
 import csv
 import json
 import logging
+import os
 from pysnmp.entity import engine, config
 from pysnmp.carrier.asyncore.dgram import udp
 from pysnmp.entity.rfc3413 import ntfrcv, context
@@ -44,17 +45,14 @@ class SnmpTrapReceiver:
         self.traps_n = 0
         self.st_t = 0
         self.events_at_time = 10
-        # TODO: change to 555
-        self.event_id = helpers.WARNING_EVENT
         self.throttling_interval = 10
         self.throttling_thread = None
         self.ip_to_event_to_count = {}
-        self.traps_info_file = "traps_info.csv"
         self.oid_to_traps_info = {}
         self._init_traps_info()
 
     def _init_traps_info(self):
-        with open(self.traps_info_file, 'r') as traps_info_file:
+        with open(helpers.TRAPS_POLICY_FILE, 'r') as traps_info_file:
             csv_traps_info = csv.DictReader(traps_info_file)
             for row in csv_traps_info:
                 self.oid_to_traps_info[row['OID']] = row
@@ -103,17 +101,20 @@ class SnmpTrapReceiver:
         # Assemble MIB viewer
         snmp_context = context.SnmpContext(self.snmp_engine)
         self.mib_builder = snmp_context.getMibInstrum().getMibBuilder()
-        mibs = ['/auto/mtrswgwork/atolikin/ufm_sdk_3.0/plugins/snmp_receiver_plugin/mibs/standard/',
-                '/auto/mtrswgwork/atolikin/ufm_sdk_3.0/plugins/snmp_receiver_plugin/mibs/private/']
-        compiler.addMibCompiler(self.mib_builder, sources=mibs)
-        for mib in mibs:
+        self.mib_builder = builder.MibBuilder()
+        mib_dirs = ['../mibs/standard/',
+                    '../mibs/private/']
+        compiler.addMibCompiler(self.mib_builder, sources=mib_dirs)
+        for mib in mib_dirs:
             self.mib_builder.addMibSources(builder.DirMibSource(mib))
         self.mib_view_controller = view.MibViewController(self.mib_builder)
         # Pre-load MIB modules
-        self.mib_builder.loadModules()
+        # TODO: load all mibs
+        self.mib_builder.loadModules('MELLANOX-EFM-MIB')
 
     # noinspection PyUnusedLocal,PyUnusedLocal
     def trap_callback(self, snmpEngine, stateReference, contextEngineId, contextName, varBinds, cbCtx):
+        # TODO: stop listening to the traps that we don't need to
         logging.debug('Trap received')
         self.traps_n += 1
         varBindsResolved = [rfc1902.ObjectType(rfc1902.ObjectIdentity(x[0]), x[1]).resolveWithMib(self.mib_view_controller) for x in varBinds]
@@ -124,13 +125,17 @@ class SnmpTrapReceiver:
         try:
             trap_oid = varBindsResolved[1][1].prettyPrint()
             trap_details = varBindsResolved[2][0].prettyPrint() + " = " + varBindsResolved[2][1].prettyPrint()
-            trap_info = self.oid_to_traps_info[trap_oid]
-            event_id = int(trap_info["EventId"])
-        except:
+        except KeyError as ke:
+            logging.info(f'Error while parsing varBindsResolved: {ke}')
             trap_oid = "unknown"
             trap_oid = "failed to decode trap"
-            event_id = helpers.WARNING_EVENT
-        trap = helpers.Trap(trap_oid, trap_details, event_id)
+        try:
+            trap_info = self.oid_to_traps_info[trap_oid]
+            severity = trap_info["Severity"]
+        except:
+            logging.info(f'Failed to decode trap: {trap_oid}')
+            return
+        trap = helpers.Trap(trap_oid, trap_details, severity)
         logging.debug(f'  {trap_oid}: {trap_details}')
 
         switch_obj = self.switch_dict.get(switch_ip, None)
@@ -164,13 +169,18 @@ class SnmpTrapReceiver:
                 switch = self.switch_dict.get(switch_ip, helpers.Switch(switch_ip))
                 base_description = f"SNMP traps from {switch.name}: "
                 description = '; '.join(f"'oid={event.oid}, {event.details}', happened {count} times" for event, count in event_to_count.items())
-                payload = {"event_id": self.event_id, "description": base_description + description}
+                severity = helpers.Severity()
+                for event in event_to_count.keys():
+                    severity.update_level(event.severity)
+                payload = {"event_id": severity.event_id, "description": base_description + description}
                 if switch.guid:
                     payload["object_name"] = switch.guid
                     payload["otype"] = "Switch"
                 else:
                     logging.warning(f"Event from unknown switch")
                 if helpers.ConfigParser.multiple_events:
+                    # TODO: support multiple events correclty
+                    payload["event_id"] = helpers.Severity.WARNING_ID
                     # concatenate events into set to improve performance
                     multiple_events.append(payload)
                     if len(multiple_events) >= self.events_at_time:
