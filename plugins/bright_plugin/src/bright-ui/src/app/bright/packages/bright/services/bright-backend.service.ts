@@ -34,10 +34,14 @@ export class BrightBackendService {
     return this.httpService.get(url);
   }
 
+  updateBrightConf(payload): Observable<any> {
+    const url = this.brightConstants.brightAPIsUrls.conf;
+    return this.httpService.put(url, payload);
+  }
+
 
   getBrightNodes(): Observable<any> {
-    // const url = this.brightConstants.brightAPIsUrls.nodes;
-    const url = '/bright/data/nodes'
+    const url = this.brightConstants.brightAPIsUrls.nodes;
     return this.httpService.get(url);
   }
 
@@ -54,8 +58,7 @@ export class BrightBackendService {
       const sign = filters.length ? '&' : '';
       filters = filters + `${sign}to=${to}`;
     }
-    // const url = this.brightConstants.brightAPIsUrls.jobs.concat(filters)
-    const url = '/bright/data/jobs'.concat(filters)
+    const url = this.brightConstants.brightAPIsUrls.jobs.concat(filters)
     return this.httpService.get(url);
   }
 }

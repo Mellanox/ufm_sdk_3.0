@@ -5,6 +5,7 @@ import {DevicesJobsViewModule} from "./views/devices-jobs-view/devices-jobs-view
 import {HttpClientModule} from "@angular/common/http";
 import {RouterModule} from "@angular/router";
 import {BrightRoutes} from "./bright.routes";
+import {BrightConfigurationsViewModule} from "./views/bright-configurations-view/bright-configurations-view.module";
 
 
 @NgModule({
@@ -16,7 +17,8 @@ import {BrightRoutes} from "./bright.routes";
     CommonModule,
     HttpClientModule,
     RouterModule.forChild(BrightRoutes),
-    DevicesJobsViewModule
+    DevicesJobsViewModule,
+    BrightConfigurationsViewModule
   ]
 })
 export class BrightModule {
