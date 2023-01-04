@@ -27,3 +27,14 @@
     {{ data.col }}
   </div>
 </ng-template>
+
+<ng-template #controlBtnsTemplate>
+  <div class="control-btns-template">
+    <button class="btn btn-primary"
+            title="Refresh"
+            (click)="loadData()">
+      <i class="fa fa-sync" [class.fa-spin]="dataIsLoading">
+      </i>
+    </button>
+  </div>
+</ng-template>

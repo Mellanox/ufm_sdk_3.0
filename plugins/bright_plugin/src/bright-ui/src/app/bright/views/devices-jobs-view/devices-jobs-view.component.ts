@@ -6,8 +6,8 @@ import {ChangeDetectorRef, Component, EventEmitter, OnInit, ViewChild} from '@an
 /**
  * @COMPONENTS
  * */
-import {BehaviorSubject} from "rxjs";
-import {Router} from '@angular/router';
+import {BehaviorSubject, Subscription} from "rxjs";
+import {NavigationEnd, Router} from '@angular/router';
 
 /**
  * @CONSTANTS
@@ -42,6 +42,7 @@ export class DevicesJobsViewComponent implements OnInit {
   /**
    * @VARIABLES
    * */
+  private routerParamsSub: Subscription;
   public dataIsLoading = true;
   public tableData = [];
   public tableOptions: XCoreAgGridOptions = new XCoreAgGridOptions();
@@ -49,11 +50,12 @@ export class DevicesJobsViewComponent implements OnInit {
   public contextMenuItems: [ContextMenuItem];
   public devicesJobsContextMenu: DevicesJobsContextMenu = new DevicesJobsContextMenu();
 
-  public selectedTime:string = this.timeRanges[3].label;
-
+  public selectedTime: string = this.timeRanges[3].label;
+  public selectedTimeRangeInMS;
   /**
    * @CHILDREN
    */
+  @ViewChild('controlBtnsTemplate',{static: true}) controlBtnsTemplate;
   @ViewChild('statusTemp', {static: true}) statusTemp;
   @ViewChild("jobsStatisticsModal", {static: true}) jobsStatisticsModal;
 
@@ -61,6 +63,11 @@ export class DevicesJobsViewComponent implements OnInit {
               private router: Router,
               private ufmDevicesBackendService: UfmDevicesBackendService,
               private cdr: ChangeDetectorRef) {
+    this.routerParamsSub = this.router.events.subscribe((event) => {
+      if (event instanceof NavigationEnd && this.selectedTimeRangeInMS) {
+        this.loadData();
+      }
+    });
   }
 
   get JOB_STATUS_MAP() {
@@ -92,6 +99,9 @@ export class DevicesJobsViewComponent implements OnInit {
   }
 
   ngOnDestroy() {
+    if (this.routerParamsSub) {
+      this.routerParamsSub.unsubscribe();
+    }
     this.cdr.detectChanges();
   }
 
@@ -114,37 +124,33 @@ export class DevicesJobsViewComponent implements OnInit {
     );
   }
 
-  public loadData(fromTime:number, endTime:number): void {
+  public loadData(): void {
     this.dataIsLoading = true;
     this.backend.getBrightConf().subscribe({
       next: (confData) => {
         this.brightConf = confData;
-        if (this.bright_status == BrightConstants.brightStatusValues.healthy) {
-          this.ufmDevicesBackendService.getDeviceInfo(this.getDeviceGUIDFromURL()).subscribe({
-            next: (data) => {
-              this.backend.getDeviceJobs([data[0][UfmDevicesConstants.DEVICE_SERVER_KEYS.system_name]], fromTime, endTime).subscribe({
-                next: (data) => {
-                  this.tableData = data;
-                  this.dataIsLoading = false;
-                  this.cdr.detectChanges();
-                },
-                error: (err) => {
-                  console.error(err);
-                  this.dataIsLoading = false;
-                  this.cdr.detectChanges();
-                }
-              });
-            },
-            error: (err) => {
-              console.error(err);
-              this.dataIsLoading = false;
-              this.cdr.detectChanges();
-            }
-          });
-        } else {
-          this.dataIsLoading = false;
-          this.cdr.detectChanges();
-        }
+        this.ufmDevicesBackendService.getDeviceInfo(this.getDeviceGUIDFromURL()).subscribe({
+          next: (data) => {
+            this.backend.getDeviceJobs([data[0][UfmDevicesConstants.DEVICE_SERVER_KEYS.system_name]],
+              this.selectedTimeRangeInMS.start, this.selectedTimeRangeInMS.end).subscribe({
+              next: (data) => {
+                this.tableData = data;
+                this.dataIsLoading = false;
+                this.cdr.detectChanges();
+              },
+              error: (err) => {
+                console.error(err);
+                this.dataIsLoading = false;
+                this.cdr.detectChanges();
+              }
+            });
+          },
+          error: (err) => {
+            console.error(err);
+            this.dataIsLoading = false;
+            this.cdr.detectChanges();
+          }
+        });
       },
       error: (err) => {
         console.error(err);
@@ -170,7 +176,8 @@ export class DevicesJobsViewComponent implements OnInit {
         },
         {
           [XCoreAgGridConstants.field]: DeviceJobsConstants.JOBS_SERVER_FIELDS.jobID,
-          [XCoreAgGridConstants.headerName]: 'Job ID'
+          [XCoreAgGridConstants.headerName]: 'Job ID',
+          [XCoreAgGridConstants.sort]: "desc",
         },
         {
           [XCoreAgGridConstants.field]: DeviceJobsConstants.JOBS_SERVER_FIELDS.username,
@@ -216,7 +223,8 @@ export class DevicesJobsViewComponent implements OnInit {
       [XCoreAgGridConstants.selectRowByKey]: new BehaviorSubject<any>(false),
       [XCoreAgGridConstants.showContextMenu]: new EventEmitter<any>(false),
       [XCoreAgGridConstants.tableName]: "Device-Jobs",
-      [XCoreAgGridConstants.exportToCSV]: true
+      [XCoreAgGridConstants.exportToCSV]: true,
+      [XCoreAgGridConstants.rightAdditionalControlsTemplate]: this.controlBtnsTemplate
     };
   }
 
@@ -259,12 +267,12 @@ export class DevicesJobsViewComponent implements OnInit {
     return urlParts[urlParts.indexOf('bright') - 1];
   }
 
-  updateTimeFilterLabel($event) {
-    let endTimeInMilliseconds:number;
-    let startTimeInMilliseconds:number;
+  public updateTimeFilterLabel($event): void {
+    let endTimeInMilliseconds: number;
+    let startTimeInMilliseconds: number;
     switch ($event.timeSelectionType) {
       case TimePickerType.TIME_RANGE:
-        let timeRange:number = Number($event.timeRangeServerKey);
+        let timeRange: number = Number($event.timeRangeServerKey);
         endTimeInMilliseconds = new Date().getTime();
         startTimeInMilliseconds = endTimeInMilliseconds - (1000 * 60 * timeRange);
         break;
@@ -273,7 +281,11 @@ export class DevicesJobsViewComponent implements OnInit {
         endTimeInMilliseconds = $event.customDateTimeRangeValue[1].getTime();
         break;
     }
-    this.loadData(startTimeInMilliseconds, endTimeInMilliseconds);
+    this.selectedTimeRangeInMS = {
+      start: startTimeInMilliseconds,
+      end: endTimeInMilliseconds
+    };
+    this.loadData();
   }
 
   /**
@@ -281,7 +293,7 @@ export class DevicesJobsViewComponent implements OnInit {
    * @returns {string}
    * @param $event TimePickerEvent
    */
-  public selectedTimeLabel = ($event:TimePickerEvent):string=> {
+  public selectedTimeLabel = ($event: TimePickerEvent): string => {
     return $event.customDateTimeRangeValue[0].toLocaleString() + '   -   ' + $event.customDateTimeRangeValue[1].toLocaleString();
   }
 
