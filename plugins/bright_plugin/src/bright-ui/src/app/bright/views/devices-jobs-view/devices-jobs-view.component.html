@@ -5,12 +5,18 @@
       The connection with bright cluster manager is unhealthy, please check the bright configurations.
     </label>
   </ng-container>
+  <div class="time-filter-container time-filter">
+    <time-picker-modal (timeSelectionUpdated)="updateTimeFilterLabel($event)"
+                       [selectedTime]="selectedTime"
+                       [selectedTimeLabelFormatter]="selectedTimeLabel">
+    </time-picker-modal>
+  </div>
   <app-x-core-ag-grid
-          data-qa="jobs-table"
-          [rowData]="tableData"
-          [options]="tableOptions"
-          [dataIsLoading]="dataIsLoading"
-          (onContextMenuClick)="onContextMenuClick($event)">
+    data-qa="jobs-table"
+    [rowData]="tableData"
+    [options]="tableOptions"
+    [dataIsLoading]="dataIsLoading"
+    (onContextMenuClick)="onContextMenuClick($event)">
 
   </app-x-core-ag-grid>
 </div>

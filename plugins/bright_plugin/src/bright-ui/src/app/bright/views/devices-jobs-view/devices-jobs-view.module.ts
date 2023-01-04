@@ -8,6 +8,7 @@ import {RouterModule} from "@angular/router";
 import {UfmDevicesModule} from "../../packages/ufm-devices/ufm-devices.module";
 import {DevicesJobsRoutes} from "./devices-jobs.routes";
 import {BrowserAnimationsModule} from "@angular/platform-browser/animations";
+import {TimePickerModalModule} from "../../packages/time-picker-modal/time-picker-modal.module";
 
 
 @NgModule({
@@ -24,7 +25,8 @@ import {BrowserAnimationsModule} from "@angular/platform-browser/animations";
     XCoreAgGridModule,
     RouterModule.forChild(DevicesJobsRoutes),
     SpinnerModule,
-    UfmDevicesModule
+    UfmDevicesModule,
+    TimePickerModalModule
   ]
 })
 export class DevicesJobsViewModule {

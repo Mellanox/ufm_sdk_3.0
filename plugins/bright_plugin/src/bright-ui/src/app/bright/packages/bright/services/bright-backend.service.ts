@@ -29,17 +29,19 @@ export class BrightBackendService {
   }
 
   getBrightConf(): Observable<any> {
-    const url = this.brightConstants.brightAPIsUrls.conf;
+    // const url = this.brightConstants.brightAPIsUrls.conf;
+    const url = '/bright/conf';
     return this.httpService.get(url);
   }
 
 
   getBrightNodes(): Observable<any> {
-    const url = this.brightConstants.brightAPIsUrls.nodes;
+    // const url = this.brightConstants.brightAPIsUrls.nodes;
+    const url = '/bright/data/nodes'
     return this.httpService.get(url);
   }
 
-  getDeviceJobs(nodes?: Array<string>, from?: string, to?: string): Observable<any> {
+  getDeviceJobs(nodes?: Array<string>, from?: number, to?: number): Observable<any> {
     let filters = '';
     if (nodes) {
       filters = filters + `?nodes=${nodes.join(',')}`;
@@ -52,7 +54,8 @@ export class BrightBackendService {
       const sign = filters.length ? '&' : '';
       filters = filters + `${sign}to=${to}`;
     }
-    const url = this.brightConstants.brightAPIsUrls.jobs.concat(filters)
+    // const url = this.brightConstants.brightAPIsUrls.jobs.concat(filters)
+    const url = '/bright/data/jobs'.concat(filters)
     return this.httpService.get(url);
   }
 }
