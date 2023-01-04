@@ -171,9 +171,6 @@ class IsolationMgr:
             if not self.ports_states.get(port_name):
                 self.ports_states[port_name] = PortState(port_name)
             counters = statistics.get('statistics')
-            #TODO: remove
-            if port_name == 'e41d2d0300062380_1':
-                counters[Constants.TEMP_COUNTER] = 71
             errors = counters.get(Constants.RCV_ERRORS_COUNTER) + counters.get(Constants.RCV_REMOTE_PHY_ERROR_COUNTER) 
             error_rate = self.get_rate_and_update(port_name, Constants.ERRORS_COUNTER, errors)
             rcv_pkts = counters.get(Constants.RCV_PACKETS_COUNTER)
@@ -182,10 +179,6 @@ class IsolationMgr:
             if cable_temp is not None:
                 dT = abs(self.ports_data[port_name].get(Constants.TEMP_COUNTER, 0) - cable_temp)
                 self.ports_data[port_name][Constants.TEMP_COUNTER] = cable_temp
-            #TODO: remove
-            if port_name == '248a0703008dae46_1':
-                rcv_pkt_rate = 1000
-                error_rate = 1
             if rcv_pkt_rate and error_rate / rcv_pkt_rate > self.max_pdr:
                 issues[port_name] = Issue(port_name, Constants.ISSUE_PDR)
             elif cable_temp and (cable_temp > self.tmax or dT > self.d_tmax):
@@ -215,8 +208,6 @@ class IsolationMgr:
                     self.ufm_latest_isolation_state = self.get_isolation_state()
                 self.logger.info("Retrieving telemetry data to determine ports' states")
                 issues = self.read_next_set_of_high_ber_or_pdr_ports()
-                #TODO: remove
-                #self.max_num_isolate = 1
                 if len(issues) > self.max_num_isolate:
                     # UFM send external event
                     event_msg = "got too many ports detected as unhealthy: %d, skipping isolation" % len(issues)
