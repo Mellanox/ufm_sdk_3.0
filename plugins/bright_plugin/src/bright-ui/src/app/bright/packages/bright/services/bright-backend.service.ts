@@ -29,8 +29,7 @@ export class BrightBackendService {
   }
 
   getBrightConf(): Observable<any> {
-    // const url = this.brightConstants.brightAPIsUrls.conf;
-    const url = '/bright/conf';
+    const url = this.brightConstants.brightAPIsUrls.conf;
     return this.httpService.get(url);
   }
 
