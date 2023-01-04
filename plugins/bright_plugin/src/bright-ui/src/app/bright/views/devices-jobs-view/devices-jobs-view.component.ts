@@ -6,8 +6,8 @@ import {ChangeDetectorRef, Component, EventEmitter, OnInit, ViewChild} from '@an
 /**
  * @COMPONENTS
  * */
-import {BehaviorSubject, Subscription} from "rxjs";
-import {NavigationEnd, Router} from '@angular/router';
+import {BehaviorSubject} from "rxjs";
+import {Router} from '@angular/router';
 
 /**
  * @CONSTANTS
@@ -27,6 +27,9 @@ import {
 import {ContextMenuItem, DevicesJobsContextMenu} from "./classes/devices-jobs-context-menu";
 import {UfmDevicesBackendService} from "../../packages/ufm-devices/services/ufm-devices-backend.service";
 import {BrightConstants} from "../../packages/bright/constants/bright.constants";
+import {TimePickerEvent} from "../../packages/time-picker-modal/timer-picker-event";
+import {TimePickerModalConstants} from "../../packages/time-picker-modal/time-picker-modal.constants";
+import {TimePickerType} from "../../packages/time-picker-modal/time-picker-type.enum";
 
 
 @Component({
@@ -39,13 +42,14 @@ export class DevicesJobsViewComponent implements OnInit {
   /**
    * @VARIABLES
    * */
-  private routerParamsSub: Subscription;
   public dataIsLoading = true;
   public tableData = [];
   public tableOptions: XCoreAgGridOptions = new XCoreAgGridOptions();
   public brightConf = {};
   public contextMenuItems: [ContextMenuItem];
   public devicesJobsContextMenu: DevicesJobsContextMenu = new DevicesJobsContextMenu();
+
+  public selectedTime:string = this.timeRanges[3].label;
 
   /**
    * @CHILDREN
@@ -57,11 +61,6 @@ export class DevicesJobsViewComponent implements OnInit {
               private router: Router,
               private ufmDevicesBackendService: UfmDevicesBackendService,
               private cdr: ChangeDetectorRef) {
-    this.routerParamsSub = this.router.events.subscribe((event) => {
-      if (event instanceof NavigationEnd) {
-        this.loadData();
-      }
-    });
   }
 
   get JOB_STATUS_MAP() {
@@ -89,14 +88,10 @@ export class DevicesJobsViewComponent implements OnInit {
 
   ngOnInit() {
     this.setTableOptions();
-    this.loadData();
     this.contextMenuItems = this.devicesJobsContextMenu.buildContextMenu(this.onJobDetailsContextMenuClick);
   }
 
   ngOnDestroy() {
-    if (this.routerParamsSub) {
-      this.routerParamsSub.unsubscribe();
-    }
     this.cdr.detectChanges();
   }
 
@@ -119,7 +114,7 @@ export class DevicesJobsViewComponent implements OnInit {
     );
   }
 
-  public loadData(): void {
+  public loadData(fromTime:number, endTime:number): void {
     this.dataIsLoading = true;
     this.backend.getBrightConf().subscribe({
       next: (confData) => {
@@ -127,7 +122,7 @@ export class DevicesJobsViewComponent implements OnInit {
         if (this.bright_status == BrightConstants.brightStatusValues.healthy) {
           this.ufmDevicesBackendService.getDeviceInfo(this.getDeviceGUIDFromURL()).subscribe({
             next: (data) => {
-              this.backend.getDeviceJobs([data[0][UfmDevicesConstants.DEVICE_SERVER_KEYS.system_name]]).subscribe({
+              this.backend.getDeviceJobs([data[0][UfmDevicesConstants.DEVICE_SERVER_KEYS.system_name]], fromTime, endTime).subscribe({
                 next: (data) => {
                   this.tableData = data;
                   this.dataIsLoading = false;
@@ -184,6 +179,13 @@ export class DevicesJobsViewComponent implements OnInit {
         {
           [XCoreAgGridConstants.field]: DeviceJobsConstants.JOBS_SERVER_FIELDS.inqueue,
           [XCoreAgGridConstants.headerName]: 'Inqueue'
+        },
+        {
+          [XCoreAgGridConstants.field]: DeviceJobsConstants.JOBS_SERVER_FIELDS.submittime,
+          [XCoreAgGridConstants.headerName]: 'Submit Time',
+          [XCoreAgGridConstants.valueGetter]: (params: any) => {
+            return new Date(params.data[DeviceJobsConstants.JOBS_SERVER_FIELDS.submittime]).toLocaleString();
+          }
         },
         {
           [XCoreAgGridConstants.field]: DeviceJobsConstants.JOBS_SERVER_FIELDS.starttime,
@@ -255,6 +257,40 @@ export class DevicesJobsViewComponent implements OnInit {
   private getDeviceGUIDFromURL(): string {
     const urlParts = this.router.url.split("/");
     return urlParts[urlParts.indexOf('bright') - 1];
+  }
+
+  updateTimeFilterLabel($event) {
+    let endTimeInMilliseconds:number;
+    let startTimeInMilliseconds:number;
+    switch ($event.timeSelectionType) {
+      case TimePickerType.TIME_RANGE:
+        let timeRange:number = Number($event.timeRangeServerKey);
+        endTimeInMilliseconds = new Date().getTime();
+        startTimeInMilliseconds = endTimeInMilliseconds - (1000 * 60 * timeRange);
+        break;
+      case TimePickerType.CUSTOM_DATE_RANGE:
+        startTimeInMilliseconds = $event.customDateTimeRangeValue[0].getTime();
+        endTimeInMilliseconds = $event.customDateTimeRangeValue[1].getTime();
+        break;
+    }
+    this.loadData(startTimeInMilliseconds, endTimeInMilliseconds);
+  }
+
+  /**
+   * @desc this function will be sent to TimePickerModalComponent as input called selectedTimeLabelFormatter that format selected time label
+   * @returns {string}
+   * @param $event TimePickerEvent
+   */
+  public selectedTimeLabel = ($event:TimePickerEvent):string=> {
+    return $event.customDateTimeRangeValue[0].toLocaleString() + '   -   ' + $event.customDateTimeRangeValue[1].toLocaleString();
+  }
+
+  /**
+   * @returns instance of the TIME_RANGES options {{label: string, value: string}[]}
+   */
+
+  public get timeRanges() {
+    return TimePickerModalConstants.TIME_RANGES;
   }
 
 

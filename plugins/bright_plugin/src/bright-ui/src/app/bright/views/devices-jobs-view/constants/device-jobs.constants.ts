@@ -26,6 +26,7 @@ export class DeviceJobsConstants {
         jobID: "jobID" as "jobID",
         childType: "childType" as "childType",
         status: "status" as "status",
+        submittime: "submittime" as "submittime",
         starttime: "starttime" as "starttime",
         endtime: "endtime" as "endtime",
         inqueue: "inqueue" as "inqueue",
