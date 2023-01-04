@@ -108,7 +108,7 @@ class UnregisterSwitch(Switch):
 
 class SwitchList(UFMResource):
     def get(self):
-        logging.info(f"GET /plugin/snmp/register")
+        logging.info(f"GET /plugin/snmp/switch_list")
         return list(self.registered_switches), HTTPStatus.OK
 
     def post(self):
