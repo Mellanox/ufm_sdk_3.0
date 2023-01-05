@@ -22,6 +22,7 @@ from utils.json_schema_validator import validate_schema
 
 from mgr.bright_configurations_mgr import BrightConfigParser
 from mgr.bright_data_polling_mgr import BrightDataPollingMgr
+from mgr.bright_data_mgr import BrightDataMgr
 
 
 class UFMBrightPluginConfigurationsAPI(BaseAPIApplication):
@@ -29,6 +30,7 @@ class UFMBrightPluginConfigurationsAPI(BaseAPIApplication):
     def __init__(self):
         super(UFMBrightPluginConfigurationsAPI, self).__init__()
         self.conf = BrightConfigParser.getInstance()
+        self.bright_data_mgr = BrightDataMgr.getInstance()
 
         # for debugging
         # self.conf_schema_path = "plugins/bright_plugin/src/bright/schemas/set_conf.schema.json"
@@ -50,8 +52,8 @@ class UFMBrightPluginConfigurationsAPI(BaseAPIApplication):
 
     def get_conf(self):
         try:
-            conf_dict = self.conf.conf_to_dict(self.conf_schema_path)
-            return make_response(conf_dict)
+            _response = self._append_bright_connection_status(self.conf.conf_to_dict(self.conf_schema_path))
+            return make_response(_response)
         except Exception as e:
             Logger.log_message("Error occurred while getting the current plugin configurations: " + str(e), LOG_LEVELS.ERROR)
             raise e
@@ -89,8 +91,13 @@ class UFMBrightPluginConfigurationsAPI(BaseAPIApplication):
                 if enabled is not None:
                     polling_mgr = BrightDataPollingMgr.getInstance()
                     polling_mgr.trigger_polling()
-
-            return make_response(self.conf.conf_to_dict(self.conf_schema_path))
+            _response = self._append_bright_connection_status(self.conf.conf_to_dict(self.conf_schema_path))
+            return make_response(_response)
         except Exception as ex:
             Logger.log_message(f'Updating the plugin configurations has been failed: {str(ex)}', LOG_LEVELS.ERROR)
             raise ex
+
+    def _append_bright_connection_status(self, resp):
+        resp[self.conf.BRIGHT_CONFIG_SECTION][self.conf.BRIGHT_CONFIG_SECTION_STATUS] = \
+            self.bright_data_mgr.status.name
+        return resp
