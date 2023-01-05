@@ -109,7 +109,7 @@ class BrightDataMgr(Singleton):
         return None
 
     def get_bright_cluster_saved_data(self):
-        return self.djson.get(self.get_bright_cluster_addr())
+        return self.djson.get(self.get_bright_cluster_addr(), {})
 
     def get_bright_nodes(self):
         try:

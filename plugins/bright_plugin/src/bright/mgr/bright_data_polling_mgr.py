@@ -35,13 +35,13 @@ class BrightDataPollingMgr(Singleton):
                 self.polling_job = self.scheduler.add_job(self.bright_data_mgr.poll_data,
                                                           'interval', seconds=self.polling_interval,
                                                           next_run_time=datetime.now())
+                self.bright_data_mgr.connect()
                 if not self.scheduler.running:
-                    self.bright_data_mgr.connect()
                     self.scheduler.start()
-                    Logger.log_message('The bright data polling started successfully')
-                    # this is to trigger the polling function for the first time
-                    # , don't wait 1 minute to start
-                    self.bright_data_mgr.poll_data()
+                Logger.log_message('The bright data polling started successfully')
+                # this is to trigger the polling function for the first time
+                # , don't wait 1 minute to start
+                self.bright_data_mgr.poll_data()
             except BCMConnectionError as err:
                 raise err
         return self.polling_job.id
@@ -57,6 +57,8 @@ class BrightDataPollingMgr(Singleton):
 
     def trigger_polling(self):
         if self.conf.get_bright_enabled() and self.conf.get_bright_host():
+            Logger.log_message('Restarting the bright data polling', LOG_LEVELS.DEBUG)
+            self.stop_polling()
             self.start_polling()
             return True
         else:

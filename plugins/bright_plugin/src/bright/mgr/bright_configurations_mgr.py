@@ -36,6 +36,7 @@ class BrightConfigParser(ConfigParser, Singleton):
     BRIGHT_CONFIG_SECTION_HOST = "host"
     BRIGHT_CONFIG_SECTION_PORT = "port"
     BRIGHT_CONFIG_SECTION_ENABLED = "enabled"
+    BRIGHT_CONFIG_SECTION_STATUS = "status"
     BRIGHT_CONFIG_SECTION_DATA_RETENTION_PERIOD = "data_retention_period"
     BRIGHT_CONFIG_SECTION_CERTIFICATE = "certificate"
     BRIGHT_CONFIG_SECTION_CERTIFICATE_KEY = "certificate_key"
