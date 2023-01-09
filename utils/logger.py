@@ -29,12 +29,13 @@ class Logger:
 
     @staticmethod
     def init_logs_config(logs_file_name, logs_level, log_file_max_size=10 * 1024 * 1024, log_file_backup_count=5):
-        logging.basicConfig(handlers=[RotatingFileHandler(logs_file_name,
-                                                              maxBytes=log_file_max_size,
-                                                              backupCount=log_file_backup_count)],
-                            level=logs_level,
-                            format='%(asctime)s %(levelname)s %(name)s : %(message)s')
-
+        logger = logging.getLogger()
+        handler = RotatingFileHandler(logs_file_name,
+                                      maxBytes=log_file_max_size,
+                                      backupCount=log_file_backup_count)
+        handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(name)s : %(message)s'))
+        logger.addHandler(handler)
+        logger.setLevel(logs_level)
     @staticmethod
     def log_message(message, log_level=LOG_LEVELS.INFO):
         if log_level == LOG_LEVELS.INFO:

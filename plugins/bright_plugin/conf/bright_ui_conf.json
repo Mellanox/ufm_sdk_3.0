@@ -1,0 +1,41 @@
+[
+  {
+    "mfEntry": "/ufm_bright_ui/remoteEntry.js",
+    "name": "bright_ui",
+    "exposedModule": "UfmDevicesModule",
+    "ngModuleName": "UfmDevicesModule",
+    "hookInfo": {
+      "type": "devicesDataTable",
+      "serviceClassName": "UfmDevicesDataTableHookService",
+      "hookFn": "appendBrightData"
+    }
+  },
+  {
+    "mfEntry": "/ufm_bright_ui/remoteEntry.js",
+    "name": "bright_ui",
+    "exposedModule": "DevicesJobsViewModule",
+    "ngModuleName": "DevicesJobsViewModule",
+    "hookInfo": {
+      "type": "deviceDetailsTabs",
+      "label": "Bright Jobs",
+      "key": "bright",
+      "route": "bright",
+      "visible": {
+        "key": "plugin.is_bright",
+        "value": true
+      }
+    }
+  },
+  {
+    "mfEntry": "/ufm_bright_ui/remoteEntry.js",
+    "name": "bright_ui",
+    "exposedModule": "BrightConfigurationsViewModule",
+    "ngModuleName": "BrightConfigurationsViewModule",
+    "hookInfo": {
+      "type": "settingsDetailsTabs",
+      "label": "Bright Configurations",
+      "key": "bright",
+      "route": "bright"
+    }
+  }
+]
