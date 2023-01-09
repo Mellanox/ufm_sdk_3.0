@@ -92,7 +92,7 @@ class Utils:
                 data = f.read()
             match = port_regex.search(data)
             if match:
-                port = match.group('web_port')
+                port = int(match.group('web_port'))
         except:
             pass
         return port

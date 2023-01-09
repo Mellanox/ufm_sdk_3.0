@@ -14,6 +14,7 @@
 import enum
 import json
 import datetime
+import os.path
 
 from pythoncm.cluster import Cluster
 from pythoncm.settings import Settings
@@ -47,7 +48,9 @@ class BrightDataMgr(Singleton):
         self.bright_cluster = None
         self.status = BCMConnectionStatus.Disabled
         self.bright_nodes = []
-        self.djson = Utils.read_json_from_file(self.SAVED_DATA_PATH) or {}
+        self.djson = Utils.read_json_from_file(self.SAVED_DATA_PATH) \
+            if os.path.exists(self.SAVED_DATA_PATH)  \
+            else {}
         self.bright_time_format = '%Y-%m-%dT%H:%M:%S'
         self.last_clean_time = None
 
