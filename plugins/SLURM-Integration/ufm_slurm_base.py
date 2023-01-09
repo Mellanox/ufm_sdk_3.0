@@ -117,6 +117,7 @@ class UfmSlurmBase():
 
     def add_hosts_to_pkey(self, job_nodes):
         if not job_nodes or not self.pkey:
+            logging.info("Adding hosts to pkey failed, Neither job_nodes or pkey were found!")
             return
         try:
             logging.info("Adding guids of hosts_names (%s) to pkey (%s)" % (job_nodes, self.pkey))
@@ -129,6 +130,7 @@ class UfmSlurmBase():
 
     def remove_hosts_from_pkey(self, job_nodes):
         if not job_nodes or not self.pkey:
+            logging.info("Removing hosts from pkey failed, Neither job_nodes or pkey were found!")
             return
         try:
             logging.info("Removing guids of hosts_names (%s) from pkey (%s)" % (job_nodes, self.pkey))
