@@ -22,7 +22,7 @@ from utils.json_schema_validator import validate_schema
 
 from mgr.bright_configurations_mgr import BrightConfigParser
 from mgr.bright_data_polling_mgr import BrightDataPollingMgr
-from mgr.bright_data_mgr import BrightDataMgr
+from mgr.bright_data_mgr import BrightDataMgr, BCMConnectionError
 
 
 class UFMBrightPluginConfigurationsAPI(BaseAPIApplication):
@@ -41,7 +41,9 @@ class UFMBrightPluginConfigurationsAPI(BaseAPIApplication):
     def _get_error_handlers(self):
         return [
             (InvalidConfRequest,
-             lambda e: (str(e), HTTPStatus.BAD_REQUEST))
+             lambda e: (str(e), HTTPStatus.BAD_REQUEST)),
+            (BCMConnectionError,
+             lambda e: (str(e), HTTPStatus.BAD_REQUEST)),
         ]
 
     def _get_routes(self):
@@ -99,5 +101,8 @@ class UFMBrightPluginConfigurationsAPI(BaseAPIApplication):
 
     def _append_bright_connection_status(self, resp):
         resp[self.conf.BRIGHT_CONFIG_SECTION][self.conf.BRIGHT_CONFIG_SECTION_STATUS] = \
-            self.bright_data_mgr.status.name
+            {
+                "status": self.bright_data_mgr.status.name,
+                "err_message": self.bright_data_mgr.status_err_msg
+            }
         return resp
