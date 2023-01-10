@@ -1,6 +1,6 @@
 [
   {
-    "mfEntry": "/ufm_bright_ui/remoteEntry.js",
+    "mfEntry": "/ufmRestV2/plugin/bright/files/remoteEntry.js",
     "name": "bright_ui",
     "exposedModule": "UfmDevicesModule",
     "ngModuleName": "UfmDevicesModule",
@@ -11,7 +11,7 @@
     }
   },
   {
-    "mfEntry": "/ufm_bright_ui/remoteEntry.js",
+    "mfEntry": "/ufmRestV2/plugin/bright/files/remoteEntry.js",
     "name": "bright_ui",
     "exposedModule": "DevicesJobsViewModule",
     "ngModuleName": "DevicesJobsViewModule",
@@ -27,7 +27,7 @@
     }
   },
   {
-    "mfEntry": "/ufm_bright_ui/remoteEntry.js",
+    "mfEntry": "/ufmRestV2/plugin/bright/files/remoteEntry.js",
     "name": "bright_ui",
     "exposedModule": "BrightConfigurationsViewModule",
     "ngModuleName": "BrightConfigurationsViewModule",
