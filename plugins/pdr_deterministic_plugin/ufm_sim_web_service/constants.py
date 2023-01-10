@@ -1,3 +1,15 @@
+#
+# Copyright © 2013-2023 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+#
+# This software product is a proprietary product of Nvidia Corporation and its affiliates
+# (the "Company") and all right, title, and interest in and to the software
+# product, including all associated intellectual property rights, are and
+# shall remain exclusively with the Company.
+#
+# This software product is governed by the End User License Agreement
+# provided with the software product.
+#
+
 import logging
 
 class PDRConstants:
@@ -17,11 +29,14 @@ class PDRConstants:
     CONFIGURED_BER_CHECK = "CONFIGURED_BER_CHECK"
     DRY_RUN = "DRY_RUN"
     DEISOLATE_CONSIDER_TIME = "DEISOLATE_CONSIDER_TIME"
+    AUTOMATIC_DEISOLATE = "AUTOMATIC_DEISOLATE"
     
     GET_SESSION_DATA_REST = "/monitoring/session/0/data"
     POST_EVENT_REST = "/app/events/external_event"
     ISOLATION_REST = "/app/unhealthy_ports"
     GET_ISOLATED_PORTS = "/resources/isolated_ports"
+    API_HEALTHY_PORTS = "healthy_ports"
+    API_ISOLATED_PORTS = "isolated_ports"
 
     POST_METHOD = "POST"
     PUT_METHOD = "PUT"
