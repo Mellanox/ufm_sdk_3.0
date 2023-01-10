@@ -47,6 +47,7 @@ class BrightDataMgr(Singleton):
         self.conf = BrightConfigParser.getInstance()
         self.bright_cluster = None
         self.status = BCMConnectionStatus.Disabled
+        self.status_err_msg = ''
         self.bright_nodes = []
         self.djson = Utils.read_json_from_file(self.SAVED_DATA_PATH) \
             if os.path.exists(self.SAVED_DATA_PATH)  \
@@ -56,6 +57,9 @@ class BrightDataMgr(Singleton):
 
     def connect(self):
         try:
+            # For testing
+            # self.last_clean_time = datetime.datetime.now() - datetime.timedelta(days=1)
+            self.last_clean_time = datetime.datetime.now()
             bcm_host = self.conf.get_bright_host()
             bcm_port = self.conf.get_bright_port()
             Logger.log_message(f'Connecting to Bright Cluster Manager on: {bcm_host}:{bcm_port}', LOG_LEVELS.DEBUG)
@@ -65,51 +69,50 @@ class BrightDataMgr(Singleton):
                                 key_file=self.conf.cert_key_file_path,
                                 ca_file=self.conf.cacert_file_path)
             if not settings.check_certificate_files():
-                self.status = BCMConnectionStatus.Unhealthy
                 msg = 'Failed to connect to Bright Cluster Manager: ' \
                       'unable to load the certificates'
                 Logger.log_message(msg, LOG_LEVELS.ERROR)
+                self.set_status_as_unhealthy(msg)
                 raise BCMConnectionError(msg)
             else:
                 self.bright_cluster = Cluster(settings)
                 self.status = BCMConnectionStatus.Healthy
+                self.status_err_msg = ''
                 cluster_addr = self.get_bright_cluster_addr()
                 if not self.djson.get(cluster_addr):
                     self.djson[cluster_addr] = {}
-                # For testing
-                # self.last_clean_time = datetime.datetime.now() - datetime.timedelta(days=1)
-                self.last_clean_time = datetime.datetime.now()
         except BCMConnectionError as ex:
             raise ex
         except Exception as ex:
-            self.status = BCMConnectionStatus.Unhealthy
             msg = f'Failed to connect to Bright Cluster Manager: {str(ex)}'
+            self.set_status_as_unhealthy(msg)
             Logger.log_message(msg, LOG_LEVELS.ERROR)
             raise BCMConnectionError(msg)
 
     def disconnect(self):
         try:
             if self.bright_cluster:
-                Logger.log_message(f'Disconnecting from Bright Cluster Manager on: '
-                                   f'{self.get_bright_cluster_addr()}', LOG_LEVELS.DEBUG)
+                msg = f'Disconnecting from Bright Cluster Manager on: '\
+                      f'{self.get_bright_cluster_addr()}'
+                Logger.log_message(msg, LOG_LEVELS.DEBUG)
                 self.bright_cluster.disconnect()
-                self.status = BCMConnectionStatus.Unhealthy
+                self.set_status_as_unhealthy(msg)
             else:
                 msg = 'Failed to disconnect from Bright Cluster Manager: ' \
                       'no available connection'
                 Logger.log_message(msg, LOG_LEVELS.ERROR)
+                self.status_err_msg = msg
                 raise BCMConnectionError(msg)
         except BCMConnectionError as ex:
             raise ex
         except Exception as ex:
             msg = f'Failed to disconnect from Bright Cluster Manager: : {str(ex)}'
+            self.status_err_msg = msg
             Logger.log_message(msg, LOG_LEVELS.ERROR)
             raise BCMConnectionError(msg)
 
     def get_bright_cluster_addr(self):
-        if self.bright_cluster:
-            return f'{self.bright_cluster.settings.host}:{self.bright_cluster.settings.port}'
-        return None
+        return f'{self.conf.get_bright_host()}:{self.conf.get_bright_port()}'
 
     def get_bright_cluster_saved_data(self):
         return self.djson.get(self.get_bright_cluster_addr(), {})
@@ -151,23 +154,28 @@ class BrightDataMgr(Singleton):
             raise BCMConnectionError(msg)
 
     def poll_data(self):
+        if self.status != BCMConnectionStatus.Healthy:
+            self.connect()
         self.clean_old_data()
-        Logger.log_message('Polling bright data', LOG_LEVELS.DEBUG)
         if self.status == BCMConnectionStatus.Healthy:
-            nodes = self.get_bright_nodes()
-            saved_data = self.get_bright_cluster_saved_data()
-            for node in nodes:
-                saved_node = saved_data.get(node.hostname)
-                if not saved_node:
-                    saved_data[node.hostname] = {
-                        "jobs": {}
-                    }
-            jobs = self.get_bright_jobs()
-            for job in jobs:
-                for jnode in job.nodes:
-                    saved_data[jnode]["jobs"][f'{job.jobID}_{job.submittime}'] = BrightJobResource(job).__dict__
-            Utils.write_text_to_file(self.SAVED_DATA_PATH, json.dumps(self.djson))
-            Logger.log_message('Polling bright data request completed successfully')
+            Logger.log_message('Polling bright data', LOG_LEVELS.DEBUG)
+            try:
+                nodes = self.get_bright_nodes()
+                saved_data = self.get_bright_cluster_saved_data()
+                for node in nodes:
+                    saved_node = saved_data.get(node.hostname)
+                    if not saved_node:
+                        saved_data[node.hostname] = {
+                            "jobs": {}
+                        }
+                jobs = self.get_bright_jobs()
+                for job in jobs:
+                    for jnode in job.nodes:
+                        saved_data[jnode]["jobs"][f'{job.jobID}_{job.submittime}'] = BrightJobResource(job).__dict__
+                Utils.write_text_to_file(self.SAVED_DATA_PATH, json.dumps(self.djson))
+                Logger.log_message('Polling bright data request completed successfully')
+            except BCMConnectionError as ex:
+                self.set_status_as_unhealthy(str(ex))
         elif self.status == BCMConnectionStatus.Unhealthy:
             Logger.log_message('Not able to poll bright data, the connection is unhealthy', LOG_LEVELS.WARNING)
 
@@ -213,3 +221,7 @@ class BrightDataMgr(Singleton):
 
     def get_job_submit_time(self, job):
         return self.convert_bright_time_to_datetime(job.get('submittime'))
+
+    def set_status_as_unhealthy(self,err_msg=''):
+        self.status = BCMConnectionStatus.Unhealthy
+        self.status_err_msg = err_msg

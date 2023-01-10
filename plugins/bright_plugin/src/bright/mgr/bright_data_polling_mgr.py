@@ -13,7 +13,7 @@
 #
 from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
-from mgr.bright_data_mgr import BrightDataMgr, BCMConnectionError
+from mgr.bright_data_mgr import BrightDataMgr, BCMConnectionError, BCMConnectionStatus
 from mgr.bright_configurations_mgr import BrightConfigParser
 from utils.singleton import Singleton
 from utils.logger import Logger, LOG_LEVELS
@@ -35,7 +35,6 @@ class BrightDataPollingMgr(Singleton):
                 self.polling_job = self.scheduler.add_job(self.bright_data_mgr.poll_data,
                                                           'interval', seconds=self.polling_interval,
                                                           next_run_time=datetime.now())
-                self.bright_data_mgr.connect()
                 if not self.scheduler.running:
                     self.scheduler.start()
                 Logger.log_message('The bright data polling started successfully')
@@ -43,13 +42,14 @@ class BrightDataPollingMgr(Singleton):
                 # , don't wait 1 minute to start
                 self.bright_data_mgr.poll_data()
             except BCMConnectionError as err:
+                self.polling_job = None
                 raise err
         return self.polling_job.id
 
     def stop_polling(self):
         if self.polling_job and self.scheduler.running:
             Logger.log_message('Stopping the bright data polling', LOG_LEVELS.DEBUG)
-            self.scheduler.remove_job(self.polling_job.id)
+            self.polling_job.remove()
             self.polling_job = None
             self.bright_data_mgr.disconnect()
             Logger.log_message('The bright data polling stopped successfully')
@@ -63,4 +63,5 @@ class BrightDataPollingMgr(Singleton):
             return True
         else:
             self.stop_polling()
+            self.bright_data_mgr.status = BCMConnectionStatus.Disabled
             return False
