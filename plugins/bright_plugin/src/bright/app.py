@@ -22,6 +22,7 @@ from utils.flask_server.base_flask_api_app import BaseFlaskAPIApp
 from utils.logger import Logger, LOG_LEVELS
 from api.conf_api import UFMBrightPluginConfigurationsAPI
 from api.bright_api import BrightAPI
+from api.ui_files_api import UFMBrightPluginUIFilesAPI
 from mgr.bright_configurations_mgr import BrightConfigParser
 from mgr.bright_data_polling_mgr import BrightDataPollingMgr
 
@@ -58,7 +59,8 @@ if __name__ == '__main__':
 
         routes = {
             "/conf": UFMBrightPluginConfigurationsAPI().application,
-            "/data": BrightAPI().application
+            "/data": BrightAPI().application,
+            "/files": UFMBrightPluginUIFilesAPI().application
         }
 
         app = BaseFlaskAPIApp(routes)

@@ -20,7 +20,6 @@ CONFIG_PATH=/config
 
 cp $SRC_DIR_PATH/conf/bright_httpd_proxy.conf ${CONFIG_PATH}
 cp $SRC_DIR_PATH/conf/bright_plugin.conf ${CONFIG_PATH}
-cp $SRC_DIR_PATH/conf/ufm_plugin_bright_httpd.conf ${CONFIG_PATH}
 cp $SRC_DIR_PATH/conf/bright_ui_conf.json ${CONFIG_PATH}
 cp -r $SRC_DIR_PATH/bright_ui /data
 
