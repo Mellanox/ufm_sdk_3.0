@@ -1,5 +1,5 @@
 #
-# Copyright © 2013-2022 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright © 2013-2023 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -9,6 +9,7 @@
 # This software product is governed by the End User License Agreement
 # provided with the software product.
 #
+
 import configparser
 import os
 import logging
@@ -16,6 +17,11 @@ from logging.handlers import RotatingFileHandler
 from constants import PDRConstants as Constants
 from isolation_mgr import IsolationMgr
 from ufm_communication_mgr import UFMCommunicator
+from api.port_state_api import PortsStateAPI
+from twisted.web.wsgi import WSGIResource
+from twisted.internet import reactor
+from twisted.web import server
+
 
 def create_logger(file):
     """
@@ -47,15 +53,15 @@ def parse_config():
     :return:
     """
     defaults = {Constants.CONF_INTERNAL_PORT: Constants.UFM_HTTP_PORT,
-                # Constants.CONF_INTERNAL_PORT: Constants.UFM_HTTP_PORT,
-                # Constants.CONF_INTERNAL_PORT: Constants.UFM_HTTP_PORT,
-                # Constants.CONF_INTERNAL_PORT: Constants.UFM_HTTP_PORT,
-                # Constants.CONF_INTERNAL_PORT: Constants.UFM_HTTP_PORT,
-                # Constants.CONF_INTERNAL_PORT: Constants.UFM_HTTP_PORT,
-                # Constants.CONF_INTERNAL_PORT: Constants.UFM_HTTP_PORT,
-                # Constants.CONF_INTERNAL_PORT: Constants.UFM_HTTP_PORT,
-                # Constants.CONF_INTERNAL_PORT: Constants.UFM_HTTP_PORT,
-                # Constants.CONF_INTERNAL_PORT: Constants.UFM_HTTP_PORT,
+                Constants.T_ISOLATE: 300,
+                Constants.MAX_NUM_ISOLATE: 10,
+                Constants.D_TMAX: 10,
+                Constants.MAX_PDR: 1e-12,
+                Constants.MAX_BER: 1e-12,
+                Constants.CONFIGURED_BER_CHECK: False,
+                Constants.DRY_RUN: False,
+                Constants.DEISOLATE_CONSIDER_TIME: 5,
+                Constants.AUTOMATIC_DEISOLATE: True,
                 }
     pdr_config = configparser.ConfigParser(defaults=defaults)
 
@@ -66,6 +72,11 @@ def parse_config():
         Constants.log_file_backup_count = pdr_config.getint(Constants.CONF_COMMON,"log_file_backup_count")
     return pdr_config
 
+def run_api(app):
+    port_number = 8982
+    resource = WSGIResource(reactor, reactor.getThreadPool(), app.application)
+    reactor.listenTCP(port_number, server.Site(resource,logPath=None))
+    reactor.run()
 
 def main():
     config_parser = parse_config()
@@ -74,7 +85,10 @@ def main():
     logger = create_logger(Constants.LOG_FILE)
     
     algo_loop = IsolationMgr(ufm_client, logger)
-    algo_loop.main_flow()
+    app = PortsStateAPI(algo_loop)
+    reactor.callInThread(algo_loop.main_flow)
+    run_api(app)
+
     
     #optional second phase
     # rest_server = RESTserver()

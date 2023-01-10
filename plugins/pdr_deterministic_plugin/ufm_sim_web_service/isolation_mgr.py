@@ -1,5 +1,5 @@
 #
-# Copyright © 2013-2022 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright © 2013-2023 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -60,7 +60,7 @@ class IsolationMgr:
         #port_name: PortState
         self.ports_states = dict()
         self.ports_data = dict()
-        self.ufm_latest_isolation_state = {}
+        self.ufm_latest_isolation_state = []
         
         pdr_config = configparser.ConfigParser()
         pdr_config.read(Constants.CONF_FILE)
@@ -75,6 +75,7 @@ class IsolationMgr:
         self.configured_ber_check = pdr_config.getboolean(Constants.CONF_COMMON,Constants.CONFIGURED_BER_CHECK)
         self.dry_run = pdr_config.getboolean(Constants.CONF_COMMON,Constants.DRY_RUN)
         self.deisolate_consider_time = pdr_config.getint(Constants.CONF_COMMON,Constants.DEISOLATE_CONSIDER_TIME)
+        self.automatic_deisolate = pdr_config.getboolean(Constants.CONF_COMMON,Constants.AUTOMATIC_DEISOLATE)
         # Take from Conf
 
         self.logger = logger
@@ -90,7 +91,7 @@ class IsolationMgr:
 
     def eval_isolation(self, port_name, cause):
         self.logger.info("Evaluating isolation of port {0} with cause {1}".format(port_name, cause))
-        if self.ufm_latest_isolation_state.get(port_name):
+        if port_name in self.ufm_latest_isolation_state:
             return
 
         # if out of operating conditions we ignore the cause
@@ -110,8 +111,9 @@ class IsolationMgr:
         self.logger.warning("Isolated port: %s cause: %s", port_name, cause)
 
     def eval_deisolate(self, port_name):
-        if not self.ufm_latest_isolation_state.get(port_name):
-            self.ports_states.pop(port_name)
+        if not port_name in self.ufm_latest_isolation_state:
+            if self.ports_states.get(port_name):
+                self.ports_states.pop(port_name)
             return
 
         # we dont return those out of NOC
@@ -168,8 +170,8 @@ class IsolationMgr:
             return issues
         ports_counters = list(ports_counters.values())[0]
         for port_name, statistics in ports_counters.get("Ports").items():
-            if not self.ports_states.get(port_name):
-                self.ports_states[port_name] = PortState(port_name)
+            # if not self.ports_states.get(port_name):
+            #     self.ports_states[port_name] = PortState(port_name)
             counters = statistics.get('statistics')
             errors = counters.get(Constants.RCV_ERRORS_COUNTER) + counters.get(Constants.RCV_REMOTE_PHY_ERROR_COUNTER) 
             error_rate = self.get_rate_and_update(port_name, Constants.ERRORS_COUNTER, errors)
@@ -193,19 +195,25 @@ class IsolationMgr:
                         issues[port_name] = Issue(port_name, Constants.ISSUE_BER)
         return issues
 
+    def set_ports_as_treated(self, ports_dict):
+        for port, state in ports_dict.items():
+            port_state = self.ports_states.get(port)
+            if port_state and state == Constants.STATE_TREATED:
+                port_state.state = state
+    
     def get_isolation_state(self):
-        isolated_ports = self.ufm_client.get_isolated_ports()
-        if not isolated_ports:
-            return {}
+        ports = self.ufm_client.get_isolated_ports()
+        if not ports:
+            self.ufm_latest_isolation_state = []
+        isolated_ports = ports.get(Constants.API_ISOLATED_PORTS, [])
+        self.ufm_latest_isolation_state = isolated_ports
 
     def main_flow(self):
         # sync to the telemetry clock by blocking read
-        # TODO: check telemetry is running
         self.logger.info("Isolation Manager initialized, starting isolation loop")
         while(True):
             try:
-                if not self.dry_run:
-                    self.ufm_latest_isolation_state = self.get_isolation_state()
+                self.get_isolation_state()
                 self.logger.info("Retrieving telemetry data to determine ports' states")
                 issues = self.read_next_set_of_high_ber_or_pdr_ports()
                 if len(issues) > self.max_num_isolate:
@@ -223,16 +231,19 @@ class IsolationMgr:
                         self.eval_isolation(port, cause)
 
                 # deal with ports that with either cause = oonoc or fix
-                for port_name, port_state in self.ports_states.items():
+
+                for port_state in list(self.ports_states.values()):
                     state = port_state.get_state()
                     cause = port_state.get_cause()
                     # EZ: it is a state that say that some maintenance was done to the link 
                     #     so need to re-evaluate if to return it to service
-                    if cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED:
-                        self.eval_deisolate(port_name)
+                    if self.automatic_deisolate or cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED:
+                        self.eval_deisolate(port_state.name)
             except Exception as e:
                 self.logger.warning(e)
-            time.sleep(self.t_isolate)
+            #time.sleep(self.t_isolate)
+            #TODO: remove
+            time.sleep(15)
         
 
 # this is a callback for API exposed by this code - second phase

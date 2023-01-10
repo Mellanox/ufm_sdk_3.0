@@ -16,5 +16,5 @@
 set -eE
 
 rm -f /log/pdr_deterministic*.log*
-
+rm -f /scripts/init_pdr_conf.sh
 exit 0

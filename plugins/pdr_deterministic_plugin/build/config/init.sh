@@ -15,5 +15,6 @@
 
 set -eE
 # Updating /config folder
-cp -f /opt/ufm/ufm_plugin_pdr_deterministic/*.conf /config
+cp -f /opt/ufm/ufm_plugin_pdr_deterministic/conf/*.conf /config
+cp -f /opt/ufm/ufm_plugin_pdr_deterministic/scripts/* /scripts
 exit 0
