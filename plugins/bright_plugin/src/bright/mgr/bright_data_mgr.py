@@ -14,6 +14,7 @@
 import enum
 import json
 import datetime
+import pytz
 import os.path
 
 from pythoncm.cluster import Cluster
@@ -80,7 +81,12 @@ class BrightDataMgr(Singleton):
                 self.status_err_msg = ''
                 cluster_addr = self.get_bright_cluster_addr()
                 if not self.djson.get(cluster_addr):
-                    self.djson[cluster_addr] = {}
+                    self.djson[cluster_addr] = {
+                        "data": {},
+                        "settings": {
+                            "timezone": self.bright_cluster.get_base_partition().timeZoneSettings.timeZone
+                        }
+                    }
         except BCMConnectionError as ex:
             raise ex
         except Exception as ex:
@@ -114,8 +120,11 @@ class BrightDataMgr(Singleton):
     def get_bright_cluster_addr(self):
         return f'{self.conf.get_bright_host()}:{self.conf.get_bright_port()}'
 
+    def get_bright_cluster_saved_settings(self):
+        return self.djson.get(self.get_bright_cluster_addr(), {}).get("settings", {})
+
     def get_bright_cluster_saved_data(self):
-        return self.djson.get(self.get_bright_cluster_addr(), {})
+        return self.djson.get(self.get_bright_cluster_addr(), {}).get("data", {})
 
     def get_bright_nodes(self):
         try:
@@ -217,7 +226,10 @@ class BrightDataMgr(Singleton):
             Logger.log_message('Clean old history data based on the data retention period completed successfully')
 
     def convert_bright_time_to_datetime(self, time_str):
-        return datetime.datetime.strptime(time_str, self.bright_time_format)
+        btz = pytz.timezone(self.get_bright_cluster_saved_settings().get("timezone"))
+        dt = datetime.datetime.strptime(time_str, self.bright_time_format)
+        dt = btz.localize(dt)
+        return dt
 
     def get_job_submit_time(self, job):
         return self.convert_bright_time_to_datetime(job.get('submittime'))

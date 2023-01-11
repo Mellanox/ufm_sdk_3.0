@@ -54,7 +54,7 @@ class UFMBrightPluginConfigurationsAPI(BaseAPIApplication):
 
     def get_conf(self):
         try:
-            _response = self._append_bright_connection_status(self.conf.conf_to_dict(self.conf_schema_path))
+            _response = self._append_bright_connection_info(self.conf.conf_to_dict(self.conf_schema_path))
             return make_response(_response)
         except Exception as e:
             Logger.log_message("Error occurred while getting the current plugin configurations: " + str(e), LOG_LEVELS.ERROR)
@@ -93,16 +93,18 @@ class UFMBrightPluginConfigurationsAPI(BaseAPIApplication):
                 if enabled is not None:
                     polling_mgr = BrightDataPollingMgr.getInstance()
                     polling_mgr.trigger_polling()
-            _response = self._append_bright_connection_status(self.conf.conf_to_dict(self.conf_schema_path))
+            _response = self._append_bright_connection_info(self.conf.conf_to_dict(self.conf_schema_path))
             return make_response(_response)
         except Exception as ex:
             Logger.log_message(f'Updating the plugin configurations has been failed: {str(ex)}', LOG_LEVELS.ERROR)
             raise ex
 
-    def _append_bright_connection_status(self, resp):
+    def _append_bright_connection_info(self, resp):
         resp[self.conf.BRIGHT_CONFIG_SECTION][self.conf.BRIGHT_CONFIG_SECTION_STATUS] = \
             {
                 "status": self.bright_data_mgr.status.name,
                 "err_message": self.bright_data_mgr.status_err_msg
             }
+        resp[self.conf.BRIGHT_CONFIG_SECTION][self.conf.BRIGHT_CONFIG_SECTION_TIMEZONE] = \
+            self.bright_data_mgr.get_bright_cluster_saved_settings().get("timezone")
         return resp
