@@ -12,6 +12,7 @@
 # @date:   Dec 26, 2022
 #
 import datetime
+import pytz
 
 from flask import make_response, request
 from http import HTTPStatus
@@ -23,6 +24,7 @@ from mgr.bright_data_polling_mgr import BrightDataPollingMgr
 
 class BrightAPI(BaseAPIApplication):
 
+    API_PARAM_TIMEZONE = "tz"
     API_PARAM_NODES = "nodes"
     API_PARAM_FROM = "from"
     API_PARAM_TO = "to"
@@ -44,7 +46,7 @@ class BrightAPI(BaseAPIApplication):
             self.get_jobs: dict(urls=["/jobs"], methods=["GET"])
         }
 
-    def get_time_req_arg(self, key, def_value=None):
+    def get_time_req_arg(self, key, def_value=None, tz='UTC'):
         value = self._get_request_arg(key, def_val=def_value)
         if value is None:
             return value
@@ -62,10 +64,11 @@ class BrightAPI(BaseAPIApplication):
             Logger.log_message(f'Error during parsing time filter in the API: {request.url}, {str(e)}',
                                LOG_LEVELS.ERROR)
             raise InvalidRequestError(f'Unsupported format for time request argument: {key}, {str(e)}')
-        return time
+        return pytz.timezone(tz).localize(time)
 
-    def _is_job_within_date(self, job, start_time, end_time):
+    def _is_job_within_date(self, job, start_time, end_time, req_timezone):
         job_submit_time = self.bright_data_mgr.get_job_submit_time(job)
+        job_submit_time = datetime.datetime.fromtimestamp(job_submit_time.timestamp(), pytz.timezone(req_timezone))
         return start_time <= job_submit_time < end_time
 
     def get_nodes(self):
@@ -76,8 +79,9 @@ class BrightAPI(BaseAPIApplication):
         jobs = list([])
         bcm_data = self.bright_data_mgr.get_bright_cluster_saved_data()
         nodes = self._get_request_arg(self.API_PARAM_NODES)
-        start_time = self.get_time_req_arg(self.API_PARAM_FROM)
-        end_time = self.get_time_req_arg(self.API_PARAM_TO, '-0min')
+        req_tz = self._get_request_arg(self.API_PARAM_TIMEZONE)
+        start_time = self.get_time_req_arg(self.API_PARAM_FROM, tz=req_tz)
+        end_time = self.get_time_req_arg(self.API_PARAM_TO, '-0min', req_tz)
         if nodes:
             nodes = nodes.split(",")
             for node in nodes:
@@ -88,5 +92,5 @@ class BrightAPI(BaseAPIApplication):
             for node, node_data in bcm_data.items():
                 jobs = jobs + list(node_data.get('jobs', {}).values())
         if start_time and end_time:
-            jobs = list(filter(lambda job: self._is_job_within_date(job, start_time, end_time), jobs))
+            jobs = list(filter(lambda job: self._is_job_within_date(job, start_time, end_time, req_tz), jobs))
         return make_response(jobs)
