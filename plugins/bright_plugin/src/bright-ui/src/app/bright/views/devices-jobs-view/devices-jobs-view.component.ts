@@ -89,6 +89,11 @@ export class DevicesJobsViewComponent implements OnInit {
       this.brightConf[BrightConstants.brightConfKeys.brightConfig][BrightConstants.brightConfKeys.status][BrightConstants.brightConfKeys.status];
   }
 
+  get bright_timezone() {
+    return this.brightConf[BrightConstants.brightConfKeys.brightConfig] &&
+      this.brightConf[BrightConstants.brightConfKeys.brightConfig][BrightConstants.brightConfKeys.timezone];
+  }
+
   get BrightConstants() {
     return BrightConstants;
   }
@@ -191,7 +196,9 @@ export class DevicesJobsViewComponent implements OnInit {
           [XCoreAgGridConstants.field]: DeviceJobsConstants.JOBS_SERVER_FIELDS.submittime,
           [XCoreAgGridConstants.headerName]: 'Submit Time',
           [XCoreAgGridConstants.valueGetter]: (params: any) => {
-            return new Date(params.data[DeviceJobsConstants.JOBS_SERVER_FIELDS.submittime]).toLocaleString();
+            const submitTime = new Date(params.data[DeviceJobsConstants.JOBS_SERVER_FIELDS.submittime]);
+            const timeZonesDiffInMS = this.getTimeZonesDiffInMSec(this.bright_timezone, this.backend.getLocalTimezone())
+            return new Date(submitTime.getTime() - timeZonesDiffInMS).toLocaleString();
           }
         },
         {
@@ -303,6 +310,23 @@ export class DevicesJobsViewComponent implements OnInit {
 
   public get timeRanges() {
     return TimePickerModalConstants.TIME_RANGES;
+  }
+
+  /**
+   * @desc this function used to get the diff between 2 time zones in milliseconds
+   * @param zone1
+   * @param zone2
+   */
+  public getTimeZonesDiffInMSec(zone1: string, zone2: string): number {
+    try {
+      const d = new Date();
+      // - was replaced by / due to Bug #3070915 which appeared in MAC
+      const strDate1: string = d.toLocaleString("en-US", {timeZone: zone1}).replace(/-/g, "/");
+      const strDate2: string = d.toLocaleString("en-US", {timeZone: zone2}).replace(/-/g, "/");
+      return new Date(strDate1).getTime() - new Date(strDate2).getTime();
+    } catch (exception) {
+      return 0
+    }
   }
 
 
