@@ -18,7 +18,7 @@ import {Injectable} from '@angular/core';
 import {BrightConstants} from "../constants/bright.constants";
 import {HttpClient} from "@angular/common/http";
 import {map, Observable} from "rxjs";
-
+import * as jstz from 'jstz';
 
 @Injectable({
   providedIn: 'root'
@@ -57,7 +57,14 @@ export class BrightBackendService {
       const sign = filters.length ? '&' : '';
       filters = filters + `${sign}to=${to}`;
     }
+    if(from && to) {
+      filters = filters + `&${this.getLocalTimezone()}`
+    }
     const url = this.brightConstants.brightAPIsUrls.jobs.concat(filters)
     return this.httpService.get(url);
+  }
+
+  getLocalTimezone() {
+    return "tz=".concat(jstz.determine().name());
   }
 }

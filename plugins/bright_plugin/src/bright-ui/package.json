@@ -30,6 +30,7 @@
     "ag-grid-community": "^26.2.0",
     "angular2-csv": "0.2.5",
     "bootstrap": "^5.2.0",
+    "jstz": "^2.1.1",
     "moment": "^2.27.0",
     "ngx-bootstrap": "^8.0.0",
     "ngx-clipboard": "^15.1.0",
