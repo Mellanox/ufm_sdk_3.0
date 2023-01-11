@@ -34,6 +34,7 @@ export class BrightConstants {
     public static brightConfKeys = {
       brightConfig: "bright-config" as "bright-config",
       status: "status" as "status",
+      statusErrMessage: "err_message" as "err_message",
       enabled: "enabled" as "enabled",
       host: "host" as "host",
       port: "port" as "port",

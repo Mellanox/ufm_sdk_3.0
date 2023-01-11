@@ -86,7 +86,7 @@ export class DevicesJobsViewComponent implements OnInit {
 
   get bright_status() {
     return this.brightConf[BrightConstants.brightConfKeys.brightConfig] &&
-      this.brightConf[BrightConstants.brightConfKeys.brightConfig][BrightConstants.brightConfKeys.status];
+      this.brightConf[BrightConstants.brightConfKeys.brightConfig][BrightConstants.brightConfKeys.status][BrightConstants.brightConfKeys.status];
   }
 
   get BrightConstants() {

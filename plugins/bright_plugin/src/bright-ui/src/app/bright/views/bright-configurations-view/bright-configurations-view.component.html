@@ -31,8 +31,8 @@
             <label>Connection Status</label>
           </div>
           <div class="col-sm-12 form-group connection-status-label">
-            <label [ngClass]="status.value">
-              {{status.value}}
+            <label [ngClass]="status.value[BRIGHT_CONF_SERVER_KEYS.status]">
+              {{status.value[BRIGHT_CONF_SERVER_KEYS.status]}} <ng-container *ngIf="errorMessage"> ({{errorMessage}})</ng-container>
             </label>
           </div>
         </div>

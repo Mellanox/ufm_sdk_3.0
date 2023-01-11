@@ -17,6 +17,7 @@ export class BrightConfigurationsViewComponent implements OnInit {
   public dataIsLoading = false;
   public updateInProgress = false;
   public BRIGHT_CONF_SERVER_KEYS = BrightConstants.brightConfKeys;
+  public errorMessage = '';
   public configurationsData;
   public configurationsForm: FormGroup;
   public enabled: FormControl;
@@ -32,13 +33,18 @@ export class BrightConfigurationsViewComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.dataIsLoading = true;
+    this.loadData();
+  }
+
+  private loadData(dataIsLoading=true): void {
+    this.dataIsLoading = dataIsLoading;
     this.brightBackendService.getBrightConf().subscribe({
       next: (data) => {
         data = data[this.BRIGHT_CONF_SERVER_KEYS.brightConfig]
         this.configurationsData = data;
         this.initFormFields(data)
         this.dataIsLoading = false;
+        this.errorMessage = this.status.value[this.BRIGHT_CONF_SERVER_KEYS.statusErrMessage]
       }
     })
   }
@@ -60,6 +66,7 @@ export class BrightConfigurationsViewComponent implements OnInit {
       [this.BRIGHT_CONF_SERVER_KEYS.certificateKey]: this.certificateKey,
       [this.BRIGHT_CONF_SERVER_KEYS.dataRetentionPeriod]: this.dataRetentionPeriod
     })
+    this.onStatusChange();
   }
 
   /**
@@ -102,9 +109,12 @@ export class BrightConfigurationsViewComponent implements OnInit {
     this.brightBackendService.updateBrightConf(payload).subscribe({
       next: (data) => {
         this.initFormFields(data[this.BRIGHT_CONF_SERVER_KEYS.brightConfig]);
+        this.errorMessage = this.status.value[this.BRIGHT_CONF_SERVER_KEYS.statusErrMessage]
         this.updateInProgress = false;
       },
-      error: () => {
+      error: (err) => {
+        console.error(err);
+        this.loadData(false);
         this.updateInProgress = false;
       }
     })
