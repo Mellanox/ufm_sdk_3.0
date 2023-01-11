@@ -58,13 +58,13 @@ export class BrightBackendService {
       filters = filters + `${sign}to=${to}`;
     }
     if(from && to) {
-      filters = filters + `&${this.getLocalTimezone()}`
+      filters = filters + `&tz=${this.getLocalTimezone()}`
     }
     const url = this.brightConstants.brightAPIsUrls.jobs.concat(filters)
     return this.httpService.get(url);
   }
 
   getLocalTimezone() {
-    return "tz=".concat(jstz.determine().name());
+    return jstz.determine().name();
   }
 }
