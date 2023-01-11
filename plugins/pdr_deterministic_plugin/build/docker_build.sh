@@ -101,6 +101,7 @@ BUILD_DIR=$(create_out_dir)
 
 cp Dockerfile ${BUILD_DIR}
 cp -r config ${BUILD_DIR}
+cp -r scripts ${BUILD_DIR}
 cp -r ../ufm_sim_web_service ${BUILD_DIR}
 
 echo "BUILD_DIR    : [${BUILD_DIR}]"

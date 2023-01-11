@@ -241,9 +241,8 @@ class IsolationMgr:
                         self.eval_deisolate(port_state.name)
             except Exception as e:
                 self.logger.warning(e)
-            #time.sleep(self.t_isolate)
-            #TODO: remove
-            time.sleep(15)
+            time.sleep(self.t_isolate)
+
         
 
 # this is a callback for API exposed by this code - second phase
