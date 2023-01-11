@@ -47,7 +47,7 @@ class SnmpTrapReceiver:
         self.events_at_time = 10
         self.throttling_interval = 10
         self.throttling_thread = None
-        self.ip_to_event_to_count = {}
+        self.ip_to_trap_to_count = {}
         self.oid_to_traps_info = {}
         self._init_traps_info()
 
@@ -143,9 +143,9 @@ class SnmpTrapReceiver:
             logging.warning(f'Notification from unknown ip {switch_ip}: {trap_oid}')
         else:
             logging.info(f'Notification from switch {switch_obj.name}: {trap_oid}')
-        self.ip_to_event_to_count.setdefault(switch_ip, {}).setdefault(trap, 0)
-        self.ip_to_event_to_count[switch_ip][trap] += 1
-        
+        self.ip_to_trap_to_count.setdefault(switch_ip, {}).setdefault(trap, 0)
+        self.ip_to_trap_to_count[switch_ip][trap] += 1
+
         if not self.throttling_thread:
             # TODO: figure out why it works only whtn the thread started in callbacks context
             self.throttling_thread = threading.Thread(target=self.throttle_events)
@@ -153,6 +153,8 @@ class SnmpTrapReceiver:
 
     def throttle_events(self):
         while True:
+            if not self.ip_to_trap_to_count:
+                continue
             s_t = time.time()
             asyncio.run(self.send_events())
             e_t = time.time()
@@ -165,13 +167,16 @@ class SnmpTrapReceiver:
         async with aiohttp.ClientSession(headers={"X-Remote-User": "ufmsystem"}) as session:
             tasks = []
             multiple_events = []
-            for switch_ip, event_to_count in self.ip_to_event_to_count.items():
+            ip_to_trap_to_count_copy = dict(self.ip_to_trap_to_count)
+            self.ip_to_trap_to_count = {}
+            for switch_ip, trap_to_count in ip_to_trap_to_count_copy.items():
                 switch = self.switch_dict.get(switch_ip, helpers.Switch(switch_ip))
                 base_description = f"SNMP traps from {switch.name}: "
-                description = '; '.join(f"'oid={event.oid}, {event.details}', happened {count} times" for event, count in event_to_count.items())
+                description = '; '.join(f"'oid={trap.oid}, {trap.details}', happened {count} times"
+                                        for trap, count in trap_to_count.items())
                 severity = helpers.Severity()
-                for event in event_to_count.keys():
-                    severity.update_level(event.severity)
+                for trap in trap_to_count.keys():
+                    severity.update_level(trap.severity)
                 payload = {"event_id": severity.event_id, "description": base_description + description}
                 if switch.guid:
                     payload["object_name"] = switch.guid
@@ -191,7 +196,6 @@ class SnmpTrapReceiver:
                 else:
                     tasks.append(asyncio.ensure_future(self.post_external_event(session, payload)))
                 # clear events dict
-            self.ip_to_event_to_count = {}
             await asyncio.gather(*tasks)
 
     async def post_external_event(self, session, payload):

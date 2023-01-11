@@ -201,20 +201,28 @@ class Severity:
             self.event_id = event_id
 
 class Trap:
-    def __init__(self, oid="", details="", severity="severity"):
+    def __init__(self, oid="", details="", severity="Info"):
         self.oid = oid
         self.details = details
         self.severity = severity
+        self.count = 1
+    def __eq__(self, other):
+        return self.oid == other.oid
+    def __hash__(self):
+        return hash(tuple(self.oid))
+    def increment_count(self):
+        self.count += 1
 
 class ConfigParser:
-    # config_file_name = "../build/config/snmp.conf"
-    config_file_name = "/config/snmp.conf"
+    config_file_name = "../build/config/snmp.conf"
+    log_file_path="snmptrap.log"
+    # config_file_name = "/config/snmp.conf"
+    # log_file_path="/log/snmptrap.log"
 
     snmp_config = configparser.ConfigParser()
     if not os.path.exists(config_file_name):
         logging.error(f"No config file {config_file_name} found!")
     snmp_config.read(config_file_name)
-    log_file_path = snmp_config.get("Log", "log_file_path")
     log_level = snmp_config.get("Log", "log_level")
     log_file_max_size = snmp_config.getint("Log", "log_file_max_size")
     log_file_backup_count = snmp_config.getint("Log", "log_file_backup_count")

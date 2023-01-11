@@ -65,9 +65,9 @@ class Switch(UFMResource):
     @staticmethod
     def get_cli(ip, unregister=False):
         # TODO: change to sha512 and aes-256
-        cli_register_v3 = f"snmp-server host {ip} traps version 3 user {helpers.SNMP_USER} \
-                            auth sha {helpers.SNMP_PASSWORD} priv aes-128 {helpers.SNMP_PRIV_PASSWORD}"
-        cli_register_v1_v2 = f"snmp-server host {ip} traps"
+        cli_register_v1_v2 = f"snmp-server host {ip} traps port {helpers.ConfigParser.snmp_port}"
+        cli_register_v3 = cli_register_v1_v2 + f" version 3 user {helpers.SNMP_USER} \
+                          auth sha {helpers.SNMP_PASSWORD} priv aes-128 {helpers.SNMP_PRIV_PASSWORD}"
         cli_register = cli_register_v3 if helpers.ConfigParser.snmp_version == 3 else cli_register_v1_v2
         cli_unregister = f"no snmp-server host {ip}"
         return cli_unregister if unregister else cli_register
@@ -133,14 +133,31 @@ class Trap(UFMResource):
         return self.report_error(HTTPStatus.METHOD_NOT_ALLOWED, "Method is not allowed")
 
     @staticmethod
-    def get_cli(event, remove=False):
-        cli_add_events = f"snmp-server notify event {event}"
-        cli_remove_events = f"no snmp-server notify event {event}"
-        return cli_remove_events if remove else cli_add_events
+    def update_csv(trap, disable=False):
+        status = "Disabled" if disable else "Enabled"
+        csv_traps_info = []
+        field_names = []
+        with open(helpers.TRAPS_POLICY_FILE, 'r') as traps_info_file:
+            csv_traps_info_reader = csv.DictReader(traps_info_file)
+            field_names = csv_traps_info_reader.fieldnames
+            for trap_info in csv_traps_info_reader:
+                if trap_info["Name"] == trap:
+                    trap_info["Status"] = status
+                csv_traps_info.append(trap_info)
+        with open(helpers.TRAPS_POLICY_FILE, 'w') as traps_info_file:
+            csv_traps_info_writer = csv.DictWriter(traps_info_file, field_names)
+            csv_traps_info_writer.writeheader()
+            csv_traps_info_writer.writerows(csv_traps_info)
 
-    def post(self, remove=False):
+    @staticmethod
+    def get_cli(trap, disable=False):
+        cli_enable_traps = f"snmp-server notify event {trap}"
+        cli_disable_traps = f"no snmp-server notify event {trap}"
+        return cli_disable_traps if disable else cli_enable_traps
+
+    def post(self, disable=False):
         # TODO: add trap check list - if no such trap, then error
-        resource = "remove_trap" if remove == True else "add_trap"
+        resource = "disable_trap" if disable == True else "enable_trap"
         logging.info(f"POST /plugin/snmp/{resource}")
         if not request.json:
             return self.report_error(HTTPStatus.BAD_REQUEST, "Upload request is empty")
@@ -148,29 +165,28 @@ class Trap(UFMResource):
             json_data = request.get_json(force=True)
             switches = []
             try:
-                events = json_data["traps"]
+                traps = json_data["traps"]
             except KeyError as ke:
                 return self.report_error(HTTPStatus.BAD_REQUEST, f"No key {ke} found")
-            switches = json_data.get("switches", [])
-            if not switches:
-                switches = list(self.switch_dict.keys())
+            switches = list(self.switch_dict.keys())
             incorrect_switches = set(switches) - set(self.switch_dict.keys())
             if incorrect_switches:
                 return self.report_error(HTTPStatus.BAD_REQUEST, f"Switches {incorrect_switches} don't exist in the fabric or don't have an ip")
             description = "UFM event monitoring settings"
-            for event in events:
-                status_code, text = helpers.post_provisioning_api(self.get_cli(event, remove), description, switches)
+            for trap in traps:
+                self.update_csv(trap, disable)
+                status_code, text = helpers.post_provisioning_api(self.get_cli(trap, disable), description, switches)
                 if not helpers.succeded(status_code):
                     return self.report_error(status_code, text)
             return self.report_success()
 
-class AddTrap(Trap):
+class EnableTrap(Trap):
     def post(self):
         return super().post()
 
-class RemoveTrap(Trap):
+class DisableTrap(Trap):
     def post(self):
-        return super().post(remove=True)
+        return super().post(disable=True)
 
 class Dummy(UFMResource):
     def get(self):
