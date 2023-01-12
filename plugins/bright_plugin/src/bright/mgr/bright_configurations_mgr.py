@@ -49,7 +49,8 @@ class BrightConfigParser(ConfigParser, Singleton):
     def get_bright_host(self):
         return self.get_config_value(None,
                                      self.BRIGHT_CONFIG_SECTION,
-                                     self.BRIGHT_CONFIG_SECTION_HOST)
+                                     self.BRIGHT_CONFIG_SECTION_HOST,
+                                     '')
 
     def get_bright_port(self):
         return self.safe_get_int(None,
