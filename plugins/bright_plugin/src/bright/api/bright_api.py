@@ -64,7 +64,10 @@ class BrightAPI(BaseAPIApplication):
             Logger.log_message(f'Error during parsing time filter in the API: {request.url}, {str(e)}',
                                LOG_LEVELS.ERROR)
             raise InvalidRequestError(f'Unsupported format for time request argument: {key}, {str(e)}')
-        return pytz.timezone(tz).localize(time)
+        # Change the given time from the machine timezone to request timezone
+        if tz:
+            time = datetime.datetime.fromtimestamp(time.timestamp(), tz=pytz.timezone(tz))
+        return time
 
     def _is_job_within_date(self, job, start_time, end_time, req_timezone):
         job_submit_time = self.bright_data_mgr.get_job_submit_time(job)
