@@ -92,6 +92,6 @@ class UFMCommunicator:
             "ports": [port_name],
             "ports_policy": "HEALTHY",
             }
-        return self.post_request(Constants.POST_EVENT_REST, data, post=False)
+        return self.post_request(Constants.ISOLATION_REST, data, post=False)
 
 

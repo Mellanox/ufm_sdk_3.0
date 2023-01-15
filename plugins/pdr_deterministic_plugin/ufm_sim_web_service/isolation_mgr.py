@@ -77,8 +77,13 @@ class IsolationMgr:
         self.deisolate_consider_time = pdr_config.getint(Constants.CONF_COMMON,Constants.DEISOLATE_CONSIDER_TIME)
         self.automatic_deisolate = pdr_config.getboolean(Constants.CONF_COMMON,Constants.AUTOMATIC_DEISOLATE)
         # Take from Conf
-
         self.logger = logger
+
+        # DEBUG
+        # self.iteration = 0
+        # self.deisolate_consider_time = 0
+        # self.d_tmax = 9000
+        
 
     def is_out_of_operating_conf(self, port_name):
         port_telemetry = self.ports_data.get(port_name)
@@ -92,6 +97,7 @@ class IsolationMgr:
     def eval_isolation(self, port_name, cause):
         self.logger.info("Evaluating isolation of port {0} with cause {1}".format(port_name, cause))
         if port_name in self.ufm_latest_isolation_state:
+            self.logger.info("Port is already isolated. skipping...")
             return
 
         # if out of operating conditions we ignore the cause
@@ -124,7 +130,7 @@ class IsolationMgr:
 
         # we need some time after the change in state
         elif datetime.now() >= self.ports_states[port_name].get_change_time() + timedelta(minutes=self.deisolate_consider_time):
-            if self.ports_data.get(port_name).get(Constants.SYMBOL_BER) > self.max_ber:
+            if self.ports_data.get(port_name).get(Constants.SYMBOL_BER, 0) > self.max_ber:
                 cause = Constants.ISSUE_BER
                 self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
                 return
@@ -143,7 +149,7 @@ class IsolationMgr:
         if not self.dry_run:
             ret = self.ufm_client.deisolate_port(port_name)
             if not ret or ret.status_code != 200:
-                self.logger.warning("Failed deisolating port: %s with cause: %s... status_code= %s", port_name, cause, ret.status_code)        
+                self.logger.warning("Failed deisolating port: %s with cause: %s... status_code= %s", port_name, self.ports_states[port_name].cause, ret.status_code)        
                 return
         self.ports_states.pop(port_name)
         self.logger.warning("Deisolated port: %s", port_name)
@@ -173,11 +179,18 @@ class IsolationMgr:
             # if not self.ports_states.get(port_name):
             #     self.ports_states[port_name] = PortState(port_name)
             counters = statistics.get('statistics')
-            errors = counters.get(Constants.RCV_ERRORS_COUNTER) + counters.get(Constants.RCV_REMOTE_PHY_ERROR_COUNTER) 
+            errors = counters.get(Constants.RCV_ERRORS_COUNTER, 0) + counters.get(Constants.RCV_REMOTE_PHY_ERROR_COUNTER, 0) 
             error_rate = self.get_rate_and_update(port_name, Constants.ERRORS_COUNTER, errors)
-            rcv_pkts = counters.get(Constants.RCV_PACKETS_COUNTER)
+            rcv_pkts = counters.get(Constants.RCV_PACKETS_COUNTER, 0)
             rcv_pkt_rate = self.get_rate_and_update(port_name, Constants.RCV_PACKETS_COUNTER, rcv_pkts)
             cable_temp = counters.get(Constants.TEMP_COUNTER)
+            # DEBUG
+            # if port_name == "e41d2d0300062380_3":
+            #     self.iteration += 1
+            #     if self.iteration < 3:
+            #         cable_temp = 90
+            #     else:
+            #         cable_temp = 30
             if cable_temp is not None:
                 dT = abs(self.ports_data[port_name].get(Constants.TEMP_COUNTER, 0) - cable_temp)
                 self.ports_data[port_name][Constants.TEMP_COUNTER] = cable_temp
@@ -205,8 +218,13 @@ class IsolationMgr:
         ports = self.ufm_client.get_isolated_ports()
         if not ports:
             self.ufm_latest_isolation_state = []
-        isolated_ports = ports.get(Constants.API_ISOLATED_PORTS, [])
+        isolated_ports = [port.split('x')[-1] for port in ports.get(Constants.API_ISOLATED_PORTS, [])]
         self.ufm_latest_isolation_state = isolated_ports
+        for port in isolated_ports:
+            if not self.ports_states.get(port):
+                port_state = PortState(port)
+                port_state.update(Constants.STATE_ISOLATED, Constants.ISSUE_OONOC)
+                self.ports_states[port] = port_state
 
     def main_flow(self):
         # sync to the telemetry clock by blocking read
@@ -242,7 +260,8 @@ class IsolationMgr:
             except Exception as e:
                 self.logger.warning(e)
             time.sleep(self.t_isolate)
-
+            # DEBUG
+            #time.sleep(15)
         
 
 # this is a callback for API exposed by this code - second phase
