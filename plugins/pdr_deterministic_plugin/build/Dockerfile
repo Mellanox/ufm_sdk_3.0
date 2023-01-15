@@ -15,7 +15,7 @@ EXPOSE 443
 
 RUN apt-get update && apt-get -y install supervisor python3 python3-pip rsyslog vim curl sudo
 
-RUN python3 -m pip install flask flask_restful requests urllib3 twisted
+RUN python3 -m pip install flask flask_restful requests urllib3 twisted jsonschema
 
 COPY ufm_sim_web_service/ ${BASE_PATH}/ufm_sim_web_service/
 
@@ -23,5 +23,6 @@ COPY config/supervisord.conf /etc/supervisor/conf.d/
 COPY config/init.sh config/deinit.sh /
 COPY config/pdr_deterministic.conf config/pdr_deterministic_shared_volumes.conf ${CONF_PATH}/
 COPY scripts/init_pdr_conf.sh ${SCRIPTS_PATH}/
+COPY utils/ ${BASE_PATH}/utils/
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]

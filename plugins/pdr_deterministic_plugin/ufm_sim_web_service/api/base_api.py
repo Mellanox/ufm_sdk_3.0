@@ -14,6 +14,12 @@ from flask import Flask
 from flask_restful import Api
 from http import HTTPStatus
 from functools import partial
+import os
+import sys
+
+current = os.path.dirname(os.path.realpath(__file__))
+parent = os.path.dirname(current)
+sys.path.append(os.path.dirname(parent))
 from utils.json_schema_validator import ValidationError, SchemaValidationError
 
 from api import InvalidRequest
