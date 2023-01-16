@@ -208,8 +208,8 @@ def main():
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='NDT plugin test')
-    parser.add_argument('-ip', '--host', type=str, required=True, help='Host IP address where NDT plugin is running')
+    parser = argparse.ArgumentParser(description='SNMP plugin test')
+    parser.add_argument('-ip', '--host', type=str, required=True, help='Host IP address where SNMP plugin is running')
     args = parser.parse_args()
     HOST_IP = args.host
     START_TIME = datetime.now()

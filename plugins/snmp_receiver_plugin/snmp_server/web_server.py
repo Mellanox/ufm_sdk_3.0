@@ -63,7 +63,7 @@ class SNMPWebProc:
     """
     def __init__(self):
         print("Starting SNMP web server", flush=True)
-        logging.basicConfig(handlers=[RotatingFileHandler(helpers.ConfigParser.log_file_path,
+        logging.basicConfig(handlers=[RotatingFileHandler(helpers.ConfigParser.log_file,
                                                           maxBytes=helpers.ConfigParser.log_file_max_size,
                                                           backupCount=helpers.ConfigParser.log_file_backup_count)],
                             level=logging.getLevelName(helpers.ConfigParser.log_level),

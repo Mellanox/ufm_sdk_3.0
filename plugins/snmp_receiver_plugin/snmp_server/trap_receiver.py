@@ -158,8 +158,13 @@ class SnmpTrapReceiver:
             s_t = time.time()
             asyncio.run(self.send_events())
             e_t = time.time()
-            throughput = self.traps_n / (e_t - s_t)
-            logging.warning(f"Throughput is {throughput} traps/second")
+            input_rate = self.traps_n / self.throttling_interval
+            output_rate = self.traps_n / (e_t - s_t)
+            logging.warning(f"Input rate (agents -> plugin) is {input_rate} traps/second")
+            logging.warning(f"Output rate (plugin -> UFM) is {output_rate} traps/second")
+            with open(helpers.ConfigParser.throughput_file, "a") as file:
+                file.write(f"Input rate (agents -> plugin) is {input_rate} traps/second\n")
+                file.write(f"Output rate (plugin -> UFM) is {output_rate} traps/second\n")
             self.traps_n = 0
             time.sleep(self.throttling_interval)
 
@@ -194,7 +199,9 @@ class SnmpTrapReceiver:
                     # sending rest events
                     tasks.append(asyncio.ensure_future(self.post_external_event(session, multiple_events)))
                 else:
-                    tasks.append(asyncio.ensure_future(self.post_external_event(session, payload)))
+                    for trap, count in trap_to_count.items():
+                        for _ in range(count):
+                            tasks.append(asyncio.ensure_future(self.post_external_event(session, payload)))
                 # clear events dict
             await asyncio.gather(*tasks)
 

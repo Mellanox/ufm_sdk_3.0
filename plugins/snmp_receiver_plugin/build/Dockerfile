@@ -14,6 +14,7 @@ RUN python3 -m pip install pysnmp requests flask flask_restful aiohttp
 COPY mibs/ ${BASE_PATH}/mibs/
 COPY snmp_server/ ${BASE_PATH}/snmp_server/
 
+RUN mkdir /data
 COPY config/supervisord.conf /etc/supervisor/conf.d/
 COPY config/init.sh config/deinit.sh /
 COPY config/snmp.conf config/snmp_shared_volumes.conf config/snmp_httpd_proxy.conf ${BASE_PATH}/

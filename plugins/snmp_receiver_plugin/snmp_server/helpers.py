@@ -214,15 +214,17 @@ class Trap:
         self.count += 1
 
 class ConfigParser:
-    config_file_name = "../build/config/snmp.conf"
-    log_file_path="snmptrap.log"
+    config_file = "../build/config/snmp.conf"
+    log_file="snmptrap.log"
+    throughput_file = "throughput.log"
     # config_file_name = "/config/snmp.conf"
     # log_file_path="/log/snmptrap.log"
+    # throughput_file = "/data/throughput.log"
 
     snmp_config = configparser.ConfigParser()
-    if not os.path.exists(config_file_name):
-        logging.error(f"No config file {config_file_name} found!")
-    snmp_config.read(config_file_name)
+    if not os.path.exists(config_file):
+        logging.error(f"No config file {config_file} found!")
+    snmp_config.read(config_file)
     log_level = snmp_config.get("Log", "log_level")
     log_file_max_size = snmp_config.getint("Log", "log_file_max_size")
     log_file_backup_count = snmp_config.getint("Log", "log_file_backup_count")
