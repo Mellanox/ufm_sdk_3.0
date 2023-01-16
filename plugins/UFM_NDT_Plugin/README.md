@@ -38,3 +38,7 @@ Example of a test scenario (positive flow):
 - _curl -k -i -X POST -H "Content-Type:application/json" -d ‘’ 'http://<host_ip>/ ufmRest<V2><V3>/plugin/ndt/delete’_: delete NDTs;
 
 Please use tests/ndt_rest_api.py wrapper script as a client for REST API. For more details, run _python ndt_rest_api.py --help_.
+  
+  
+  
+  
