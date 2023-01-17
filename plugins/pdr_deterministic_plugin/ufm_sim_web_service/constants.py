@@ -14,6 +14,8 @@ import logging
 
 class PDRConstants:
     CONF_FILE = "/config/pdr_deterministic.conf"
+    BER_MATRIX = "/config/fec_ber_matrix.csv"
+    FEC_LOOKUP = "/config/fec_mode_lookup.json"
     LOG_FILE = '/log/pdr_deterministic_plugin.log'
     log_level = logging.INFO
     log_file_backup_count = 5
@@ -35,6 +37,8 @@ class PDRConstants:
     POST_EVENT_REST = "/app/events/external_event"
     ISOLATION_REST = "/app/unhealthy_ports"
     GET_ISOLATED_PORTS = "/resources/isolated_ports"
+    GET_PORTS_REST = "/resources/ports"
+    GET_ACTIVE_PORTS_REST = "/resources/ports?active=true"
     API_HEALTHY_PORTS = "healthy_ports"
     API_ISOLATED_PORTS = "isolated_ports"
 
@@ -53,6 +57,11 @@ class PDRConstants:
     RCV_ERRORS_COUNTER = "Infiniband_RcvErrors"
     RCV_REMOTE_PHY_ERROR_COUNTER = "Infiniband_RcvRemotePhysErrors"
     SYMBOL_BER = "symbol_ber"
+    EFF_BER = "eff_ber"
+    RAW_BER = "raw_ber"
+    ACTIVE_SPEED = "active_speed"
+    FEC_MODE = "fec_mode_active"
+    PORT_NAME = "name"
     
     ISSUE_PDR = "pdr"
     ISSUE_BER = "ber"

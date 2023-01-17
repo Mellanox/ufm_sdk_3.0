@@ -14,6 +14,8 @@ from datetime import datetime
 from datetime import timedelta
 import time
 import configparser
+import pandas as pd
+import json
 
 from constants import PDRConstants as Constants
 from ufm_communication_mgr import UFMCommunicator
@@ -57,8 +59,9 @@ class IsolationMgr:
     
     def __init__(self, ufm_client: UFMCommunicator, logger):
         self.ufm_client = ufm_client
-        #port_name: PortState
+        # {port_name: PortState}
         self.ports_states = dict()
+        # {port_name: telemetry + speed}
         self.ports_data = dict()
         self.ufm_latest_isolation_state = []
         
@@ -78,6 +81,10 @@ class IsolationMgr:
         self.automatic_deisolate = pdr_config.getboolean(Constants.CONF_COMMON,Constants.AUTOMATIC_DEISOLATE)
         # Take from Conf
         self.logger = logger
+        self.isolation_matrix = pd.read_csv(Constants.BER_MATRIX)
+        with open(Constants.FEC_LOOKUP, "r") as lookup_file:
+            self.fec_lookup = {int(k):v for k,v in json.load(lookup_file).items()}
+        self.fec_lookup[None] = None
 
         # DEBUG
         # self.iteration = 0
@@ -158,7 +165,7 @@ class IsolationMgr:
         port_data = self.ports_data.get(port_name)
         if port_data:
             old_val = port_data.get(counter_name)
-            if old_val:
+            if old_val and new_val > old_val:
                 counter_delta = (old_val - new_val) / self.t_isolate
             else:
                 counter_delta = 0
@@ -199,14 +206,53 @@ class IsolationMgr:
             elif cable_temp and (cable_temp > self.tmax or dT > self.d_tmax):
                 issues[port_name] = Issue(port_name, Constants.ISSUE_OONOC)
             if self.configured_ber_check:
-                ber_val = counters.get(Constants.SYMBOL_BER)
-                if ber_val > self.max_ber:
-                    issued_port = issues.get(port_name)
-                    if issued_port:
-                        issued_port.cause = Constants.ISSUE_PDR_BER
-                    else:
-                        issues[port_name] = Issue(port_name, Constants.ISSUE_BER)
+                symbol_ber_val = counters.get(Constants.SYMBOL_BER)
+                eff_ber_val = counters.get(Constants.EFF_BER)
+                raw_ber_val = counters.get(Constants.RAW_BER)
+                if symbol_ber_val or eff_ber_val or raw_ber_val:
+                    port_data = self.ports_data.get(port_name)
+                    fec_mode = self.fec_lookup.get(counters.get(Constants.FEC_MODE))
+                    if fec_mode is None:
+                        continue
+                    port_speed = port_data.get(Constants.ACTIVE_SPEED)
+                    if not port_speed:
+                        port_speed = self.get_port_metadata(port_name)
+                        port_data[Constants.ACTIVE_SPEED] = port_speed
+                    if self.check_ber_threshold(port_speed, fec_mode, raw_ber_val, eff_ber_val, symbol_ber_val):
+                        issued_port = issues.get(port_name)
+                        if issued_port:
+                            issued_port.cause = Constants.ISSUE_PDR_BER
+                        else:
+                            issues[port_name] = Issue(port_name, Constants.ISSUE_BER)                    
         return issues
+    def check_ber_threshold(self, port_speed, fec_mode, raw_ber_val, eff_ber_val, symbol_ber_val):
+        rows = self.isolation_matrix[(self.isolation_matrix[Constants.ACTIVE_SPEED] == port_speed) &
+         (self.isolation_matrix[Constants.FEC_MODE] == fec_mode) &
+         ((raw_ber_val > self.isolation_matrix[Constants.RAW_BER]) |
+          (eff_ber_val > self.isolation_matrix[Constants.EFF_BER]) |
+          (symbol_ber_val > self.isolation_matrix[Constants.SYMBOL_BER]))]
+        # Check if any rows were returned
+        if rows.empty:
+            return False
+        else:
+            return True
+
+    def get_ports_metadata(self):
+        meta_data = self.ufm_client.get_ports_metadata()
+        if meta_data and len(meta_data) > 0:
+            for port in meta_data:
+                port_name = port.get(Constants.PORT_NAME)
+                if not self.ports_data.get(port_name):
+                    self.ports_data[port_name] = {}
+                self.ports_data[port_name][Constants.ACTIVE_SPEED] = port.get(Constants.ACTIVE_SPEED)
+
+    def get_port_metadata(self, port_name):
+        meta_data = self.ufm_client.get_port_metadata(port_name)
+        if meta_data and len(meta_data) > 0:
+            port_data = meta_data[0]
+            port_speed = port_data.get(Constants.ACTIVE_SPEED)
+            return port_speed
+
 
     def set_ports_as_treated(self, ports_dict):
         for port, state in ports_dict.items():
@@ -229,6 +275,7 @@ class IsolationMgr:
     def main_flow(self):
         # sync to the telemetry clock by blocking read
         self.logger.info("Isolation Manager initialized, starting isolation loop")
+        self.get_ports_metadata()
         while(True):
             try:
                 self.get_isolation_state()
