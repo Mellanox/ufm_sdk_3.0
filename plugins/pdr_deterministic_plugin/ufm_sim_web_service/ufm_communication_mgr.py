@@ -93,5 +93,9 @@ class UFMCommunicator:
             "ports_policy": "HEALTHY",
             }
         return self.post_request(Constants.ISOLATION_REST, data, post=False)
+    
+    def get_ports_metadata(self):
+        return self.get_request(Constants.GET_ACTIVE_PORTS_REST)
 
-
+    def get_port_metadata(self, port_name):
+        return self.get_request("%s/%s" % (Constants.GET_PORTS_REST, port_name))

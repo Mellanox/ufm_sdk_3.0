@@ -15,7 +15,7 @@ EXPOSE 443
 
 RUN apt-get update && apt-get -y install supervisor python3 python3-pip rsyslog vim curl sudo
 
-RUN python3 -m pip install flask flask_restful requests urllib3 twisted jsonschema
+RUN python3 -m pip install flask flask_restful requests urllib3 twisted jsonschema pandas
 
 COPY ufm_sim_web_service/ ${BASE_PATH}/ufm_sim_web_service/
 
