@@ -3,5 +3,5 @@ job: ufm-ci
 
 # empty matrix to skip CI for appliance builds (not needed)
 steps:
-  - name: UFM_APPLIANCE
-  - run: echo "Only Appliance changes were detected in this PR, nothing to do , exiting..."
+  - name: CLEAN_ci
+  - run: echo "No Plugin changes detected, exiting..."
