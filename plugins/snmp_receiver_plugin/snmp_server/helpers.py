@@ -214,12 +214,12 @@ class Trap:
         self.count += 1
 
 class ConfigParser:
-    config_file = "../build/config/snmp.conf"
-    log_file="snmptrap.log"
-    throughput_file = "throughput.log"
-    # config_file_name = "/config/snmp.conf"
-    # log_file_path="/log/snmptrap.log"
-    # throughput_file = "/data/throughput.log"
+    # config_file = "../build/config/snmp.conf"
+    # log_file="snmptrap.log"
+    # throughput_file = "throughput.log"
+    config_file = "/config/snmp.conf"
+    log_file="/log/snmptrap.log"
+    throughput_file = "/data/throughput.log"
 
     snmp_config = configparser.ConfigParser()
     if not os.path.exists(config_file):

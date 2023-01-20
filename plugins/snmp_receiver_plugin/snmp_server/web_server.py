@@ -22,7 +22,7 @@ from multiprocessing import Process, Manager
 # from twisted.internet import reactor
 # from twisted.web import server
 
-from resources import Dummy, RegisterSwitch, UnregisterSwitch, TrapList, EnableTrap, DisableTrap, SwitchList
+from resources import Dummy, RegisterSwitch, UnregisterSwitch, TrapList, EnableTrap, DisableTrap, SwitchList, Version
 import helpers
 from trap_receiver import SnmpTrapReceiver
 
@@ -42,6 +42,7 @@ class SNMPWebServer:
             TrapList: "/trap_list",
             EnableTrap: "/enable_trap",
             DisableTrap: "/disable_trap",
+            Version: "/version",
             Dummy: "/dummy"
         }
         for resource, path in apis.items():

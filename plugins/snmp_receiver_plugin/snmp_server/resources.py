@@ -188,6 +188,15 @@ class DisableTrap(Trap):
     def post(self):
         return super().post(disable=True)
 
+class Version(UFMResource):
+    def get(self):
+        logging.info("GET /plugin/ndt/version")
+        version_file = "release.json"
+        return self.read_json_file(version_file), HTTPStatus.OK
+
+    def post(self):
+        return self.report_error(HTTPStatus.METHOD_NOT_ALLOWED, "Method is not allowed")
+
 class Dummy(UFMResource):
     def get(self):
         logging.info("GET /plugin/snmp/dummy")

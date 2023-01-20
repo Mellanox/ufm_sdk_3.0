@@ -107,7 +107,7 @@ steps:
       sleep 30
       export SERVER_HOST=$SERVER_HOST
       cd tests
-      python3 real_switch_test.py --host $SERVER_HOST
+      python3 snmp_test.py --host $SERVER_HOST
     parallel: false
   
   - name: get snmp logs

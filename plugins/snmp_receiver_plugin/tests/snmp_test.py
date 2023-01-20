@@ -1,3 +1,18 @@
+#
+# Copyright © 2013-2022 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+#
+# This software product is a proprietary product of Nvidia Corporation and its affiliates
+# (the "Company") and all right, title, and interest in and to the software
+# product, including all associated intellectual property rights, are and
+# shall remain exclusively with the Company.
+#
+# This software product is governed by the End User License Agreement
+# provided with the software product.
+#
+# @author: Alexander Tolikin
+# @date:   November, 2022
+#
+
 import argparse
 import csv
 from datetime import datetime
@@ -13,7 +28,8 @@ UNREGISTER = "unregister"
 REGISTER = "register"
 TRAP_LIST = "trap_list"
 
-DEFAULT_PASSWORD="123456"
+# DEFAULT_PASSWORD="123456"
+DEFAULT_PASSWORD="admin"
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 DATETIME_MS_FORMAT = DATETIME_FORMAT + ",%f"
 
@@ -192,13 +208,13 @@ def main():
     import urllib3
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-    # unregister_all()
+    unregister_all()
     # register_switch()
     # get_trap_list()
     # register_all()
     # send_test_trap()
     # trap_in_log()
-    trap_in_ufm_events()
+    # trap_in_ufm_events()
 
     if FAILED_TESTS_COUNT > 0:
         print("\n{} tests failed".format(FAILED_TESTS_COUNT))
