@@ -30,9 +30,6 @@ SESSION = requests.Session()
 SESSION.headers = {"X-Remote-User": "ufmsystem"}
 EMPTY_IP = "0.0.0.0"
 PROVISIONING_TIMEOUT = 20
-SNMP_USER = "snmpuser"
-SNMP_PASSWORD = "snmppassword"
-SNMP_PRIV_PASSWORD = "snmpprivpassword"
 SWITCHES_FILE = "registered_switches.json"
 TRAPS_POLICY_FILE = "traps_policy.csv"
 
@@ -214,12 +211,12 @@ class Trap:
         self.count += 1
 
 class ConfigParser:
-    # config_file = "../build/config/snmp.conf"
-    # log_file="snmptrap.log"
-    # throughput_file = "throughput.log"
-    config_file = "/config/snmp.conf"
-    log_file="/log/snmptrap.log"
-    throughput_file = "/data/throughput.log"
+    config_file = "../build/config/snmp.conf"
+    log_file="snmptrap.log"
+    throughput_file = "throughput.log"
+    # config_file = "/config/snmp.conf"
+    # log_file="/log/snmptrap.log"
+    # throughput_file = "/data/throughput.log"
 
     snmp_config = configparser.ConfigParser()
     if not os.path.exists(config_file):
@@ -236,3 +233,6 @@ class ConfigParser:
     multiple_events = snmp_config.getboolean("SNMP", "multiple_events", fallback=False)
     snmp_version = snmp_config.getint("SNMP", "snmp_version", fallback=3)
     snmp_mode = snmp_config.get("SNMP", "snmp_mode", fallback="auto")
+    snmp_user = snmp_config.get("SNMP", "snmp_user", fallback="auto")
+    snmp_password = snmp_config.get("SNMP", "snmp_password", fallback="auto")
+    snmp_priv = snmp_config.get("SNMP", "snmp_priv", fallback="auto")

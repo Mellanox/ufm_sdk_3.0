@@ -209,12 +209,12 @@ def main():
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     unregister_all()
-    # register_switch()
-    # get_trap_list()
-    # register_all()
-    # send_test_trap()
-    # trap_in_log()
-    # trap_in_ufm_events()
+    register_switch()
+    get_trap_list()
+    register_all()
+    send_test_trap()
+    trap_in_log()
+    trap_in_ufm_events()
 
     if FAILED_TESTS_COUNT > 0:
         print("\n{} tests failed".format(FAILED_TESTS_COUNT))

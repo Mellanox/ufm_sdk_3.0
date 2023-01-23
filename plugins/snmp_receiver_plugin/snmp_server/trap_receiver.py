@@ -68,11 +68,11 @@ class SnmpTrapReceiver:
         # TODO: change to sha512 and aes-256
         config.addV3User(
             self.snmp_engine,
-            helpers.SNMP_USER,
+            helpers.ConfigParser.snmp_user,
             config.usmHMACSHAAuthProtocol,
-            helpers.SNMP_PASSWORD,
+            helpers.ConfigParser.snmp_password,
             config.usmAesCfb128Protocol,
-            helpers.SNMP_PRIV_PASSWORD,
+            helpers.ConfigParser.snmp_priv,
             proto.rfc1902.OctetString(hexValue=engine_id)
         )
 

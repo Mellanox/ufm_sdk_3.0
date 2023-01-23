@@ -66,8 +66,8 @@ class Switch(UFMResource):
     def get_cli(ip, unregister=False):
         # TODO: change to sha512 and aes-256
         cli_register_v1_v2 = f"snmp-server host {ip} traps port {helpers.ConfigParser.snmp_port}"
-        cli_register_v3 = cli_register_v1_v2 + f" version 3 user {helpers.SNMP_USER} \
-                          auth sha {helpers.SNMP_PASSWORD} priv aes-128 {helpers.SNMP_PRIV_PASSWORD}"
+        cli_register_v3 = cli_register_v1_v2 + f" version 3 user {helpers.ConfigParser.snmp_user} \
+                          auth sha {helpers.ConfigParser.snmp_password} priv aes-128 {helpers.ConfigParser.snmp_priv}"
         cli_register = cli_register_v3 if helpers.ConfigParser.snmp_version == 3 else cli_register_v1_v2
         cli_unregister = f"no snmp-server host {ip}"
         return cli_unregister if unregister else cli_register
