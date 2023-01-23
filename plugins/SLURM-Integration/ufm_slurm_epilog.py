@@ -48,6 +48,18 @@ class UfmSlurmEpilog(UfmSlurmBase):
             logging.error("error in epilog init function: %s" % str(exc) )
             sys.exit(self.should_fail)
 
+    def get_job_nodes(self):
+        try:
+            slurm_job_nodelist = self.integration.getJobNodesName()
+            logging.info("SLURM_JOB_NODELIST: {0}".format(slurm_job_nodelist))
+            if not slurm_job_nodelist:
+                logging.error(Constants.LOG_CANNOT_GET_NODES)
+                sys.exit(self.should_fail)
+            return slurm_job_nodelist
+        except Exception as exc:
+            logging.error(Constants.LOG_ERROR_GET_NODES % str(exc))
+            sys.exit(self.should_fail)
+
 
 if __name__ == '__main__':
     try:
@@ -57,7 +69,11 @@ if __name__ == '__main__':
         epilog.init()
         epilog.epilog_init()
         epilog.connect_to_ufm()
-        epilog.delete_sharp_reservation(epilog.args.job_id)
+        slurm_job_nodelist = epilog.get_job_nodes()
+        if epilog.pkey_allocation:
+            epilog.remove_hosts_from_pkey(slurm_job_nodelist)
+        if epilog.sharp_allocation:
+            epilog.delete_sharp_allocation(epilog.args.job_id)
     except Exception as exc:
         logging.error(
         Constants.LOG_ERR_EPILOG % str(exc))
