@@ -92,7 +92,7 @@ steps:
 
 pipeline_start:
   run: |
-    d=UFM_6_12_0_$(date +%V)
+    d=UFM_6_10_0_$(date +%V)
     UFM_TAG=${UFM_TAG:-d}
     mkdir -p /auto/UFM/tmp/$UFM_TAG/logs
     sudo rm -rf /auto/UFM/tmp/$UFM_TAG/*
