@@ -21,7 +21,6 @@ send -- "exit\r"
 sleep 10
 EOF
 cd /$WORKSPACE
-# TOASK: we don't need to rin it on appliance
 tar -zxvf $(ls /$WORKSPACE/sysdump-ufm-appliance*.tgz)
 rm -rf sysdump-ufm-appliance*.tgz
 cd sysdump-ufm-appliance*

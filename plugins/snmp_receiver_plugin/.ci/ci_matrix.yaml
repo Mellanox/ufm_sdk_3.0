@@ -64,7 +64,7 @@ steps:
       sleep 30
       export SERVER_HOST=$SERVER_HOST
       cd plugins/snmp_receiver_plugin/tests
-      python3 snmp_test.py --host $SERVER_HOST
+      python3 snmp_test.py --host localhost
     parallel: false
   
   - name: get snmp logs

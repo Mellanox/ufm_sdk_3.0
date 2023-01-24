@@ -5,7 +5,6 @@ spawn ssh admin@${SERVER_HOST}
 expect "Password:*"
 send -- "admin\r"
 expect "> "
-# TOASK: don't need to run it on appliance
 send -- "enable\r"
 expect "# "
 send -- "config terminal\r"

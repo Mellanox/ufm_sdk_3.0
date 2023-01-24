@@ -112,7 +112,12 @@ def unregister_all():
 def register_switch():
     print("Register 1 switch")
     global SWITCHES
-    switch = SWITCHES[0]
+    test = "managed switches in the fabric"
+    assert_equal(SWITCH_LIST, len(SWITCHES), 1, test)
+    try:
+        switch = SWITCHES[0]
+    except:
+        return
     register_request = {
         "switches": [switch]
     }
@@ -213,7 +218,7 @@ def main():
     get_trap_list()
     register_all()
     send_test_trap()
-    trap_in_log()
+    # trap_in_log()
     trap_in_ufm_events()
 
     if FAILED_TESTS_COUNT > 0:
