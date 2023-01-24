@@ -14,7 +14,7 @@ To deploy the plugin on UFM Appliance:
 
 To deploy the plugin with UFM (SA or HA):
 - install the latest version of UFM;
-- run UFM with _/etc/init.d/ufmd start_;
+- run UFM with _service ufmd start_;
 - pull the plugin container with _docker pull mellanox/ufm-plugin-snmp_;
   - in case of HA load the plugin on the standby node as well;
 - run _/opt/ufm/scripts/manage_ufm_plugins.py add -p snmp_ to enable the plugin;
@@ -26,4 +26,4 @@ Log file snmp.log is located in /opt/ufm/files/log on the host.
 
 **Usage**
 
-This plugin receives all the traps from all the switches in the fabric and redirects them to UFM as events/alarms.
+This plugin is listening to SNMP traps from all managed switches in the fabric and redirecting them as events to UFM.

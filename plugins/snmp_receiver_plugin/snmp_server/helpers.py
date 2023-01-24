@@ -1,5 +1,5 @@
 #
-# Copyright © 2013-2022 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright © 2013-2023 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -214,9 +214,11 @@ class ConfigParser:
     config_file = "../build/config/snmp.conf"
     log_file="snmptrap.log"
     throughput_file = "throughput.log"
+    httpd_config_file = "../build/config/snmp_httpd_proxy.conf"
     # config_file = "/config/snmp.conf"
     # log_file="/log/snmptrap.log"
     # throughput_file = "/data/throughput.log"
+    # config_file = "/config/snmp_httpd_proxy.conf"
 
     snmp_config = configparser.ConfigParser()
     if not os.path.exists(config_file):
@@ -227,7 +229,6 @@ class ConfigParser:
     log_file_backup_count = snmp_config.getint("Log", "log_file_backup_count")
     log_format = '%(asctime)-15s %(levelname)s %(message)s'
 
-    snmp_ip = snmp_config.get("SNMP", "snmp_ip", fallback="0.0.0.0")
     snmp_port = snmp_config.getint("SNMP", "snmp_port", fallback=162)
     community = snmp_config.get("SNMP", "community", fallback="public")
     multiple_events = snmp_config.getboolean("SNMP", "multiple_events", fallback=False)
@@ -236,3 +237,9 @@ class ConfigParser:
     snmp_user = snmp_config.get("SNMP", "snmp_user", fallback="auto")
     snmp_password = snmp_config.get("SNMP", "snmp_password", fallback="auto")
     snmp_priv = snmp_config.get("SNMP", "snmp_priv", fallback="auto")
+
+    httpd_config = configparser.ConfigParser()
+    if not os.path.exists(httpd_config_file):
+        logging.error(f"No config file {httpd_config_file} found!")
+    httpd_config.read(httpd_config_file)
+    port = httpd_config.getint("SNMP", "port", fallback=8780)

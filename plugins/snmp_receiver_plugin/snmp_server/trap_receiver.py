@@ -1,5 +1,5 @@
 #
-# Copyright © 2013-2022 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright © 2013-2023 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -42,7 +42,7 @@ class SnmpTrapReceiver:
         self.mib_builder = None
         self.mib_view_controller = None
         self._init_mib_controller()
-        self.traps_n = 0
+        self.traps_number = 0
         self.st_t = 0
         self.events_at_time = 10
         self.throttling_interval = 10
@@ -59,10 +59,10 @@ class SnmpTrapReceiver:
 
     def _setup_transport(self):
         # UDP over IPv4, first listening interface/port
+        localhost = "0.0.0.0"
         config.addTransport(self.snmp_engine, udp.domainName + (1,),
                             udp.UdpTransport().openServerMode(
-                                (helpers.ConfigParser.snmp_ip,
-                                helpers.ConfigParser.snmp_port)))
+                                (localhost, helpers.ConfigParser.snmp_port)))
 
     def _register_v3_switch(self, engine_id):
         # TODO: change to sha512 and aes-256
@@ -116,7 +116,7 @@ class SnmpTrapReceiver:
     def trap_callback(self, snmpEngine, stateReference, contextEngineId, contextName, varBinds, cbCtx):
         # TODO: stop listening to the traps that we don't need to
         logging.debug('Trap received')
-        self.traps_n += 1
+        self.traps_number += 1
         varBindsResolved = [rfc1902.ObjectType(rfc1902.ObjectIdentity(x[0]), x[1]).resolveWithMib(self.mib_view_controller) for x in varBinds]
         # Get an execution context and use inner SNMP engine data to figure out peer address
         execContext = snmpEngine.observer.getExecutionContext('rfc3412.receiveMessage:request')
@@ -155,17 +155,17 @@ class SnmpTrapReceiver:
         while True:
             if not self.ip_to_trap_to_count:
                 continue
-            s_t = time.time()
+            start_time = time.time()
             asyncio.run(self.send_events())
-            e_t = time.time()
-            input_rate = self.traps_n / self.throttling_interval
-            output_rate = self.traps_n / (e_t - s_t)
+            end_time = time.time()
+            input_rate = self.traps_number / self.throttling_interval
+            output_rate = self.traps_number / (end_time - start_time)
             logging.warning(f"Input rate (agents -> plugin) is {input_rate} traps/second")
             logging.warning(f"Output rate (plugin -> UFM) is {output_rate} traps/second")
             with open(helpers.ConfigParser.throughput_file, "a") as file:
                 file.write(f"Input rate (agents -> plugin) is {input_rate} traps/second\n")
                 file.write(f"Output rate (plugin -> UFM) is {output_rate} traps/second\n")
-            self.traps_n = 0
+            self.traps_number = 0
             time.sleep(self.throttling_interval)
 
     async def send_events(self):

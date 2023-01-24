@@ -1,5 +1,5 @@
 #
-# Copyright © 2013-2022 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright © 2013-2023 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -13,6 +13,7 @@
 # @date:   November, 2022
 #
 import asyncio
+import configparser
 from flask import Flask
 from flask_restful import Api
 import logging
@@ -28,7 +29,7 @@ from trap_receiver import SnmpTrapReceiver
 
 class SNMPWebServer:
     def __init__(self, switch_dict):
-        self.port_number = 8780
+        self.port_number = helpers.ConfigParser.port
         self.app = Flask(__name__)
         self.api = Api(self.app)
         self.switch_dict = switch_dict
