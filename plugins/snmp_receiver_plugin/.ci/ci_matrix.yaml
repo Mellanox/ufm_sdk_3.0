@@ -12,62 +12,21 @@ kubernetes:
 credentials:
   - {credentialsId: '2c8fd3fe-df05-4f6f-9d1f-f1896d611434', usernameVariable: 'REST_USER', passwordVariable: 'PASSWORD'}
 
-volumes:
-  - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
-runs_on_dockers:
-   - {file: '.ci/Dockerfile_static_tests_ub2004', arch: 'x86_64', name: 'swx_static', tag: 'latest'}
+#volumes:
+#  - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
+#runs_on_dockers:
+#   - {file: '.ci/Dockerfile_static_tests_ub2004', arch: 'x86_64', name: 'swx_static', tag: 'latest'}
+
 runs_on_agents:
   - nodeLabel: 'UFM-POC'
 
 steps:
-  - name: pylint
-    containerSelector: "{name: 'swx_static'}"
-    shell: '#!/bin/bash -x'
-    run: |
-      ret_code=0
-      mkdir -p $WORKSPACE/logs/
-      export PYTHONPATH=./src/:$PYTHONPATH
-      python3 --version > logs/app-versions.txt
-      python3 -m pip list >> logs/app-versions.txt
-      lst=$(git diff --name-status remotes/origin/${ghprbTargetBranch} | grep -v ^D | awk '{print $NF}' |grep ".py$")
-      if [ -z "$lst" ]; then 
-          echo "No *.py changed files" >> logs/pylint.txt
-      else
-          for f in ${lst}; do 
-              echo "pylint ${f}" >> logs/pylint.txt
-              echo " " >> logs/pylint.txt
-              pylint "${f}" >> logs/pylint.txt 2>&1
-              # we are interested in return codes 1(fatal), 2(error), 4(warning) ==> bitmask 0x7
-              # see: http://pylint.pycqa.org/en/latest/user_guide/run.html#exit-codes
-              pylint_code=$(($(echo $?) & 0x7))
-              ret_code=$(($pylint_code | $ret_code))
-              echo " " >> logs/pylint.txt
-         done
-      fi
-      exit $ret_code
-    archiveArtifacts: 'logs/'
-    parallel: true
-    enable: false
-
-
-  - name: Running Bandit
-    containerSelector: "{name: 'swx_static'}"
-    shell: '#!/bin/bash -x'
-    run: |
-      pwd
-      mkdir $WORKSPACE/logs/
-      lst=$(git diff --name-status remotes/origin/$ghprbTargetBranch | grep -v ^D | awk '{print $NF}' |grep ".py$")
-      if [ "$lst" == "" ]; then
-          echo "No *.py changed files" > $WORKSPACE/logs/bandit.html
-      else
-          /usr/local/bin/bandit -lll -f html -c $WORKSPACE/.ci/bandit.yaml ${lst} > $WORKSPACE/logs/bandit.html || true
-      fi
-    parallel: true
-    archiveArtifacts: 'logs/*'
-
   - name: build Plugin
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
+      printenv
+      pwd
+      ls
       cd build
       bash -x ./docker_build.sh
       cp /ufm-plugin-snmp* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
@@ -78,7 +37,6 @@ steps:
     run: .ci/do_remove_plugin.sh
     parallel: false
     
-
   - name: Install Plugin Server
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     credentialsId: '2c8fd3fe-df05-4f6f-9d1f-f1896d611434'
@@ -98,7 +56,6 @@ steps:
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: .ci/do_add_plugin.sh 
     parallel: false
-
 
   - name: run client tests
     agentSelector: "{nodeLabel: 'UFM-POC'}"
@@ -123,8 +80,6 @@ steps:
     run: .ci/do_remove_plugin.sh
     parallel: false
     
-
-
 
 pipeline_start:
   run: |
