@@ -9,11 +9,11 @@ kubernetes:
   cloud: swx-k8s
   nodeSelector: 'beta.kubernetes.io/os=linux'
 
-1. Create docker container FOR snmp (located in build/docker_build)
-2. Verify UFM is up and running ( ????)
-3. Load_plugin ( ??? )
-4. run test (located at tests/reals_switch_test.py)
-5. get logs (???)
+#1. Createdocker container FOR snmp (located in build/docker_build)
+#2. Verify UFM is up and running ( ????)
+#3. Load_plugin ( ??? )
+#4. run test (located at tests/reals_switch_test.py)
+#5. get logs (???)
 
 volumes:
   - {mountPath: /auto/UFM, hostPath: /auto/UFM}
