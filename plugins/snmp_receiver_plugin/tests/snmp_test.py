@@ -132,7 +132,7 @@ def register_switch():
 
 def get_trap_list():
     print("Get trap list")
-    with open("snmp_server/traps_policy.csv", "r") as traps_info_file:
+    with open("../snmp_server/traps_policy.csv", "r") as traps_info_file:
         gold = []
         csvreader = csv.reader(traps_info_file)
         for row in csvreader:
