@@ -123,6 +123,9 @@ class BrightDataMgr(Singleton):
     def get_bright_cluster_saved_settings(self):
         return self.djson.get(self.get_bright_cluster_addr(), {}).get("settings", {})
 
+    def get_bright_cluster_timezone(self):
+        return self.get_bright_cluster_saved_settings().get("timezone")
+
     def get_bright_cluster_saved_data(self):
         return self.djson.get(self.get_bright_cluster_addr(), {}).get("data", {})
 
@@ -208,7 +211,7 @@ class BrightDataMgr(Singleton):
             ) >= 1 # do retention if the current unit is h & last clean has been done before 1 hour
         if do_retention:
             Logger.log_message('Clean old history data based on the data retention period', LOG_LEVELS.DEBUG)
-            data_retention_date = current_datetime - data_retention_date
+            data_retention_date = pytz.timezone(self.get_bright_cluster_timezone()).localize(current_datetime - data_retention_date)
             saved_data = self.get_bright_cluster_saved_data()
             saved_data_list = list(saved_data.items())
             for node, node_data in saved_data_list:
@@ -226,7 +229,7 @@ class BrightDataMgr(Singleton):
             Logger.log_message('Clean old history data based on the data retention period completed successfully')
 
     def convert_bright_time_to_datetime(self, time_str):
-        btz = pytz.timezone(self.get_bright_cluster_saved_settings().get("timezone"))
+        btz = pytz.timezone(self.get_bright_cluster_timezone())
         dt = datetime.datetime.strptime(time_str, self.bright_time_format)
         dt = btz.localize(dt)
         return dt
