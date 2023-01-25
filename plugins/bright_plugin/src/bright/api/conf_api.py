@@ -106,5 +106,5 @@ class UFMBrightPluginConfigurationsAPI(BaseAPIApplication):
                 "err_message": self.bright_data_mgr.status_err_msg
             }
         resp[self.conf.BRIGHT_CONFIG_SECTION][self.conf.BRIGHT_CONFIG_SECTION_TIMEZONE] = \
-            self.bright_data_mgr.get_bright_cluster_saved_settings().get("timezone")
+            self.bright_data_mgr.get_bright_cluster_timezone()
         return resp
