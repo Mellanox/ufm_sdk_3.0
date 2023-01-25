@@ -211,14 +211,14 @@ class Trap:
         self.count += 1
 
 class ConfigParser:
-    config_file = "../build/config/snmp.conf"
-    log_file="snmptrap.log"
-    throughput_file = "throughput.log"
-    httpd_config_file = "../build/config/snmp_httpd_proxy.conf"
-    # config_file = "/config/snmp.conf"
-    # log_file="/log/snmptrap.log"
-    # throughput_file = "/data/throughput.log"
-    # config_file = "/config/snmp_httpd_proxy.conf"
+    # config_file = "../build/config/snmp.conf"
+    # log_file="snmptrap.log"
+    # throughput_file = "throughput.log"
+    # httpd_config_file = "../build/config/snmp_httpd_proxy.conf"
+    config_file = "/config/snmp.conf"
+    log_file="/log/snmptrap.log"
+    throughput_file = "/data/throughput.log"
+    config_file = "/config/snmp_httpd_proxy.conf"
 
     snmp_config = configparser.ConfigParser()
     if not os.path.exists(config_file):
