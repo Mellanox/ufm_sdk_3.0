@@ -197,9 +197,10 @@ def trap_in_ufm_events():
     assert_equal(request_string, get_code(response), 200, "get ufm events")
     events = get_response(response)
     gold_result = "Event has been sent successfully"
+    expected_trap = "MELLANOX-EFM-MIB::testTrap"
     result = ""
     for event in events[::-1]:
-        if "simulated test trap" in event["description"]:
+        if expected_trap in event["description"]:
             event_datetime = datetime.strptime(event["timestamp"], DATETIME_FORMAT)
             if event_datetime > START_TIME:
                 result = gold_result
@@ -207,6 +208,8 @@ def trap_in_ufm_events():
                 result = f"Event hasn't been received! Last event time: {event_datetime}, \
                            test start time: {START_TIME.strftime(DATETIME_MS_FORMAT)}"
             break
+        else:
+            result = f"No {expected_trap} has been found in events"
     assert_equal("compare timings", result, gold_result, "new trap in log")
 
 def main():
