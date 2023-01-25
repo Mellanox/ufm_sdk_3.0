@@ -45,7 +45,7 @@ export class UfmDevicesDataTableHookService {
               },
               error: (err: any) => {
                 console.error(err)
-                observable.next(ufmDevices);
+                observable.error(err);
                 observable.complete()
               }
             });
@@ -54,6 +54,10 @@ export class UfmDevicesDataTableHookService {
             observable.next(ufmDevices);
             observable.complete()
           }
+        },
+        error: (err)=>{
+          observable.error(err);
+          observable.complete()
         }
       });
     });

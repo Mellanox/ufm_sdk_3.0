@@ -8,6 +8,9 @@ import {ChangeDetectorRef, Component, EventEmitter, OnInit, ViewChild} from '@an
  * */
 import {BehaviorSubject, Subscription} from "rxjs";
 import {NavigationEnd, Router} from '@angular/router';
+import {
+  SmsPluginBaseComponentComponent
+} from "../../../../../sms-ui-suite/sms-plugin-base-component/sms-plugin-base-component.component";
 
 /**
  * @CONSTANTS
@@ -37,7 +40,7 @@ import {TimePickerType} from "../../packages/time-picker-modal/time-picker-type.
   templateUrl: './devices-jobs-view.component.html',
   styleUrls: ['./devices-jobs-view.component.scss']
 })
-export class DevicesJobsViewComponent implements OnInit {
+export class DevicesJobsViewComponent extends SmsPluginBaseComponentComponent implements OnInit{
 
   /**
    * @VARIABLES
@@ -63,6 +66,7 @@ export class DevicesJobsViewComponent implements OnInit {
               private router: Router,
               private ufmDevicesBackendService: UfmDevicesBackendService,
               private cdr: ChangeDetectorRef) {
+    super();
     this.routerParamsSub = this.router.events.subscribe((event) => {
       if (event instanceof NavigationEnd && this.selectedTimeRangeInMS) {
         this.loadData();

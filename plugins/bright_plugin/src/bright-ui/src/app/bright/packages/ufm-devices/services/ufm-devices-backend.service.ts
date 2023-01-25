@@ -1,5 +1,5 @@
 import {Injectable} from '@angular/core';
-import {HttpClient} from "@angular/common/http";
+import {HttpClientService} from "../../../../../../sms-ui-suite/sms-http-client/http-client.service";
 import {Observable} from "rxjs";
 import {UfmDevicesConstants} from "../constants/ufm-devices.constants";
 
@@ -8,7 +8,7 @@ import {UfmDevicesConstants} from "../constants/ufm-devices.constants";
 })
 export class UfmDevicesBackendService {
 
-  constructor(private httpService: HttpClient,
+  constructor(private httpService: HttpClientService,
               private ufmDevicesConstants: UfmDevicesConstants) {
 
   }

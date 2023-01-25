@@ -3,13 +3,16 @@ import {FormControl, FormGroup} from "@angular/forms";
 import {BrightConstants} from "../../packages/bright/constants/bright.constants";
 import {BrightConfigurationsViewService} from "./services/bright-configurations-view.service";
 import {BrightBackendService} from "../../packages/bright/services/bright-backend.service";
+import {
+  SmsPluginBaseComponentComponent
+} from "../../../../../sms-ui-suite/sms-plugin-base-component/sms-plugin-base-component.component";
 
 @Component({
   selector: 'app-bright-configurations-view',
   templateUrl: './bright-configurations-view.component.html',
   styleUrls: ['./bright-configurations-view.component.scss']
 })
-export class BrightConfigurationsViewComponent implements OnInit {
+export class BrightConfigurationsViewComponent extends SmsPluginBaseComponentComponent implements OnInit {
 
   /**
    * @VARIABLES
@@ -30,13 +33,14 @@ export class BrightConfigurationsViewComponent implements OnInit {
 
   constructor(private bcViewService: BrightConfigurationsViewService,
               private brightBackendService: BrightBackendService) {
+    super();
   }
 
   ngOnInit(): void {
     this.loadData();
   }
 
-  private loadData(dataIsLoading=true): void {
+  private loadData(dataIsLoading = true): void {
     this.dataIsLoading = dataIsLoading;
     this.brightBackendService.getBrightConf().subscribe({
       next: (data) => {
@@ -45,6 +49,9 @@ export class BrightConfigurationsViewComponent implements OnInit {
         this.initFormFields(data)
         this.dataIsLoading = false;
         this.errorMessage = this.status.value[this.BRIGHT_CONF_SERVER_KEYS.statusErrMessage]
+      },
+      error: () => {
+        this.dataIsLoading = false;
       }
     })
   }
