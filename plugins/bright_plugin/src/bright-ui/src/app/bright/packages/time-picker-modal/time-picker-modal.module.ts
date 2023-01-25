@@ -28,7 +28,7 @@ import {TimePickerModalComponent} from "./time-picker-modal.component";
     ButtonsModule,
     SmsRadioButtonModule,
     BsDatepickerModule.forRoot(),
-    BsDropdownModule
+    BsDropdownModule.forRoot()
   ]
 })
 export class TimePickerModalModule {

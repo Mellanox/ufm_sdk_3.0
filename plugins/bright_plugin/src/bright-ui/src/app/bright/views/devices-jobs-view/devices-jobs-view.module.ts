@@ -9,6 +9,7 @@ import {UfmDevicesModule} from "../../packages/ufm-devices/ufm-devices.module";
 import {DevicesJobsRoutes} from "./devices-jobs.routes";
 import {BrowserAnimationsModule} from "@angular/platform-browser/animations";
 import {TimePickerModalModule} from "../../packages/time-picker-modal/time-picker-modal.module";
+import {SmsPluginBaseComponentModule} from "../../../../../sms-ui-suite/sms-plugin-base-component/sms-plugin-base-component.module";
 
 
 @NgModule({
@@ -21,6 +22,7 @@ import {TimePickerModalModule} from "../../packages/time-picker-modal/time-picke
   imports: [
     CommonModule,
     BrowserAnimationsModule,
+    SmsPluginBaseComponentModule,
     BrightModule,
     XCoreAgGridModule,
     RouterModule.forChild(DevicesJobsRoutes),

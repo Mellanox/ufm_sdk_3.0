@@ -16,7 +16,7 @@
 
 import {Injectable} from '@angular/core';
 import {BrightConstants} from "../constants/bright.constants";
-import {HttpClient} from "@angular/common/http";
+import {HttpClientService} from "../../../../../../sms-ui-suite/sms-http-client/http-client.service";
 import {map, Observable} from "rxjs";
 import * as jstz from 'jstz';
 
@@ -24,7 +24,7 @@ import * as jstz from 'jstz';
   providedIn: 'root'
 })
 export class BrightBackendService {
-  constructor(private httpService: HttpClient,
+  constructor(private httpService: HttpClientService,
               private brightConstants: BrightConstants) {
   }
 

@@ -6,6 +6,7 @@ import {BrightConfigurationsRoutes} from './bright-configurations.routes';
 import {FormsModule, ReactiveFormsModule} from "@angular/forms";
 import {ButtonsModule} from "ngx-bootstrap/buttons";
 import {SpinnerModule} from 'sms-ui-suite/sms-spinner/spinner.module';
+import {SmsPluginBaseComponentModule} from "../../../../../sms-ui-suite/sms-plugin-base-component/sms-plugin-base-component.module";
 @NgModule({
   declarations: [
     BrightConfigurationsViewComponent
@@ -16,6 +17,7 @@ import {SpinnerModule} from 'sms-ui-suite/sms-spinner/spinner.module';
   imports: [
     CommonModule,
     RouterModule.forChild(BrightConfigurationsRoutes),
+    SmsPluginBaseComponentModule,
     SpinnerModule,
     ReactiveFormsModule,
     FormsModule,

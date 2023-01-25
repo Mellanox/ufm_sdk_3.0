@@ -32,8 +32,8 @@
     "bootstrap": "^5.2.0",
     "jstz": "^2.1.1",
     "moment": "^2.27.0",
-    "ngx-bootstrap": "^8.0.0",
-    "ngx-clipboard": "^15.1.0",
+    "ngx-bootstrap": "^5.6.2",
+    "ngx-clipboard": "^12.3.0",
     "rxjs": "~7.5.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.11.4"
