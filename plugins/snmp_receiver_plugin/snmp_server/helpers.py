@@ -218,7 +218,7 @@ class ConfigParser:
     config_file = "/config/snmp.conf"
     log_file="/log/snmptrap.log"
     throughput_file = "/data/throughput.log"
-    config_file = "/config/snmp_httpd_proxy.conf"
+    httpd_config_file = "/config/snmp_httpd_proxy.conf"
 
     snmp_config = configparser.ConfigParser()
     if not os.path.exists(config_file):
@@ -238,8 +238,9 @@ class ConfigParser:
     snmp_password = snmp_config.get("SNMP", "snmp_password", fallback="auto")
     snmp_priv = snmp_config.get("SNMP", "snmp_priv", fallback="auto")
 
-    httpd_config = configparser.ConfigParser()
     if not os.path.exists(httpd_config_file):
         logging.error(f"No config file {httpd_config_file} found!")
-    httpd_config.read(httpd_config_file)
-    port = httpd_config.getint("SNMP", "port", fallback=8780)
+    port=8780
+    with open(httpd_config_file, "r") as file:
+        line = file.readline()
+        port = line.split("=")[-1]
