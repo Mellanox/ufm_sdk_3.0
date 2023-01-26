@@ -12,7 +12,6 @@
 # @author: Alexander Tolikin
 # @date:   November, 2022
 #
-
 import argparse
 import csv
 from datetime import datetime
