@@ -11,9 +11,10 @@ send -- "config terminal\r"
 expect "/(config/) # "
 send -- "no ufm start\r"
 expect "/(config/) # "
+sleep 30
 send -- "ufm start\r"
 expect "/(config/) # "
-sleep 20
+sleep 30
 send -- "ufm plugin snmp add tag latest\r"
 expect "/(config/) # "
 send -- "ufm plugin snmp enable\r"
