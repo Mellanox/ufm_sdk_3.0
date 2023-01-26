@@ -2,7 +2,7 @@ UFM Aggregation TopX
 --------------------------------------------------------
 
 
-This script is used to get topx data by category. it will support three categories cong ,bw and alarms.
+This script is used to get topx data by category. it will support three categories congestion (cong), bandwidth (bw), and alarms.
 
 
 Prerequisites
