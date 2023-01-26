@@ -13,6 +13,7 @@
 # @date:   November, 2022
 #
 import csv
+from datetime import datetime
 from flask_restful import Resource
 from flask import request
 from http import HTTPStatus
@@ -27,6 +28,7 @@ class UFMResource(Resource):
     def __init__(self, switch_dict):
         self.switch_dict = switch_dict
         self.registered_switches = set(self.read_json_file(helpers.SWITCHES_FILE))
+        self.datetime_format = "%Y-%m-%d %H:%M:%S"
 
     def update_registered_switches(self, switches, unregister=False):
         if unregister:
@@ -35,6 +37,9 @@ class UFMResource(Resource):
             self.registered_switches.update(switches)
         with open(helpers.SWITCHES_FILE, "w") as file:
             json.dump(list(self.registered_switches), file)
+
+    def get_timestamp(self):
+        return str(datetime.now().strftime(self.datetime_format))
 
     @staticmethod
     def read_json_file(file_name):
@@ -193,6 +198,14 @@ class Version(UFMResource):
         logging.info("GET /plugin/ndt/version")
         version_file = "release.json"
         return self.read_json_file(version_file), HTTPStatus.OK
+
+    def post(self):
+        return self.report_error(HTTPStatus.METHOD_NOT_ALLOWED, "Method is not allowed")
+
+class Date(UFMResource):
+    def get(self):
+        logging.info("GET /plugin/snmp/date")
+        return {"date": self.get_timestamp()}, HTTPStatus.OK
 
     def post(self):
         return self.report_error(HTTPStatus.METHOD_NOT_ALLOWED, "Method is not allowed")

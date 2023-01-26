@@ -18,18 +18,20 @@ import csv
 from datetime import datetime
 import requests
 import sys
+import time
 
 # rest api
 GET = "GET"
 POST = "POST"
 
+DATE = "date"
 SWITCH_LIST = "switch_list"
 UNREGISTER = "unregister"
 REGISTER = "register"
 TRAP_LIST = "trap_list"
 
-# DEFAULT_PASSWORD="123456"
-DEFAULT_PASSWORD="admin"
+DEFAULT_PASSWORD="123456"
+# DEFAULT_PASSWORD="admin"
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 DATETIME_MS_FORMAT = DATETIME_FORMAT + ",%f"
 
@@ -154,6 +156,7 @@ def register_all():
     assert_equal(request_string, get_code(response), 200, test)
     global SWTICHES
     assert_equal(request_string, get_response(response), SWITCHES, test)
+    time.sleep(30)
 
 def send_test_trap():
     print("Send test trap")
@@ -170,6 +173,7 @@ def send_test_trap():
 
     response, request_string = make_request(POST, "actions", send_trap_request, api="")
     assert_equal(request_string, get_code(response), 202, "send test trap")
+    time.sleep(30)
 
 def trap_in_log():
     print("Check trap in log")
@@ -190,6 +194,12 @@ def trap_in_log():
                                test start time: {START_TIME.strftime(DATETIME_MS_FORMAT)}"
                 break
     assert_equal("compare timings", result, gold_result, "new trap in log")
+
+def get_server_datetime():
+    response, _ = make_request(GET, DATE)
+    datetime_response = get_response(response)
+    datetime_string = datetime_response["date"]
+    return datetime.strptime(datetime_string, DATETIME_FORMAT)
 
 def trap_in_ufm_events():
     print("Check trap event in UFM events")
@@ -236,6 +246,6 @@ if __name__ == "__main__":
     parser.add_argument('-ip', '--host', type=str, required=True, help='Host IP address where SNMP plugin is running')
     args = parser.parse_args()
     HOST_IP = args.host
-    START_TIME = datetime.now()
+    START_TIME = get_server_datetime()
 
     sys.exit(main())
