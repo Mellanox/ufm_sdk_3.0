@@ -1,0 +1,92 @@
+[
+  {
+    "mfEntry": "/ufmRestV2/plugin/hello_world/files/remoteEntry.js",
+    "name": "hello_world_ui",
+    "exposedModule": "GeneralRouteModule",
+    "ngModuleName": "GeneralRouteModuleModule",
+    "hookInfo": {
+      "type": "leftMenu",
+      "label": "General Plugin",
+      "key": "gplugin",
+      "route": "gplugin",
+      "pluginRoute": "general",
+      "icon": "fa fa-cog",
+      "order": 5
+    }
+  },
+  {
+    "mfEntry": "/ufmRestV2/plugin/hello_world/files/remoteEntry.js",
+    "name": "hello_world_ui",
+    "exposedModule": "GeneralRouteModule",
+    "ngModuleName": "GeneralRouteModuleModule",
+    "hookInfo": {
+      "type": "dynamicLeftMenuItems",
+      "route": "general-dynamic-menu",
+      "order": 6,
+      "menuItemsGetterServiceName": "DynamicMenuItemsService",
+      "menuItemsGetterFnName": "getSideBarMenuItems"
+    }
+  },
+  {
+    "mfEntry": "/ufmRestV2/plugin/hello_world/files/remoteEntry.js",
+    "name": "hello_world_ui",
+    "exposedModule": "HelloWorldModule",
+    "ngModuleName": "HelloWorldModule",
+    "hookInfo": {
+      "type": "existingRoute",
+      "route": "system-health/ufm-health"
+    }
+  },
+  {
+    "mfEntry": "/ufmRestV2/plugin/hello_world/files/remoteEntry.js",
+    "name": "hello_world_ui",
+    "exposedModule": "GeneralRouteModule",
+    "ngModuleName": "GeneralRouteModuleModule",
+    "hookInfo": {
+      "type": "existingRoute",
+      "route": "^(ufm)/(groups)$"
+    }
+  },
+  {
+    "mfEntry": "/ufmRestV2/plugin/hello_world/files/remoteEntry.js",
+    "name": "hello_world_ui",
+    "exposedModule": "DevicesDataTableModule",
+    "ngModuleName": "DevicesDataTableModule",
+    "hookInfo": {
+      "type": "devicesDataTable",
+      "serviceClassName": "DevicesDataTableService",
+      "hookFn": "appendBrightData"
+    }
+  },
+  {
+    "mfEntry": "/ufmRestV2/plugin/hello_world/files/remoteEntry.js",
+    "name": "hello_world_ui",
+    "exposedModule": "HelloWorldModule",
+    "ngModuleName": "HelloWorldModule",
+    "hookInfo": {
+      "type": "deviceDetailsTabs",
+      "label": "External Bright Jobs",
+      "key": "external_bright_jobs",
+      "route": "external_bright_jobs",
+      "order": 5,
+      "visible": {
+        "key": "plugin.is_bright2",
+        "value": true
+      }
+    }
+  },
+  {
+    "mfEntry": "/ufmRestV2/plugin/hello_world/files/remoteEntry.js",
+    "name": "hello_world_ui",
+    "exposedModule": "DeviceContextMenuModule",
+    "ngModuleName": "DevicesContextMenuModule",
+    "hookInfo": {
+      "type": "deviceContextMenu",
+      "label": "Device Information",
+      "key": "dev_info",
+      "componentClassName": "DevicesContextMenuComponent",
+      "order": 5,
+      "clickHandlerFn": "openModal"
+    }
+  }
+]
