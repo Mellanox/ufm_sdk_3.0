@@ -50,6 +50,7 @@ class SnmpTrapReceiver:
         self.ip_to_trap_to_count = {}
         self.oid_to_traps_info = {}
         self._init_traps_info()
+        self.high_event_rate = 100
 
     def _init_traps_info(self):
         with open(helpers.TRAPS_POLICY_FILE, 'r') as traps_info_file:
@@ -161,6 +162,8 @@ class SnmpTrapReceiver:
             input_rate = self.traps_number / self.throttling_interval
             output_rate = self.traps_number / (end_time - start_time)
             logging.warning(f"Input rate (agents -> plugin) is {input_rate} traps/second")
+            if input_rate > self.high_event_rate:
+                logging.warning(f"Input rate is high, some traps might be dropped")
             logging.warning(f"Output rate (plugin -> UFM) is {output_rate} traps/second")
             with open(helpers.ConfigParser.throughput_file, "a") as file:
                 file.write(f"Input rate (agents -> plugin) is {input_rate} traps/second\n")
