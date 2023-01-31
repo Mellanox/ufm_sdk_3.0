@@ -33,7 +33,7 @@ Functions commonly added by optional UFM plugins include:
 
     1. _**init.sh**_ : Initialize script that should be placed in the root folder _**(/init.sh)**_ and have execute permission. It is being invoked by the UFM plugin manager upon plugin deployment (when adding a new plugin). The developer may copy the plugins configuration files to _**/config**_ folder which is mapped to the DRBD partition on the host (location on host: _/opt/ufm/files/plugins/{plugin name}_)
 
-    2. _**deinit.sh**_ : De-initialize script that should be placed in the root folder _**(/deinit.sh)**_, have execute permission and return zero (there is not much we can do in this stage). It is being invoked by the UFM plugin manager upon plugin removal. The developer may clear files and folders that are placed on the host (e.g., log files) 
+    2. _**deinit.sh**_ : De-initialize script that should be placed in the root folder _**(/deinit.sh)**_, have execute permission and return zero. It is being invoked by the UFM plugin manager upon plugin removal. The developer may clear files and folders that are placed on the host (e.g., log files) 
 
 * Each plugin may have the following files:
 
