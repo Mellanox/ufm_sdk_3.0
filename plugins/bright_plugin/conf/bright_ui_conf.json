@@ -33,7 +33,7 @@
     "ngModuleName": "BrightConfigurationsViewModule",
     "hookInfo": {
       "type": "settingsDetailsTabs",
-      "label": "Bright Configurations",
+      "label": "Bright Configuration",
       "key": "bright",
       "route": "bright"
     }
