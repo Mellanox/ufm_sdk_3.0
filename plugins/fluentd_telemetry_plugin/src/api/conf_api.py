@@ -77,6 +77,7 @@ class StreamingConfigurationsAPI(BaseAPIApplication):
         try:
             if self.conf.get_enable_streaming_flag():
                 self._validate_required_configurations_on_enable()
+                self.scheduler.stop_streaming()
                 self.scheduler.start_streaming(update_attributes=True)
             else:
                 self.scheduler.stop_streaming()

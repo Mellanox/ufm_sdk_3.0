@@ -59,6 +59,8 @@ if __name__ == '__main__':
 
     except ValueError as ex:
         logging.warning("Streaming was not started, need to enable the streaming & set the required configurations")
+    except Exception as ex:
+        logging.error(f'Streaming was not started due to the following error: {str(ex)}')
 
     try:
         app = UFMTelemetryFluentdStreamingAPI(config_parser)
