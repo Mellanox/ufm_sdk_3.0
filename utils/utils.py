@@ -82,7 +82,6 @@ class Utils:
         current_abs_path = os.path.abspath(os.path.join(dirname, os.pardir))
         return os.path.join(current_abs_path, path)
 
-
     @staticmethod
     def get_plugin_port(port_conf_file, default_port_value):
         port = default_port_value
@@ -96,3 +95,12 @@ class Utils:
         except:
             pass
         return port
+
+    @staticmethod
+    def convert_str_to_type(value, new_type):
+        if isinstance(value, str):
+            if new_type == "integer":
+                value = int(value)
+            elif new_type == "boolean":
+                value = value.lower() == 'true'
+        return value
