@@ -292,11 +292,11 @@ class UFMTelemetryStreaming(Singleton):
 
     @property
     def fluentd_msg_tag(self):
-        return self.config_parser.get_fluentd_msg_tag(self.ufm_telemetry_host)
+        return self.config_parser.get_fluentd_msg_tag()
 
-    def _get_metrics(self):
-        _host = f'[{self.ufm_telemetry_host}]' if Utils.is_ipv6_address(self.ufm_telemetry_host) else self.ufm_telemetry_host
-        url = f'http://{_host}:{self.ufm_telemetry_port}/{self.ufm_telemetry_url}'
+    def _get_metrics(self, _host, _port, _url):
+        _host = f'[{_host}]' if Utils.is_ipv6_address(_host) else _host
+        url = f'http://{_host}:{_port}/{_url}'
         logging.info(f'Send UFM Telemetry Endpoint Request, Method: GET, URL: {url}')
         try:
             response = requests.get(url)
@@ -493,27 +493,33 @@ class UFMTelemetryStreaming(Singleton):
         Logger.log_message('Updating The streaming attributes', LOG_LEVELS.DEBUG)
         # load the saved attributes
         self.streaming_attributes = self._get_saved_streaming_attributes()
-        telemetry_data = self._get_metrics()
-        ufm_telemetry_is_prometheus_format = self._check_data_prometheus_format(telemetry_data)
-        if not ufm_telemetry_is_prometheus_format:
-            # CSV format
-            rows = telemetry_data.split("\n")
-            if len(rows):
-                headers = rows[0].split(",")
-                for attribute in headers:
-                    self._add_streaming_attribute(attribute)
-        else:
-            # prometheus format
-            for family in text_string_to_metric_families(telemetry_data):
-                # add the counter attribute
-                self._add_streaming_attribute(family.name)
-                for sample in family.samples:
-                    # add the labels/metadata attributes
-                    for attribute in list(sample.labels.keys()):
-                        attribute = attribute if attribute != 'source' else 'source_id'
-                        self._add_streaming_attribute(attribute)
-            # custom attribute won't be found in the prometheus format, should be added manually
-            self._add_streaming_attribute('timestamp')
+        telemetry_endpoints = self.ufm_telemetry_endpoints
+        for endpoint in telemetry_endpoints:
+            _host = endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_HOST)
+            _port = endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_PORT)
+            _url = endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_URL)
+            telemetry_data = self._get_metrics(_host, _port, _url)
+            if telemetry_data:
+                ufm_telemetry_is_prometheus_format = self._check_data_prometheus_format(telemetry_data)
+                if not ufm_telemetry_is_prometheus_format:
+                    # CSV format
+                    rows = telemetry_data.split("\n")
+                    if len(rows):
+                        headers = rows[0].split(",")
+                        for attribute in headers:
+                            self._add_streaming_attribute(attribute)
+                else:
+                    # prometheus format
+                    for family in text_string_to_metric_families(telemetry_data):
+                        # add the counter attribute
+                        self._add_streaming_attribute(family.name)
+                        for sample in family.samples:
+                            # add the labels/metadata attributes
+                            for attribute in list(sample.labels.keys()):
+                                attribute = attribute if attribute != 'source' else 'source_id'
+                                self._add_streaming_attribute(attribute)
+                    # custom attribute won't be found in the prometheus format, should be added manually
+                    self._add_streaming_attribute('timestamp')
         # update the streaming attributes files
         self.update_saved_streaming_attributes(self.streaming_attributes)
         Logger.log_message('The streaming attributes were updated successfully')
