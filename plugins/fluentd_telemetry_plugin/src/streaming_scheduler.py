@@ -33,7 +33,7 @@ class NoRunningStreamingInstance(Exception):
 class StreamingScheduler(Singleton):
     def __init__(self):
         self.scheduler = BackgroundScheduler()
-        self.streaming_job = None
+        self.streaming_jobs = None
         pass
 
     def start_streaming(self, update_attributes=False):
@@ -41,19 +41,25 @@ class StreamingScheduler(Singleton):
         streamer.clear_cached_streaming_data()
         if update_attributes:
             streamer.init_streaming_attributes()
-        if not self.streaming_job:
-            self.streaming_job = self.scheduler.add_job(streamer.stream_data, 'interval',
-                                                        seconds=streamer.streaming_interval,
-                                                        next_run_time=datetime.now())
+        if not self.streaming_jobs:
+            self.streaming_jobs = []
+            for telemetry_endpoint in streamer.ufm_telemetry_endpoints:
+                interval = int(telemetry_endpoint[streamer.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_INTERVAL])
+                streaming_job = self.scheduler.add_job(streamer.stream_data, 'interval',
+                                                       args=[telemetry_endpoint],
+                                                       seconds=interval,
+                                                       next_run_time=datetime.now())
+                self.streaming_jobs.append(streaming_job)
             if not self.scheduler.running:
                 self.scheduler.start()
 
-        return self.streaming_job.id
+        return self.streaming_jobs
 
     def stop_streaming(self):
-        if self.streaming_job and self.scheduler.running:
-            self.scheduler.remove_job(self.streaming_job.id)
-            self.streaming_job = None
+        if self.streaming_jobs and self.scheduler.running:
+            for job in self.streaming_jobs:
+                self.scheduler.remove_job(job.id)
+            self.streaming_jobs = None
             return True
 
     def get_streaming_state(self):
