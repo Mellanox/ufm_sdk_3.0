@@ -92,15 +92,15 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
     UFM_TELEMETRY_ENDPOINT_SECTION_HOST = "host"
     UFM_TELEMETRY_ENDPOINT_SECTION_PORT = "port"
     UFM_TELEMETRY_ENDPOINT_SECTION_URL = "url"
+    UFM_TELEMETRY_ENDPOINT_SECTION_INTERVAL = "interval"
+    UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME = "message_tag_name"
 
     FLUENTD_ENDPOINT_SECTION = "fluentd-endpoint"
     FLUENTD_ENDPOINT_SECTION_HOST = "host"
     FLUENTD_ENDPOINT_SECTION_PORT = "port"
     FLUENTD_ENDPOINT_SECTION_TIMEOUT = "timeout"
-    FLUENTD_ENDPOINT_SECTION_MSG_TAG_NAME = "message_tag_name"
 
     STREAMING_SECTION = "streaming"
-    STREAMING_SECTION_INTERVAL = "interval"
     STREAMING_SECTION_COMPRESSED_STREAMING = "compressed_streaming"
     STREAMING_SECTION_BULK_STREAMING = "bulk_streaming"
     STREAMING_SECTION_STREAM_ONLY_NEW_SAMPLES = "stream_only_new_samples"
@@ -118,10 +118,10 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
                                      self.UFM_TELEMETRY_ENDPOINT_SECTION_HOST)
 
     def get_telemetry_port(self):
-        return self.safe_get_int(self.args.ufm_telemetry_port,
-                                 self.UFM_TELEMETRY_ENDPOINT_SECTION,
-                                 self.UFM_TELEMETRY_ENDPOINT_SECTION_PORT,
-                                 9001)
+        return self.get_config_value(self.args.ufm_telemetry_port,
+                                     self.UFM_TELEMETRY_ENDPOINT_SECTION,
+                                     self.UFM_TELEMETRY_ENDPOINT_SECTION_PORT,
+                                     '9001')
 
     def get_telemetry_url(self):
         return self.get_config_value(self.args.ufm_telemetry_url,
@@ -130,10 +130,10 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
                                      "csv/metrics")
 
     def get_streaming_interval(self):
-        return self.safe_get_int(self.args.streaming_interval,
-                                 self.STREAMING_SECTION,
-                                 self.STREAMING_SECTION_INTERVAL,
-                                 10)
+        return self.get_config_value(self.args.streaming_interval,
+                                     self.UFM_TELEMETRY_ENDPOINT_SECTION,
+                                     self.UFM_TELEMETRY_ENDPOINT_SECTION_INTERVAL,
+                                     '10')
 
     def get_bulk_streaming_flag(self):
         return self.safe_get_bool(self.args.bulk_streaming,
@@ -175,10 +175,10 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
                                  self.FLUENTD_ENDPOINT_SECTION_TIMEOUT,
                                  120)
 
-    def get_fluentd_msg_tag(self,default=None):
+    def get_fluentd_msg_tag(self, default=''):
         return self.get_config_value(self.args.fluentd_host,
-                                     self.FLUENTD_ENDPOINT_SECTION,
-                                     self.FLUENTD_ENDPOINT_SECTION_MSG_TAG_NAME,
+                                     self.UFM_TELEMETRY_ENDPOINT_SECTION,
+                                     self.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME,
                                      default)
 
     def get_meta_fields(self):
@@ -241,6 +241,25 @@ class UFMTelemetryStreaming(Singleton):
     @property
     def streaming_interval(self):
         return self.config_parser.get_streaming_interval()
+
+    @property
+    def ufm_telemetry_endpoints(self):
+        splitter = ","
+        hosts = self.ufm_telemetry_host.split(splitter)
+        ports = self.ufm_telemetry_port.split(splitter)
+        urls = self.ufm_telemetry_url.split(splitter)
+        intervals = self.streaming_interval.split(splitter)
+        msg_tags = self.fluentd_msg_tag.split(splitter)
+        endpoints = []
+        for i in range(len(hosts)):
+            endpoints.append({
+                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_HOST: hosts[i],
+                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_PORT: ports[i],
+                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_URL: urls[i],
+                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_INTERVAL: intervals[i],
+                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME: msg_tags[i] if msg_tags[i] else f'{hosts[i]}:{ports[i]}/{urls[i]}',
+            })
+        return endpoints
 
     @property
     def bulk_streaming_flag(self):
