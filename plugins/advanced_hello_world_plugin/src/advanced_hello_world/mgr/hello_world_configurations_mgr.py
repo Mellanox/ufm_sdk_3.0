@@ -22,10 +22,10 @@ from utils.singleton import Singleton
 class HelloWorldConfigParser(ConfigParser, Singleton):
 
     # for debugging
-    # config_file = "../../conf/hello_world_plugin.conf"
+    # config_file = "../../conf/advanced_hello_world_plugin.conf"
 
     # for production with docker
-    config_file = "/config/hello_world_plugin.conf"
+    config_file = "/config/advanced_hello_world_plugin.conf"
 
     PLUGIN_CONFIG_SECTION = "plugin-config"
     PLUGIN_CONFIG_SECTION_SOME_CONFIG = "some_config_field"

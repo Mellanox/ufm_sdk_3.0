@@ -19,7 +19,7 @@ class UFMHelloWorldPluginUIFilesAPI(BaseAPIApplication):
 
     def __init__(self):
         super(UFMHelloWorldPluginUIFilesAPI, self).__init__()
-        self.files_path = "/data/hello_world_ui/"
+        self.files_path = "/data/advanced_hello_world_ui/"
 
     def _get_routes(self):
         return {

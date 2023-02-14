@@ -6,7 +6,7 @@ import {GeneralRouteModuleRoutes} from "./general-route-module/general-route-mod
 
 const routes: Routes = [
   {
-    path: "hello_world",
+    path: "advanced_hello_world",
     component: HelloWorldComponent,
     children:[
       ...GeneralRouteModuleRoutes
@@ -14,7 +14,7 @@ const routes: Routes = [
   },
   {
     path: "**",
-    redirectTo: "hello_world/general"
+    redirectTo: "advanced_hello_world/general"
   }
 ];
 
