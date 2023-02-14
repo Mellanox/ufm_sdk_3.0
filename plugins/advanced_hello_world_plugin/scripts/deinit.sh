@@ -16,6 +16,6 @@
 set -eE
 
 # removing log file
-rm -rf /log/hello_world_plugin*.log*
+rm -rf /log/advanced_hello_world_plugin*.log*
 
 exit 0

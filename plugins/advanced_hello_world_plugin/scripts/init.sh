@@ -13,11 +13,11 @@
 # @date:   Jan 29, 2023
 #
 # ================================================================
-# This script prepares and checks hello_world docker container Environment
+# This script prepares and checks advanced_hello_world docker container Environment
 # ================================================================
 
 set -eE
-PLUGIN_NAME=hello_world
+PLUGIN_NAME=advanced_hello_world
 SRC_DIR_PATH=/opt/ufm/ufm_plugin_${PLUGIN_NAME}/${PLUGIN_NAME}_plugin
 CONFIG_PATH=/config
 

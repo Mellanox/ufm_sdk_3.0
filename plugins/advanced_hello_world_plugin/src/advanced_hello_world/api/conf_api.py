@@ -29,10 +29,10 @@ class UFMHelloWorldPluginConfigurationsAPI(BaseAPIApplication):
         self.conf = HelloWorldConfigParser.getInstance()
 
         # for debugging
-        # self.conf_schema_path = "plugins/hello_world_plugin/src/hello_world/schemas/set_conf.schema.json"
+        # self.conf_schema_path = "plugins/advanced_hello_world_plugin/src/advanced_hello_world/schemas/set_conf.schema.json"
 
         # for production with docker
-        self.conf_schema_path = "hello_world_plugin/src/hello_world/schemas/set_conf.schema.json"
+        self.conf_schema_path = "advanced_hello_world_plugin/src/advanced_hello_world/schemas/set_conf.schema.json"
 
     def _get_error_handlers(self):
         return [

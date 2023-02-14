@@ -1,6 +1,6 @@
 [
   {
-    "mfEntry": "/ufmRestV2/plugin/hello_world/files/remoteEntry.js",
+    "mfEntry": "/ufmRestV2/plugin/advanced_hello_world/files/remoteEntry.js",
     "name": "hello_world_ui",
     "exposedModule": "GeneralRouteModule",
     "ngModuleName": "GeneralRouteModuleModule",
@@ -15,7 +15,7 @@
     }
   },
   {
-    "mfEntry": "/ufmRestV2/plugin/hello_world/files/remoteEntry.js",
+    "mfEntry": "/ufmRestV2/plugin/advanced_hello_world/files/remoteEntry.js",
     "name": "hello_world_ui",
     "exposedModule": "GeneralRouteModule",
     "ngModuleName": "GeneralRouteModuleModule",
@@ -28,7 +28,7 @@
     }
   },
   {
-    "mfEntry": "/ufmRestV2/plugin/hello_world/files/remoteEntry.js",
+    "mfEntry": "/ufmRestV2/plugin/advanced_hello_world/files/remoteEntry.js",
     "name": "hello_world_ui",
     "exposedModule": "HelloWorldModule",
     "ngModuleName": "HelloWorldModule",
@@ -38,7 +38,7 @@
     }
   },
   {
-    "mfEntry": "/ufmRestV2/plugin/hello_world/files/remoteEntry.js",
+    "mfEntry": "/ufmRestV2/plugin/advanced_hello_world/files/remoteEntry.js",
     "name": "hello_world_ui",
     "exposedModule": "GeneralRouteModule",
     "ngModuleName": "GeneralRouteModuleModule",
@@ -48,7 +48,7 @@
     }
   },
   {
-    "mfEntry": "/ufmRestV2/plugin/hello_world/files/remoteEntry.js",
+    "mfEntry": "/ufmRestV2/plugin/advanced_hello_world/files/remoteEntry.js",
     "name": "hello_world_ui",
     "exposedModule": "DevicesDataTableModule",
     "ngModuleName": "DevicesDataTableModule",
@@ -59,7 +59,7 @@
     }
   },
   {
-    "mfEntry": "/ufmRestV2/plugin/hello_world/files/remoteEntry.js",
+    "mfEntry": "/ufmRestV2/plugin/advanced_hello_world/files/remoteEntry.js",
     "name": "hello_world_ui",
     "exposedModule": "HelloWorldModule",
     "ngModuleName": "HelloWorldModule",
@@ -76,7 +76,7 @@
     }
   },
   {
-    "mfEntry": "/ufmRestV2/plugin/hello_world/files/remoteEntry.js",
+    "mfEntry": "/ufmRestV2/plugin/advanced_hello_world/files/remoteEntry.js",
     "name": "hello_world_ui",
     "exposedModule": "DeviceContextMenuModule",
     "ngModuleName": "DevicesContextMenuModule",

@@ -117,7 +117,7 @@ Currently, the UFM supports extending the following areas:
 5. Hooking the devices data table
 6. Replacing any exsiting view under the UFM GUI with new plugin's view.
 
-You can find [this sample json](./conf/hello_world_ui_conf.json) that contains all the supported flows
+You can find [this sample json](./conf/advanced_hello_world_ui_conf.json) that contains all the supported flows
 
 ## Hello-world plugin example
 

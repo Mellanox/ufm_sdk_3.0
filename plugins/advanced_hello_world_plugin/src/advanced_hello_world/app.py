@@ -47,7 +47,7 @@ if __name__ == '__main__':
         Logger.log_message(str(ex))
     try:
         plugin_port = Utils.get_plugin_port(
-            port_conf_file='/config/hello_world_httpd_proxy.conf',
+            port_conf_file='/config/advanced_hello_world_httpd_proxy.conf',
             default_port_value=8686)
 
         routes = {
