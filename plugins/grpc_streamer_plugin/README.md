@@ -24,18 +24,14 @@ client once --server_ip=<host_ip> --id=<unique_id> --auth=<username>,<password> 
 ```
 where in this example the requested rest api are events, alarams and links. 
 the result should be the same as calling those command:
-<<<<<<< HEAD
-<<<<<<< HEAD
 ```
 curl -k -i -X GET 'http://<host_ip>/app/events’
 curl -k -i -X GET 'http://<host_ip>/app/alarms’
 curl -k -i -X GET 'http://<host_ip>/resources/links’
 ```
-=======
 curl -k -i -X GET 'http://<host_ip>/app/events’
 curl -k -i -X GET 'http://<host_ip>/app/alarms’
 curl -k -i -X GET 'http://<host_ip>/resources/links’
-=======
 ```
 curl -k -i -X GET 'http://<host_ip>/app/events’
 curl -k -i -X GET 'http://<host_ip>/app/alarms’
@@ -47,5 +43,4 @@ curl -k -i -X GET 'http://<host_ip>/resources/links’
 client stream --server_ip=<host_ip> --id=<unique_id> --token=token --apis=events;40;True,alarms;10
 ```
 where in this example the requested rest api are events and alarms. The events receive every 40 seconds only the delta changes between the intervals, and alarms receive every 10 seconds all the results from the UFM.
-=======
 where in this example the requested rest api are events and alarms. The events receive every 40 seconds only the delta changes between the intervals, and alarms receive every 10 seconds all the results in the UFM.
