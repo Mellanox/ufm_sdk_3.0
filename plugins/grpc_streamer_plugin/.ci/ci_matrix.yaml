@@ -87,8 +87,7 @@ steps:
       service rsyslog restart
       sleep 30
       export SERVER_HOST=$SERVER_HOST
-      cd plugins/grpc_streamer_plugin/
-      python3 ./tests/grpc_streamer_plugin_test.py --host $SERVER_HOST
+      python3 ./plugins/grpc_streamer_plugin/tests/grpc_streamer_plugin_test.py --host $SERVER_HOST
     parallel: false
 
   - name: remove plugin end
