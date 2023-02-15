@@ -66,7 +66,7 @@ steps:
     credentialsId: '2c8fd3fe-df05-4f6f-9d1f-f1896d611434'
     run: |
       export PASSWORD=$PASSWORD
-      .ci/do_install_plugin_server.sh
+      plugins/grpc_streamer_plugin/.ci/do_install_plugin_server.sh
     parallel: false
   
   - name: load plugin
