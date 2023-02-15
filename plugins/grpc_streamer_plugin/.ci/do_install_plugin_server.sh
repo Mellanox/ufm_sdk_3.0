@@ -11,7 +11,7 @@ send -- "enable\r"
 expect "# "
 send -- "config terminal\r"
 expect "/(config/) # "
-send -- "image fetch scp://root:$PASSWORD@$namehost/auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/ufm-plugin-grpc-streamer_latest-docker.img.gz\r"
+send -- "image fetch scp://root:$PASSWORD@$namehost/auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/ufm-plugin-grpc_streamer_latest-docker.img.gz\r"
 expect "/(config/) # "
 sleep 50
 EOF
