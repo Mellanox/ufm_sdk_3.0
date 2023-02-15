@@ -10,14 +10,14 @@
 # provided with the software product.
 #
 import argparse
-import plugins.grpc_streamer_plugin.ufm_sim_web_service.grpc_server as server
-import plugins.grpc_streamer_plugin.ufm_sim_web_service.grpc_client as client
+import ufm_sim_web_service.grpc_server as server
+import ufm_sim_web_service.grpc_client as client
 import grpc
-import plugins.grpc_streamer_plugin.ufm_sim_web_service.grpc_plugin_streamer_pb2_grpc as grpc_plugin_streamer_pb2_grpc
-import plugins.grpc_streamer_plugin.ufm_sim_web_service.grpc_plugin_streamer_pb2 as grpc_plugin_streamer_pb2
-from plugins.grpc_streamer_plugin.ufm_sim_web_service.Subscriber import Subscriber
+import ufm_sim_web_service.grpc_plugin_streamer_pb2_grpc as grpc_plugin_streamer_pb2_grpc
+import ufm_sim_web_service.grpc_plugin_streamer_pb2 as grpc_plugin_streamer_pb2
+from ufm_sim_web_service.Subscriber import Subscriber
 from google.protobuf.empty_pb2 import Empty
-from plugins.grpc_streamer_plugin.ufm_sim_web_service.Config import Constants
+from ufm_sim_web_service.Config import Constants
 
 import sys
 
