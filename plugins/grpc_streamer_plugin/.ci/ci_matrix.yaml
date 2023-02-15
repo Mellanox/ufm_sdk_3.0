@@ -52,7 +52,7 @@ steps:
       bash -x ./docker_build.sh latest . 0
       pwd
       ls
-      cp /ufm-plugin-grpc-streamer* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
+      cp ./ufm-plugin-grpc-streamer* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
     parallel: false
 
   - name: remove plugin start
