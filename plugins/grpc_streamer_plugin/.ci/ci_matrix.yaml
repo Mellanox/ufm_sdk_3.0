@@ -49,6 +49,22 @@ steps:
     parallel: true
     enable: false
 
+
+  - name: Running Bandit
+    containerSelector: "{name: 'swx_static'}"
+    shell: '#!/bin/bash -x'
+    run: |
+      pwd
+      mkdir $WORKSPACE/logs/
+      lst=$(git diff --name-status remotes/origin/$ghprbTargetBranch | grep -v ^D | awk '{print $NF}' |grep ".py$")
+      if [ "$lst" == "" ]; then
+          echo "No *.py changed files" > $WORKSPACE/logs/bandit.html
+      else
+          /usr/local/bin/bandit -lll -f html -c $WORKSPACE/.ci/bandit.yaml ${lst} > $WORKSPACE/logs/bandit.html || true
+      fi
+    parallel: true
+    archiveArtifacts: 'logs/*'
+
   - name: build Plugin
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
