@@ -24,7 +24,7 @@ RUN apt clean && \
     #apt update && \
     #apt install -y docker-ce docker-ce-cli containerd.io
 
-RUN python3 -m pip install mock numba pandas paramiko passlib pexpect pylint requests scp unittest2 bandit blackduck
+RUN python3 -m pip install mock numba pandas paramiko passlib pexpect pylint requests scp unittest2 bandit blackduck grpcio protobuf==3.18.0
 RUN echo "${_LOGIN} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 RUN echo "root ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
