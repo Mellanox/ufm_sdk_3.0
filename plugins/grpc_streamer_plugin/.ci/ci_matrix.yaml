@@ -48,14 +48,14 @@ steps:
   - name: build Plugin
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
-      cd build
+      cd plugins/grpc_streamer_plugin/build
       bash -x ./docker_build.sh
       cp /ufm-plugin-grpc-streamer* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
     parallel: false
 
   - name: remove plugin start
     agentSelector: "{nodeLabel: 'UFM-POC'}"
-    run: .ci/do_remove_plugin.sh
+    run: plugins/grpc_streamer_plugin/.ci/do_remove_plugin.sh
     parallel: false
     
 
@@ -71,12 +71,12 @@ steps:
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
       service opensmd start
-      .ci/do_load_plugin.sh
+      plugins/grpc_streamer_plugin/.ci/do_load_plugin.sh
     parallel: false
 
   - name: add plugin
     agentSelector: "{nodeLabel: 'UFM-POC'}"
-    run: .ci/do_add_plugin.sh 
+    run: plugins/grpc_streamer_plugin/.ci/do_add_plugin.sh 
     parallel: false
 
   - name: run client tests
@@ -85,13 +85,13 @@ steps:
       service rsyslog restart
       sleep 30
       export SERVER_HOST=$SERVER_HOST
-      cd tests
+      cd plugins/grpc_streamer_plugin/tests
       python3 ./grpc_streamer_plugin_test.py --host $SERVER_HOST
     parallel: false
 
   - name: remove plugin end
     agentSelector: "{nodeLabel: 'UFM-POC'}"
-    run: .ci/do_remove_plugin.sh
+    run: plugins/grpc_streamer_plugin/.ci/do_remove_plugin.sh
     parallel: false
     
 
