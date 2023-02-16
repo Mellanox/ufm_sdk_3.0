@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright © 2019-2021 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright © 2019-2023 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -23,7 +23,7 @@ from logging.handlers import RotatingFileHandler
 
 
 class UfmSlurmBase():
-    should_fail = 0 #set 0 the script will not fail; 1 the script will fail
+    should_fail = 1 #set 0 the script will not fail; 1 the script will fail
     ufm = UFM()
     general_utils = GeneralUtils()
     integration = Integration()
