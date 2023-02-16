@@ -467,8 +467,9 @@ class UFMTelemetryStreaming(Singleton):
                 data_to_stream, new_data_timestamp = self._parse_telemetry_prometheus_metrics_to_json(telemetry_data) \
                     if ufm_telemetry_is_prometheus_format else \
                     self._parse_telemetry_csv_metrics_to_json(telemetry_data)
-                if not self.stream_only_new_samples or \
-                        (self.stream_only_new_samples and new_data_timestamp != self.last_streamed_data_sample_timestamp):
+                if len(data_to_stream) > 0 and \
+                        (not self.stream_only_new_samples or
+                         (self.stream_only_new_samples and new_data_timestamp != self.last_streamed_data_sample_timestamp)):
                     if self.bulk_streaming_flag:
                         self._stream_data_to_fluentd(data_to_stream, msg_tag)
                     else:
