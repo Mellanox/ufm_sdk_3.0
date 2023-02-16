@@ -47,8 +47,10 @@ class InvalidConfRequest(Exception):
 
 class ConfigParser(object):
 
-    def __init__(self, args = ArgsParser.parse_args("UFM SDK", []),
+    def __init__(self, args = None,
                  read_sdk_config = True):
+        if not args:
+            args = ArgsParser.parse_args("UFM SDK", [])
         self.sdk_config = configparser.RawConfigParser()
         if read_sdk_config:
             self.sdk_config.read(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),SDK_CONFIG_FILE))
