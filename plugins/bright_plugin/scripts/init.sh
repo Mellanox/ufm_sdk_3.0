@@ -28,7 +28,7 @@ touch ${CONFIG_PATH}/bright_shared_volumes.conf
 echo /opt/ufm/files/log/:/log > ${CONFIG_PATH}/bright_shared_volumes.conf
 
 # UFM version test
-required_ufm_version=(6 12 0)
+required_ufm_version=(6 12 5)
 echo "Required UFM version: ${required_ufm_version[0]}.${required_ufm_version[1]}.${required_ufm_version[2]}"
 
 if [ "$1" == "-ufm_version" ]; then
