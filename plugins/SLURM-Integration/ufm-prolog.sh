@@ -13,4 +13,4 @@
 echo "==Pre job==:"
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 cd $SCRIPTPATH
-python3 ufm_slurm_prolog.py -i $SLURM_JOBID -s $SLURM_STEP_ID || true
+python3 ufm_slurm_prolog.py -i $SLURM_JOBID || true

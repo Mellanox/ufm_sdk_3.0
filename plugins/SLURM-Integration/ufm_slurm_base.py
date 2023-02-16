@@ -58,9 +58,6 @@ class UfmSlurmBase():
         parser.add_argument("-i", "--job_id", action="store",
                                     dest="job_id", default=None,
                                     help="Job ID")
-        parser.add_argument("-s", "--step_id", action="store",
-                                    dest="step_id", nargs="?", const="", default=None,
-                                    help="Step ID")
         self.args = parser.parse_args(sys.argv[1:])
 
     def prepare_logger(self, file):
