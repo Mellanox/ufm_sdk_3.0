@@ -5,9 +5,19 @@ import {Injectable} from '@angular/core';
 })
 export class Constants {
 
-  public readonly baseApiUrl = "/ufmRestV2";
-  public readonly baseResourcesApiUrl = this.baseApiUrl.concat("/resources");
-  public readonly basePluginApiURL = this.baseApiUrl.concat("/plugin");
-  public readonly baseBrightPluginApiURL = this.basePluginApiURL.concat("/bright");
+  public static baseApiUrl = "/ufmRestV2";
+  public static baseResourcesApiUrl = `${Constants.baseApiUrl}/resources`;
+  public static basePluginApiURL = `${Constants.baseApiUrl}/plugin`;
+  public static baseBrightPluginApiURL = `${Constants.basePluginApiURL}/bright`;
+
+  public static setBaseAPIsConstants(): void {
+    const ufmRestPrefix = window['ufm_rest_base'];
+    if (ufmRestPrefix) {
+      Constants.baseApiUrl = ufmRestPrefix
+      Constants.baseResourcesApiUrl = `${Constants.baseApiUrl}/resources`;
+      Constants.basePluginApiURL = `${Constants.baseApiUrl}/plugin`;
+      Constants.baseBrightPluginApiURL = `${Constants.basePluginApiURL}/bright`;
+    }
+  }
 
 }

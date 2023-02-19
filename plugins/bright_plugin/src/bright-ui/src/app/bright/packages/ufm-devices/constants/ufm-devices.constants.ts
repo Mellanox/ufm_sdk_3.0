@@ -6,11 +6,11 @@ import {Constants} from "../../../../constants/constants";
 })
 export class UfmDevicesConstants {
 
-  constructor(private globalConstants: Constants) {
+  constructor() {
   }
 
   public readonly devicesAPIsUrls = {
-    devices: this.globalConstants.baseResourcesApiUrl.concat("/systems")
+    devices: Constants.baseResourcesApiUrl.concat("/systems")
   };
 
 

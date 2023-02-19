@@ -7,6 +7,7 @@ import {FormsModule, ReactiveFormsModule} from "@angular/forms";
 import {ButtonsModule} from "ngx-bootstrap/buttons";
 import {SpinnerModule} from 'sms-ui-suite/sms-spinner/spinner.module';
 import {SmsPluginBaseComponentModule} from "../../../../../sms-ui-suite/sms-plugin-base-component/sms-plugin-base-component.module";
+import {Constants} from "../../../constants/constants";
 @NgModule({
   declarations: [
     BrightConfigurationsViewComponent
@@ -25,4 +26,7 @@ import {SmsPluginBaseComponentModule} from "../../../../../sms-ui-suite/sms-plug
   ]
 })
 export class BrightConfigurationsViewModule {
+  constructor() {
+    Constants.setBaseAPIsConstants();
+  }
 }

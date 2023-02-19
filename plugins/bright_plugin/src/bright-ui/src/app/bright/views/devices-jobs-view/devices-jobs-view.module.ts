@@ -10,6 +10,7 @@ import {DevicesJobsRoutes} from "./devices-jobs.routes";
 import {BrowserAnimationsModule} from "@angular/platform-browser/animations";
 import {TimePickerModalModule} from "../../packages/time-picker-modal/time-picker-modal.module";
 import {SmsPluginBaseComponentModule} from "../../../../../sms-ui-suite/sms-plugin-base-component/sms-plugin-base-component.module";
+import {Constants} from "../../../constants/constants";
 
 
 @NgModule({
@@ -32,4 +33,8 @@ import {SmsPluginBaseComponentModule} from "../../../../../sms-ui-suite/sms-plug
   ]
 })
 export class DevicesJobsViewModule {
+  constructor() {
+    Constants.setBaseAPIsConstants()
+  }
+
 }

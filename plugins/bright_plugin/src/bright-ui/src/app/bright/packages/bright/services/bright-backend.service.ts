@@ -45,22 +45,20 @@ export class BrightBackendService {
   }
 
   getDeviceJobs(nodes?: Array<string>, from?: number, to?: number): Observable<any> {
-    let filters = '';
+    let filters:Array<string> = [];
     if (nodes) {
-      filters = filters + `?nodes=${nodes.join(',')}`;
+      filters.push(`nodes=${nodes.join(',')}`);
     }
     if (from) {
-      const sign = filters.length ? '&' : '';
-      filters = filters + `${sign}from=${from}`;
+      filters.push(`from=${from}`);
     }
     if (to) {
-      const sign = filters.length ? '&' : '';
-      filters = filters + `${sign}to=${to}`;
+      filters.push(`to=${to}`);
     }
-    if(from && to) {
-      filters = filters + `&tz=${this.getLocalTimezone()}`
+    if(from || to) {
+      filters.push(`tz=${this.getLocalTimezone()}`);
     }
-    const url = this.brightConstants.brightAPIsUrls.jobs.concat(filters)
+    const url = filters.length ? this.brightConstants.brightAPIsUrls.jobs.concat(`?${filters.join('&')}`) : this.brightConstants.brightAPIsUrls.jobs;
     return this.httpService.get(url);
   }
 
