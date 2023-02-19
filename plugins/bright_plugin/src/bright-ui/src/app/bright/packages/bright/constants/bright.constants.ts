@@ -26,9 +26,9 @@ export class BrightConstants {
     constructor(private globalConstants:Constants){}
 
     public readonly brightAPIsUrls ={
-        jobs: this.globalConstants.baseBrightPluginApiURL.concat("/data/jobs"),
-        nodes: this.globalConstants.baseBrightPluginApiURL.concat("/data/nodes"),
-        conf: this.globalConstants.baseBrightPluginApiURL.concat("/conf")
+        jobs: Constants.baseBrightPluginApiURL.concat("/data/jobs"),
+        nodes: Constants.baseBrightPluginApiURL.concat("/data/nodes"),
+        conf: Constants.baseBrightPluginApiURL.concat("/conf")
     };
 
     public static brightConfKeys = {
