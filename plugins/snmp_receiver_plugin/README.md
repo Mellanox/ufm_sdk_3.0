@@ -17,7 +17,7 @@ To deploy the plugin with UFM (SA or HA):
 - run UFM with _service ufmd start_;
 - pull the plugin container with _docker pull mellanox/ufm-plugin-snmp_;
   - in case of HA load the plugin on the standby node as well;
-- run _/opt/ufm/scripts/manage_ufm_plugins.py add -p snmp_ to enable the plugin;
+- run _/opt/ufm/scripts/manage_ufm_plugins.sh add -p snmp_ to enable the plugin;
 - check that plugin is up and running with _docker ps_;
 
 Log file snmp.log is located in /opt/ufm/files/log on the host.
