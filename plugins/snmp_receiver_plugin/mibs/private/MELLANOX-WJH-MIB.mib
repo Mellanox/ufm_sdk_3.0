@@ -1,0 +1,994 @@
+MELLANOX-WJH-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    OBJECT-TYPE, MODULE-IDENTITY, 
+	Counter64, Integer32,
+    NOTIFICATION-TYPE                   FROM SNMPv2-SMI
+    MODULE-COMPLIANCE, OBJECT-GROUP,
+    NOTIFICATION-GROUP                  FROM SNMPv2-CONF	
+	mellanoxWJH			FROM MELLANOX-SMI-MIB;
+
+-- Mellanox WJH MIB
+
+mellanoxWJHMib MODULE-IDENTITY
+	LAST-UPDATED "202103170000Z"
+	ORGANIZATION 
+		"Mellanox Technologies, Inc."
+	CONTACT-INFO 
+		"
+		Mellanox Technologies, Inc.
+		350 Oakmead Parkway, Suite 100
+		Sunnyvale, CA 94085
+		Tel: 408-970-3400
+		Fax: 408-970-3403
+		E-mail: info@mellanox.com
+		        "
+	DESCRIPTION 
+		"Mellanox 'What Just Happened?' (WJH) MIB.
+		This MIB defines traps for receiving WJH related data."
+
+        REVISION "202103170000Z"
+        DESCRIPTION
+                "Fixed INDEX ref"
+
+	REVISION "202103150000Z"
+	DESCRIPTION
+		"Fixed missing definition of mellanoxWJHEventInnerTos and INDEX ref"
+
+	REVISION "202009130000Z"
+	DESCRIPTION 
+		"Initial version"
+::= { mellanoxWJH 1 }
+
+mellanoxWJHBufferEvent NOTIFICATION-TYPE
+     OBJECTS  { 
+        mellanoxWJHEventTextLine1,
+        mellanoxWJHEventTextLine2,
+        mellanoxWJHEventTextLine3,
+        mellanoxWJHEventTextLine4,
+        mellanoxWJHEventTextLine5,
+		mellanoxWJHEventSeverity,
+		mellanoxWJHEventCategory,
+		mellanoxWJHEventSubCategory,
+		mellanoxWJHEventEtherType,
+		mellanoxWJHEventSrcMac,
+		mellanoxWJHEventDstMac,
+		mellanoxWJHEventVlanId,
+		mellanoxWJHEventPcp,
+		mellanoxWJHEventSrcIp,
+		mellanoxWJHEventDstIp,
+		mellanoxWJHEventProtocol,
+		mellanoxWJHEventTos,
+		mellanoxWJHEventTtl,
+		mellanoxWJHEventLength,
+		mellanoxWJHEventSrcPort,
+		mellanoxWJHEventDstPort,
+		mellanoxWJHEventInnerEtherType,
+		mellanoxWJHEventInnerSrcMac,
+		mellanoxWJHEventInnerDstMac,
+		mellanoxWJHEventInnerVlanId,
+		mellanoxWJHEventInnerPcp,
+		mellanoxWJHEventInnerSrcIp,
+		mellanoxWJHEventInnerDstIp,
+		mellanoxWJHEventInnerProtocol,
+		mellanoxWJHEventInnerTos,
+		mellanoxWJHEventInnerTtl,
+		mellanoxWJHEventInnerLength,
+		mellanoxWJHEventInnerSrcPort,
+		mellanoxWJHEventInnerDstPort,
+		mellanoxWJHEventVni,
+		mellanoxWJHEventTimestamp,
+		mellanoxWJHEventReasonId,
+		mellanoxWJHEventReasonEventType,
+		mellanoxWJHEventReasonDescription,
+		mellanoxWJHEventReasonRecommendedAction,
+		mellanoxWJHEventInPort,
+		mellanoxWJHEventOutPort,
+		mellanoxWJHEventTc,
+		mellanoxWJHEventEgressUsage,
+		mellanoxWJHEventEgressLatency,
+		mellanoxWJHEventPg,
+		mellanoxWJHEventIngressUsage
+	 }
+     STATUS   current
+     DESCRIPTION
+         "A trap indicating a raw WJH buffer event."
+     ::= { mellanoxWJHMib 1 }
+
+mellanoxWJHBufferAggEvent NOTIFICATION-TYPE
+     OBJECTS  { 
+        mellanoxWJHEventTextLine1,
+        mellanoxWJHEventTextLine2,
+        mellanoxWJHEventTextLine3,
+        mellanoxWJHEventTextLine4,
+        mellanoxWJHEventTextLine5,
+		mellanoxWJHEventSeverity,
+		mellanoxWJHEventCategory,
+		mellanoxWJHEventSubCategory,
+        mellanoxWJHEventEtherType,
+        mellanoxWJHEventSrcMac,
+        mellanoxWJHEventDstMac,
+        mellanoxWJHEventVlanId,
+		mellanoxWJHEventSrcIp,
+		mellanoxWJHEventDstIp,
+		mellanoxWJHEventProtocol,
+		mellanoxWJHEventSrcPort,
+		mellanoxWJHEventDstPort,
+		mellanoxWJHEventTimestamp,
+		mellanoxWJHEventEndTimestamp,
+		mellanoxWJHEventReasonId,
+		mellanoxWJHEventReasonEventType,
+		mellanoxWJHEventReasonDescription,
+		mellanoxWJHEventReasonRecommendedAction,
+		mellanoxWJHEventInPort,
+		mellanoxWJHEventOutPort,
+		mellanoxWJHEventTc,
+		mellanoxWJHEventEgressUsageWatermark,
+		mellanoxWJHEventEgressLatencyWatermark,
+		mellanoxWJHEventPg,
+		mellanoxWJHEventIngressUsageWatermark,
+		mellanoxWJHEventCount
+	 }
+     STATUS   current
+     DESCRIPTION
+         "A trap indicating an aggregated WJH buffer event."
+     ::= { mellanoxWJHMib 2 }
+
+mellanoxWJHAclEvent NOTIFICATION-TYPE
+     OBJECTS  {
+        mellanoxWJHEventTextLine1,
+        mellanoxWJHEventTextLine2,
+        mellanoxWJHEventTextLine3,
+        mellanoxWJHEventTextLine4,
+        mellanoxWJHEventTextLine5,
+		mellanoxWJHEventSeverity,
+		mellanoxWJHEventCategory,
+		mellanoxWJHEventSubCategory,
+		mellanoxWJHEventEtherType,
+		mellanoxWJHEventSrcMac,
+		mellanoxWJHEventDstMac,
+		mellanoxWJHEventVlanId,
+		mellanoxWJHEventPcp,
+		mellanoxWJHEventSrcIp,
+		mellanoxWJHEventDstIp,
+		mellanoxWJHEventProtocol,
+		mellanoxWJHEventTos,
+		mellanoxWJHEventTtl,
+		mellanoxWJHEventLength,
+		mellanoxWJHEventSrcPort,
+		mellanoxWJHEventDstPort,
+		mellanoxWJHEventInnerEtherType,
+		mellanoxWJHEventInnerSrcMac,
+		mellanoxWJHEventInnerDstMac,
+		mellanoxWJHEventInnerVlanId,
+		mellanoxWJHEventInnerPcp,
+		mellanoxWJHEventInnerSrcIp,
+		mellanoxWJHEventInnerDstIp,
+		mellanoxWJHEventInnerProtocol,
+		mellanoxWJHEventInnerTos,
+		mellanoxWJHEventInnerTtl,
+		mellanoxWJHEventInnerLength,
+		mellanoxWJHEventInnerSrcPort,
+		mellanoxWJHEventInnerDstPort,
+		mellanoxWJHEventVni,
+		mellanoxWJHEventAclName,
+		mellanoxWJHEventAclRule,
+		mellanoxWJHEventTimestamp,
+		mellanoxWJHEventReasonId,
+		mellanoxWJHEventReasonEventType,
+		mellanoxWJHEventReasonDescription,
+		mellanoxWJHEventReasonRecommendedAction,
+		mellanoxWJHEventInPort,
+		mellanoxWJHEventOutPort,
+		mellanoxWJHEventTc,
+		mellanoxWJHEventEgressUsage,
+		mellanoxWJHEventEgressLatency,
+		mellanoxWJHEventPg,
+		mellanoxWJHEventIngressUsage
+	 }
+     STATUS   current
+     DESCRIPTION
+         "A trap indicating a raw WJH ACL event."
+     ::= { mellanoxWJHMib 3 }
+
+mellanoxWJHAclAggEvent NOTIFICATION-TYPE
+     OBJECTS  { 
+        mellanoxWJHEventTextLine1,
+        mellanoxWJHEventTextLine2,
+        mellanoxWJHEventTextLine3,
+        mellanoxWJHEventTextLine4,
+        mellanoxWJHEventTextLine5,
+		mellanoxWJHEventSeverity,
+		mellanoxWJHEventCategory,
+		mellanoxWJHEventSubCategory,
+        mellanoxWJHEventEtherType,
+        mellanoxWJHEventSrcMac,
+        mellanoxWJHEventDstMac,
+        mellanoxWJHEventVlanId,
+		mellanoxWJHEventAclName,
+		mellanoxWJHEventAclRule,
+		mellanoxWJHEventTimestamp,
+		mellanoxWJHEventEndTimestamp,
+		mellanoxWJHEventReasonId,
+		mellanoxWJHEventReasonEventType,
+		mellanoxWJHEventReasonDescription,
+		mellanoxWJHEventReasonRecommendedAction,
+		mellanoxWJHEventInPort,
+		mellanoxWJHEventOutPort,
+		mellanoxWJHEventTc,
+		mellanoxWJHEventEgressUsageWatermark,
+		mellanoxWJHEventEgressLatencyWatermark,
+		mellanoxWJHEventPg,
+		mellanoxWJHEventIngressUsageWatermark,
+		mellanoxWJHEventCount,
+		mellanoxWJHEventNumOfFlows
+	 }
+     STATUS   current
+     DESCRIPTION
+         "A trap indicating an aggregated WJH ACL event."
+     ::= { mellanoxWJHMib 4 }
+
+mellanoxWJHForwardingEvent NOTIFICATION-TYPE
+     OBJECTS  { 
+        mellanoxWJHEventTextLine1,
+        mellanoxWJHEventTextLine2,
+        mellanoxWJHEventTextLine3,
+        mellanoxWJHEventTextLine4,
+        mellanoxWJHEventTextLine5,
+		mellanoxWJHEventSeverity,
+		mellanoxWJHEventCategory,
+		mellanoxWJHEventSubCategory,
+		mellanoxWJHEventEtherType,
+		mellanoxWJHEventSrcMac,
+		mellanoxWJHEventDstMac,
+		mellanoxWJHEventVlanId,
+		mellanoxWJHEventPcp,
+		mellanoxWJHEventSrcIp,
+		mellanoxWJHEventDstIp,
+		mellanoxWJHEventProtocol,
+		mellanoxWJHEventTos,
+		mellanoxWJHEventTtl,
+		mellanoxWJHEventLength,
+		mellanoxWJHEventSrcPort,
+		mellanoxWJHEventDstPort,
+		mellanoxWJHEventInnerEtherType,
+		mellanoxWJHEventInnerSrcMac,
+		mellanoxWJHEventInnerDstMac,
+		mellanoxWJHEventInnerVlanId,
+		mellanoxWJHEventInnerPcp,
+		mellanoxWJHEventInnerSrcIp,
+		mellanoxWJHEventInnerDstIp,
+		mellanoxWJHEventInnerProtocol,
+		mellanoxWJHEventInnerTos,
+		mellanoxWJHEventInnerTtl,
+		mellanoxWJHEventInnerLength,
+		mellanoxWJHEventInnerSrcPort,
+		mellanoxWJHEventInnerDstPort,
+		mellanoxWJHEventVni,
+		mellanoxWJHEventTimestamp,
+		mellanoxWJHEventReasonId,
+		mellanoxWJHEventReasonEventType,
+		mellanoxWJHEventReasonDescription,
+		mellanoxWJHEventReasonRecommendedAction,
+		mellanoxWJHEventInPort,
+		mellanoxWJHEventOutPort,
+		mellanoxWJHEventTc,
+		mellanoxWJHEventEgressUsage,
+		mellanoxWJHEventEgressLatency,
+		mellanoxWJHEventPg,
+		mellanoxWJHEventIngressUsage
+	 }
+     STATUS   current
+     DESCRIPTION
+         "A trap indicating a raw WJH forwarding event."
+     ::= { mellanoxWJHMib 5 }
+
+mellanoxWJHForwardingAggEvent NOTIFICATION-TYPE
+     OBJECTS  { 
+        mellanoxWJHEventTextLine1,
+        mellanoxWJHEventTextLine2,
+        mellanoxWJHEventTextLine3,
+        mellanoxWJHEventTextLine4,
+        mellanoxWJHEventTextLine5,
+		mellanoxWJHEventSeverity,
+		mellanoxWJHEventCategory,
+		mellanoxWJHEventSubCategory,
+        mellanoxWJHEventEtherType,
+        mellanoxWJHEventSrcMac,
+        mellanoxWJHEventDstMac,
+        mellanoxWJHEventVlanId,
+		mellanoxWJHEventSrcIp,
+		mellanoxWJHEventDstIp,
+		mellanoxWJHEventProtocol,
+		mellanoxWJHEventSrcPort,
+		mellanoxWJHEventDstPort,
+		mellanoxWJHEventTimestamp,
+		mellanoxWJHEventEndTimestamp,
+		mellanoxWJHEventReasonId,
+		mellanoxWJHEventReasonEventType,
+		mellanoxWJHEventReasonDescription,
+		mellanoxWJHEventReasonRecommendedAction,
+		mellanoxWJHEventInPort,
+		mellanoxWJHEventOutPort,
+		mellanoxWJHEventCount
+	 }
+     STATUS   current
+     DESCRIPTION
+         "A trap indicating an aggregated WJH forwarding event."
+     ::= { mellanoxWJHMib 6 }
+
+mellanoxWJHL1Event NOTIFICATION-TYPE
+     OBJECTS  { 
+        mellanoxWJHEventTextLine1,
+        mellanoxWJHEventTextLine2,
+        mellanoxWJHEventTextLine3,
+        mellanoxWJHEventTextLine4,
+        mellanoxWJHEventTextLine5,
+		mellanoxWJHEventSeverity,
+		mellanoxWJHEventCategory,
+		mellanoxWJHEventSubCategory,
+		mellanoxWJHEventTimestamp,
+		mellanoxWJHEventReasonId,
+		mellanoxWJHEventReasonEventType,
+		mellanoxWJHEventReasonDescription,
+		mellanoxWJHEventReasonRecommendedAction,
+		mellanoxWJHEventCount,
+		mellanoxWJHEventPortState
+	 }
+     STATUS   current
+     DESCRIPTION
+         "A trap indicating a raw WJH L1 event."
+     ::= { mellanoxWJHMib 7 }
+
+mellanoxWJHL1AggEvent NOTIFICATION-TYPE
+     OBJECTS  { 
+        mellanoxWJHEventTextLine1,
+        mellanoxWJHEventTextLine2,
+        mellanoxWJHEventTextLine3,
+        mellanoxWJHEventTextLine4,
+        mellanoxWJHEventTextLine5,
+		mellanoxWJHEventSeverity,
+		mellanoxWJHEventCategory,
+		mellanoxWJHEventSubCategory,
+		mellanoxWJHEventTimestamp,
+		mellanoxWJHEventEndTimestamp,
+		mellanoxWJHEventReasonId,
+		mellanoxWJHEventReasonEventType,
+		mellanoxWJHEventReasonDescription,
+		mellanoxWJHEventReasonRecommendedAction,
+		mellanoxWJHEventCount,
+		mellanoxWJHEventPortState
+	 }
+     STATUS   current
+     DESCRIPTION
+         "A trap indicating an aggregated WJH L1 event."
+     ::= { mellanoxWJHMib 8 }
+
+mellanoxWJHEvent NOTIFICATION-TYPE
+     OBJECTS  { 
+        mellanoxWJHEventTextLine1,
+        mellanoxWJHEventTextLine2,
+        mellanoxWJHEventTextLine3,
+        mellanoxWJHEventTextLine4,
+        mellanoxWJHEventTextLine5,
+		mellanoxWJHEventSeverity,
+		mellanoxWJHEventCategory,
+		mellanoxWJHEventSubCategory,
+        mellanoxWJHEventEtherType,
+        mellanoxWJHEventSrcMac,
+        mellanoxWJHEventDstMac,
+        mellanoxWJHEventVlanId,
+		mellanoxWJHEventSrcIp,
+		mellanoxWJHEventDstIp,
+		mellanoxWJHEventProtocol,
+		mellanoxWJHEventSrcPort,
+		mellanoxWJHEventDstPort,
+		mellanoxWJHEventTimestamp,
+		mellanoxWJHEventEndTimestamp,
+		mellanoxWJHEventReasonId,
+		mellanoxWJHEventReasonEventType,
+		mellanoxWJHEventReasonDescription,
+		mellanoxWJHEventReasonRecommendedAction,
+		mellanoxWJHEventInPort,
+		mellanoxWJHEventOutPort,
+		mellanoxWJHEventTc,
+		mellanoxWJHEventEgressUsageWatermark,
+		mellanoxWJHEventEgressLatencyWatermark,
+		mellanoxWJHEventPg,
+		mellanoxWJHEventIngressUsageWatermark,
+		mellanoxWJHEventCount,
+		mellanoxWJHEventAclName,
+		mellanoxWJHEventAclRule,
+		mellanoxWJHEventNumOfFlows,
+		mellanoxWJHEventPortState
+	 }
+     STATUS   current
+     DESCRIPTION
+         "A trap indicating a general WJH event."
+     ::= { mellanoxWJHMib 9 }
+
+	 
+mellanoxWJHEventTable OBJECT-TYPE
+     SYNTAX     SEQUENCE OF MellanoxWJHEventEntry
+     MAX-ACCESS not-accessible
+     STATUS     current
+     DESCRIPTION
+         "A table defining the WJH event arguments needed as var-binds for the traps.
+		 This table is currently not implemented for polling the information."
+     ::= { mellanoxWJHMib 100 }
+
+mellanoxWJHEventEntry OBJECT-TYPE
+     SYNTAX     MellanoxWJHEventEntry
+     MAX-ACCESS not-accessible
+     STATUS     current
+     DESCRIPTION
+         "A list of WJH Event parameters sent with the traps."
+
+     INDEX { mellanoxWJHEventIndex }
+     ::= { mellanoxWJHEventTable 1 }
+
+MellanoxWJHEventEntry ::= SEQUENCE {
+     mellanoxWJHEventTextLine1                  OCTET STRING,
+     mellanoxWJHEventTextLine2                  OCTET STRING,
+     mellanoxWJHEventTextLine3                  OCTET STRING,
+     mellanoxWJHEventTextLine4                  OCTET STRING,
+     mellanoxWJHEventTextLine5                  OCTET STRING,
+     mellanoxWJHEventSeverity		    		INTEGER,
+	 mellanoxWJHEventCategory         			INTEGER, 
+	 mellanoxWJHEventSubCategory      			INTEGER,
+	 mellanoxWJHEventEtherType 					OCTET STRING,	
+     mellanoxWJHEventSrcMac						OCTET STRING,
+     mellanoxWJHEventDstMac						OCTET STRING,
+     mellanoxWJHEventVlanId						INTEGER,
+     mellanoxWJHEventPcp						OCTET STRING,
+     mellanoxWJHEventSrcIp						OCTET STRING,
+     mellanoxWJHEventDstIp						OCTET STRING,
+     mellanoxWJHEventProtocol					OCTET STRING,
+     mellanoxWJHEventTos						OCTET STRING,
+     mellanoxWJHEventTtl						INTEGER,
+     mellanoxWJHEventLength						INTEGER,
+     mellanoxWJHEventSrcPort					OCTET STRING,
+     mellanoxWJHEventDstPort					OCTET STRING,
+     mellanoxWJHEventInnerEtherType				OCTET STRING,
+     mellanoxWJHEventInnerSrcMac				OCTET STRING,
+     mellanoxWJHEventInnerDstMac				OCTET STRING,
+     mellanoxWJHEventInnerVlanId				INTEGER,
+     mellanoxWJHEventInnerPcp					OCTET STRING,
+     mellanoxWJHEventInnerSrcIp					OCTET STRING,
+     mellanoxWJHEventInnerDstIp					OCTET STRING,
+     mellanoxWJHEventInnerProtocol				OCTET STRING,
+     mellanoxWJHEventInnerTos					OCTET STRING,
+     mellanoxWJHEventInnerTtl					INTEGER,
+     mellanoxWJHEventInnerLength				INTEGER,
+     mellanoxWJHEventInnerSrcPort				OCTET STRING,
+     mellanoxWJHEventInnerDstPort				OCTET STRING,
+     mellanoxWJHEventVni						INTEGER,
+     mellanoxWJHEventAclName					OCTET STRING,
+     mellanoxWJHEventAclRule					OCTET STRING,
+     mellanoxWJHEventTimestamp					OCTET STRING,
+     mellanoxWJHEventEndTimestamp				OCTET STRING,
+     mellanoxWJHEventReasonId					INTEGER,
+     mellanoxWJHEventReasonEventType			INTEGER,
+     mellanoxWJHEventReasonDescription			OCTET STRING,
+     mellanoxWJHEventReasonRecommendedAction	OCTET STRING,
+     mellanoxWJHEventInPort						OCTET STRING,
+     mellanoxWJHEventOutPort					OCTET STRING,
+     mellanoxWJHEventTc							INTEGER,
+     mellanoxWJHEventEgressUsage				INTEGER,
+     mellanoxWJHEventEgressUsageWatermark		INTEGER,
+     mellanoxWJHEventEgressLatency				INTEGER,
+     mellanoxWJHEventEgressLatencyWatermark		INTEGER,
+     mellanoxWJHEventPg							INTEGER,
+     mellanoxWJHEventIngressUsage				INTEGER,
+     mellanoxWJHEventIngressUsageWatermark		INTEGER,
+     mellanoxWJHEventCount						Counter64,
+     mellanoxWJHEventNumOfFlows					Counter64,
+     mellanoxWJHEventPortState					OCTET STRING,
+     mellanoxWJHEventIndex                              INTEGER
+    }
+
+mellanoxWJHEventTextLine1 OBJECT-TYPE
+     SYNTAX     OCTET STRING
+     MAX-ACCESS read-only
+     STATUS     current
+     DESCRIPTION 
+           "WJH Event textual representation - line number 1"
+     ::= { mellanoxWJHEventEntry 1 }
+
+mellanoxWJHEventTextLine2 OBJECT-TYPE
+     SYNTAX     OCTET STRING
+     MAX-ACCESS read-only
+     STATUS     current
+     DESCRIPTION 
+           "WJH Event textual representation - line number 2"
+     ::= { mellanoxWJHEventEntry 2 }
+
+mellanoxWJHEventTextLine3 OBJECT-TYPE
+     SYNTAX     OCTET STRING
+     MAX-ACCESS read-only
+     STATUS     current
+     DESCRIPTION 
+           "WJH Event textual representation - line number 3"
+     ::= { mellanoxWJHEventEntry 3 }
+
+mellanoxWJHEventTextLine4 OBJECT-TYPE
+     SYNTAX     OCTET STRING
+     MAX-ACCESS read-only
+     STATUS     current
+     DESCRIPTION 
+           "WJH Event textual representation - line number 4"
+     ::= { mellanoxWJHEventEntry 4 }
+
+mellanoxWJHEventTextLine5 OBJECT-TYPE
+     SYNTAX     OCTET STRING
+     MAX-ACCESS read-only
+     STATUS     current
+     DESCRIPTION 
+           "WJH Event textual representation - line number 5"
+     ::= { mellanoxWJHEventEntry 5 }
+
+mellanoxWJHEventSeverity OBJECT-TYPE
+       SYNTAX  INTEGER {
+		   undefined (0),
+           critical (1),           
+           error    (2),              
+           warning  (3),            
+           notice   (4),             
+           info     (5),      
+           debug    (6)
+       }
+       ACCESS  read-only
+       STATUS  current
+       DESCRIPTION
+           "Severity level of WJH Event"
+   ::= { mellanoxWJHEventEntry 6 }
+
+mellanoxWJHEventCategory OBJECT-TYPE
+       SYNTAX  INTEGER {
+		   undefined  (0),
+           forwarding (1),           
+           layer1     (2),              
+           acl  	  (3),            
+           buffer     (4),             
+           forwardingAgg (5),           
+           layer1Agg     (6),              
+           aclAgg  	  	 (7),            
+           bufferAgg     (8)             
+       }
+       ACCESS  read-only
+       STATUS  current
+       DESCRIPTION
+           "Category of WJH Event"
+   ::= { mellanoxWJHEventEntry 7 }
+
+mellanoxWJHEventSubCategory OBJECT-TYPE
+       SYNTAX  INTEGER {
+		   undefined  (0),
+           layer2	  (1),           
+           layer3     (2),              
+           tunnel  	  (3),            
+           latency    (4),             
+           congestion (5),             
+           drop   	  (6),             
+           taildrop   (7),             
+           wreddrop   (8)             
+       }
+       ACCESS  read-only
+       STATUS  current
+       DESCRIPTION
+           "Sub-category of WJH Event"
+   ::= { mellanoxWJHEventEntry 8 }
+
+mellanoxWJHEventEtherType  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH packet EtherType"
+	::= { mellanoxWJHEventEntry 9 }
+   
+mellanoxWJHEventSrcMac  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH packet source MAC address"
+	::= { mellanoxWJHEventEntry 10 }
+
+mellanoxWJHEventDstMac  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH packet destination MAC address"
+	::= { mellanoxWJHEventEntry 11 }
+   
+mellanoxWJHEventVlanId OBJECT-TYPE
+       SYNTAX  INTEGER 
+       ACCESS  read-only
+       STATUS  current
+       DESCRIPTION
+           "WJH packet VLAN Id, 
+		    a zero value implies that this field is not applicable"
+   ::= { mellanoxWJHEventEntry 12 }
+   
+mellanoxWJHEventPcp  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH packet PCP"
+	::= { mellanoxWJHEventEntry 13 }
+
+mellanoxWJHEventSrcIp  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH packet source IP Address"
+	::= { mellanoxWJHEventEntry 14 }
+
+mellanoxWJHEventDstIp  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH packet destination IP Address"
+	::= { mellanoxWJHEventEntry 15 }
+
+mellanoxWJHEventProtocol  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH packet protocol"
+	::= { mellanoxWJHEventEntry 16 }
+
+mellanoxWJHEventTos  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH packet TOS"
+	::= { mellanoxWJHEventEntry 17 }
+
+mellanoxWJHEventTtl OBJECT-TYPE
+       SYNTAX  INTEGER 
+       ACCESS  read-only
+       STATUS  current
+       DESCRIPTION
+           "WJH packet TTL
+		    a negative value implies that this field is not applicable"
+   ::= { mellanoxWJHEventEntry 18 }
+   
+mellanoxWJHEventLength OBJECT-TYPE
+       SYNTAX  INTEGER 
+       ACCESS  read-only
+       STATUS  current
+       DESCRIPTION
+           "WJH packet length
+		    a zero value implies that this field is not applicable"
+   ::= { mellanoxWJHEventEntry 19 }
+   
+mellanoxWJHEventSrcPort  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH packet source port"
+	::= { mellanoxWJHEventEntry 20 }
+
+mellanoxWJHEventDstPort  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH packet destination port"
+	::= { mellanoxWJHEventEntry 21 }
+	
+mellanoxWJHEventInnerEtherType  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH packet inner EtherType"
+	::= { mellanoxWJHEventEntry 22 }
+   
+mellanoxWJHEventInnerSrcMac  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH packet inner source MAC address"
+	::= { mellanoxWJHEventEntry 23 }
+
+mellanoxWJHEventInnerDstMac  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH packet inner destination MAC address"
+	::= { mellanoxWJHEventEntry 24 }
+   
+mellanoxWJHEventInnerVlanId OBJECT-TYPE
+       SYNTAX  INTEGER 
+       ACCESS  read-only
+       STATUS  current
+       DESCRIPTION
+           "WJH packet inner VLAN Id
+		    a zero value implies that this field is not applicable"
+   ::= { mellanoxWJHEventEntry 25 }
+   
+mellanoxWJHEventInnerPcp  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH packet inner PCP"
+	::= { mellanoxWJHEventEntry 26 }
+
+mellanoxWJHEventInnerSrcIp  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH packet inner source IP Address"
+	::= { mellanoxWJHEventEntry 27 }
+
+mellanoxWJHEventInnerDstIp  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH packet inner destination IP Address"
+	::= { mellanoxWJHEventEntry 28 }
+
+mellanoxWJHEventInnerProtocol  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH packet inner protocol"
+	::= { mellanoxWJHEventEntry 29 }
+
+mellanoxWJHEventInnerTos  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH packet inner TOS"
+	::= { mellanoxWJHEventEntry 30 }
+
+mellanoxWJHEventInnerTtl OBJECT-TYPE
+       SYNTAX  INTEGER 
+       ACCESS  read-only
+       STATUS  current
+       DESCRIPTION
+           "WJH packet inner TTL
+		    a negative value implies that this field is not applicable"
+   ::= { mellanoxWJHEventEntry 31 }
+   
+mellanoxWJHEventInnerLength OBJECT-TYPE
+       SYNTAX  INTEGER 
+       ACCESS  read-only
+       STATUS  current
+       DESCRIPTION
+           "WJH packet inner length
+		    a zero value implies that this field is not applicable"
+   ::= { mellanoxWJHEventEntry 32 }
+   
+mellanoxWJHEventInnerSrcPort  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH packet inner source port"
+	::= { mellanoxWJHEventEntry 33 }
+
+mellanoxWJHEventInnerDstPort  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH packet inner destination port"
+	::= { mellanoxWJHEventEntry 34 }
+	
+mellanoxWJHEventVni OBJECT-TYPE
+       SYNTAX  INTEGER 
+       ACCESS  read-only
+       STATUS  current
+       DESCRIPTION
+           "WJH packet VNI
+		    a zero value implies that this field is not applicable"
+   ::= { mellanoxWJHEventEntry 35 }
+   
+mellanoxWJHEventAclName  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH Event ACL name"
+	::= { mellanoxWJHEventEntry 36 }
+
+mellanoxWJHEventAclRule  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH Event ACL rule"
+	::= { mellanoxWJHEventEntry 37 }
+   
+mellanoxWJHEventTimestamp  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH Event timestamp"
+	::= { mellanoxWJHEventEntry 38 }
+   
+
+mellanoxWJHEventEndTimestamp  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH Event aggregation end timestamp"
+	::= { mellanoxWJHEventEntry 39 }
+
+mellanoxWJHEventReasonId OBJECT-TYPE
+       SYNTAX  INTEGER 
+       ACCESS  read-only
+       STATUS  current
+       DESCRIPTION
+           "WJH Event reason identifier
+		    a negative value implies that this field is not applicable"
+   ::= { mellanoxWJHEventEntry 40 }
+   
+mellanoxWJHEventReasonEventType OBJECT-TYPE
+       SYNTAX  INTEGER 
+       ACCESS  read-only
+       STATUS  current
+       DESCRIPTION
+           "WJH Event reason event type
+		    a negative value implies that this field is not applicable"
+   ::= { mellanoxWJHEventEntry 41 }
+   
+mellanoxWJHEventReasonDescription OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH Event reason description"
+	::= { mellanoxWJHEventEntry 42 }
+
+mellanoxWJHEventReasonRecommendedAction OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH Event reason recommended action"
+	::= { mellanoxWJHEventEntry 43 }
+	
+mellanoxWJHEventInPort OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH Event ingress port"
+	::= { mellanoxWJHEventEntry 44 }
+	
+mellanoxWJHEventOutPort  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH Event egress port"
+	::= { mellanoxWJHEventEntry 45 }
+	
+mellanoxWJHEventTc OBJECT-TYPE
+       SYNTAX  INTEGER 
+       ACCESS  read-only
+       STATUS  current
+       DESCRIPTION
+           "WJH Event egress TC
+		    a negative value implies that this field is not applicable"
+   ::= { mellanoxWJHEventEntry 46 }
+   
+mellanoxWJHEventEgressUsage OBJECT-TYPE
+       SYNTAX  INTEGER 
+       ACCESS  read-only
+       STATUS  current
+       DESCRIPTION
+           "WJH Event egress queue usage (bytes)
+		    a negative value implies that this field is not applicable"
+   ::= { mellanoxWJHEventEntry 47 }
+   
+mellanoxWJHEventEgressUsageWatermark OBJECT-TYPE
+       SYNTAX  INTEGER 
+       ACCESS  read-only
+       STATUS  current
+       DESCRIPTION
+           "WJH Event egress queue usage watermark (bytes)
+		    a negative value implies that this field is not applicable"
+   ::= { mellanoxWJHEventEntry 48 }
+   
+mellanoxWJHEventEgressLatency OBJECT-TYPE
+       SYNTAX  INTEGER 
+       ACCESS  read-only
+       STATUS  current
+       DESCRIPTION
+           "WJH Event egress queue latency (nanoseconds)
+		    a negative value implies that this field is not applicable"
+   ::= { mellanoxWJHEventEntry 49 }
+   
+mellanoxWJHEventEgressLatencyWatermark OBJECT-TYPE
+       SYNTAX  INTEGER 
+       ACCESS  read-only
+       STATUS  current
+       DESCRIPTION
+           "WJH Event egress queue latency watermark (nanoseconds)
+		    a negative value implies that this field is not applicable"
+   ::= { mellanoxWJHEventEntry 50 }
+   
+mellanoxWJHEventPg OBJECT-TYPE
+       SYNTAX  INTEGER 
+       ACCESS  read-only
+       STATUS  current
+       DESCRIPTION
+           "WJH Event ingress PG
+		    a negative value implies that this field is not applicable"
+   ::= { mellanoxWJHEventEntry 51 }
+   
+mellanoxWJHEventIngressUsage OBJECT-TYPE
+       SYNTAX  INTEGER 
+       ACCESS  read-only
+       STATUS  current
+       DESCRIPTION
+           "WJH Event ingress usage (bytes)
+		    a negative value implies that this field is not applicable"
+   ::= { mellanoxWJHEventEntry 52 }
+   
+mellanoxWJHEventIngressUsageWatermark OBJECT-TYPE
+       SYNTAX  INTEGER 
+       ACCESS  read-only
+       STATUS  current
+       DESCRIPTION
+           "WJH Event ingress usage watermark (bytes)
+		    a negative value implies that this field is not applicable"
+   ::= { mellanoxWJHEventEntry 53 }
+   
+mellanoxWJHEventCount OBJECT-TYPE
+       SYNTAX  Counter64 
+       ACCESS  read-only
+       STATUS  current
+       DESCRIPTION
+           "WJH Event aggregated count
+		    a negative value implies that this field is not applicable"
+   ::= { mellanoxWJHEventEntry 54 }
+
+mellanoxWJHEventNumOfFlows OBJECT-TYPE
+       SYNTAX  Counter64 
+       ACCESS  read-only
+       STATUS  current
+       DESCRIPTION
+           "WJH aggregated ACL event number of captured flows
+		    a negative value implies that this field is not applicable"
+   ::= { mellanoxWJHEventEntry 55 }
+
+mellanoxWJHEventPortState  OBJECT-TYPE
+	SYNTAX     OCTET STRING
+	MAX-ACCESS read-only
+	STATUS     current
+	DESCRIPTION 
+		"WJH L1 event port state"
+	::= { mellanoxWJHEventEntry 56 }
+   
+mellanoxWJHEventIndex OBJECT-TYPE
+       SYNTAX  INTEGER
+       ACCESS  read-only
+       STATUS  current
+       DESCRIPTION
+           "Unique Index of WJH event"
+   ::= { mellanoxWJHEventEntry 57 }
+
+END

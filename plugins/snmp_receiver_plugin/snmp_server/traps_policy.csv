@@ -1,0 +1,13 @@
+OID,Name,Description,Enabled,Severity
+MELLANOX-EFM-MIB::testTrap,send-test,A test trap ordered by the system administrator,True,Warning
+MELLANOX-EFM-MIB::asicChipDown,asic-chip-down,ASIC (Chip) Down,True,Critical
+MELLANOX-EFM-MIB::cpuUtilHigh,cpu-util-high,CPU utilization has risen too high,True,Warning
+MELLANOX-EFM-MIB::diskSpaceLow,disk-space-low,Filesystem free space has fallen too low,True,Warning
+MELLANOX-EFM-MIB::expectedShutdown,expected-shutdown,Expected system shutdown,True,Info
+MELLANOX-EFM-MIB::systemHealthStatus,health-module-status,Health module Status,True,Critical
+MELLANOX-EFM-MIB::insufficientFans,insufficient-fans,Insufficient amount of fans in system,True,Warning
+MELLANOX-EFM-MIB::insufficientFansRecover,insufficient-fans-recover,Insufficient amount of fans in system recovered,True,Info
+MELLANOX-EFM-MIB::insufficientPower,insufficient-power,Insufficient power supply,True,Warning
+RFC1213::linkdown,interface-down,An interface's link state has changed to down,True,Minor
+RFC1213::linkup,interface-up,An interface's link state has changed to up,True,Info
+MELLANOX-EFM-MIB::unexpectedShutdown,unexpected-shutdown,Unexpected system shutdown,True,Minor
