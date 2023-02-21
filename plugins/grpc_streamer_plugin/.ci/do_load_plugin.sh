@@ -9,7 +9,7 @@ send -- "enable\r"
 expect "# "
 send -- "config terminal\r"
 expect "/(config/) # "
-send -- "docker load ufm-plugin-grpc_streamer_latest-docker.img.gz\r"
+send -- "docker load ufm-plugin-grpc-streamer_latest-docker.img.gz\r"
 expect "/(config/) # "
 send -- "show docker images\r"
 sleep 60
