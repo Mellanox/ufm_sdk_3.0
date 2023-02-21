@@ -106,8 +106,7 @@ pipeline_start:
 
 pipeline_stop:
   run: |
-    # sudo rm -rf /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
-    echo "This is the part where we remove the old build, we check if the image is there"
+    sudo rm -rf /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
   
 
 
