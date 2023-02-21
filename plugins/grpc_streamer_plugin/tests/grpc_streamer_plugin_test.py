@@ -33,6 +33,7 @@ class TestPluginStreamer:
     def __init__(self,HOST_IP):
         self.job_id = 'coco'
         self._server = server.GRPCPluginStreamerServer(HOST_IP)
+        self.host_ip=HOST_IP
         self._client = client.GrpcClient(HOST_IP, Constants.UFM_PLUGIN_PORT, self.job_id)
         self.FAILED_TESTS_COUNT = 0
         self.start()
@@ -69,7 +70,7 @@ class TestPluginStreamer:
         self.assert_equal("create destination(client) after session",result,True)
         self.assert_equal("server contains only one user", len(self._server.subscribers), 1)
         try:
-            channel = grpc.insecure_channel(f'localhost:{Constants.UFM_PLUGIN_PORT}')
+            channel = grpc.insecure_channel(f'{self.host_ip}:{Constants.UFM_PLUGIN_PORT}')
             stub = grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamerServiceStub(channel)
             result = stub.ListSubscribers(Empty())
             self.assert_equal("Rececive a list of clients ",isinstance(result,grpc_plugin_streamer_pb2.ListSubscriberParams),True)
@@ -88,7 +89,7 @@ class TestPluginStreamer:
         self.cleanup()
         dest = Subscriber(self.job_id, [('Events'), ("Alarms")], None, None)
         try:
-            channel = grpc.insecure_channel(f'localhost:{Constants.UFM_PLUGIN_PORT}')
+            channel = grpc.insecure_channel(f'{self.host_ip}:{Constants.UFM_PLUGIN_PORT}')
             stub = grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamerServiceStub(channel)
             result = stub.AddSubscriber(dest.to_message())
             channel.close()
