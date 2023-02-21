@@ -11,13 +11,17 @@
 #
 import argparse
 import grpc
-import plugins.grpc_streamer_plugin.ufm_sim_web_service.grpc_server as server
-import plugins.grpc_streamer_plugin.ufm_sim_web_service.grpc_client as client
-import plugins.grpc_streamer_plugin.ufm_sim_web_service.grpc_plugin_streamer_pb2_grpc as grpc_plugin_streamer_pb2_grpc
-import plugins.grpc_streamer_plugin.ufm_sim_web_service.grpc_plugin_streamer_pb2 as grpc_plugin_streamer_pb2
-from plugins.grpc_streamer_plugin.ufm_sim_web_service.Subscriber import Subscriber
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '../ufm_sim_web_service'))
+import ufm_sim_web_service.grpc_server as server
+import ufm_sim_web_service.grpc_client as client
+import ufm_sim_web_service.grpc_plugin_streamer_pb2_grpc as grpc_plugin_streamer_pb2_grpc
+import ufm_sim_web_service.grpc_plugin_streamer_pb2 as grpc_plugin_streamer_pb2
+from ufm_sim_web_service.Subscriber import Subscriber
 from google.protobuf.empty_pb2 import Empty
-from plugins.grpc_streamer_plugin.ufm_sim_web_service.Config import Constants
+from ufm_sim_web_service.Config import Constants
 
 import sys
 
@@ -69,7 +73,7 @@ class TestPluginStreamer:
             stub = grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamerServiceStub(channel)
             result = stub.ListSubscribers(Empty())
             self.assert_equal("Rececive a list of clients ",isinstance(result,grpc_plugin_streamer_pb2.ListSubscriberParams),True)
-            self.assert_equal("The amount of clients in the server is 1",len(result.destinations),1)
+            self.assert_equal("The amount of clients in the server is 1",len(result.subscribers),1)
         except grpc.RpcError as e:
             self.assert_equal("Error accorded",e,None)
 
@@ -103,6 +107,10 @@ class TestPluginStreamer:
 
     def testAllTaskAreRestCalls(self):
         result = self._client.onceApis([('Events'), ("junk")],(DEFAULT_USERNAME, DEFAULT_PASSWORD))
+        if result is None:
+            self.FAILED_TESTS_COUNT += 1
+            print("    - test name: result from onceAPI is a message  -- FAIL (expected: runOnceRespond message, actual: None)")
+            return 1
         all_good=0
         for message in result.results:
             all_good+=1 if (message.ufm_api_name == 'Events') else 0
