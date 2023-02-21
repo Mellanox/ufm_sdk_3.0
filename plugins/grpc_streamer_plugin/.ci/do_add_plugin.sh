@@ -11,7 +11,9 @@ send -- "config terminal\r"
 expect "/(config/) # "
 send -- "show ufm status\r"
 expect "/(config/) # "
-
+sleep 10
+send -- "ufm web-client mode https\r"
+expect "/(config/) # "
 send -- "ufm start\r"
 expect "/(config/) # "
 sleep 20
