@@ -24,7 +24,7 @@ from ufm_sim_web_service.Config import Constants
 
 import sys
 
-DEFAULT_PASSWORD = "123456"
+DEFAULT_PASSWORD = "admin"
 DEFAULT_USERNAME = "admin"
 
 
@@ -58,27 +58,25 @@ class TestPluginStreamer:
             channel = grpc.insecure_channel(f'{self.host_ip}:{Constants.UFM_PLUGIN_PORT}')
             stub = grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamerServiceStub(channel)
             result = stub.ListSubscribers(Empty())
-            self.assert_equal("Rececive a list of clients ",isinstance(result,grpc_plugin_streamer_pb2.ListSubscriberParams),True)
+            self.assert_equal("Rececive a list of clients ",result.__class__.__name__,"ListSubscriberParams")
             self.assert_equal("The amount of clients in the server is 1",len(result.subscribers),1)
         except grpc.RpcError as e:
             self.assert_equal("Error accorded",e,None)
 
     def testGetOnce(self):
-        self.cleanup()
         result = self._client.add_session(DEFAULT_USERNAME, DEFAULT_PASSWORD)
         self.assert_equal("create session using default logins", result, True)
         result = self._client.onceApis([('Events'), ("Alarms")],(DEFAULT_USERNAME, DEFAULT_PASSWORD))
         self.assert_equal("Receive data in get once rest api",result is not None,True)
 
     def testAddWithoutSession(self):
-        self.cleanup()
-        dest = Subscriber(self.job_id, [('Events'), ("Alarms")], None, None)
+        dest = Subscriber(self.job_id+"c", [('Events'), ("Alarms")], None, None)
         try:
             channel = grpc.insecure_channel(f'{self.host_ip}:{Constants.UFM_PLUGIN_PORT}')
             stub = grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamerServiceStub(channel)
             result = stub.AddSubscriber(dest.to_message())
             channel.close()
-            self.assert_equal("Receive respond from add destination",isinstance(result,grpc_plugin_streamer_pb2.SessionRespond),True)
+            self.assert_equal("Receive respond from add destination",result.__class__.__name__,"SessionRespond")
             self.assert_equal("The message we receive is the same as we plan ",result.respond , Constants.LOG_CANNOT_SUBSCRIBER + Constants.LOG_CANNOT_NO_SESSION)
         except grpc.RpcError as e:
             self.assert_equal("RpcError accorded",e,None)
