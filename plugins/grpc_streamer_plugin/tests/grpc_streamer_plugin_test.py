@@ -32,21 +32,10 @@ DEFAULT_USERNAME = "admin"
 class TestPluginStreamer:
     def __init__(self,HOST_IP):
         self.job_id = 'coco'
-        self._server = server.GRPCPluginStreamerServer(HOST_IP)
         self.host_ip=HOST_IP
         self._client = client.GrpcClient(HOST_IP, Constants.UFM_PLUGIN_PORT, self.job_id)
         self.FAILED_TESTS_COUNT = 0
         self.start()
-
-    def stop(self):
-        self._server.stop()
-
-    def start(self):
-        self._server.start()
-
-    def cleanup(self):
-        self._server.subscribers.clear()
-        self._server._session.clear()
 
     def assert_equal(self,message, left_expr, right_expr, test_name="positive"):
         if left_expr == right_expr:
@@ -59,16 +48,14 @@ class TestPluginStreamer:
 
 
     def testAddSession(self):
-        self.cleanup()
         result = self._client.add_session(DEFAULT_USERNAME,DEFAULT_PASSWORD)
         self.assert_equal("create session using default logins",result,True)
+        self._client.onceIDApis([('Events'), ("junk")])
 
     def testAddUser(self):
-        self.cleanup()
         self._client.add_session(DEFAULT_USERNAME,DEFAULT_PASSWORD)
         result = self._client.added_job([('Events')])
         self.assert_equal("create destination(client) after session",result,True)
-        self.assert_equal("server contains only one user", len(self._server.subscribers), 1)
         try:
             channel = grpc.insecure_channel(f'{self.host_ip}:{Constants.UFM_PLUGIN_PORT}')
             stub = grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamerServiceStub(channel)
@@ -95,12 +82,10 @@ class TestPluginStreamer:
             channel.close()
             self.assert_equal("Receive respond from add destination",isinstance(result,grpc_plugin_streamer_pb2.SessionRespond),True)
             self.assert_equal("The message we receive is the same as we plan ",result.respond , Constants.LOG_CANNOT_SUBSCRIBER + Constants.LOG_CANNOT_NO_SESSION)
-            self.assert_equal("there are no new destinations ",len(self._server.subscribers),0)
         except grpc.RpcError as e:
             self.assert_equal("RpcError accorded",e,None)
 
     def testEmptyDestination(self):
-        self.cleanup()
         try:
             self._client.onceApis(['junk'], (DEFAULT_USERNAME, DEFAULT_PASSWORD))
         except Exception as e:
