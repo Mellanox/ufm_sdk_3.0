@@ -1,5 +1,5 @@
 #!/bin/bash -x
-namehost=$(echo $HOSTNAME)
+namehost=r-dcs63
 export SERVER_HOST=$SERVER_HOST
 export PASSWORD=$PASSWORD
 expect << EOF
