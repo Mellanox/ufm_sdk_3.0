@@ -15,7 +15,6 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(os.path.join(os.path.dirname(__file__), '../ufm_sim_web_service'))
-import ufm_sim_web_service.grpc_server as server
 import ufm_sim_web_service.grpc_client as client
 import ufm_sim_web_service.grpc_plugin_streamer_pb2_grpc as grpc_plugin_streamer_pb2_grpc
 import ufm_sim_web_service.grpc_plugin_streamer_pb2 as grpc_plugin_streamer_pb2
@@ -35,7 +34,6 @@ class TestPluginStreamer:
         self.host_ip=HOST_IP
         self._client = client.GrpcClient(HOST_IP, Constants.UFM_PLUGIN_PORT, self.job_id)
         self.FAILED_TESTS_COUNT = 0
-        self.start()
 
     def assert_equal(self,message, left_expr, right_expr, test_name="positive"):
         if left_expr == right_expr:
