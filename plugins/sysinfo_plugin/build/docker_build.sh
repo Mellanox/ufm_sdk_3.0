@@ -89,9 +89,6 @@ function build_docker_image()
         echo "Failed to save image"
         return $exit_code
     fi
-    #if [ "$keep_image" != "y" -a "$keep_image" != "Y" ]; then
-    #    docker image rm -f ${image_with_prefix_and_version}
-    #fi
     return 0
 }
 

@@ -15,7 +15,7 @@ def get_hash(file_content):
     sha1.update(file_content.encode('utf-8'))
     return sha1.hexdigest()
 
-# DEFAULT_PASSWORD = "123456"
+DEFAULT_PASSWORD = "123456"
 DEFAULT_PASSWORD = "admin"
 
 # rest api

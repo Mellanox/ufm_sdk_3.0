@@ -1,13 +1,22 @@
+#
+# Copyright © 2013-2023 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+#
+# This software product is a proprietary product of Nvidia Corporation and its affiliates
+# (the "Company") and all right, title, and interest in and to the software
+# product, including all associated intellectual property rights, are and
+# shall remain exclusively with the Company.
+#
+# This software product is governed by the End User License Agreement
+# provided with the software product.
+#
 import re
 import aiohttp
-
+import asyncio
 import json
 
-import asyncio
 
 # copied from cabelvalidation from common/switch_json_api
 # uses aiohttp instead of requests session
-
 
 # copied from cablesagent and refactored so as to make more general
 # once complete, it will be placed in a 'common' directory, which is something
