@@ -236,7 +236,8 @@ class QueryRequest(UFMResource):
             self.parse_config()
         self.timestamp = self.get_timestamp()
         try:
-            async_rh = RequestHandler(self.switches,self.commands,self.ac,ip_to_guid=self.ip_to_guid,all_at_once=(self.callback if self.one_by_one else None))
+            async_rh = RequestHandler(self.switches,self.commands,self.ac,ip_to_guid=self.ip_to_guid,
+                                      auto_respond=self.auto_respond,all_at_once=(self.callback if self.one_by_one else None))
             respond = asyncio.run(async_rh.post_commands())
             respond.update(self.auto_respond)
             return respond
@@ -345,7 +346,8 @@ class QueryRequest(UFMResource):
     def add_scheduler_jobs(self) -> tuple((dict,int)):
         try:
             request_handler_switches = RequestHandler(self.switches,self.commands,self.ac,ip_to_guid=self.ip_to_guid,
-                                        all_at_once=(self.callback if self.one_by_one else None),is_async=self.is_async)
+                                        all_at_once=(self.callback if self.one_by_one else None),is_async=self.is_async,
+                                        auto_respond=self.auto_respond)
             if self.interval != 0:
                 self.scheduler.add_job(func=request_handler_switches.login_to_all,\
                          run_date=self.datetime_start)

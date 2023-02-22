@@ -32,7 +32,7 @@ class RequestHandler:
     * is_async - if the commands are async, and client dont need to wait for the switch to get the information.
     """
     def __init__(self,switches_ips:list,commands:list,ac:list=None,ip_to_guid:dict=None,
-                 all_at_once:str=None,is_async:bool=False) -> None:
+                 all_at_once:str=None,is_async:bool=False,auto_respond:dict=None) -> None:
         
         self.ip_to_guid = ip_to_guid
         if ip_to_guid is None:
@@ -49,6 +49,8 @@ class RequestHandler:
 
         self.is_executing=False
         self.latest_respond = {}
+        self.auto_respond={} if auto_respond is None else auto_respond
+        self.latest_respond.update(self.auto_respond)
         self.switches_apis={}
 
     async def post_commands(self) -> dict:
@@ -75,6 +77,11 @@ class RequestHandler:
         gather_time=time.time()
         await asyncio.gather(*logout_tasks)
         overall_time=time.time()
+        if self.one_by_one_callback is not None and len(self.auto_respond)>0:
+            auto_tasks=[]
+            for key,value in self.auto_respond.items():
+                auto_tasks.append(self.save_results(self.one_by_one_callback,{key:value}))
+            await asyncio.gather(*tasks)
         if self.verbose:
             print("login:"+str(login_time-start_time)+",gather:"+str(gather_time-login_time)+
             ",logout:"+str(overall_time-gather_time)+",overall:"+str(overall_time-start_time))
