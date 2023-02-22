@@ -238,9 +238,9 @@ class QueryRequest(UFMResource):
         try:
             async_rh = RequestHandler(self.switches,self.commands,self.ac,ip_to_guid=self.ip_to_guid,all_at_once=(self.callback if self.one_by_one else None))
             respond = asyncio.run(async_rh.post_commands())
-            respond = {}
             respond.update(self.auto_respond)
-
+            return respond
+        
         except Exception as exep:
             return self.report_error(400, exep)
 

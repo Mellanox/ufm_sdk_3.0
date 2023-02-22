@@ -114,54 +114,33 @@ def help_and_version():
 
 def upload_metadata(ndts_folder):
     print("Upload 2 NDTs test")
-    ndts_list_response = []
-    upload_request = []
-    switch_to_host_type = "switch_to_host"
-    switch_to_switch_type = "switch_to_switch"
-    for ndt in os.listdir(ndts_folder):
-        with open(os.path.join(ndts_folder, ndt), "r") as file:
-            data = file.read().replace('\n', '\r\n')
-            file_type = ""
-            if switch_to_host_type in ndt:
-                file_type = switch_to_host_type
-            elif switch_to_switch_type in ndt:
-                file_type = switch_to_switch_type
-            upload_request.append({"file_name": ndt,
-                                   "file": data,
-                                   "file_type": file_type,
-                                   "sha-1": get_hash(data)})
-            ndts_list_response.append({"file": ndt,
-                                       "sha-1": get_hash(data),
-                                       "file_type": file_type})
+    request = {}
+    request['callback']=['http://localhost/dummy']
 
     test_name = "not allowed"
-    response, request_string = make_request(GET, UPLOAD, payload=upload_request)
+    response, request_string = make_request(GET, QUERY_REQUEST, payload=request)
     assert_equal(request_string, get_code(response), 405, test_name)
     assert_equal(request_string, get_response(response), {'error': 'Method is not allowed'}, test_name)
 
-    possible_file_types = ["switch_to_switch", "switch_to_host"]
-    test_name = "incorrect file type"
-    good_file_type = upload_request[0]["file_type"]
-    upload_request[0]["file_type"] = "asd"
-    response, request_string = make_request(POST, UPLOAD, payload=upload_request)
+    test_name = "incorrect praser information"
+    response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response),
-                 {'error': ["Incorrect file type. Possible file types: {}."
-                 .format(",".join(possible_file_types))]}, test_name)
-    upload_request[0]["file_type"] = good_file_type
+                 {'error': "Incorrect format, missing keys in request: ['commands']."}, test_name)
+    
+    request['commands']=["show power","show inventory"]
+    request['callback']=['notURL/dummy']
 
-    good_file_name = upload_request[0]["file_name"]
-    upload_request[0]["file_name"] = ""
-    test_name = "empty file name"
-    response, request_string = make_request(POST, UPLOAD, payload=upload_request)
+    test_name = "incorrect URL"
+    response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response), {'error': ['File name is empty']}, test_name)
-    upload_request[0]["file_name"] = good_file_name
+    request['callback']=['http://localhost/dummy']
 
-    test_name = "wrong sha-1"
-    good_sha = upload_request[0]["sha-1"]
-    upload_request[0]["sha-1"] = "xyz"
-    response, request_string = make_request(POST, UPLOAD, payload=upload_request)
+    test_name = "unreachable switches"
+    request['switches']=["126.2.0.4"]
+
+    response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response),
                  {"error": ["Provided sha-1 {} for {} is different from actual one {}"
@@ -172,8 +151,7 @@ def upload_metadata(ndts_folder):
     assert_equal(request_string, remove_timestamp(get_response(response)), [ndts_list_response[1]], test_name)
 
     test_name = "update ndts"
-    upload_request[0]["sha-1"] = good_sha
-    response, request_string = make_request(POST, UPLOAD, payload=upload_request)
+    response, request_string = make_request(POST, UPLOAD, payload=request)
     assert_equal(request_string, get_code(response), 200, test_name)
     assert_equal(request_string, get_response(response), {}, test_name)
 
@@ -182,14 +160,12 @@ def upload_metadata(ndts_folder):
     assert_equal(request_string, remove_timestamp(get_response(response)), ndts_list_response[::-1], test_name)
 
     test_name = "incorrect request"
-    upload_request = {"asd": "asd"}
-    response, request_string = make_request(POST, UPLOAD, payload=upload_request)
+    response, request_string = make_request(POST, UPLOAD, payload=request)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response), {"error": ["Request format is incorrect"]}, test_name)
 
     test_name = "incorrect key"
-    upload_request = [{"name_of_the_file": "ndt"}]
-    response, request_string = make_request(POST, UPLOAD, payload=upload_request)
+    response, request_string = make_request(POST, UPLOAD, payload=request)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response), {"error": ["Incorrect format, extra keys in request: "
                                                                     "{'name_of_the_file'}"]}, test_name)
