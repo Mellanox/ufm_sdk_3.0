@@ -534,3 +534,12 @@ class Dummy(UFMResource):
         if request.json:
             print(request.json)
         else: print(request)
+
+class Date(UFMResource):
+    def get(self):
+        logging.info("GET /plugin/sysinfo/date")
+        return {"date": self.get_timestamp()}, self.success
+
+    def post(self):
+        return self.report_error(405, "Method is not allowed")
+

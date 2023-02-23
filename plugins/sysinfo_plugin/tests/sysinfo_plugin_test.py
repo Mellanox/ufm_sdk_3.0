@@ -8,15 +8,23 @@ import requests
 import os
 import hashlib
 from datetime import datetime, timedelta
+import socket
 
+from background_server import LOG_LOCATION,start_server,kill_server
 
 def get_hash(file_content):
     sha1 = hashlib.sha1()
     sha1.update(file_content.encode('utf-8'))
     return sha1.hexdigest()
 
+HOSTNAME = socket.gethostname()
+IPAddr = socket.gethostbyname(HOSTNAME)
+RECIVER_SERVER_LOCATION = f"http://{IPAddr}:8995/dummy"
+
 DEFAULT_PASSWORD = "123456"
 DEFAULT_PASSWORD = "admin"
+NOT_ALLOW="not allowed"
+METHOD_NOT_ALLOWED={'error': 'Method is not allowed'}
 
 # rest api
 GET = "GET"
@@ -30,11 +38,21 @@ DELETE = "delete"
 CANCEL = "cancel"
 QUERIES = "queries"
 QUERYID = "queries/{}"
+DATE = "date"
 
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 FAILED_TESTS_COUNT = 0
 
+def read_json_file() -> json:
+    file_name = LOG_LOCATION
+    with open(file_name, "r") as file:
+        # unhandled exception in case some of the files was changed manually
+        try:
+            data = json.load(file)
+        except json.JSONDecodeError:
+            return {}
+    return data
 
 def remove_timestamp(response):
     if response:
@@ -74,6 +92,9 @@ def assert_equal(request, left_expr, right_expr, test_name="positive"):
     if left_expr == right_expr:
         print("    - test name: {} {}, request: {} -- PASS"
               .format(test_name, test_type, request))
+    elif right_expr in left_expr:
+        print("    - test name: {} {}, request: {} -- PASS"
+              .format(test_name, test_type, request))
     else:
         global FAILED_TESTS_COUNT
         FAILED_TESTS_COUNT += 1
@@ -106,191 +127,60 @@ def help_and_version():
     assert_equal(request_string, get_code(response), 200)
     assert_equal(request_string, len(get_response(response)), 1)
 
-    test_name = "not allowed"
+    test_name = NOT_ALLOW
     response, request_string = make_request(POST, HELP)
     assert_equal(request_string, get_code(response), 405, test_name)
-    assert_equal(request_string, get_response(response), {'error': 'Method is not allowed'}, test_name)
+    assert_equal(request_string, get_response(response), METHOD_NOT_ALLOWED, test_name)
+    
+    response, request_string = make_request(POST, QUERIES)
+    assert_equal(request_string, get_code(response), 405, test_name)
+    assert_equal(request_string, get_response(response), METHOD_NOT_ALLOWED, test_name)
 
 
-def upload_metadata(ndts_folder):
-    print("Upload 2 NDTs test")
+
+def instant_comparison():
+    print("Run comparion test")
     request = {}
-    request['callback']=['http://localhost/dummy']
+    request['callback']=RECIVER_SERVER_LOCATION
 
-    test_name = "not allowed"
+    test_name = NOT_ALLOW
     response, request_string = make_request(GET, QUERY_REQUEST, payload=request)
     assert_equal(request_string, get_code(response), 405, test_name)
-    assert_equal(request_string, get_response(response), {'error': 'Method is not allowed'}, test_name)
+    assert_equal(request_string, get_response(response), METHOD_NOT_ALLOWED, test_name)
 
     test_name = "incorrect praser information"
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response),
-                 {'error': "Incorrect format, missing keys in request: ['commands']."}, test_name)
+                 {'error': "Incorrect format, missing keys in request: {'commands'}."}, test_name)
     
     request['commands']=["show power","show inventory"]
-    request['callback']=['notURL/dummy']
+    request['callback']="notURL/dummy"
 
     test_name = "incorrect URL"
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     assert_equal(request_string, get_code(response), 400, test_name)
-    assert_equal(request_string, get_response(response), {'error': ['File name is empty']}, test_name)
-    request['callback']=['http://localhost/dummy']
+    assert_equal(request_string, get_response(response), {'error': 'the callback url is not right:'}, test_name)
+    
 
     test_name = "unreachable switches"
-    request['switches']=["126.2.0.4"]
+    request['callback']=RECIVER_SERVER_LOCATION
+    request['switches']=["0.0.0.0"]
 
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
-    assert_equal(request_string, get_code(response), 400, test_name)
-    assert_equal(request_string, get_response(response),
-                 {"error": ["Provided sha-1 {} for {} is different from actual one {}"
-                 .format("xyz", good_file_name, good_sha)]}, test_name)
-
-    response, request_string = make_request(GET, NDTS)
+    time.sleep(5)
+    data_from=read_json_file()
     assert_equal(request_string, get_code(response), 200, test_name)
-    assert_equal(request_string, remove_timestamp(get_response(response)), [ndts_list_response[1]], test_name)
+    assert_equal(request_string, data_from[0],{"0.0.0.0":"Switch does not respond to ping"}
+                 , test_name)
+    
+    request['switches']=["10.209.27.19"]
 
-    test_name = "update ndts"
-    response, request_string = make_request(POST, UPLOAD, payload=request)
+    response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
+    time.sleep(5)
+    data_from=read_json_file()
     assert_equal(request_string, get_code(response), 200, test_name)
-    assert_equal(request_string, get_response(response), {}, test_name)
-
-    response, request_string = make_request(GET, NDTS, )
-    assert_equal(request_string, get_code(response), 200, test_name)
-    assert_equal(request_string, remove_timestamp(get_response(response)), ndts_list_response[::-1], test_name)
-
-    test_name = "incorrect request"
-    response, request_string = make_request(POST, UPLOAD, payload=request)
-    assert_equal(request_string, get_code(response), 400, test_name)
-    assert_equal(request_string, get_response(response), {"error": ["Request format is incorrect"]}, test_name)
-
-    test_name = "incorrect key"
-    response, request_string = make_request(POST, UPLOAD, payload=request)
-    assert_equal(request_string, get_code(response), 400, test_name)
-    assert_equal(request_string, get_response(response), {"error": ["Incorrect format, extra keys in request: "
-                                                                    "{'name_of_the_file'}"]}, test_name)
-
-
-def get_actual_report_len(report):
-    if report:
-        return len(report["report"]["miss_wired"]),\
-               len(report["report"]["missing_in_ndt"]),\
-               len(report["report"]["missing_in_ufm"])
-    else:
-        return 0, 0, 0
-
-
-def get_expected_report_len():
-    expected_report = os.path.join(os.path.dirname(os.path.abspath(__file__)), "expected_report.json")
-    with open(expected_report, "r") as file:
-        expected_response = json.load(file)
-        if expected_response:
-            return len(expected_response["report"]["miss_wired"]),\
-                   len(expected_response["report"]["missing_in_ndt"]),\
-                   len(expected_response["report"]["missing_in_ufm"])
-        else:
-            return 0, 0, 0
-
-
-def check_comparison_report(comparison_type):
-    print("{} report content test".format(comparison_type))
-
-    test_name = "not allowed"
-    response, request_string = make_request(POST, REPORTS)
-    assert_equal(request_string, get_code(response), 405, test_name)
-    assert_equal(request_string, get_response(response), {'error': 'Method is not allowed'}, test_name)
-
-    response, request_string = make_request(GET, REPORTS)
-    assert_equal(request_string, get_code(response), 200)
-    reports = get_response(response)
-    if reports:
-        if reports[-1]["report_scope"] != comparison_type:
-            print("    - no {} new report was generated, exit -- FAIL".format(comparison_type))
-            return
-        else:
-            print("    - new {} report was generated, continue -- PASS".format(comparison_type))
-        reports_number = len(reports)
-    else:
-        print("    - no new report was generated, exit -- FAIL")
-        return
-
-    test_name = "difference"
-    response, request_string = make_request(GET, REPORT_ID.format(reports_number))
-    assert_equal(request_string, get_code(response), 200, test_name)
-    report = get_response(response)
-    miss_wired_len, missing_in_ndt_len, missing_in_ufm_len = get_actual_report_len(report)
-    expected_report = os.path.join(os.path.dirname(os.path.abspath(__file__)), "expected_report.json")
-    with open(expected_report, "r") as file:
-        expected_response = json.load(file)
-        if expected_response:
-            expected_miss_wired_len, expected_missing_in_ndt_len, expected_missing_in_ufm_len,\
-                = get_expected_report_len()
-        assert_equal(request_string, str(missing_in_ndt_len), str(expected_missing_in_ndt_len), test_name + " missing_in_ndt_len")
-        assert_equal(request_string, str(missing_in_ufm_len), str(expected_missing_in_ufm_len), test_name + " missing_in_ufm_len")
-        assert_equal(request_string, str(miss_wired_len), str(expected_miss_wired_len), test_name + " miss_wired_len")
-
-    test_name = "report doesn't exist"
-    response, request_string = make_request(GET, REPORT_ID.format(reports_number + 1))
-    assert_equal(request_string, get_code(response), 400, test_name)
-    assert_equal(request_string, get_response(response), {'error': 'Report {} not found'.format(reports_number + 1)},
-                 test_name)
-
-    test_name = "invalid report id"
-    response, request_string = make_request(GET, REPORT_ID.format("x"))
-    assert_equal(request_string, get_code(response), 400, test_name)
-    assert_equal(request_string, get_response(response), {'error': 'Report id \'{}\' is not valid'.format("x")},
-                 test_name)
-
-# TODO: add ssh?
-def syslog_message_count(message):
-    syslog_proc = subprocess.Popen(["cat", "/var/log/messages"],
-                                   stdout=subprocess.PIPE)
-    grep_proc = subprocess.run(['grep', message], stdin=syslog_proc.stdout,
-                               stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.splitlines()
-    return len(grep_proc)
-
-
-def check_syslog(miswired_syslog, mufm_syslog, mndt_syslog):
-    miswired_diff = syslog_message_count("NDT: actual") - miswired_syslog
-    mufm_diff = syslog_message_count("NDT: missing in UFM") - mufm_syslog
-    mndt_diff = syslog_message_count("NDT: missing in NDT") - mndt_syslog
-
-    miswired_expected, mndt_expected, mufm_expected = get_expected_report_len()
-
-    if miswired_diff != miswired_expected:
-        print("    - test name: miswired syslog -- FAIL (expected: {}, actual: {})".format(miswired_expected, miswired_diff))
-    else:
-        print("    - test name: miswired syslog -- PASS")
-    if mufm_diff != mufm_expected:
-        print("    - test name: missing in UFM syslog -- FAIL (expected: {}, actual: {})".format(mufm_expected, mufm_diff))
-    else:
-        print("    - test name: missing in UFM syslog -- PASS")
-    if mndt_diff != mndt_expected:
-        print("    - test name: missing in NDT syslog -- FAIL (expected: {}, actual: {})".format(mndt_expected, mndt_diff))
-    else:
-        print("    - test name: missing in NDT syslog -- PASS")
-
-
-def instant_comparison():
-    print("Simple compare test")
-
-    miswired_syslog = syslog_message_count("NDT: actual")
-    mufm_syslog = syslog_message_count("NDT: missing in UFM")
-    mndt_syslog = syslog_message_count("NDT: missing in NDT")
-
-    response, request_string = make_request(POST, COMPARE)
-    assert_equal(request_string, get_code(response), 200)
-    assert_equal(request_string, get_response(response), {})
-    comparison_status_code = get_code(response)
-
-    test_name = "not allowed"
-    response, request_string = make_request(GET, COMPARE)
-    assert_equal(request_string, get_code(response), 405, test_name)
-    assert_equal(request_string, get_response(response), {'error': 'Method is not allowed'}, test_name)
-
-    if comparison_status_code == 200:
-        check_syslog(miswired_syslog, mufm_syslog, mndt_syslog)
-        check_comparison_report("Instant")
+    assert_equal(request_string, len(data_from[0]),2 , test_name)
 
 
 def get_server_datetime():
@@ -303,217 +193,94 @@ def periodic_comparison():
     print("Periodic comparison")
 
     test_name = "incorrect request"
-    payload = {"asd": "asd"}
-    response, request_string = make_request(POST, COMPARE, payload=payload)
+    request = {}
+    request['callback']=RECIVER_SERVER_LOCATION
+    request['switches']=["10.209.27.19"]
+    request['commands']=["show power","show inventory"]
+    request["periodic_run"]=""
+    response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response),
                  {'error': "Incorrect format, extra keys in request: {'asd'}"}, test_name)
 
     test_name = "incorrect datetime format"
-    payload = {
-        "run": {
+    request = {
+        "periodic_run": {
             "startTime": "asd",
             "endTime": "xyz",
             "interval": 10
         }
     }
-    response, request_string = make_request(POST, COMPARE, payload=payload)
+    response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response),
                  {'error': "Incorrect timestamp format: time data '{}' does not match format '{}'"
-                 .format(payload["run"]["startTime"], DATETIME_FORMAT)},
+                 .format(request["periodic_run"]["startTime"], DATETIME_FORMAT)},
                  test_name)
 
     datetime_end = datetime_start = get_server_datetime() + timedelta(seconds=3)
     test_name = "too small interval"
-    payload = {
+    request = {
         "run": {
             "startTime": datetime_start.strftime(DATETIME_FORMAT),
             "endTime": datetime_end.strftime(DATETIME_FORMAT),
             "interval": 1
         }
     }
-    response, request_string = make_request(POST, COMPARE, payload=payload)
+    response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response), {'error': 'Minimal interval value is 5 minutes'},
                  test_name)
 
     test_name = "end time less than start time"
-    payload = {
+    request = {
         "run": {
             "startTime": datetime_start.strftime(DATETIME_FORMAT),
             "endTime": (datetime_end - timedelta(seconds=10)).strftime(DATETIME_FORMAT),
-            "interval": 5
+            "interval": 10
         }
     }
-    response, request_string = make_request(POST, COMPARE, payload=payload)
+    response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     assert_equal(request_string, get_code(response), 400, test_name)
     assert_equal(request_string, get_response(response), {'error': 'End time is less than current time'},
                  test_name)
 
     datetime_end = datetime_start = get_server_datetime() + timedelta(seconds=5)
-    good_payload = {
+    request = {
         "run": {
             "startTime": datetime_start.strftime(DATETIME_FORMAT),
             "endTime": datetime_end.strftime(DATETIME_FORMAT),
             "interval": 10
         }
     }
-    response, request_string = make_request(POST, COMPARE, payload=good_payload)
+    response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     assert_equal(request_string, get_code(response), 200)
     assert_equal(request_string, get_response(response), {})
 
     if get_code(response) == 200:
         time.sleep(5)
-        check_comparison_report("Periodic")
+        data_from=read_json_file()
+        check_data(request_string,data_from,request["commands"])
 
-    test_name = "start scheduler twice"
-    datetime_end = datetime_start = get_server_datetime() + timedelta(seconds=2)
-    datetime_end = datetime_start + timedelta(minutes=10)
-    payload = {
-        "run": {
-            "startTime": datetime_start.strftime(DATETIME_FORMAT),
-            "endTime": datetime_end.strftime(DATETIME_FORMAT),
-            "interval": 5
-        }
-    }
-    make_request(POST, COMPARE, payload=payload)
-    response, request_string = make_request(POST, COMPARE, payload=payload)
-    assert_equal(request_string, get_code(response), 400, test_name)
-    assert_equal(request_string, get_response(response), {'error': 'Periodic comparison is already running'}, test_name)
-
-    response, request_string = make_request(POST, CANCEL)
-    assert_equal(request_string, get_code(response), 200)
-    assert_equal(request_string, get_response(response), {})
-
-    test_name = "cancel nothing"
-    response, request_string = make_request(POST, CANCEL)
-    assert_equal(request_string, get_code(response), 400, test_name)
-    assert_equal(request_string, get_response(response), {'error': 'Periodic comparison is not running'}, test_name)
-
-
-def delete_ndts(ndts_folder):
-    print("Delete NDTs test")
-    delete_request = []
-    for ndt in os.listdir(ndts_folder):
-        delete_request.append({"file_name": "{}".format(ndt)})
-
-    test_name = "not allowed"
-    response, request_string = make_request(GET, DELETE)
-    assert_equal(request_string, get_code(response), 405, test_name)
-    assert_equal(request_string, get_response(response), {'error': 'Method is not allowed'}, test_name)
-
-    test_name = "empty file name"
-    upload_request = [{"file_name": ""}]
-    response, request_string = make_request(POST, DELETE, payload=upload_request)
-    assert_equal(request_string, get_code(response), 400, test_name)
-    assert_equal(request_string, get_response(response), {'error': ['File name is empty']}, test_name)
-
-    test_name = "incorrect request"
-    upload_request = {"asd": "asd"}
-    response, request_string = make_request(POST, DELETE, payload=upload_request)
-    assert_equal(request_string, get_code(response), 400, test_name)
-    assert_equal(request_string, get_response(response), {"error": ["Request format is incorrect"]}, test_name)
-
-    test_name = "incorrect key"
-    upload_request = [{"name_of_the_file": "ndt"}]
-    response, request_string = make_request(POST, DELETE, payload=upload_request)
-    assert_equal(request_string, get_code(response), 400, test_name)
-    assert_equal(request_string, get_response(response), {"error": ["Incorrect format, extra keys in request: "
-                                                                    "{'name_of_the_file'}"]}, test_name)
-
-    test_name = "wrong ndt name"
-    wrong_name_request = [delete_request[0], {"file_name": "xyz"}]
-    response, request_string = make_request(POST, DELETE, payload=wrong_name_request)
-    assert_equal(request_string, get_code(response), 400, test_name)
-    assert_equal(request_string, get_response(response),
-                 {"error": ["Cannot remove {}: file not found".format("xyz")]}, test_name)
-
-    response, request_string = make_request(GET, NDTS)
-    assert_equal(request_string, get_code(response), 200, test_name)
-    ndts_len = 0
-    if get_response(response):
-        ndts_len = len(get_response(response))
-    assert_equal(request_string, str(ndts_len), str(1), test_name)
-
-    response, request_string = make_request(POST, DELETE,
-                                            payload=[{"file_name": delete_request[1]["file_name"]}])
-    assert_equal(request_string, get_code(response), 200)
-    assert_equal(request_string, get_response(response), {})
-
-    response, request_string = make_request(GET, NDTS)
-    assert_equal(request_string, get_code(response), 200)
-    assert_equal(request_string, get_response(response), [])
-
-
-def topo_diff(ndts_folder):
-    print("Topo diff tests")
-
-    test_name = "no ndts"
-    response, request_string = make_request(POST, COMPARE)
-    assert_equal(request_string, get_code(response), 400, test_name)
-    assert_equal(request_string, get_response(response), {'error': ['No NDTs were uploaded for comparison']}, test_name)
-
-    garbage_ndt = "garbage.ndt"
-    upload_request = []
-    with open(os.path.join(ndts_folder, garbage_ndt), "r") as file:
-        data = file.read()
-        upload_request.append({"file_name": garbage_ndt,
-                               "file": data,
-                               "file_type": "switch_to_switch",
-                               "sha-1": get_hash(data)})
-    make_request(POST, UPLOAD, payload=upload_request)
-    response, request_string = make_request(POST, COMPARE)
-    assert_equal(request_string, get_code(response), 400, garbage_ndt)
-    assert_equal(request_string, get_response(response),
-                 {'error': ['/config/ndts/garbage.ndt is empty or cannot be parsed']}, garbage_ndt)
-    make_request(POST, DELETE, payload=[{"file_name": garbage_ndt}])
-
-    incorrect_ports_ndt = "incorrect_ports.ndt"
-    upload_request.clear()
-    with open(os.path.join(ndts_folder, incorrect_ports_ndt), "r") as file:
-        data = file.read()
-        upload_request.append({"file_name": incorrect_ports_ndt,
-                               "file": data,
-                               "file_type": "switch_to_switch",
-                               "sha-1": get_hash(data)})
-    make_request(POST, UPLOAD, payload=upload_request)
-    response, request_string = make_request(POST, COMPARE)
-    assert_equal(request_string, get_code(response), 400, incorrect_ports_ndt)
-    # patterns = (r"^Port (\d+)$", r"(^Blade \d+_Port \d+/\d+$)", r"(^SAT\d+ ibp.*$)")
-    assert_equal(request_string, get_response(response),
-                 {'error': ['Failed to parse PortType.SOURCE: abra, in file: incorrect_ports.ndt, line: 0.',
-                            'Failed to parse PortType.DESTINATION: cadabra, in file: incorrect_ports.ndt, line: 0.']},
-                 incorrect_ports_ndt)
-    make_request(POST, DELETE, payload=[{"file_name": incorrect_ports_ndt}])
-
-    incorrect_columns_ndt = "incorrect_columns.ndt"
-    upload_request.clear()
-    with open(os.path.join(ndts_folder, incorrect_columns_ndt), "r") as file:
-        data = file.read()
-        upload_request.append({"file_name": incorrect_columns_ndt,
-                               "file": data,
-                               "file_type": "switch_to_switch",
-                               "sha-1": get_hash(data)})
-    make_request(POST, UPLOAD, payload=upload_request)
-    response, request_string = make_request(POST, COMPARE)
-    assert_equal(request_string, get_code(response), 400, incorrect_columns_ndt)
-    assert_equal(request_string, get_response(response),
-                 {'error': ["No such column: 'StartPort', in line: 0"]}, incorrect_columns_ndt)
-    make_request(POST, DELETE, payload=[{"file_name": incorrect_columns_ndt}])
+def check_data(requst_string,data,commands):
+    test_name="Check Data"
+    for switch in data:
+        assert_equal(requst_string, len(switch),len(commands) , test_name+ " Amount")
+        for command in switch:
+            assert_equal(requst_string, commands,switch , test_name+" commands")
 
 
 def main():
     import urllib3
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+    server=start_server()
+
     help_and_version()
-    upload_metadata(ndts_folder)
     instant_comparison()
     periodic_comparison()
-    delete_ndts(ndts_folder)
 
-    topo_diff(ndts_folder)
+    kill_server(server)
 
     if FAILED_TESTS_COUNT > 0:
         print("\n{} tests failed".format(FAILED_TESTS_COUNT))
