@@ -30,7 +30,7 @@ steps:
 
 
 pipeline_start:
-  run: Build plugin
+  run: echo "Build plugin"
 
 
 pipeline_stop:
