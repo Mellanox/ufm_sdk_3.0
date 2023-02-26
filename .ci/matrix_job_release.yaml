@@ -25,7 +25,7 @@ steps:
       ls
       mkdir -p /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
       cd plugins/${Plugin_name}/build
-      bash -x ./docker_build.sh ${PLUGIN_VERSION} /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
+      bash -x ./docker_build.sh ${PLUGIN_VERSION} "" /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
     parallel: false
 
 
