@@ -122,7 +122,7 @@ class RequestHandler:
         """
         result = await switchAPI.login_aio(switch,self.ac[0],self.ac[1])
         if not result:
-            self.latest_respond[switch]="Cant login to the switch"
+            self.latest_respond[switch]={"error":"Cant login to the switch"}
             return result
         if not self.is_async:
             await self._send_for_switch_commands_all(switchAPI)
@@ -143,11 +143,9 @@ class RequestHandler:
             results = await switchAPI.execute_command_aio(command)
             raw_results.append(results)
         key = switchAPI.switch
-        if len(self.ip_to_guid)>0 and key in self.ip_to_guid:
-            key = self.ip_to_guid[key]
-        else:
-            key = "switch_"+key
-        dict_result[key]=self.proccess_results(raw_results)
+        key_dict = "switch_" + (self.ip_to_guid[key] if len(self.ip_to_guid) > 0 
+                           and key in self.ip_to_guid else key)
+        dict_result[key_dict]=self.proccess_results(raw_results)
         if self.one_by_one_callback is not None:
             await self.save_results(self.one_by_one_callback,dict_result)
         else:
@@ -185,8 +183,8 @@ class RequestHandler:
             else:
                 key = "switch_" + key
             if raw_result is None:
-                self.latest_respond[key]=("command could not be received")
-            self.latest_respond[key]=(self.proccess_results(raw_result))
+                self.latest_respond[key]={"error":"command could not be received"}
+            self.latest_respond[key]=self.proccess_results(raw_result)
         return self.latest_respond
     
     def proccess_results(self,raw_data):
@@ -211,6 +209,11 @@ class RequestHandler:
 
     def execute_commands(self) -> None:
         asyncio.run(self._execute_commands())
+
+    def execute_commands_and_save(self,callback) -> None:
+        self.execute_commands()
+        if self.one_by_one_callback is None: 
+            asyncio.run(self.save_results(callback=callback,results=self.latest_respond))
 
 
     async def _login_to_all(self) -> None:
