@@ -52,9 +52,9 @@ steps:
   - name: build Plugin
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
-      cd plugins/grpc_streamer_plugin/grpcbuild
+      cd plugins/grpc_streamer_plugin/build
       bash -x ./docker_build.sh latest . 0
-      cp /ufm-plugin-grpc-streamer* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
+      cp ./ufm-plugin-grpc-streamer* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
     parallel: false
 
   - name: remove plugin start
