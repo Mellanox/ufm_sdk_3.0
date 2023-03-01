@@ -80,7 +80,7 @@ steps:
 
   - name: add plugin
     agentSelector: "{nodeLabel: 'UFM-POC'}"
-    run: plugins/grpc_streamer_plugin.ci/do_add_plugin.sh 
+    run: plugins/grpc_streamer_plugin/.ci/do_add_plugin.sh 
     parallel: false
 
   - name: run client tests
@@ -89,8 +89,7 @@ steps:
       service rsyslog restart
       sleep 30
       export SERVER_HOST=$SERVER_HOST
-      cd plugins/grpc_streamer_plugin/tests
-      python3 ./grpc_streamer_plugin_test.py --host $SERVER_HOST
+      python3 ./plugins/grpc_streamer_plugin/tests/grpc_streamer_plugin_test.py --host $SERVER_HOST
     parallel: false
 
   - name: remove plugin end
