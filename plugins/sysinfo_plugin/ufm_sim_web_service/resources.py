@@ -342,6 +342,7 @@ class QueryRequest(UFMResource):
             return self.report_error(400, f"Incorrect timestamp format: {valueerror}")
 
     def add_scheduler_jobs(self) -> tuple((dict,int)):
+        
         try:
             request_handler_switches = RequestHandler(self.switches,self.commands,self.ac,ip_to_guid=self.ip_to_guid,
                                         all_at_once=(self.callback if self.one_by_one else None),is_async=self.is_async,
@@ -350,10 +351,8 @@ class QueryRequest(UFMResource):
                 self.scheduler.add_job(func=request_handler_switches.login_to_all,\
                          run_date=self.datetime_start)
                 while self.datetime_start <= self.datetime_end:
-                    self.scheduler.add_job(func=request_handler_switches.execute_commands,\
-                         run_date=self.datetime_start)
-                    if not self.one_by_one:
-                        self.save_results(request_handler_switches.latest_respond)
+                    self.scheduler.add_job(func=request_handler_switches.execute_commands_and_save,\
+                         run_date=self.datetime_start,args=[self.callback])
                     self.datetime_start += timedelta(seconds=self.interval)
                 self.scheduler.add_job(func=request_handler_switches.logout_to_all,\
                          run_date=self.datetime_start)
@@ -369,16 +368,14 @@ class QueryRequest(UFMResource):
 
     def _get_switches_from_ufm(self) -> dict:
         if self.ignore_ufm:return {}
-        session=requests.Session()
-        session.verify=False
-        session.headers.update({"X-Remote-User": "ufmsystem"})
-        respond = session.get(self.UFM_SWITCHES_URL)
+        respond = requests.get(self.UFM_SWITCHES_URL,headers={"X-Remote-User": "ufmsystem"},verify=False)
         if respond.status_code==200:
             try:
                 as_json = respond.json()
                 ip_to_guid={}
                 for switch in as_json:
-                    ip_to_guid[switch['ip']]=switch['guid']
+                    if switch['ip']!='0.0.0.0':
+                        ip_to_guid[switch['ip']]=switch['guid']
                 return ip_to_guid
 
             except (json.JSONDecodeError,ValueError,KeyError):
@@ -404,12 +401,6 @@ class QueryRequest(UFMResource):
             return self.report_success()
         else:
             return self.report_error(400, "Not receive a json post")
-
-    def get_infromation_cb(self,results:dict) -> tuple((dict,int)):
-        response, status_code = self.save_results(results)
-        if status_code != self.success:
-            return response, status_code
-        return self.report_success()
 
     def save_results(self,results) -> tuple((dict,int)):
         if self.one_by_one:
@@ -529,6 +520,7 @@ class Dummy(UFMResource):
         super().__init__()
 
     def post(self) -> tuple((str,int)):
+        print(datetime.now())
         if request.json:
             print(request.json)
         else: print(request)

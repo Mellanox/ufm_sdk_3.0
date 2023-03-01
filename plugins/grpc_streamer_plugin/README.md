@@ -24,13 +24,11 @@ client once --server_ip=<host_ip> --id=<unique_id> --auth=<username>,<password> 
 ```
 where in this example the requested rest api are events, alarams and links. 
 the result should be the same as calling those command:
-
 ```
 curl -k -i -X GET 'http://<host_ip>/app/events’
 curl -k -i -X GET 'http://<host_ip>/app/alarms’
 curl -k -i -X GET 'http://<host_ip>/resources/links’
 ```
-
 
 * get the data of rest api in a grpc stream using:
 ```
