@@ -1,9 +1,9 @@
 ########## UFM APPLIANCE GEN3 jobs ##################
 - project:
-    name: UFM_PLUGINS_RELEASE
+    name: UFM_PLUGINS_SDK_RELEASE
     jjb_owner: 'Amit Gueta'
     jobs:
-        - "UFM_PLUGINS_RELEASE":
+        - "UFM_PLUGINS_SDK_RELEASE":
             jjb_git: git@github.com:Mellanox/ufm_sdk_3.0.git
             jjb_email: 'agueta@nvidia.com'
             disabled_var: false
@@ -11,7 +11,7 @@
             branch: main
 
 - job-template:
-    name: "UFM_PLUGINS_RELEASE"
+    name: "UFM_PLUGINS_SDK_RELEASE"
     project-type: pipeline
     disabled: '{obj:disabled_var}'
     properties:
