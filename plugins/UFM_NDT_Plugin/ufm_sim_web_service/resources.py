@@ -23,6 +23,17 @@ from datetime import datetime, timedelta
 from topo_diff.topo_diff import compare_topologies
 import logging
 import hashlib
+from topo_diff.ndt_infra import check_file_exist,\
+    DEFAULT_IBDIAGNET_NET_DUMP_PATH, check_ibdiagnet_net_dump_file_exist,\
+    run_ibdiagnet, IBDIAGNET_OUT_NET_DUMP_FILE_PATH
+from topo_diff.topo_diff import parse_ibdiagnet_dump,\
+                                      parse_ndt_file,\
+                                      compare_topologies_ndt_ibdiagnet
+from topo_diff.ndt_infra import verify_fix_json_list_file, NDT_FILE_STATE_NEW,\
+                NDT_FILE_STATE_DEPLOYED, NDT_FILE_STATE_VERIFIED, BOUNDARY_PORT_STATE_DISABLED,\
+                NDT_FILE_STATE_UPDATED, NDT_FILE_STATE_UPDATED_NO_DISCOVER,\
+                NDT_FILE_STATE_DEPLOYED_DISABLED, NDT_FILE_STATE_DEPLOYED_NO_DISCOVER,\
+                NDT_FILE_STATE_UPDATED_DISABLED
 
 
 class UFMResource(Resource):
@@ -37,11 +48,16 @@ class UFMResource(Resource):
         # self.ndts_dir = "ndts"
         self.reports_dir = "/config/reports"
         self.ndts_dir = "/config/ndts"
+        self.ndts_merger_dir = "/config/merger_ndts"
+        self.reports_merger_dir = "/config/merger_reports"
         self.reports_list_file = os.path.join(self.reports_dir, "reports_list.json")
         self.ndts_list_file = os.path.join(self.ndts_dir, "ndts_list.json")
+        self.reports_merger_list_file = os.path.join(self.reports_merger_dir, "merger_reports_list.json")
+        self.ndts_merger_list_file = os.path.join(self.ndts_merger_dir, "ndts_list.json")
         self.success = 200
         self.reports_to_save = 10
         self.validation_enabled = True
+        self.subnet_merger_flow = False
         self.switch_patterns = []
         self.host_patterns = []
         self.datetime_format = "%Y-%m-%d %H:%M:%S"
@@ -54,6 +70,8 @@ class UFMResource(Resource):
 
         self.create_reports_file(self.reports_list_file)
         self.create_reports_file(self.ndts_list_file)
+        self.create_reports_file(self.reports_merger_list_file)
+        self.create_reports_file(self.ndts_merger_list_file)
         self.parse_config()
 
     def parse_config(self):
@@ -79,7 +97,10 @@ class UFMResource(Resource):
         return os.path.join(self.reports_dir, file_name)
 
     def get(self):
-        return self.read_json_file(self.response_file), self.success
+        if check_file_exist(self.response_file):
+            return self.read_json_file(self.response_file), self.success
+        else:
+            return {}, self.success
 
     def post(self):
         return self.report_success()
@@ -114,6 +135,38 @@ class UFMResource(Resource):
             with open(file_name, "w") as file:
                 json.dump([], file)
 
+    def update_ndt_file_status(self, ndt_file_name, file_status):
+        '''
+        Initially the status should be new, onve run verification once - status become verified.
+        Once deployed to OpenSM - status become deployed
+        :param ndt_file_name:
+        '''
+        with open(self.ndts_list_file, "r+") as file:
+            # unhandled exception in case ndts file was changed manually
+            data = json.load(file)
+            for entry in data:
+                if entry["file"] == os.path.basename(ndt_file_name):
+                    current_status = entry["file_status"]
+                    if file_status == NDT_FILE_STATE_DEPLOYED:
+                        if (current_status == NDT_FILE_STATE_VERIFIED or
+                            current_status == NDT_FILE_STATE_UPDATED_DISABLED):
+                            file_status = NDT_FILE_STATE_DEPLOYED_DISABLED
+                        if current_status == NDT_FILE_STATE_UPDATED_NO_DISCOVER:
+                            file_status = NDT_FILE_STATE_DEPLOYED_NO_DISCOVER
+                    entry["file_status"] = file_status
+            file.seek(0)
+            json.dump(data, file)
+        # very strange bug - of some reason at the end of file after dump appears "]]"
+        # and this is a reason that json load failed
+        # so the work arround is to check if data written correctly and if file has "]]"
+        # at the end - to remove it and to write back
+        if verify_fix_json_list_file(self.ndts_list_file):
+            return self.report_success()
+        else:
+            message = "Failed to update NDTS list file %s: - probably json file corrupted." % ndt_file_name
+            logging.error(message)
+            return self.report_error(400, )
+
     @staticmethod
     def report_error(status_code, message):
         logging.error(message)
@@ -137,6 +190,7 @@ class Upload(UFMResource):
         self.sha1 = ""
         self.file_type = ""
         self.expected_checksum = ""
+        self.file_status = NDT_FILE_STATE_NEW
         self.expected_keys = ["file_name", "file", "file_type", "sha-1"]
 
     def get(self):
@@ -175,7 +229,8 @@ class Upload(UFMResource):
                 entry = {"file": self.file_name,
                          "timestamp": self.get_timestamp(),
                          "sha-1": self.sha1,
-                         "file_type": self.file_type}
+                         "file_type": self.file_type,
+                         "file_status": self.file_status}
                 logging.debug("New NDT: {}".format(entry))
                 data.append(entry)
             else:
@@ -184,6 +239,7 @@ class Upload(UFMResource):
                         entry["timestamp"] = self.get_timestamp()
                         entry["sha-1"] = self.sha1
                         entry["file_type"] = self.file_type
+                        entry["file_status"] = self.file_status
             file.seek(0)
             json.dump(data, file)
         return self.report_success()
@@ -198,7 +254,11 @@ class Upload(UFMResource):
                 return self.report_error(500, "Cannot save ndt {}: {}".format(self.file_name, oe))
 
     def post(self):
-        logging.info("POST /plugin/ndt/upload")
+        if self.subnet_merger_flow:
+            info_msg = "POST /plugin/ndt/upload"
+        else:
+            info_msg = "POST /plugin/ndt_merger/upload"
+        logging.info(info_msg)
         error_status_code, error_response = self.success, []
         if not request.json:
             return self.report_error(400, "Upload request is empty")
@@ -326,6 +386,19 @@ class Compare(UFMResource):
     def get(self):
         return self.report_error(405, "Method is not allowed")
 
+    def get_next_report_id_number(self):
+        '''
+        Return next expected report number
+        '''
+        next_report_number = 0 # initial value - will cause an error return
+        with open(self.reports_list_file, "r", encoding="utf-8") as reports_list_file:
+            # unhandled exception in case reports file was changed manually
+            data = json.load(reports_list_file)
+            next_report_number = len(data) + 1
+            if next_report_number > self.reports_to_save:
+                next_report_number = self.reports_to_save
+        return next_report_number
+
     def update_reports_list(self, scope):
         with open(self.reports_list_file, "r", encoding="utf-8") as reports_list_file:
             # unhandled exception in case reports file was changed manually
@@ -337,7 +410,8 @@ class Compare(UFMResource):
             if self.report_number > self.reports_to_save:
                 oldest_report = self.get_report_path("report_1.json")
                 # unhandled exception in case report was deleted or renamed manually
-                os.remove(oldest_report)
+                if check_file_exist(oldest_report):
+                    os.remove(oldest_report)
                 data.remove(data[0])
                 for report in data:
                     report["report_id"] -= 1
@@ -487,7 +561,7 @@ class ReportId(UFMResource):
         with open(self.reports_list_file, "r", encoding="utf-8") as file:
             self.data = json.load(file)
 
-    def post(self, report_id):
+    def post(self):
         return self.report_error(405, "Method is not allowed")
 
     def get(self, report_id):
@@ -565,3 +639,4 @@ class Dummy(UFMResource):
 
     def post(self):
         return self.report_error(405, "Method is not allowed")
+
