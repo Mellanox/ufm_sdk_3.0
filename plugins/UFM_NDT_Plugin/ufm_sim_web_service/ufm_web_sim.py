@@ -30,6 +30,9 @@ from twisted.web import server
 
 from resources import UIFilesResources ,UFMResource, Compare, Ndts, Reports, ReportId,\
     Upload, Delete, Cancel, Version, Help, Date, Dummy
+from merger_resources import MergerUploadNDT, MergerVerifyNDT, \
+    MergerVerifyNDTReports, MergerVerifyNDTReportId, MergerDeployNDTConfig, \
+    MergerNdts, MergerDeleteNDT, MergerUpdateNDTConfig, MergerLatestDeployedNDT
 
 
 class UFMWebSim:
@@ -57,10 +60,21 @@ class UFMWebSim:
             Delete: "/delete",
             Upload: "/upload",
             ReportId: "/reports/<report_id>",
+            # merger specific APIs
+            MergerNdts: "/merger_ndts_list",
+            MergerUploadNDT: "/merger_upload_ndt",
+            MergerVerifyNDT: "/merger_verify_ndt",
+            MergerVerifyNDTReports: "/merger_verify_ndt_reports",
+            MergerVerifyNDTReportId: "/merger_verify_ndt_reports/<report_id>",
+            MergerUpdateNDTConfig: "/merger_update_topoconfig",
+            MergerDeployNDTConfig: "/merger_deploy_ndt_config",
+            MergerDeleteNDT: "/merger_delete_ndt",
+            MergerLatestDeployedNDT: "/merger_deployed_ndt",
+            # common
             Version: "/version",
             Help: "/help",
             Date: "/date",
-            Dummy: "/dummy",
+            Dummy: "/dummy"
         }
         for resource, path in default_apis.items():
             self.api.add_resource(resource, path)

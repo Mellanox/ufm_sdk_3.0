@@ -21,7 +21,8 @@ from ufm_web_sim import UFMWebSim
 
 
 class UFMWebSimProc:
-    """Main class of the UFM web sim daemon
+    """
+        Main class of the UFM web sim daemon
     """
 
     def __init__(self):
