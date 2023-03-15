@@ -12,9 +12,10 @@
 
 import logging
 
-class PDRConstants:
+class PDRConstants(object):
+
     CONF_FILE = "/config/pdr_deterministic.conf"
-    BER_MATRIX = "/config/fec_ber_matrix.csv"
+    BER_MATRIX = "/config/Field_BER_Thresholds.csv"
     FEC_LOOKUP = "/config/fec_mode_lookup.json"
     LOG_FILE = '/log/pdr_deterministic_plugin.log'
     log_level = logging.INFO
@@ -32,6 +33,8 @@ class PDRConstants:
     DRY_RUN = "DRY_RUN"
     DEISOLATE_CONSIDER_TIME = "DEISOLATE_CONSIDER_TIME"
     AUTOMATIC_DEISOLATE = "AUTOMATIC_DEISOLATE"
+    DO_DEISOLATION = "DO_DEISOLATION"
+    TIMESTAMP = "timestamp"
     
     GET_SESSION_DATA_REST = "/monitoring/session/0/data"
     POST_EVENT_REST = "/app/events/external_event"
@@ -60,6 +63,9 @@ class PDRConstants:
     EFF_BER = "eff_ber"
     RAW_BER = "raw_ber"
     ACTIVE_SPEED = "active_speed"
+    ASIC = "asic"
+    HW_TECHNOLOGY = "HW_technology"
+    WIDTH = "active_width"
     FEC_MODE = "fec_mode_active"
     PORT_NAME = "name"
     
@@ -73,4 +79,11 @@ class PDRConstants:
     STATE_ISOLATED = "isolated"
     STATE_TREATED = "treated"
 
-    
+    CSV_FEC_OPCODE = "FEC OPCODE"
+    CSV_ASIC = "ASIC"
+    CSV_RAW_BER_ISOLATE = "Pre-FEC BER Error"
+    CSV_EFF_BER_ISOLATE = "Post-FEC BER Error"
+    CSV_SYMBOL_BER_ISOLATE = "Symbol BER Error"
+    CSV_RAW_BER_DEISOLATE = "Pre-FEC BER Normal"
+    CSV_EFF_BER_DEISOLATE = "Post-FEC BER Normal"
+    CSV_SYMBOL_BER_DEISOLATE = "Symbol BER Normal"
