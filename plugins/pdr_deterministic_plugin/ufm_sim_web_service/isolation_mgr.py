@@ -90,10 +90,10 @@ class IsolationMgr:
         self.start_time = time.time()
         self.ber_tele_data = pd.DataFrame(columns=[Constants.TIMESTAMP, Constants.RAW_BER, Constants.EFF_BER, Constants.SYMBOL_BER])
         self.speed_types = {
-            "FDR": 16,
-            "EDR": 32,
-            "HDR": 64,
-            "NDR": 128,
+            "FDR": 14,
+            "EDR": 25,
+            "HDR": 50,
+            "NDR": 100,
             }
                 
         # DEBUG
@@ -224,8 +224,13 @@ class IsolationMgr:
                 issues[port_name] = Issue(port_name, Constants.ISSUE_OONOC)
             if self.configured_ber_check:
                 #TODO calc BER
-                symbol_ber_val = counters.get(Constants.SYMBOL_BER)
-                eff_ber_val = counters.get(Constants.EFF_BER)
+                symbol_ber_val = sum([
+                    counters.get(Constants.PHY_RAW_ERROR_LANE0, 0),
+                    counters.get(Constants.PHY_RAW_ERROR_LANE1, 0),
+                    counters.get(Constants.PHY_RAW_ERROR_LANE2, 0),
+                    counters.get(Constants.PHY_RAW_ERROR_LANE3, 0),
+                    ])
+                eff_ber_val = counters.get(Constants.PHY_EFF_ERROR)
                 raw_ber_val = counters.get(Constants.RAW_BER)
                 #TODO calc BER
                 if symbol_ber_val or eff_ber_val or raw_ber_val:

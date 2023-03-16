@@ -13,10 +13,25 @@ ufmd_location=/etc/init.d/ufmd
 
 mkdir -p $fset_dir
 printf "[CableInfo]\n^cable_temperature" > $fset_dir/low_freq.fset
-printf "\nsymbol_ber_f=^symbol_ber$" >> $default_cset
+# printf "\nsymbol_ber_f=^symbol_ber$" >> $default_cset
 printf "\n^fec_mode_active$" >> $default_cset
-printf "\nsymbol_ber_f=^symbol_ber$" >> $running_cset
+# printf "\nsymbol_ber_f=^symbol_ber$" >> $running_cset
 printf "\n^fec_mode_active$" >> $running_cset
+
+printf "\nphy_symbol_errors_f=^phy_symbol_errors$" >> $default_cset
+printf "\nphy_symbol_errors_f=^phy_symbol_errors$" >> $running_cset
+printf "\nphy_effective_errors_f=^phy_effective_errors$" >> $default_cset
+printf "\nphy_effective_errors_f=^phy_effective_errors$" >> $running_cset
+
+printf "\nphy_raw_errors_lane0_f=^phy_raw_errors_lane0$" >> $default_cset
+printf "\nphy_raw_errors_lane0_f=^phy_raw_errors_lane0$" >> $running_cset
+printf "\nphy_raw_errors_lane1_f=^phy_raw_errors_lane1$" >> $default_cset
+printf "\nphy_raw_errors_lane1_f=^phy_raw_errors_lane1$" >> $running_cset
+printf "\nphy_raw_errors_lane2_f=^phy_raw_errors_lane2$" >> $default_cset
+printf "\nphy_raw_errors_lane2_f=^phy_raw_errors_lane2$" >> $running_cset
+printf "\nphy_raw_errors_lane3_f=^phy_raw_errors_lane3$" >> $default_cset
+printf "\nphy_raw_errors_lane3_f=^phy_raw_errors_lane3$" >> $running_cset
+
 
 # enabling active FEC mode collect in secondary instance
 sed -i 's/.*arg17=.*/arg_17=--get_phy_info --enabled_reg DD_PDDR_OP/g' $secodary_defaults_launch
