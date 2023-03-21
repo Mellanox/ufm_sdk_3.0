@@ -85,7 +85,7 @@ class IsolationMgr:
         min_threshold = self.isolation_matrix[[
             Constants.CSV_RAW_BER_ISOLATE, Constants.CSV_RAW_BER_DEISOLATE,
             Constants.CSV_EFF_BER_ISOLATE, Constants.CSV_EFF_BER_DEISOLATE, 
-            Constants.CSV_SYMBOL_BER_ISOLATE, Constants.CSV_SYMBOL_BER_DEISOLATE]].min()
+            Constants.CSV_SYMBOL_BER_ISOLATE, Constants.CSV_SYMBOL_BER_DEISOLATE]].min().min()
         self.ber_wait_time = self.calc_max_ber_wait_time(min_threshold)
         self.start_time = time.time()
         self.ber_tele_data = pd.DataFrame(columns=[Constants.TIMESTAMP, Constants.RAW_BER, Constants.EFF_BER, Constants.SYMBOL_BER])
@@ -104,7 +104,7 @@ class IsolationMgr:
     def calc_max_ber_wait_time(self, min_threshold):
         # min speed EDR = 32 Gb/s
         min_speed, min_width = 32 * 1024 * 1024 * 1024, 1
-        min_port_rate = max_speed * max_width
+        min_port_rate = min_speed * min_width
         min_bits = float(format(float(min_threshold), '.0e').replace('-', ''))
         min_sec_to_wait = min_bits / min_port_rate
         return min_sec_to_wait
@@ -233,7 +233,7 @@ class IsolationMgr:
                 eff_ber_val = counters.get(Constants.PHY_EFF_ERROR)
                 raw_ber_val = counters.get(Constants.RAW_BER)
                 #TODO calc BER
-                if symbol_ber_val or eff_ber_val or raw_ber_val:
+                if symbol_ber_val is not None or eff_ber_val is not None or raw_ber_val is not None:
                     timestamp = time.time()
                     ber_data = {
                         Constants.TIMESTAMP : timestamp,
@@ -241,7 +241,7 @@ class IsolationMgr:
                         Constants.EFF_BER : eff_ber_val,
                         Constants.SYMBOL_BER : symbol_ber_val
                     }
-                    self.ber_tele_data = self.ber_tele_data.append(ber_data, ignore_index=True)
+                    self.ber_tele_data = self.ber_tele_data.concat(ber_data, ignore_index=True)
                     self.ber_tele_data = self.ber_tele_data[self.ber_tele_data[Constants.TIMESTAMP] > self.start_time - self.ber_wait_time + self.t_isolate * 10]
                     self.start_time = self.ber_tele_data[Constants.TIMESTAMP].min()
                     port_data = self.ports_data.get(port_name)
@@ -256,6 +256,8 @@ class IsolationMgr:
                         port_data[Constants.ACTIVE_SPEED] = port_speed
                         port_data[Constants.ASIC] = port_asic
                         port_data[Constants.WIDTH] = port_width
+                    if not port_asic:
+                        logger.debug(f"Couldn't retrieve HW technology for port {port_name}, can't verify it's BER values")
 
                     if timestamp - self.start_time < self.ber_wait_time:
                         continue
@@ -316,7 +318,7 @@ class IsolationMgr:
                     self.ports_data[port_name] = {}
                 self.ports_data[port_name][Constants.ACTIVE_SPEED] = port.get(Constants.ACTIVE_SPEED)
                 self.ports_data[port_name][Constants.ASIC] = port.get(Constants.HW_TECHNOLOGY)
-                port_width = port_data.get(Constants.WIDTH)
+                port_width = port.get(Constants.WIDTH)
                 port_width = int(port_width.strip('x'))    
                 self.ports_data[port_name][Constants.WIDTH] = port_width
 
