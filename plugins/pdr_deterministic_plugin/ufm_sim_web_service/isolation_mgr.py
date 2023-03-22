@@ -223,7 +223,6 @@ class IsolationMgr:
             elif cable_temp and (cable_temp > self.tmax or dT > self.d_tmax):
                 issues[port_name] = Issue(port_name, Constants.ISSUE_OONOC)
             if self.configured_ber_check:
-                #TODO calc BER
                 symbol_ber_val = sum([
                     counters.get(Constants.PHY_RAW_ERROR_LANE0, 0),
                     counters.get(Constants.PHY_RAW_ERROR_LANE1, 0),
@@ -232,7 +231,6 @@ class IsolationMgr:
                     ])
                 eff_ber_val = counters.get(Constants.PHY_EFF_ERROR)
                 raw_ber_val = counters.get(Constants.RAW_BER)
-                #TODO calc BER
                 if symbol_ber_val is not None or eff_ber_val is not None or raw_ber_val is not None:
                     timestamp = time.time()
                     ber_data = {
@@ -307,6 +305,7 @@ class IsolationMgr:
         if rows.empty:
             return False
         else:
+            logger.warning(f"port {port_name} BER counter crossed the threshold. fec={fec_mode}, port_speed={port_speed}, asic={asic}, raw={raw_ber_val}, eff={eff_ber_val}, symbol={symbol_ber_val}")
             return True
 
     def get_ports_metadata(self):
