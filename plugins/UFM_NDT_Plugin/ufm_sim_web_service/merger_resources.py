@@ -37,14 +37,6 @@ from topo_diff.ndt_infra import MERGER_OPEN_SM_CONFIG_FILE,\
 from resources import ReportId
 from topo_diff.topo_diff import upload_topoconfig_file, SUCCESS_CODE, ACCEPTED_CODE
 
-
-
-
-# ATB - TODO: need to read it from configuration or something else ....
-switch_patterns = "^Port (\d+)$,(^Blade \d+_Port \d+/\d+$)"
-host_patterns = "(^(SAT|DSM)\d+ ibp.*$)"
-
-
 # merge specific API
 class MergerNdts(UFMResource):
     def __init__(self):
@@ -161,8 +153,8 @@ class MergerVerifyNDT(Compare):
             ndt_links = set()
             ndt_links_reversed = set()
             error_message = parse_ndt_file(ndt_links, ndt_file_name,
-                             switch_patterns.split(",") + host_patterns.split(","),
-                             ndt_links_reversed, True)
+                            self.switch_patterns + self.host_patterns,
+                            ndt_links_reversed, True)
             if error_message:
                 raise ValueError(error_message)
             # compare NDT with ibdiagnet
@@ -171,7 +163,7 @@ class MergerVerifyNDT(Compare):
                 #this is the structure that contains names of the nodes and ports and GUIDs
                 # on base of this struct should be created topconfig file
                 create_topoconfig_file(links_info, ndt_file_name, 
-                            switch_patterns.split(",") + host_patterns.split(","))
+                            self.switch_patterns + self.host_patterns)
             report_content = compare_topologies_ndt_ibdiagnet(self.timestamp,
                                                               ibdiagnet_links,
                                                               ibdiagnet_links_reverse,
