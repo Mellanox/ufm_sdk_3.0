@@ -298,14 +298,18 @@ def verify_fix_json_list_file(json_file_to_check):
             data = file.read().rstrip()
             if data.endswith("]]"):
                 data = data[:-1]
-                file.seek(0)
-                file.truncate(0)
-                file.write(data)
-                file.flush()
             else:
                 # double ] - was not a problem
-                logging.error("Failed to load json file %s. Not a ]] problem." % json_file_to_check)
-                return False
+                # try to select the text between two [] signs
+                last_brace = data.find("]")
+                if last_brace < 0: # not found ]
+                    logging.error("Failed to load json file %s. Not a ]] problem. And no ] found." % json_file_to_check)
+                    return False
+                data = data[:(last_brace+1)]
+            file.seek(0)
+            file.truncate(0)
+            file.write(data)
+            file.flush()
         with open(json_file_to_check, "r") as file:
             try:
                 data = json.load(file)
