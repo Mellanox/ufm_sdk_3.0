@@ -164,6 +164,8 @@ class MergerVerifyNDT(Compare):
                 # on base of this struct should be created topconfig file
                 create_topoconfig_file(links_info, ndt_file_name, 
                             self.switch_patterns + self.host_patterns)
+            else:
+                logging.error("Failed to create topoconfig file - no links found")
             report_content = compare_topologies_ndt_ibdiagnet(self.timestamp,
                                                               ibdiagnet_links,
                                                               ibdiagnet_links_reverse,
