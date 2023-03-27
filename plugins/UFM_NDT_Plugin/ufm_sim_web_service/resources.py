@@ -63,6 +63,7 @@ class UFMResource(Resource):
         self.datetime_format = "%Y-%m-%d %H:%M:%S"
         self.ufm_port = 8000
         self.expected_keys = set()
+        self.optional_keys = set()
         # self.version_file = "release.json"
         # self.help_file = "help.json"
         self.version_file = "/opt/ufm/ufm_plugin_ndt/ufm_sim_web_service/release.json"
@@ -115,7 +116,10 @@ class UFMResource(Resource):
             return "Request format is incorrect", 400
         extra_keys = keys_dict - self.expected_keys
         if extra_keys:
-            return "Incorrect format, extra keys in request: {}".format(extra_keys), 400
+            if self.optional_keys and set(extra_keys).issubset(self.optional_keys):
+                pass
+            else:
+                return "Incorrect format, extra keys in request: {}".format(extra_keys), 400
         missing_keys = self.expected_keys - keys_dict
         if missing_keys:
             return "Incorrect format, missing keys in request: {}".format(missing_keys), 400
@@ -200,7 +204,8 @@ class Upload(UFMResource):
         self.file_type = ""
         self.expected_checksum = ""
         self.file_status = NDT_FILE_STATE_NEW
-        self.expected_keys = ["file_name", "file", "file_type", "sha-1"]
+        self.expected_keys = ["file_name", "file", "file_type"]
+        self.optional_keys = ["sha-1"]
 
     def get(self):
         return self.report_error(405, "Method is not allowed")
@@ -218,13 +223,16 @@ class Upload(UFMResource):
         if self.file_type not in self.possible_file_types:
             return "", ("Incorrect file type. Possible file types: {}."
                         .format(",".join(self.possible_file_types)), 400)
-        self.expected_checksum = json_data["sha-1"]
+        if "sha-1" in json_data: # optional for merger
+            self.expected_checksum = json_data["sha-1"]
+        else:
+            self.expected_checksum = ""
         return file_content, self.report_success()
 
     def check_sha1(self, file_content):
         self.sha1 = get_hash(file_content)
         file_content = file_content.replace('\r\n', '\n')
-        if self.expected_checksum != self.sha1:
+        if self.expected_checksum and self.expected_checksum != self.sha1:
             return "", ("Provided sha-1 {} for {} is different from actual one {}"
                         .format(self.expected_checksum, self.file_name, self.sha1), 400)
         else:
