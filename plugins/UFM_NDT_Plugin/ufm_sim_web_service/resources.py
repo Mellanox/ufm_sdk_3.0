@@ -242,7 +242,12 @@ class Upload(UFMResource):
                         entry["file_status"] = self.file_status
             file.seek(0)
             json.dump(data, file)
-        return self.report_success()
+        if verify_fix_json_list_file(self.ndts_list_file):
+            return self.report_success()
+        else:
+            message = "Update NDTS list. Failed to update NDTS list file %s: - probably json ndts list file corrupted." % self.self.file_name
+            logging.error(message)
+            return self.report_error(400, )
 
     def save_ndt(self, file_content):
         logging.debug("Uploading file: {}".format(self.file_name))
