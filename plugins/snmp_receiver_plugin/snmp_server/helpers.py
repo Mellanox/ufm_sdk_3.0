@@ -32,6 +32,8 @@ EMPTY_IP = "0.0.0.0"
 PROVISIONING_TIMEOUT = 20
 SWITCHES_FILE = "registered_switches.json"
 TRAPS_POLICY_FILE = "traps_policy.csv"
+COMPLETED_WITH_ERRORS = "Completed With Errors"
+COMPLETED = "Completed"
 
 def succeded(status_code):
     return status_code in [HTTPStatus.OK, HTTPStatus.ACCEPTED]
@@ -94,7 +96,7 @@ def get_provisioning_output(cli, description, switches):
             return status_code, f"Failed to get job {job_id} output"
         try:
             status = json["Status"]
-            if status == "Completed":
+            if status in [COMPLETED, COMPLETED_WITH_ERRORS]:
                 break
         except KeyError as ke:
             return HTTPStatus.BAD_REQUEST, f"No key {ke} found"
@@ -109,8 +111,9 @@ def get_provisioning_output(cli, description, switches):
     try:
         for job in jobs:
             guid = job["RelatedObjects"][0]
+            status = job["Status"]
             summary = job["Summary"]
-            result[guid] = summary
+            result[guid] = (status, summary)
     except KeyError as ke:
         return HTTPStatus.BAD_REQUEST, f"get_provisioning_output: No key {ke} found"
     return HTTPStatus.OK, result
@@ -129,13 +132,16 @@ async def async_post(session, resource, json=None):
 def init_engine_ids(switch_dict, guid_to_ip):
     if ConfigParser.snmp_version == 3:
         cli = "show snmp engineID"
-        status_code, guid_to_engine_id = get_provisioning_output(cli, "Requesting engine IDs", list(switch_dict.keys()))
+        status_code, guid_to_response = get_provisioning_output(cli, "Requesting engine IDs", list(switch_dict.keys()))
         if not succeded(status_code):
-            logging.error(f"Failed to get engine IDs")
+            logging.error(f"Failed to get engine IDs, status_code: {status_code}")
             return {}
         skip_lines = ["", cli, "Events for which traps will be sent:"]
-        for guid, engine_id_raw in guid_to_engine_id.items():
+        for guid, (status, engine_id_raw) in guid_to_response.items():
             # e.g.: "show snmp engineID\n\nLocal SNMP engineID: 0x80004f4db1aadcadbc89affa118db\n"
+            if status == COMPLETED_WITH_ERRORS:
+                logging.error(f"Failed to get engineID for switch {guid}: {engine_id_raw}")
+                continue
             engine_id_strs = engine_id_raw.split("\n")
             engine_id_str = list(set(engine_id_strs) - set(skip_lines))
             if len(engine_id_str) != 1:
@@ -170,7 +176,7 @@ class Switch:
     def __init__(self, name="", guid="", engine_id="", event_to_count={}):
         self.name = name
         self.guid = guid
-        engine_id = engine_id
+        self.engine_id = engine_id
         self.event_to_count = event_to_count
 
 class Severity:

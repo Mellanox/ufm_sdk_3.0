@@ -67,6 +67,8 @@ class SnmpTrapReceiver:
 
     def _register_v3_switch(self, engine_id):
         # TODO: change to sha512 and aes-256
+        if not engine_id:
+            return
         config.addV3User(
             self.snmp_engine,
             helpers.ConfigParser.snmp_user,
@@ -87,10 +89,16 @@ class SnmpTrapReceiver:
 
         if helpers.ConfigParser.snmp_mode == "auto":
             switches = list(self.switch_dict.keys())
-            status_code, text = helpers.post_provisioning_api(Switch.get_cli(helpers.LOCAL_IP),
-                                "Initial registration", switches)
+            status_code, guid_to_response = helpers.get_provisioning_output(Switch.get_cli(helpers.LOCAL_IP),
+                                            "Initial registration", switches)
             if not helpers.succeded(status_code):
-                logging.error(f"Failed to auto register, status code: {status_code}, response: {text}")
+                logging.error(f"Failed to auto register switches, status code: {status_code}")
+            for guid, (status, summary) in guid_to_response.items():
+                if status == helpers.COMPLETED_WITH_ERRORS:
+                    logging.error(f"Failed to auto register switch {guid}: {summary}")
+                    for ip, switch in self.switch_dict.items():
+                        if switch.guid == guid:
+                            switches.remove(ip)
             with open(helpers.SWITCHES_FILE, "w") as file:
                 json.dump(switches, file)
 
