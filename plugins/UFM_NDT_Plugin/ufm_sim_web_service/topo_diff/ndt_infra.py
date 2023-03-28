@@ -60,6 +60,7 @@ NDT_FILE_STATE_UPDATED_DISABLED = "updated_disabled"
 NDT_FILE_STATE_UPDATED_NO_DISCOVER = "updated_no_discover"
 NDT_FILE_STATE_DEPLOYED_DISABLED = "deployed_disabled"
 NDT_FILE_STATE_DEPLOYED_NO_DISCOVER = "deployed_no_discover"
+NDT_FILE_STATE_DEPLOYED_COMPLETED = "deployed_completed"
 
 def run_command_line_cmd(command):
     cmd = command.split()
@@ -280,6 +281,20 @@ def update_last_deployed_ndt(ndt_file_name):
     with open(LAST_DEPLOYED_NDT_FILE_INFO, 'w') as deployed_ndt_file:
         file_info = '{"last_deployed_file": "%s"}' % ndt_file_name
         deployed_ndt_file.write(file_info)
+
+def get_last_deployed_ndt():
+    '''
+    returns last deployed ndt file name
+    :param ndt_file_name:
+    '''
+    if check_file_exist(LAST_DEPLOYED_NDT_FILE_INFO):
+        file_name = ""
+        with open(LAST_DEPLOYED_NDT_FILE_INFO, 'r') as deployed_ndt_file:
+            file_info = json.load(deployed_ndt_file)
+            file_name = file_info.get("last_deployed_file", "")
+        return file_name
+    else:
+        return ""
 
 def verify_fix_json_list_file(json_file_to_check):
     '''

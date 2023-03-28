@@ -29,11 +29,12 @@ from topo_diff.ndt_infra import check_file_exist,\
 from topo_diff.topo_diff import parse_ibdiagnet_dump,\
                                       parse_ndt_file,\
                                       compare_topologies_ndt_ibdiagnet
-from topo_diff.ndt_infra import verify_fix_json_list_file, NDT_FILE_STATE_NEW,\
+from topo_diff.ndt_infra import verify_fix_json_list_file, get_last_deployed_ndt,\
+                NDT_FILE_STATE_NEW,\
                 NDT_FILE_STATE_DEPLOYED, NDT_FILE_STATE_VERIFIED, BOUNDARY_PORT_STATE_DISABLED,\
                 NDT_FILE_STATE_UPDATED, NDT_FILE_STATE_UPDATED_NO_DISCOVER,\
                 NDT_FILE_STATE_DEPLOYED_DISABLED, NDT_FILE_STATE_DEPLOYED_NO_DISCOVER,\
-                NDT_FILE_STATE_UPDATED_DISABLED
+                NDT_FILE_STATE_UPDATED_DISABLED, NDT_FILE_STATE_DEPLOYED_COMPLETED
 
 
 class UFMResource(Resource):
@@ -145,6 +146,7 @@ class UFMResource(Resource):
         Once deployed to OpenSM - status become deployed
         :param ndt_file_name:
         '''
+        last_deployed_file_name = get_last_deployed_ndt()
         with open(self.ndts_list_file, "r+") as file:
             # unhandled exception in case ndts file was changed manually
             data = json.load(file)
@@ -158,6 +160,11 @@ class UFMResource(Resource):
                         if current_status == NDT_FILE_STATE_UPDATED_NO_DISCOVER:
                             file_status = NDT_FILE_STATE_DEPLOYED_NO_DISCOVER
                     entry["file_status"] = file_status
+                if (entry["file"] == last_deployed_file_name and
+                    file_status == NDT_FILE_STATE_DEPLOYED
+                    and entry["file_status"] == NDT_FILE_STATE_UPDATED_NO_DISCOVER):
+                    entry["file_status"] = NDT_FILE_STATE_DEPLOYED_COMPLETED
+                    # update last deployed file status to deployed_completed
             file.seek(0)
             json.dump(data, file)
         # very strange bug - of some reason at the end of file after dump appears "]]"
