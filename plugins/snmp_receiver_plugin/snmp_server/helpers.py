@@ -134,7 +134,7 @@ def init_engine_ids(switch_dict, guid_to_ip):
         cli = "show snmp engineID"
         status_code, guid_to_response = get_provisioning_output(cli, "Requesting engine IDs", list(switch_dict.keys()))
         if not succeded(status_code):
-            logging.error(f"Failed to get engine IDs, status_code: {status_code}")
+            logging.error(f"Failed to get engine IDs, status_code: {status_code}, error: {guid_to_response}")
             return {}
         skip_lines = ["", cli, "Events for which traps will be sent:"]
         for guid, (status, engine_id_raw) in guid_to_response.items():

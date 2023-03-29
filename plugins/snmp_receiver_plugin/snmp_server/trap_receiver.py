@@ -55,8 +55,8 @@ class SnmpTrapReceiver:
     def _init_traps_info(self):
         with open(helpers.TRAPS_POLICY_FILE, 'r') as traps_info_file:
             csv_traps_info = csv.DictReader(traps_info_file)
-            for row in csv_traps_info:
-                self.oid_to_traps_info[row['OID']] = row
+            for trap_info in csv_traps_info:
+                self.oid_to_traps_info[trap_info['OID']] = trap_info
 
     def _setup_transport(self):
         # UDP over IPv4, first listening interface/port
@@ -92,7 +92,8 @@ class SnmpTrapReceiver:
             status_code, guid_to_response = helpers.get_provisioning_output(Switch.get_cli(helpers.LOCAL_IP),
                                             "Initial registration", switches)
             if not helpers.succeded(status_code):
-                logging.error(f"Failed to auto register switches, status code: {status_code}")
+                logging.error(f"Failed to auto register switches, status code: {status_code}, error: {guid_to_response}")
+                return
             for guid, (status, summary) in guid_to_response.items():
                 if status == helpers.COMPLETED_WITH_ERRORS:
                     logging.error(f"Failed to auto register switch {guid}: {summary}")
@@ -137,7 +138,6 @@ class SnmpTrapReceiver:
         except KeyError as ke:
             logging.info(f'Error while parsing varBindsResolved: {ke}')
             trap_oid = "unknown"
-            trap_oid = "failed to decode trap"
         try:
             trap_info = self.oid_to_traps_info[trap_oid]
             severity = trap_info["Severity"]
