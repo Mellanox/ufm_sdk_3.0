@@ -202,6 +202,30 @@ class MergerVerifyNDT(Compare):
         #ndt_file = json_data(ndt_record, "file", False)
         return self.verify(os.path.join(self.ndts_dir, json_data["NDT_file_name"]))
 
+    def get_next_report_id_number(self):
+        '''
+        Return next expected report number
+        '''
+        next_report_number = 0 # initial value - will cause an error return
+        with open(self.reports_list_file, "r", encoding="utf-8") as reports_list_file:
+            # unhandled exception in case reports file was changed manually
+            data = json.load(reports_list_file)
+            next_report_number = len(data) + 1
+        return next_report_number
+
+    def update_reports_list(self, scope):
+        with open(self.reports_list_file, "r", encoding="utf-8") as reports_list_file:
+            # unhandled exception in case reports file was changed manually
+            data = json.load(reports_list_file)
+            self.report_number = len(data) + 1
+            entry = {"report_id": self.report_number,
+                     "report_scope": scope,
+                     "timestamp": self.timestamp}
+            data.append(entry)
+        with open(self.reports_list_file, "w") as reports_list_file:
+            json.dump(data, reports_list_file)
+        return self.report_success()
+
 
 class MergerVerifyNDTReports(UFMResource):
     def __init__(self):
