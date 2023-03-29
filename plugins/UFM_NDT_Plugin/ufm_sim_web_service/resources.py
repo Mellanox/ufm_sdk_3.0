@@ -162,7 +162,7 @@ class UFMResource(Resource):
                     entry["file_status"] = file_status
                 if (entry["file"] == last_deployed_file_name and
                     file_status == NDT_FILE_STATE_DEPLOYED
-                    and entry["file_status"] == NDT_FILE_STATE_UPDATED_NO_DISCOVER):
+                    and entry["file_status"] == NDT_FILE_STATE_DEPLOYED_NO_DISCOVER):
                     entry["file_status"] = NDT_FILE_STATE_DEPLOYED_COMPLETED
                     # update last deployed file status to deployed_completed
             file.seek(0)
