@@ -35,7 +35,7 @@ from merger_resources import MergerUploadNDT, MergerVerifyNDT, \
     MergerNdts, MergerDeleteNDT, MergerUpdateNDTConfig, MergerLatestDeployedNDT
 
 
-class UFMWebSim:
+class UFMNDTWebServer:
     def parse_config(self):
         ndt_config = configparser.ConfigParser()
         if os.path.exists(UFMResource.config_file_name):

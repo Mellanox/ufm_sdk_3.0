@@ -284,9 +284,9 @@ class Upload(UFMResource):
 
     def post(self):
         if self.subnet_merger_flow:
-            info_msg = "POST /plugin/ndt/upload"
+            info_msg = "POST /plugin/ndt//merger_upload_ndt"
         else:
-            info_msg = "POST /plugin/ndt_merger/upload"
+            info_msg = "POST /plugin/ndt/upload"
         logging.info(info_msg)
         error_status_code, error_response = self.success, []
         if not request.data or not request.json:
