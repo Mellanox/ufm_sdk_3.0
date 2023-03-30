@@ -13,7 +13,6 @@
 # @date:   November, 2022
 #
 import configparser
-from enum import Enum
 from http import HTTPStatus
 import logging
 import requests

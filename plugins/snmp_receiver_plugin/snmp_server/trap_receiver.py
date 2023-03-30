@@ -142,7 +142,7 @@ class SnmpTrapReceiver:
             trap_info = self.oid_to_traps_info[trap_oid]
             severity = trap_info["Severity"]
         except:
-            logging.info(f'Failed to decode trap: {trap_oid}')
+            logging.info(f'Received unsupported trap: {trap_oid}, skipping')
             return
         trap = helpers.Trap(trap_oid, trap_details, severity)
         logging.debug(f'  {trap_oid}: {trap_details}')

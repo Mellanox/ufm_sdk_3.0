@@ -78,23 +78,33 @@ class Switch(UFMResource):
         return cli_unregister if unregister else cli_register
 
     def post(self, unregister=False):
-        resource = "unregister" if unregister == True else "register"
+        resource = "unregister" if unregister else "register"
         logging.info(f"POST /plugin/snmp/{resource}")
-        if not request.json:
+        if not request.data or not request.json:
             switches = list(self.switch_dict.keys())
             hosts = []
         else:
             json_data = request.get_json(force=True)
             try:
                 switches = json_data["switches"]
-            except KeyError as ke:
-                return self.report_error(HTTPStatus.BAD_REQUEST, f"No key {ke} found")
+            except (KeyError, TypeError) as e:
+                return self.report_error(HTTPStatus.BAD_REQUEST, f"Incorrect format: {e}")
             hosts = json_data.get("hosts", [])
         if not hosts:
             hosts.append(helpers.LOCAL_IP)
-        incorrect_switches = set(switches) - set(self.switch_dict.keys())
+        switches_set = set(switches)
+        incorrect_switches = list(switches_set - set(self.switch_dict.keys()))
         if incorrect_switches:
             return self.report_error(HTTPStatus.BAD_REQUEST, f"Switches {incorrect_switches} don't exist in the fabric or don't have an ip")
+        not_registered = switches_set - set(self.registered_switches)
+        if unregister:
+            if not_registered == switches_set:
+                return self.report_error(HTTPStatus.BAD_REQUEST, f"Provided switches are not registered")
+            switches = list(switches_set - not_registered)
+        else:
+            if not not_registered:
+                return self.report_error(HTTPStatus.BAD_REQUEST, f"Provided switches have been already registered")
+            switches = list(not_registered)
         description = "Plugin registration as SNMP traps receiver"
         for ip in hosts:
             status_code, guid_to_response = helpers.get_provisioning_output(self.get_cli(ip, unregister), description, switches)
@@ -170,15 +180,15 @@ class Trap(UFMResource):
         # TODO: add trap check list - if no such trap, then error
         resource = "disable_trap" if disable == True else "enable_trap"
         logging.info(f"POST /plugin/snmp/{resource}")
-        if not request.json:
+        if not request.data or not request.json:
             return self.report_error(HTTPStatus.BAD_REQUEST, "Upload request is empty")
         else:
             json_data = request.get_json(force=True)
             switches = []
             try:
                 traps = json_data["traps"]
-            except KeyError as ke:
-                return self.report_error(HTTPStatus.BAD_REQUEST, f"No key {ke} found")
+            except (KeyError, TypeError) as e:
+                return self.report_error(HTTPStatus.BAD_REQUEST, f"Incorrect format: {e}")
             switches = list(self.switch_dict.keys())
             incorrect_switches = set(switches) - set(self.switch_dict.keys())
             if incorrect_switches:
