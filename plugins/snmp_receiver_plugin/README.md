@@ -9,6 +9,7 @@ To deploy the plugin on UFM Appliance:
 - make sure that SNMP plugin is disabled with _show ufm plugin_;
 - pull the plugin container with _docker pull mellanox/ufm-plugin-snmp_;
   - in case of HA load the plugin on the standby node as well;
+- on gen3 appliance, open the default SNMP port with _ufw allow 162/udp_;
 - run _ufm plugin snmp add_ to enable the plugin;
 - check that plugin is up and running with _ufm plugin show_;
 
