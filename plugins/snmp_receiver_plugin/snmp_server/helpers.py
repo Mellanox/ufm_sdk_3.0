@@ -23,8 +23,6 @@ import time
 
 HTTP_ERROR = HTTPStatus.INTERNAL_SERVER_ERROR
 HOST = "127.0.0.1:8000"
-LOCAL_HOSTNAME = socket.gethostname()
-LOCAL_IP = socket.gethostbyname(LOCAL_HOSTNAME)
 PROTOCOL = "http"
 SESSION = requests.Session()
 SESSION.headers = {"X-Remote-User": "ufmsystem"}
@@ -34,6 +32,19 @@ SWITCHES_FILE = "registered_switches.json"
 TRAPS_POLICY_FILE = "traps_policy.csv"
 COMPLETED_WITH_ERRORS = "Completed With Errors"
 COMPLETED = "Completed"
+ 
+def get_local_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('192.255.255.255', 1))
+        local_ip = s.getsockname()[0]
+    except:
+        local_ip = ''
+    finally:
+        s.close()
+    return local_ip
+
+LOCAL_IP = get_local_ip()
 
 def succeded(status_code):
     return status_code in [HTTPStatus.OK, HTTPStatus.ACCEPTED]
