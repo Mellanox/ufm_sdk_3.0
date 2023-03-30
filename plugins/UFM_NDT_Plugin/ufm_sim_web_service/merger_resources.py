@@ -110,7 +110,7 @@ class MergerVerifyNDT(Compare):
         th.start()
         return self.merger_report_running()
 
-    def run_ibdiagnet_ndt_compare(self, ndt_file_name, conf_stage="initial" ):
+    def run_ibdiagnet_ndt_compare(self, ndt_file_name, conf_stage="initial"):
         '''
         Function that will be called from thread - not to block UI
         and will create a report if suceed
@@ -162,8 +162,10 @@ class MergerVerifyNDT(Compare):
             if links_info:
                 #this is the structure that contains names of the nodes and ports and GUIDs
                 # on base of this struct should be created topconfig file
-                create_topoconfig_file(links_info, ndt_file_name, 
-                            self.switch_patterns + self.host_patterns)
+                if not create_topoconfig_file(links_info, ndt_file_name, 
+                            self.switch_patterns + self.host_patterns):
+                    logging.error("Failed to create topoconfig file.")
+
             else:
                 logging.error("Failed to create topoconfig file - no links found")
             report_content = compare_topologies_ndt_ibdiagnet(self.timestamp,

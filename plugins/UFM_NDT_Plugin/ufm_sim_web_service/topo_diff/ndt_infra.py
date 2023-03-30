@@ -185,7 +185,7 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
         error_message = "{} is empty or cannot be parsed: {}".format(ndt_file_path, te)
         logging.error(error_message)
         ndt_file.close()
-        return
+        return False
     with open(MERGER_OPEN_SM_CONFIG_FILE, 'w') as topoconfig_file:
         for index, row in enumerate(dictreader):
             logging.debug("Parsing NDT link: {}".format(row))
@@ -224,6 +224,7 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
                 topoconfig_file.write("%s,%s,%s,%s,%s,%s\n" % (port_guid, start_port,
                             peer_port_guid, peer_port,host_type,port_state))
     ndt_file.close()
+    return True
 
 
 def update_boundary_port_state_in_topoconfig_file(boundary_port_state,
