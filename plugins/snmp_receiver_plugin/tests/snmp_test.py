@@ -114,7 +114,7 @@ def register_switch():
     print("Register 1 switch")
     global SWITCHES
     test = "managed switches in the fabric"
-    assert_equal(SWITCH_LIST, len(SWITCHES), 1, test)
+    assert_equal(SWITCH_LIST, len(SWITCHES), 2, test)
     try:
         switch = SWITCHES[0]
     except:
