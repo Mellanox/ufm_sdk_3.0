@@ -1,0 +1,81 @@
+/* You can add global styles to this file, and also import other style files */
+
+//default global variables
+$nav-bar-collapse-width: 15%;
+
+/* You can add global styles to this file, and also import other style files */
+@import "../sms-ui-suite/themes/sb-admin/sass/app.scss";
+@import "~ag-grid-community/dist/styles/ag-grid.css";
+@import "~ag-grid-community/dist/styles/ag-theme-balham.css";
+@import "~ag-grid-community/dist/styles/ag-theme-balham-dark.css";
+
+body {
+  --main-color: rgb(33, 33, 33);
+  --text-color: rgb(33, 33, 33);
+  --controller-text-color: rgb(255, 255, 255);
+  --controller-background-color: rgb(118, 185, 0);
+  --main-color-number: 33, 33, 33;
+  --text-color-number: 33, 33, 33;
+  --controller-background-color-number: 118, 185, 0;
+  --light-main-color: #49478B;
+  --bright-light-main-color: #ACABCA;
+  --warning-color: #F0AD4E;
+  --nav-bar-background-color: var(--main-color);
+  --card-header-color: #f5f5f5;
+  --card-header-border-color: #ddd;
+  --secondary-color: #f5f5f5;
+  --spinner-popup-background-color: #fff;
+  --scrollbar-color: #c1c1c1;
+  --bs-dropdown-menu-item-hover-color: var(--main-color);
+  --bs-dropdown-predifined-item-color: #f5f5f5;
+  --horizontal-bar-background-color: #F4F4F4;
+  --font-weight-bold: bold;
+  --network-map-node-text-color: var(--main-color);
+  --network-map-link-color: #000;
+}
+
+.btn-primary, .btn-primary.active, .nav-pills > li.active > a, .nav-pills > li.active > a:focus, .nav-pills > li.active > a:hover {
+  background: var(--controller-background-color);
+  border-color: var(--controller-background-color);
+}
+
+a {
+  color: var(--controller-background-color);
+  -webkit-user-select: none;
+}
+
+.btn-primary:disabled:hover {
+  opacity: 0.9 !important;
+}
+
+.btn-primary:disabled, .btn-primary:focus,
+.btn-primary:hover {
+  background-color: var(--controller-background-color) !important;
+  color: var(--controller-text-color) !important;
+  border-color: var(--controller-background-color) !important;
+  opacity: 0.8;
+  outline: 0px auto #FFF !important;
+
+}
+
+.btn-primary:disabled, .btn-primary:disabled:focus, .btn-primary:disabled:hover, .btn-primary.disabled {
+  color: #333 !important;
+  background-color: #fff !important;
+  border-color: #ccc !important;
+  opacity: 0.5 !important;
+  pointer-events: none;
+}
+
+
+.btn-primary.active, .btn-primary:active, .open > .dropdown-toggle.btn-primary {
+  background-color: var(--controller-background-color) !important;
+  border-color: var(--controller-background-color) !important;
+}
+
+.centralized-spinner {
+  left: calc(50% - 45px);
+  top: calc(50% - 50px);
+  position: absolute;
+}
+
+
