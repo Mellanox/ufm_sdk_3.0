@@ -32,7 +32,7 @@ SWITCHES_FILE = "registered_switches.json"
 TRAPS_POLICY_FILE = "traps_policy.csv"
 COMPLETED_WITH_ERRORS = "Completed With Errors"
 COMPLETED = "Completed"
- 
+
 def get_local_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
@@ -146,7 +146,7 @@ def init_engine_ids(switch_dict, guid_to_ip):
         status_code, guid_to_response = get_provisioning_output(cli, "Requesting engine IDs", list(switch_dict.keys()))
         if not succeded(status_code):
             logging.error(f"Failed to get engine IDs, status_code: {status_code}, error: {guid_to_response}")
-            return {}
+            return
         skip_lines = ["", cli, "Events for which traps will be sent:"]
         for guid, (status, engine_id_raw) in guid_to_response.items():
             # e.g.: "show snmp engineID\n\nLocal SNMP engineID: 0x80004f4db1aadcadbc89affa118db\n"
@@ -156,15 +156,15 @@ def init_engine_ids(switch_dict, guid_to_ip):
             engine_id_strs = engine_id_raw.split("\n")
             engine_id_str = list(set(engine_id_strs) - set(skip_lines))
             if len(engine_id_str) != 1:
-                logging.error(f"Failed to parse engine ID string")
-                return {}
+                logging.error(f"Failed to parse engine ID string {engine_id_raw}")
+                continue
             for word in engine_id_str[0].split():
                 if word.startswith("0x"):
                     try:
                         switch_obj = switch_dict[guid_to_ip[guid]]
                         switch_obj.engine_id = word[2:]
                     except KeyError as ke:
-                        return HTTPStatus.BAD_REQUEST, f"get_ufm_switches: No key {ke} found"
+                        logging.error(f"No key {ke} found in {word}")
 
 def get_ufm_switches():
     resource = "/resources/systems?type=switch"
