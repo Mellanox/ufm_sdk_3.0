@@ -30,14 +30,6 @@ class UFMResource(Resource):
         self.registered_switches = set(self.read_json_file(helpers.SWITCHES_FILE))
         self.datetime_format = "%Y-%m-%d %H:%M:%S"
 
-    def update_registered_switches(self, switches, unregister=False):
-        if unregister:
-            self.registered_switches = self.registered_switches - set(switches)
-        else:
-            self.registered_switches.update(switches)
-        with open(helpers.SWITCHES_FILE, "w") as file:
-            json.dump(list(self.registered_switches), file)
-
     def get_timestamp(self):
         return str(datetime.now().strftime(self.datetime_format))
 
@@ -66,6 +58,14 @@ class UFMResource(Resource):
 class Switch(UFMResource):
     def get(self):
         return self.report_error(HTTPStatus.METHOD_NOT_ALLOWED, "Method is not allowed")
+    
+    def update_registered_switches(self, switches, unregister=False):
+        if unregister:
+            self.registered_switches = self.registered_switches - set(switches)
+        else:
+            self.registered_switches.update(switches)
+        with open(helpers.SWITCHES_FILE, "w") as file:
+            json.dump(list(self.registered_switches), file)
 
     @staticmethod
     def get_cli(ip, unregister=False):
@@ -95,11 +95,17 @@ class Switch(UFMResource):
         incorrect_switches = set(switches) - set(self.switch_dict.keys())
         if incorrect_switches:
             return self.report_error(HTTPStatus.BAD_REQUEST, f"Switches {incorrect_switches} don't exist in the fabric or don't have an ip")
-        description = "plugin registration as SNMP traps receiver"
+        description = "Plugin registration as SNMP traps receiver"
         for ip in hosts:
-            status_code, text = helpers.post_provisioning_api(self.get_cli(ip, unregister), description, switches)
+            status_code, guid_to_response = helpers.get_provisioning_output(self.get_cli(ip, unregister), description, switches)
             if not helpers.succeded(status_code):
-                return self.report_error(status_code, text)
+                return self.report_error(status_code, guid_to_response)
+            for guid, (status, summary) in guid_to_response.items():
+                if status == helpers.COMPLETED_WITH_ERRORS:
+                    logging.error(f"Failed to {resource} switch {guid}: {summary}")
+                    for ip, switch in self.switch_dict.items():
+                        if switch.guid == guid:
+                            switches.remove(ip)
         self.update_registered_switches(switches, unregister)
         return self.report_success()
 
@@ -178,11 +184,21 @@ class Trap(UFMResource):
             if incorrect_switches:
                 return self.report_error(HTTPStatus.BAD_REQUEST, f"Switches {incorrect_switches} don't exist in the fabric or don't have an ip")
             description = "UFM event monitoring settings"
+            one_succeeded = False
             for trap in traps:
-                self.update_csv(trap, disable)
-                status_code, text = helpers.post_provisioning_api(self.get_cli(trap, disable), description, switches)
+                status_code, guid_to_response = helpers.get_provisioning_output(self.get_cli(trap, disable), description, switches)
                 if not helpers.succeded(status_code):
-                    return self.report_error(status_code, text)
+                    return self.report_error(status_code, guid_to_response)
+                for guid, (status, summary) in guid_to_response.items():
+                    if status == helpers.COMPLETED_WITH_ERRORS:
+                        logging.error(f"Failed to {resource} {trap} on switch {guid}: {summary}")
+                    else:
+                        one_succeeded = True
+                if one_succeeded:
+                    logging.warning(f"Succeded to {resource} on some switches, updating trap info")
+                    self.update_csv(trap, disable)
+                else:
+                    return self.report_error(HTTPStatus.BAD_REQUEST, f"Failed to {resource} {trap}, check logs for more information")
             return self.report_success()
 
 class EnableTrap(Trap):
