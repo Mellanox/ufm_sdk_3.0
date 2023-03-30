@@ -6,3 +6,7 @@
 	path = plugins/bright_plugin/src/bright-ui/sms-ui-suite
 	url = git@github.com:Mellanox-lab/sw_mng_ui.git
 	branch = standalone-suite
+[submodule "plugins/UFM_NDT_Plugin/ufm_sim_web_service/ndt-ui/sms-ui-suite"]
+	path = plugins/UFM_NDT_Plugin/ufm_sim_web_service/ndt-ui/sms-ui-suite
+	url = git@github.com:Mellanox-lab/sw_mng_ui.git
+	branch = standalone-suite

@@ -1,0 +1,22 @@
+<ng-container *ngIf="NdtViewService.isRunningFromUFM; else NDTMainTemplate">
+  <router-outlet></router-outlet>
+</ng-container>
+
+<ng-template #NDTMainTemplate>
+  <div class="main-page-2 clearfix nav-collapse">
+    <div class="nav-contianer-2">
+      <sms-app-navbar [sideMenuItems]="sidebarItems"
+                      [isMenuCollapsed]="true"
+                      navBarTitle="NDT"
+                      [logoPath]="'assets/img/nv-logo-w.png'"
+                      projectPrefix="ndt"
+                      (selectedItemChanged)="onSelectedItemChanged($event)"
+      ></sms-app-navbar>
+    </div>
+    <div class="page-container" style="min-height: 600px;">
+      <div class="page-content-2">
+        <router-outlet></router-outlet>
+      </div>
+    </div>
+  </div>
+</ng-template>
