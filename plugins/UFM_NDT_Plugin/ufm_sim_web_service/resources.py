@@ -200,7 +200,7 @@ class Upload(UFMResource):
     def post(self):
         logging.info("POST /plugin/ndt/upload")
         error_status_code, error_response = self.success, []
-        if not request.json:
+        if not request.data or not request.json:
             return self.report_error(400, "Upload request is empty")
         else:
             json_data = request.get_json(force=True)
@@ -290,7 +290,7 @@ class Delete(UFMResource):
 
     def post(self):
         logging.info("POST /plugin/ndt/delete")
-        if not request.json:
+        if not request.data or not request.json:
             return self.report_error(400, "Upload request is empty")
         else:
             error_status_code, error_response = self.success, []
@@ -444,7 +444,10 @@ class Compare(UFMResource):
 
     def post(self):
         logging.info("POST /plugin/ndt/compare")
-        if request.json:
+        if not request.data or not request.json:
+            logging.info("Running instant topology comparison")
+            return self.compare("Instant")
+        else:
             if len(self.scheduler.get_jobs()):
                 return self.report_error(400, "Periodic comparison is already running")
             json_data = request.get_json(force=True)
@@ -454,9 +457,6 @@ class Compare(UFMResource):
             if status_code != self.success:
                 return response, status_code
             return self.add_scheduler_jobs()
-        else:
-            logging.info("Running instant topology comparison")
-            return self.compare("Instant")
 
 
 class Cancel(UFMResource):
