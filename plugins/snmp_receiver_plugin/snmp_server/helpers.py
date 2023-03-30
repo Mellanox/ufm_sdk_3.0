@@ -254,6 +254,8 @@ class ConfigParser:
     snmp_password = snmp_config.get("SNMP", "snmp_password", fallback="auto")
     snmp_priv = snmp_config.get("SNMP", "snmp_priv", fallback="auto")
 
+    ufm_update_switches_interval = snmp_config.getint("UFM", "ufm_update_switches_interval", fallback=60)
+
     if not os.path.exists(httpd_config_file):
         logging.error(f"No config file {httpd_config_file} found!")
     port=8780
