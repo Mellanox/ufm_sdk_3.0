@@ -1,1 +1,20 @@
-<p>subnet-merger-view works!</p>
+<sms-plugin-base-component>
+  <div class="table-card">
+    <div class="col-sm-6">
+      <div class="card card-default">
+        <div class="card-body">
+          <ng-container *ngIf="ndtFiles?.length; else initialMsgTmp">
+            table should be here
+          </ng-container>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ng-template #initialMsgTmp>
+    There is no NDT file was uploaded before.Click
+    <a (click)="initialWizard.openWizard()">here</a> to upload the initial file
+  </ng-template>
+
+  <app-initial-wizard #initialWizard></app-initial-wizard>
+</sms-plugin-base-component>

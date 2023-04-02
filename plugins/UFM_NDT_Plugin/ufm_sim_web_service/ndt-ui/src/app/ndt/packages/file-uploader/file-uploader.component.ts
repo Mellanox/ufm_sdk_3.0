@@ -22,7 +22,7 @@ import {SmsToastrService} from "../../../../../sms-ui-suite/sms-toastr/sms-toast
 @Component({
   selector: 'app-file-uploader',
   templateUrl: './file-uploader.component.html',
-  styleUrls: ['./file-uploader.component.css']
+  styleUrls: ['./file-uploader.component.scss']
 })
 
 export class FileUploaderComponent {
@@ -97,7 +97,7 @@ export class FileUploaderComponent {
       try {
         parsedResponse = JSON.parse(response)
       } catch (exception) {
-        parsedResponse = undefined;
+        parsedResponse = response;
       }
       this.onFileUploaded.emit(parsedResponse);
     };
