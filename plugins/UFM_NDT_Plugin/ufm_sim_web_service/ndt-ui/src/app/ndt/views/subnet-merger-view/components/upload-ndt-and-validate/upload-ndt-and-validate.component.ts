@@ -19,8 +19,8 @@ export class UploadNdtAndValidateComponent implements OnInit {
    */
 
   public fileUploaderConfig: IFileUploaderOptions = {
-    url: '', // merger_upload_ndt
-    filesTypes: ['.csv']
+    url: '/ufmRestV2/Topology_Compare/networkdiff', // merger_upload_ndt
+    filesTypes: []
   }
 
   public fileIsUploaded: boolean = false;
