@@ -1,4 +1,4 @@
-import {Component, Input, OnChanges, OnInit, SimpleChanges, ViewChild} from '@angular/core';
+import {Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges, ViewChild} from '@angular/core';
 import {SubnetMergerConstants} from "../../../../packages/subnet-merger/constants/subnet-merger.constants";
 import {
   XCoreAgGridOptions
@@ -35,10 +35,17 @@ export class NdtFilesViewComponent implements OnInit, OnChanges {
   @Input() ndtFiles: Array<INDTFile>;
 
   /**
+   * @OUTPUT
+   */
+
+  @Output() onNewMerger: EventEmitter<any> = new EventEmitter<any>();
+
+  /**
    * CHILDREN
    */
   @ViewChild('fileNameTmp', {static: true}) fileNameTmp;
   @ViewChild('actionsTmp', {static: true}) actionsTmp;
+  @ViewChild('rightControlTemplates', {static: true}) rightControlTemplates;
 
   /**
    * @VARIABLES
@@ -99,7 +106,11 @@ export class NdtFilesViewComponent implements OnInit, OnChanges {
             [XCoreAgGridConstants.cellClass]: "center-aligned"
           },
         ]
-      })
+      });
+
+    Object.assign(this.tableOptions.extraOptions, {
+      [XCoreAgGridConstants.rightAdditionalControlsTemplate]: this.rightControlTemplates
+    })
   }
 
   public get NDTFileStatus() {

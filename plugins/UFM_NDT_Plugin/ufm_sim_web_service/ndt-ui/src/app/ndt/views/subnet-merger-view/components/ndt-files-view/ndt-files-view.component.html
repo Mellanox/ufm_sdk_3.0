@@ -19,10 +19,27 @@
        placement="top"
        (click)="onValidateClicked()">
     </i>
-    <i *ngIf="data.row.file_status != NDTFileStatus.deployed && data.row.file_status != NDTFileStatus.deployed_no_discover"
-       class="fa fa-object-group" [tooltip]="'Deploy'" container="body"
-       placement="top"
-       (click)="onDeployClicked()">
+    <i
+      *ngIf="data.row.file_status != NDTFileStatus.deployed && data.row.file_status != NDTFileStatus.deployed_no_discover"
+      class="fa fa-object-group" [tooltip]="'Deploy'" container="body"
+      placement="top"
+      (click)="onDeployClicked()">
     </i>
   </div>
 </ng-template>
+
+<ng-template #rightControlTemplates>
+  <ng-container *ngIf="activeNDTFile">
+    <button class="btn btn-primary"
+            style="height: 28px;padding: 0 12px;"
+            (click)="newMergerWizard.openWizard()">
+      <i class="fa fa-plus"></i>
+      New Merger
+    </button>
+  </ng-container>
+</ng-template>
+
+<app-new-merger-wizard #newMergerWizard
+                       [activeDeployedFile]="activeNDTFile"
+                       (onMergeFinish)="onNewMerger.emit()">
+</app-new-merger-wizard>
