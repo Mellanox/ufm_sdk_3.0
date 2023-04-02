@@ -6,7 +6,8 @@ import {XWizardTab} from "../../../../../../../../sms-ui-suite/x-wizard";
 })
 export class InitialWizardService {
   public wizardConfig = {
-    title: 'Bring Up Merger'
+    title: 'Bring Up Merger',
+    action: 'Deploy'
   };
 
   public tabs: Array<XWizardTab>;

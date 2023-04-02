@@ -1,4 +1,4 @@
-import {Component, OnInit, ViewChild} from '@angular/core';
+import {Component, EventEmitter, OnInit, Output, ViewChild} from '@angular/core';
 import {XWizardComponent} from "../../../../../../../sms-ui-suite/x-wizard";
 import {InitialWizardService} from "./services/initial-wizard.service";
 
@@ -8,6 +8,11 @@ import {InitialWizardService} from "./services/initial-wizard.service";
   styleUrls: ['./initial-wizard.component.scss']
 })
 export class InitialWizardComponent implements OnInit {
+
+  /**
+   * @OUTPUT
+   */
+  @Output() onDeployFinish: EventEmitter<any> = new EventEmitter<any>();
 
   /**
    * @CHILDREN
@@ -21,7 +26,12 @@ export class InitialWizardComponent implements OnInit {
   }
 
   public onWizardFinish(): void {
-
+    //merger_update_topoconfig with
+    /*{
+    "ndt_file_name": "ndt_9",
+    "boundary_port_state": "Disabled"
+    }*/
+    this.onDeployFinish.emit(true);
   }
 
   public onWizardNext($event): void {
@@ -35,6 +45,7 @@ export class InitialWizardComponent implements OnInit {
 
   public onFileValidated($event) {
     this.initialWizardService.tabs[1].isDisabled = false;
+    this.initialWizardService.tabs[1].isNextDisabled = false;
     this.initialWizardService.tabs[0].isNextDisabled = false;
   }
 

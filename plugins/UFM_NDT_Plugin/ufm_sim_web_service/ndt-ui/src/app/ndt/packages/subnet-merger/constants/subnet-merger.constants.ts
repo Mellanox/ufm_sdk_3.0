@@ -9,4 +9,12 @@ export class SubnetMergerConstants {
     "description": "description" as "description"
   }
 
+  public static NDTFileKeys = {
+    "file": "file" as "file",
+    "timestamp": "timestamp" as "timestamp",
+    "file_type": "file_type" as "file_type",
+    "file_status": "file_status" as "file_status",
+    "sha_1": "sha-1" as "sha-1"
+  }
+
 }

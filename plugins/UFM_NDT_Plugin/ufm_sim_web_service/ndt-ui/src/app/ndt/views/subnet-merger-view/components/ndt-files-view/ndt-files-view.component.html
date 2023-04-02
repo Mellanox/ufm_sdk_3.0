@@ -1,0 +1,28 @@
+<ng-container *ngIf="ndtFiles">
+  <app-x-core-ag-grid [options]="tableOptions"
+                      [rowData]="ndtFiles">
+  </app-x-core-ag-grid>
+</ng-container>
+
+<ng-template #fileNameTmp let-data>
+  {{data.col}}
+  <ng-container *ngIf="data.col == activeNDTFile">
+    <i class="fa active" tooltip="Active" placement="top" container="body"></i>
+  </ng-container>
+</ng-template>
+
+<ng-template #actionsTmp let-data>
+  <div class="actions-btn-wrapper">
+    <i class="fa fa-tasks"
+       [tooltip]="'Validate'"
+       container="body"
+       placement="top"
+       (click)="onValidateClicked()">
+    </i>
+    <i *ngIf="data.row.file_status != NDTFileStatus.deployed && data.row.file_status != NDTFileStatus.deployed_no_discover"
+       class="fa fa-object-group" [tooltip]="'Deploy'" container="body"
+       placement="top"
+       (click)="onDeployClicked()">
+    </i>
+  </div>
+</ng-template>

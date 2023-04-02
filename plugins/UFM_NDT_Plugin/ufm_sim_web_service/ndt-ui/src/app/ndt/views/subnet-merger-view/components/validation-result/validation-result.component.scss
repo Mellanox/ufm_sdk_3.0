@@ -4,9 +4,3 @@
     padding: 6px;
   }
 }
-
-:host ::ng-deep {
-  .capitalize {
-    text-transform: capitalize;
-  }
-}

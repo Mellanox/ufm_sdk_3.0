@@ -1,5 +1,5 @@
 .table-card {
-  margin: 6px 6px;
+  margin: 34px 6px;
 
   .card {
     .card-body {
@@ -15,5 +15,9 @@ a {
 :host ::ng-deep {
   .center {
     margin-left: calc(50% - 45px);
+  }
+
+  .capitalize {
+    text-transform: capitalize;
   }
 }
