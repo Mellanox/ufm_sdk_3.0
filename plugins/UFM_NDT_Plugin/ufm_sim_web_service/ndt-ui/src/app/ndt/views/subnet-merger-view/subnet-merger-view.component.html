@@ -2,10 +2,20 @@
   <div class="table-card">
     <div class="col-sm-6">
       <div class="card card-default">
+        <div *ngIf="ndtFiles?.length"
+             class="card-header">
+          Uploaded NDT Files
+        </div>
         <div class="card-body">
-          <ng-container *ngIf="ndtFiles?.length; else initialMsgTmp">
-            table should be here
+          <ng-container *ngIf="loading; else cardBodyTmp">
+            <i class="fa fa-spinner center"></i>
           </ng-container>
+
+          <ng-template #cardBodyTmp>
+            <ng-container *ngIf="ndtFiles?.length; else initialMsgTmp">
+              <app-ndt-files-view [ndtFiles]="ndtFiles"></app-ndt-files-view>
+            </ng-container>
+          </ng-template>
         </div>
       </div>
     </div>
@@ -16,5 +26,6 @@
     <a (click)="initialWizard.openWizard()">here</a> to upload the initial file
   </ng-template>
 
-  <app-initial-wizard #initialWizard></app-initial-wizard>
+  <app-initial-wizard #initialWizard
+                      (onDeployFinish)="onInitialDeployFinish($event)"></app-initial-wizard>
 </sms-plugin-base-component>

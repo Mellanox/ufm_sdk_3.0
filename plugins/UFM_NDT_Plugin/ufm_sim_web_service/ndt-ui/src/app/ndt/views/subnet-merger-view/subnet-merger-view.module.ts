@@ -11,6 +11,8 @@ import {
 import {UploadNdtAndValidateComponent} from './components/upload-ndt-and-validate/upload-ndt-and-validate.component';
 import {ValidationResultComponent} from './components/validation-result/validation-result.component';
 import {XCoreAgGridModule} from "../../../../../sms-ui-suite/x-core-ag-grid/x-core-ag-grid.module";
+import {NdtFilesViewComponent} from './components/ndt-files-view/ndt-files-view.component';
+import {TooltipModule} from "ngx-bootstrap/tooltip";
 
 
 @NgModule({
@@ -18,14 +20,16 @@ import {XCoreAgGridModule} from "../../../../../sms-ui-suite/x-core-ag-grid/x-co
     SubnetMergerViewComponent,
     InitialWizardComponent,
     UploadNdtAndValidateComponent,
-    ValidationResultComponent
+    ValidationResultComponent,
+    NdtFilesViewComponent
   ],
   imports: [
     CommonModule,
     XWizardModule,
     FileUploaderModule,
     SmsPluginBaseComponentModule,
-    XCoreAgGridModule
+    XCoreAgGridModule,
+    TooltipModule
   ]
 })
 export class SubnetMergerViewModule {
