@@ -107,8 +107,8 @@ class UFMResource(Resource):
     def post(self):
         return self.report_success()
 
-    def report_success(self):
-        return {}, self.success
+    def report_success(self, ret_params={}):
+        return ret_params, self.success
 
     def check_request_keys(self, json_data):
         try:
@@ -455,8 +455,14 @@ class Compare(UFMResource):
         except OSError as oe:
             return self.report_error(500, "Cannot save report {}: {}".format(report, oe))
 
-    def create_report(self, scope, report_content):
-        response, status_code = self.update_reports_list(scope)
+    def create_report(self, scope, report_content, completed=True):
+        '''
+        
+        :param scope:
+        :param report_content:
+        :param completed: If status of the report will be running or completed
+        '''
+        response, status_code = self.update_reports_list(scope, completed)
         if status_code != self.success:
             return response, status_code
         response, status_code = self.save_report(report_content)
