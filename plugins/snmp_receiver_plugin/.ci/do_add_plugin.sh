@@ -30,5 +30,5 @@ expect "/(config/) # "
 send -- "show ufm plugin\r"
 expect "/(config/) # "
 send -- "show ufm status\r"
-sleep 10
+sleep 30
 EOF
