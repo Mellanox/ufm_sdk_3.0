@@ -1,4 +1,4 @@
-import {Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges} from '@angular/core';
+import {Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges, ViewChild} from '@angular/core';
 import {
   XCoreAgGridOptions
 } from "../../../../../../../sms-ui-suite/x-core-ag-grid/x-core-ag-grid-options/x-core-ag-grid-options";
@@ -31,12 +31,18 @@ export class ValidationResultComponent implements OnInit, OnChanges {
    * @INPUTS
    */
 
-  @Input() validationReportID: string;
+  @Input() validationReportID: string | number;
 
   /**
    * @OUTPUT
    */
   @Output() onValidationCompleted = new EventEmitter<boolean>();
+
+  /**
+   * @CHILDREN
+   */
+
+  @ViewChild('leftControlTemplate', {static: true}) leftControlTemplate;
 
   /**
    * @VARIABLES
@@ -110,6 +116,10 @@ export class ValidationResultComponent implements OnInit, OnChanges {
           }
         ]
       })
+
+    Object.assign(this.reportTableOptions.extraOptions, {
+      [XCoreAgGridConstants.leftAdditionalControlsTemplate]: this.leftControlTemplate
+    })
   }
 
   public get reportOutputType() {

@@ -15,6 +15,7 @@ import {NdtFilesViewComponent} from './components/ndt-files-view/ndt-files-view.
 import {TooltipModule} from "ngx-bootstrap/tooltip";
 import {BrowserAnimationsModule} from "@angular/platform-browser/animations";
 import { NewMergerWizardComponent } from './components/new-merger-wizard/new-merger-wizard.component';
+import { ValidationReportsComponent } from './components/validation-reports/validation-reports.component';
 
 
 @NgModule({
@@ -24,7 +25,8 @@ import { NewMergerWizardComponent } from './components/new-merger-wizard/new-mer
     UploadNdtAndValidateComponent,
     ValidationResultComponent,
     NdtFilesViewComponent,
-    NewMergerWizardComponent
+    NewMergerWizardComponent,
+    ValidationReportsComponent
   ],
   imports: [
     BrowserAnimationsModule,
