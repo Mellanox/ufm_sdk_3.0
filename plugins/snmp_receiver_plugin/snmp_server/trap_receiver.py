@@ -53,7 +53,7 @@ class SnmpTrapReceiver:
         self.high_event_rate = 100
 
     def _init_traps_info(self):
-        with open(helpers.TRAPS_POLICY_FILE, 'r') as traps_info_file:
+        with open(helpers.ConfigParser.traps_policy_file, 'r') as traps_info_file:
             csv_traps_info = csv.DictReader(traps_info_file)
             for trap_info in csv_traps_info:
                 self.oid_to_traps_info[trap_info['OID']] = trap_info
@@ -100,7 +100,7 @@ class SnmpTrapReceiver:
                     for ip, switch in self.switch_dict.items():
                         if switch.guid == guid:
                             switches.remove(ip)
-            with open(helpers.SWITCHES_FILE, "w") as file:
+            with open(helpers.ConfigParser.switches_file, "w") as file:
                 json.dump(switches, file)
 
         # Register SNMP Application at the SNMP engine
