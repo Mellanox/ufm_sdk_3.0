@@ -13,7 +13,9 @@
   </div>
 
   <ng-template #reportBody>
-    <ng-container [ngSwitch]="reportOutputType">
+    <ng-container
+      *ngIf="report"
+      [ngSwitch]="reportOutputType">
       <ng-template *ngSwitchCase="'string'"
                    [ngTemplateOutlet]="textReportOutput">
       </ng-template>
@@ -32,8 +34,9 @@
 </ng-template>
 
 <ng-template #textReportOutput>
+  <ng-template [ngTemplateOutlet]="leftControlTemplate"></ng-template>
   <div class="job-output">
-    <strong>Output:</strong><br>
+    <strong>Output: </strong>
     <div data-qa="job-output" [innerHTML]="report.report"></div>
   </div>
 </ng-template>

@@ -1,4 +1,14 @@
-import {Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges, ViewChild} from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  EventEmitter,
+  Input,
+  OnChanges,
+  OnInit,
+  Output,
+  SimpleChanges,
+  ViewChild
+} from '@angular/core';
 import {
   XCoreAgGridOptions
 } from "../../../../../../../sms-ui-suite/x-core-ag-grid/x-core-ag-grid-options/x-core-ag-grid-options";
@@ -6,6 +16,7 @@ import {
   XCoreAgGridConstants
 } from "../../../../../../../sms-ui-suite/x-core-ag-grid/constants/x-core-ag-grid.constants";
 import {SubnetMergerConstants} from "../../../../packages/subnet-merger/constants/subnet-merger.constants";
+import {SubnetMergerBackendService} from "../../../../packages/subnet-merger/services/subnet-merger-backend.service";
 
 export enum NDTStatusTypes {
   running = "Running",
@@ -18,6 +29,7 @@ export interface INDTValidationReport {
   timestamp: string;
   NDT_file: string;
   report: any;
+  error?: any;
 }
 
 @Component({
@@ -51,42 +63,14 @@ export class ValidationResultComponent implements OnInit, OnChanges {
   report: INDTValidationReport;
   reportTableOptions: XCoreAgGridOptions = new XCoreAgGridOptions();
 
-  constructor() {
+  constructor(private subnetMergerBackendService: SubnetMergerBackendService,
+              private cdr: ChangeDetectorRef) {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    // should poll the provided validationReportID
-    //merger_verify_ndt_reports/validationReportID
     if (this.validationReportID) {
       this.onValidationCompleted.emit(this.isReportCompleted);
-      // TODO:: remove static data after the e2e integration
-      this.report =
-        {
-          "status": NDTStatusTypes.running,
-          "timestamp": "2023-03-14 09:27:06",
-          "NDT_file": "ndt_1",
-          "report": ""
-        }
-      setTimeout(() => {
-        this.report =
-          {
-            "status": NDTStatusTypes.completed,
-            "timestamp": "2023-03-14 09:27:06",
-            "NDT_file": "ndt_1",
-            // "report": "NDT and IBDIAGNET are fully match"
-            "report": [
-              {
-                "category": "missing_in_ibdiagnet",
-                "description": "SwitchX -  Mllanox Technologies/11 - SwitchIB Mellanox Technologies/6"
-              },
-              {
-                "category": "error",
-                "description": "Duplicated GUIDs detected in fabric: -E- Node GUID = 0x0002c90000000041 is duplicated at: Node = SW-0-0/U1, DR =  [0,1,5], -E- Node GUID = 0x0002c90000000041 is duplicated at: Node = SW-0-1/U1, DR =  [0,1,6]"
-              }
-            ]
-          }
-        this.onValidationCompleted.emit(this.isReportCompleted);
-      }, 2000)
+      this._pollReport();
     }
   }
 
@@ -119,6 +103,24 @@ export class ValidationResultComponent implements OnInit, OnChanges {
 
     Object.assign(this.reportTableOptions.extraOptions, {
       [XCoreAgGridConstants.leftAdditionalControlsTemplate]: this.leftControlTemplate
+    })
+  }
+
+  private _pollReport(): void {
+    this.report = undefined;
+    this.cdr.detectChanges();
+    this.subnetMergerBackendService.getValidationReports(this.validationReportID + '').subscribe({
+      next: (data: INDTValidationReport) => {
+        this.report = data;
+        if (!this.isReportCompleted) {
+          setTimeout(() => {
+            this._pollReport();
+          }, 5000);
+        } else {
+          this.cdr.detectChanges();
+          this.onValidationCompleted.emit(this.isReportCompleted);
+        }
+      }
     })
   }
 

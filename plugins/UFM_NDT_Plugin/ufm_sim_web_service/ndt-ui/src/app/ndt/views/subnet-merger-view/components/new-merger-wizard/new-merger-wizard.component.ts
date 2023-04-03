@@ -1,6 +1,8 @@
 import {Component, EventEmitter, Input, OnInit, Output, ViewChild} from '@angular/core';
 import {NewMergerWizardService} from "./services/new-merger-wizard.service";
 import {XWizardComponent} from "../../../../../../../sms-ui-suite/x-wizard";
+import {SubnetMergerBackendService} from "../../../../packages/subnet-merger/services/subnet-merger-backend.service";
+import {SubnetMergerViewService} from "../../services/subnet-merger-view.service";
 
 @Component({
   selector: 'app-new-merger-wizard',
@@ -30,21 +32,24 @@ export class NewMergerWizardComponent implements OnInit {
    */
 
   public deploying = false;
+  public newUploadedFile: string;
 
-  constructor(public newMergerWizardService: NewMergerWizardService) {
+  constructor(public newMergerWizardService: NewMergerWizardService,
+              private subnetMergerViewService: SubnetMergerViewService,
+              private subnetMergerBackend: SubnetMergerBackendService) {
   }
 
   ngOnInit(): void {
   }
 
   public onWizardFinish(): void {
-    // deploy the new file with disabled ports boundaries
-    //merger_update_topoconfig with
-    /*{
-    "ndt_file_name": "ndt_9",
-    "boundary_port_state": "Disabled"
-    }*/
-    this.onMergeFinish.emit(true);
+    this.subnetMergerBackend.deployNDTFile(this.newUploadedFile).subscribe({
+      next: (data) => {
+        this.subnetMergerViewService.refreshReportsTable.emit();
+        this.subnetMergerViewService.refreshNDtsTable.emit();
+        this.onMergeFinish.emit(true);
+      }
+    })
   }
 
   public onWizardNext($event): void {
@@ -57,21 +62,29 @@ export class NewMergerWizardComponent implements OnInit {
   }
 
   public onConnectClick(): void {
-    //deploy the current active file with no-discover
-    //merger_update_topoconfig with
-    /*{
-    "ndt_file_name": "ndt_9",
-    "boundary_port_state": "No-discover"
-    }*/
     this.deploying = true;
-    setTimeout(() => {
-      this.deploying = false;
-      this.newMergerWizardService.tabs[1].isDisabled = false;
-      this.newMergerWizardService.tabs[0].isNextDisabled = false;
-    }, 1000)
+    this.subnetMergerBackend.updatePortsBoundaries(this.activeDeployedFile).subscribe({
+      next: (data) => {
+        this.subnetMergerBackend.deployNDTFile(this.activeDeployedFile).subscribe({
+          next: (data) => {
+            this.deploying = false;
+            this.newMergerWizardService.tabs[1].isDisabled = false;
+            this.newMergerWizardService.tabs[0].isNextDisabled = false;
+            this.subnetMergerViewService.refreshNDtsTable.emit();
+          },
+          error: () => {
+            this.deploying = false;
+          }
+        })
+      },
+      error: () => {
+        this.deploying = false;
+      }
+    })
   }
 
   public onFileValidated($event) {
+    this.newUploadedFile = $event;
     this.newMergerWizardService.tabs[1].isNextDisabled = false;
   }
 

@@ -1,8 +1,24 @@
-<ng-container *ngIf="ndtFiles">
-  <app-x-core-ag-grid [options]="tableOptions"
-                      [rowData]="ndtFiles">
-  </app-x-core-ag-grid>
+<ng-container *ngIf="!ndtFiles; else cardBodyTmp">
+  <i class="fa fa-spinner center"></i>
 </ng-container>
+
+<ng-template #cardBodyTmp>
+  <ng-container *ngIf="ndtFiles?.length; else initialMsgTmp">
+    <app-x-core-ag-grid [dataIsLoading]="loading"
+                        [options]="tableOptions"
+                        [rowData]="ndtFiles">
+    </app-x-core-ag-grid>
+  </ng-container>
+</ng-template>
+
+<ng-template #initialMsgTmp>
+  There is no NDT file was uploaded before.Click
+  <a (click)="initialWizard.openWizard()">here</a> to upload the initial file
+</ng-template>
+
+
+<app-initial-wizard #initialWizard
+                    (onDeployFinish)="onInitialDeployFinish($event)"></app-initial-wizard>
 
 <ng-template #fileNameTmp let-data>
   {{data.col}}
@@ -13,25 +29,29 @@
 
 <ng-template #actionsTmp let-data>
   <div class="actions-btn-wrapper">
-    <i class="fa fa-tasks"
-       [tooltip]="'Validate'"
-       container="body"
-       placement="top"
-       (click)="onValidateClicked()">
+    <i
+      *ngIf="!fileIsDeployed(data.row)"
+      class="fa fa-tasks"
+      [tooltip]="'Validate'"
+      container="body"
+      placement="left"
+      (click)="onValidateClicked(data.row)">
     </i>
     <i
-      *ngIf="data.row.file_status != NDTFileStatus.deployed && data.row.file_status != NDTFileStatus.deployed_no_discover"
+      *ngIf="data.row.file_status == NDTFileStatus.verified"
       class="fa fa-object-group" [tooltip]="'Deploy'" container="body"
-      placement="top"
-      (click)="onDeployClicked()">
+      placement="right"
+      (click)="onDeployClicked(data.row)">
     </i>
   </div>
 </ng-template>
 
 <ng-template #rightControlTemplates>
+  <button class="btn btn-primary">
+    <i class="fa fa-sync" [class.fa-spin]="loading" (click)="loadNDTFiles()"></i>
+  </button>
   <ng-container *ngIf="activeNDTFile">
     <button class="btn btn-primary"
-            style="height: 28px;padding: 0 12px;"
             (click)="newMergerWizard.openWizard()">
       <i class="fa fa-plus"></i>
       New Merger
