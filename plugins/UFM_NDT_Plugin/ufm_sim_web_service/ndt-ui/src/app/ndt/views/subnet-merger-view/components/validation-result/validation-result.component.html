@@ -13,10 +13,6 @@
   </div>
 
   <ng-template #reportBody>
-    <div class="job-status">
-      <strong>Status:</strong><br>
-      <span [ngClass]="reportStatusClass">{{ report.status }}</span>
-    </div>
     <ng-container [ngSwitch]="reportOutputType">
       <ng-template *ngSwitchCase="'string'"
                    [ngTemplateOutlet]="textReportOutput">
@@ -27,6 +23,13 @@
     </ng-container>
   </ng-template>
 </ng-container>
+
+<ng-template #leftControlTemplate>
+  <div class="job-status">
+    <strong>Status: </strong>
+    <span [ngClass]="reportStatusClass">{{ report.status }}</span>
+  </div>
+</ng-template>
 
 <ng-template #textReportOutput>
   <div class="job-output">

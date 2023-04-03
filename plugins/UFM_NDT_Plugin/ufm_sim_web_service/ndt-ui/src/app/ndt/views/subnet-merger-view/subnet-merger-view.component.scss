@@ -1,7 +1,10 @@
 .table-card {
   margin: 34px 6px;
+  display: flex;
 
   .card {
+    height: 100%;
+
     .card-body {
       padding: 10px;
     }

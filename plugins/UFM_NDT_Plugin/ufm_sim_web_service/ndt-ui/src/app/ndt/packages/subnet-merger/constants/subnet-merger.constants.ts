@@ -6,7 +6,9 @@ export class SubnetMergerConstants {
     "NDT_file": "NDT_file" as "NDT_file",
     "report": "report" as "report",
     "category": "category" as "category",
-    "description": "description" as "description"
+    "description": "description" as "description",
+    "reportID": "report_id" as "report_id",
+    "reportScope": "report_scope" as "report_scope"
   }
 
   public static NDTFileKeys = {

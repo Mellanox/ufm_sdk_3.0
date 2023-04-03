@@ -1,0 +1,13 @@
+<div class="card card-default">
+  <div class="card-header">
+    Last Validation Reports
+  </div>
+  <div class="card-body">
+    <app-x-core-ag-grid
+      [dataIsLoading]="loading"
+      [rowData]="reports"
+      [options]="tableOptions"
+      (onRowSelectionChange)="onRowSelectionChange($event)">
+    </app-x-core-ag-grid>
+  </div>
+</div>
