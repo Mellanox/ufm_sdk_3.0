@@ -19,6 +19,8 @@ from datetime import datetime, timedelta
 from topo_diff.topo_diff import compare_topologies
 import logging
 import hashlib
+import http
+import io
 import threading
 from resources import UFMResource, Upload, Compare, Delete
 from topo_diff.ndt_infra import check_file_exist,\
@@ -71,6 +73,27 @@ class MergerUploadNDT(Upload):
     def get_ndt_path(self, file_name):
         return os.path.join(self.ndts_merger_dir, file_name)
 
+    def post(self):
+        '''
+        Upload NDT file
+        '''
+        info_msg = "POST /plugin/ndt/merger_upload_ndt"
+        logging.info(info_msg)
+        image_file = request.files.get('file', None)
+        if image_file is None:
+            error_response = 'The file property is missing from the request'
+            return self.report_error(http.client.BAD_REQUEST, error_response)
+        self.file_name = image_file.filename
+        file_content = (image_file.read()).decode('ascii')
+        file_content = file_content.replace('\r\n', '\n')
+        response, status_code = self.update_ndts_list()
+        if status_code != self.success:
+            return self.report_error(status_code, response)
+        response, status_code = self.save_ndt(file_content)
+        if status_code != self.success:
+            return self.report_error(status_code, response)
+        ret_params = {"ndt_file_name": self.file_name}
+        return self.report_success(ret_params)
 
 class MergerVerifyNDT(Compare):
     '''
@@ -90,14 +113,37 @@ class MergerVerifyNDT(Compare):
     def get(self):
         return self.report_error(405, "Method is not allowed")
 
-    def merger_report_running(self):
+    def merger_report_running(self, ndt_file_name):
         '''
         Report started. Return expected report number - in case it suceed 
         '''
-        next_report_number = self.get_next_report_id_number()
-        if next_report_number == 0:
-            return self.report_error(500, "Failed to get next report id.")
-        return {"report_id": next_report_number}
+        return {"ndt_file_name": os.path.basename(ndt_file_name),
+                "report_id": self.report_number}
+
+    def create_merger_report_running(self, ndt_file_name):
+        '''
+        Create a report with report running status - running
+        Will be overwritten by "real" report when completed
+        :param ndt_file_name: name of the report file - string
+        '''
+        self.timestamp = self.get_timestamp()
+        report_content = {
+        "status": "running",
+        "error": "",
+        "timestamp": self.timestamp,
+        "NDT_file": ndt_file_name,
+        "report": ""
+        }
+        report_id = self.create_report_started(report_content)
+        return report_id
+
+    def create_report_started(self, report_content):
+        '''
+        Get report planning next number and create a report
+        :param report_content:
+        '''
+        scope = "Single"
+        response, status_code = self.create_report(scope, report_content, False)
 
     def verify(self, ndt_file_name, conf_stage="initial"):
         '''
@@ -105,10 +151,16 @@ class MergerVerifyNDT(Compare):
         ports should be disable and advanced - they should be No-Discover.
         The value should be received from REST request for verification
         '''
+        # create an empty report with status running
+        try:
+            self.create_merger_report_running(ndt_file_name)
+        except Exception as e:
+            raise ValueError("FAiled to create initial report for %: %s" %
+                                                     (ndt_file_name, e))
         th = threading.Thread(target=self.run_ibdiagnet_ndt_compare, 
                               args=(ndt_file_name, conf_stage))
         th.start()
-        return self.merger_report_running()
+        return self.merger_report_running(ndt_file_name)
 
     def run_ibdiagnet_ndt_compare(self, ndt_file_name, conf_stage="initial"):
         '''
@@ -139,12 +191,15 @@ class MergerVerifyNDT(Compare):
                 raise ValueError("%s not exist" % (IBDIAGNET_LOG_FILE))
             status, duplicated_guids = check_duplicated_guids()
             if status and duplicated_guids:
+                # in case of duplicated GUIDs verification of links will not be performed
                 duplication_string = duplicated_guids.decode("utf-8")
                 list_dg = duplication_string.split("\n")
-                duplication_error_list = ["Duplicated GUIDs detected in fabric:",]
-                duplication_error_list.extend(list_dg)
-                dup_guids_error_message = duplication_error_list
-                raise ValueError(dup_guids_error_message)
+                report_content = self.create_duplicated_guids_content(list_dg, ndt_file_name)
+                response, status_code = self.create_report(scope, report_content, True)
+                if status_code != self.success:
+                    raise ValueError(report_content["error"])
+                else:
+                    return
             # get configuration from ibdiagnet
             ibdiagnet_links, ibdiagnet_links_reverse, links_info, error_message = \
                                            parse_ibdiagnet_dump(ibdiagnet_file_path)
@@ -173,7 +228,7 @@ class MergerVerifyNDT(Compare):
                                                               ibdiagnet_links_reverse,
                                                               ndt_links,
                                                               ndt_links_reversed)
-            report_content["NDT file"] = ndt_file_name
+            report_content["NDT_file"] = os.path.basename(ndt_file_name)
             if report_content["error"]:
                 response, status_code = self.create_report(scope, report_content)
                 if status_code != self.success:
@@ -181,12 +236,6 @@ class MergerVerifyNDT(Compare):
         except ValueError as e:
             if "error" not in report_content:
                 report_content["error"] = e.args[0]
-        if "report" in report_content and not report_content["report"]["miss_wired"]\
-                and not report_content["report"]["missing_in_ibdiagnet"]\
-                and not report_content["report"]["missing_in_ndt"]:
-            report_content["response"] = "NDT and IBDIAGNET are fully match"
-            report_content.pop("error")
-            report_content.pop("report")
 
         response, status_code = self.create_report(scope, report_content)
         if status_code != self.success:
@@ -197,12 +246,33 @@ class MergerVerifyNDT(Compare):
         except Exception as e:
             logging.error("Failed to update NDT file %s status" % ndt_file_name)
 
+    def create_duplicated_guids_content(self, list_dg, ndt_file_name):
+        '''
+        Create report context of duplicated guids
+        :param list_dg: list of duplicated guids
+        '''
+        dg_category = "duplicated guids"
+        report_content = {
+        "status": "Completed with errors",
+        "error": "",
+        "timestamp": self.timestamp,
+        "NDT_file": os.path.basename(ndt_file_name),
+        "report": []
+        }
+        for duplicated_guid in list_dg:
+            dg_entry = {
+                "category": dg_category,
+                "description": duplicated_guid
+                }
+            report_content["report"].append(dg_entry)
+        return report_content
+
     def post(self):
         logging.info("POST /plugin/ndt_merger/merger_verify")
         logging.info("Running instant topology comparison")
         json_data = request.get_json(force=True)
         #ndt_file = json_data(ndt_record, "file", False)
-        return self.verify(os.path.join(self.ndts_dir, json_data["NDT_file_name"]))
+        return self.verify(os.path.join(self.ndts_dir, json_data["ndt_file_name"]))
 
     def get_next_report_id_number(self):
         '''
@@ -215,7 +285,10 @@ class MergerVerifyNDT(Compare):
             next_report_number = len(data) + 1
         return next_report_number
 
-    def update_reports_list(self, scope):
+    def update_reports_list(self, scope, completed):
+        if completed:
+            # no need to update report list
+            return self.report_success()
         with open(self.reports_list_file, "r", encoding="utf-8") as reports_list_file:
             # unhandled exception in case reports file was changed manually
             data = json.load(reports_list_file)

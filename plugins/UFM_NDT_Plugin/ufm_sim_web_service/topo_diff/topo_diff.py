@@ -440,8 +440,16 @@ def compare_topologies_ndt_ibdiagnet(timestamp,
         logging.warning("List of Ibdiagnet links is empty")
 
     miss_wired = []
+    miss_wired_key = "missing in wire"
     missing_in_ibdiag = []
+    missing_in_ibdiag_key = "missing in ibdiagnet"
     missing_in_ndt = []
+    missing_in_ndt_key = "missing in ndt"
+    missing_map = {
+        miss_wired_key: miss_wired,
+        missing_in_ibdiag_key: missing_in_ibdiag,
+        missing_in_ndt_key: missing_in_ndt
+        }
 
     ndt_unique = ndt_links - ibdiagnet_links - ibdiagnet_links_reverse
     ibdiagnet_unique = ibdiagnet_links - ndt_links - ndt_links_reversed
@@ -459,12 +467,21 @@ def compare_topologies_ndt_ibdiagnet(timestamp,
         missing_in_ndt.append(link)
         print("NDT: missing in NDT \"{}\"".format(link), flush=True)
 
-    # put only last 10k into the report
-    report = {"miss_wired": miss_wired[-10000:],
-              "missing_in_ibdiagnet": missing_in_ibdiag[-10000:],
-              "missing_in_ndt": missing_in_ndt[-10000:]}
+    report = []
+    for category_key, missing_links in missing_map.items():
+        for missing_link in missing_links:
+            report_item = {"category": category_key,
+                           "description": missing_link}
+            report.append(report_item)
 
-    response = {"error": "",
+    if miss_wired or missing_in_ibdiag or missing_in_ndt:
+        report_status = "Completed with errors"
+    else:
+        report_status = "Completed successfully"
+        report = "NDT and IBDIAGNET are fully match"
+    
+    response = {"status": report_status,
+                "error": "",
                 "timestamp": timestamp,
                 "report": report}
 
