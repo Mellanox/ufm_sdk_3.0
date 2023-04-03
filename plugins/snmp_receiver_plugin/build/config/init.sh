@@ -13,4 +13,5 @@
 
 set -eE
 cp -f /opt/ufm/snmp_plugin/*.conf /config
+cp -f /opt/ufm/snmp_plugin/snmp_server/traps_policy.csv /data
 exit 0

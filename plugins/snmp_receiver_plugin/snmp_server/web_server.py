@@ -13,12 +13,13 @@
 # @date:   November, 2022
 #
 import asyncio
-import configparser
 from flask import Flask
 from flask_restful import Api
 import logging
 from logging.handlers import RotatingFileHandler
 from multiprocessing import Process, Manager
+import threading
+import time
 # from twisted.web.wsgi import WSGIResource
 # from twisted.internet import reactor
 # from twisted.web import server
@@ -79,6 +80,14 @@ class SNMPWebProc:
         snmp_trap_receiver = SnmpTrapReceiver(self.switch_dict)
         self.snmp_proc = Process(target=snmp_trap_receiver.run)
         self.snmp_proc.start()
+        self.switch_update_thread = threading.Thread(target=self._update_switches)
+        self.switch_update_thread.start()
+
+    def _update_switches(self):
+        while True:
+            self.switch_dict.clear()
+            self.switch_dict.update(helpers.get_ufm_switches())
+            time.sleep(helpers.ConfigParser.ufm_switches_update_interval)
 
     def start_web_server(self):
         self.loop.run_until_complete(self.web_server.run())
