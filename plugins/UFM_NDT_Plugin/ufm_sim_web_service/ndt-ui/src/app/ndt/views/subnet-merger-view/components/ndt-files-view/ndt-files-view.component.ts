@@ -1,4 +1,13 @@
-import {Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges, ViewChild} from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  EventEmitter,
+  OnChanges,
+  OnInit,
+  Output,
+  SimpleChanges,
+  ViewChild
+} from '@angular/core';
 import {SubnetMergerConstants} from "../../../../packages/subnet-merger/constants/subnet-merger.constants";
 import {
   XCoreAgGridOptions
@@ -6,11 +15,16 @@ import {
 import {
   XCoreAgGridConstants
 } from "../../../../../../../sms-ui-suite/x-core-ag-grid/constants/x-core-ag-grid.constants";
+import {SubnetMergerBackendService} from "../../../../packages/subnet-merger/services/subnet-merger-backend.service";
+import {SubnetMergerViewService} from "../../services/subnet-merger-view.service";
+import {finalize, Subscription} from "rxjs";
 
 export enum NDTFileStatus {
   new = "new",
   verified = "verified",
   deployed_no_discover = "deployed_no_discover",
+  deployed_completed = "deployed_completed",
+  deployed_disabled = "deployed_disabled",
   deployed = "deployed"
 }
 
@@ -30,11 +44,6 @@ export interface INDTFile {
 export class NdtFilesViewComponent implements OnInit, OnChanges {
 
   /**
-   * @INPUTS
-   */
-  @Input() ndtFiles: Array<INDTFile>;
-
-  /**
    * @OUTPUT
    */
 
@@ -50,24 +59,57 @@ export class NdtFilesViewComponent implements OnInit, OnChanges {
   /**
    * @VARIABLES
    */
+  public ndtFiles: Array<INDTFile>;
   public tableOptions: XCoreAgGridOptions = new XCoreAgGridOptions();
   public activeNDTFile: string;
+  public loading = false;
+  public refreshSub: Subscription;
 
-  constructor() {
+  constructor(private cdr: ChangeDetectorRef,
+              private subnetMergerBackend: SubnetMergerBackendService,
+              public subnetMergerViewService: SubnetMergerViewService) {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['ndtFiles'] && this.ndtFiles?.length) {
-      // merger_deployed_ndt request
-      const resp = {
-        "last_deployed_file": "ndt_3"
-      }
-      this.activeNDTFile = resp.last_deployed_file
-    }
+
   }
 
   ngOnInit(): void {
     this._setTableOptions();
+    this.loadNDTFiles();
+    this.refreshSub = this.subnetMergerViewService.refreshNDtsTable.subscribe(() => {
+      this.loadNDTFiles();
+    })
+  }
+
+  ngOnDestroy(): void {
+    if (this.refreshSub) {
+      this.refreshSub.unsubscribe();
+    }
+  }
+
+  public onInitialDeployFinish($event) {
+    this.loadNDTFiles();
+  }
+
+  public loadNDTFiles() {
+    this.loading = true;
+    this.cdr.detectChanges();
+    this.subnetMergerBackend.getNDTsList().pipe(finalize(() => {
+      this.loading = false;
+      this.cdr.detectChanges();
+    })).subscribe({
+      next: (data) => {
+        this.subnetMergerBackend.getActiveDeployedFile().subscribe({
+          next: (activeDeployedFile) => {
+            if (activeDeployedFile && activeDeployedFile[SubnetMergerConstants.NDTFileKeys.last_deployed_file]) {
+              this.activeNDTFile = activeDeployedFile[SubnetMergerConstants.NDTFileKeys.last_deployed_file]
+            }
+          }
+        })
+        this.ndtFiles = data;
+      }
+    })
   }
 
 
@@ -117,12 +159,24 @@ export class NdtFilesViewComponent implements OnInit, OnChanges {
     return NDTFileStatus
   }
 
-  public onValidateClicked() {
-
+  public onValidateClicked(row: INDTFile) {
+    this.subnetMergerBackend.validateNDTFile(row.file).subscribe({
+      next: (data) => {
+        this.subnetMergerViewService.refreshReportsTable.emit();
+      }
+    })
   }
 
-  public onDeployClicked() {
+  public onDeployClicked(row: INDTFile) {
+    this.subnetMergerBackend.deployNDTFile(row.file).subscribe({
+      next: (data) => {
+        this.subnetMergerViewService.refreshNDtsTable.emit();
+      }
+    })
+  }
 
+  public fileIsDeployed(row: INDTFile) {
+    return row.file_status.includes(NDTFileStatus.deployed);
   }
 
 }

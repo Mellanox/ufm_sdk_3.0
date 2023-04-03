@@ -1,6 +1,8 @@
 import {Component, EventEmitter, OnInit, Output, ViewChild} from '@angular/core';
 import {XWizardComponent} from "../../../../../../../sms-ui-suite/x-wizard";
 import {InitialWizardService} from "./services/initial-wizard.service";
+import {SubnetMergerBackendService} from "../../../../packages/subnet-merger/services/subnet-merger-backend.service";
+import {SubnetMergerViewService} from "../../services/subnet-merger-view.service";
 
 @Component({
   selector: 'app-initial-wizard',
@@ -19,19 +21,28 @@ export class InitialWizardComponent implements OnInit {
    */
   @ViewChild('wizard', {static: true}) wizardRef: XWizardComponent;
 
-  constructor(public initialWizardService: InitialWizardService) {
+  /**
+   * @VARIABLES
+   */
+
+  public selectedFileName: string;
+
+  constructor(public initialWizardService: InitialWizardService,
+              private subnetMergerViewService: SubnetMergerViewService,
+              private subnetMergerBackendService: SubnetMergerBackendService) {
   }
 
   ngOnInit(): void {
   }
 
   public onWizardFinish(): void {
-    //merger_update_topoconfig with
-    /*{
-    "ndt_file_name": "ndt_9",
-    "boundary_port_state": "Disabled"
-    }*/
-    this.onDeployFinish.emit(true);
+    this.subnetMergerBackendService.deployNDTFile(this.selectedFileName).subscribe({
+      next: (data) => {
+        this.subnetMergerViewService.refreshReportsTable.emit();
+        this.subnetMergerViewService.refreshNDtsTable.emit();
+        this.onDeployFinish.emit(true);
+      }
+    })
   }
 
   public onWizardNext($event): void {
@@ -44,6 +55,7 @@ export class InitialWizardComponent implements OnInit {
   }
 
   public onFileValidated($event) {
+    this.selectedFileName = $event;
     this.initialWizardService.tabs[1].isDisabled = false;
     this.initialWizardService.tabs[1].isNextDisabled = false;
     this.initialWizardService.tabs[0].isNextDisabled = false;

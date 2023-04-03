@@ -1,4 +1,4 @@
-import {Component, EventEmitter, OnInit} from '@angular/core';
+import {ChangeDetectorRef, Component, EventEmitter, OnDestroy, OnInit, Output, ViewChild} from '@angular/core';
 import {SubnetMergerConstants} from "../../../../packages/subnet-merger/constants/subnet-merger.constants";
 import {
   XCoreAgGridConstants
@@ -6,6 +6,9 @@ import {
 import {
   XCoreAgGridOptions
 } from "../../../../../../../sms-ui-suite/x-core-ag-grid/x-core-ag-grid-options/x-core-ag-grid-options";
+import {SubnetMergerBackendService} from "../../../../packages/subnet-merger/services/subnet-merger-backend.service";
+import {SubnetMergerViewService} from "../../services/subnet-merger-view.service";
+import {Subscription} from "rxjs";
 
 export interface IValidationReport {
   [SubnetMergerConstants.reportAPIKeys.reportID]: number;
@@ -18,13 +21,13 @@ export interface IValidationReport {
   templateUrl: './validation-reports.component.html',
   styleUrls: ['./validation-reports.component.scss']
 })
-export class ValidationReportsComponent implements OnInit {
+export class ValidationReportsComponent implements OnInit, OnDestroy {
 
   /**
    * @OUTPUTS
    */
 
-  onReportSelectionChange: EventEmitter<IValidationReport> = new EventEmitter<IValidationReport>();
+  @Output() onReportSelectionChange: EventEmitter<IValidationReport> = new EventEmitter<IValidationReport>();
 
 
   /**
@@ -34,14 +37,20 @@ export class ValidationReportsComponent implements OnInit {
   public tableOptions: XCoreAgGridOptions = new XCoreAgGridOptions();
   public reports: Array<IValidationReport> = [];
   public loading = false;
+  public refreshSub: Subscription;
   public selectedReport: IValidationReport;
 
-  constructor() {
+  constructor(private subnetMergerBackend: SubnetMergerBackendService,
+              private subnetMergerViewService: SubnetMergerViewService,
+              private cdr: ChangeDetectorRef) {
   }
 
   ngOnInit(): void {
     this._setTableOptions();
     this.loadData();
+    this.refreshSub = this.subnetMergerViewService.refreshReportsTable.subscribe(() => {
+      this.loadData();
+    })
   }
 
   private _setTableOptions() {
@@ -66,62 +75,16 @@ export class ValidationReportsComponent implements OnInit {
 
   public loadData() {
     this.loading = true;
-    // TODO:: replace it with the response from merger_verify_ndt_reports
-    setTimeout(() => {
-      this.reports = [
-        {
-          "report_id": 1,
-          "report_scope": "Single",
-          "timestamp": "2023-03-23 13:57:21"
-        },
-        {
-          "report_id": 2,
-          "report_scope": "Single",
-          "timestamp": "2023-03-23 13:57:22"
-        },
-        {
-          "report_id": 3,
-          "report_scope": "Single",
-          "timestamp": "2023-03-23 14:41:29"
-        },
-        {
-          "report_id": 4,
-          "report_scope": "Single",
-          "timestamp": "2023-03-23 15:00:15"
-        },
-        {
-          "report_id": 5,
-          "report_scope": "Single",
-          "timestamp": "2023-03-23 16:00:13"
-        },
-        {
-          "report_id": 6,
-          "report_scope": "Single",
-          "timestamp": "2023-03-23 16:03:23"
-        },
-        {
-          "report_id": 7,
-          "report_scope": "Single",
-          "timestamp": "2023-03-23 16:08:53"
-        },
-        {
-          "report_id": 8,
-          "report_scope": "Single",
-          "timestamp": "2023-03-23 16:11:42"
-        },
-        {
-          "report_id": 9,
-          "report_scope": "Single",
-          "timestamp": "2023-03-23 16:13:40"
-        },
-        {
-          "report_id": 10,
-          "report_scope": "Single",
-          "timestamp": "2023-03-23 16:17:18"
-        }
-      ]
-      this.loading = false;
-    }, 2000)
+    this.selectedReport = undefined;
+    this.subnetMergerBackend.getValidationReports().subscribe({
+      next: (data: Array<IValidationReport>) => {
+        this.reports = data;
+        this.loading = false;
+      },
+      error: () => {
+        this.loading = false;
+      }
+    });
   }
 
   public onRowSelectionChange($event): void {
@@ -131,6 +94,13 @@ export class ValidationReportsComponent implements OnInit {
       this.selectedReport = undefined;
     }
     this.onReportSelectionChange.emit(this.selectedReport);
+    this.cdr.detectChanges();
+  }
+
+  ngOnDestroy(): void {
+    if (this.refreshSub) {
+      this.refreshSub.unsubscribe();
+    }
   }
 
 }

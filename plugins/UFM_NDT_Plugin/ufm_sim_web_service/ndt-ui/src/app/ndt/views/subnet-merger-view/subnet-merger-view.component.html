@@ -2,41 +2,29 @@
   <div class="table-card">
     <div class="col-sm-6">
       <div class="card card-default">
-        <div *ngIf="ndtFiles?.length"
+        <div *ngIf="ndtFilesViewComponent?.ndtFiles?.length"
              class="card-header">
           Uploaded NDT Files
         </div>
         <div class="card-body">
-          <ng-container *ngIf="loading; else cardBodyTmp">
-            <i class="fa fa-spinner center"></i>
-          </ng-container>
-
-          <ng-template #cardBodyTmp>
-            <ng-container *ngIf="ndtFiles?.length; else initialMsgTmp">
-              <app-ndt-files-view [ndtFiles]="ndtFiles"></app-ndt-files-view>
-            </ng-container>
-          </ng-template>
+          <app-ndt-files-view #ndtFilesViewComponent></app-ndt-files-view>
         </div>
       </div>
     </div>
-    <div class="col-sm-6">
-      <app-validation-reports #validationReportsComponent></app-validation-reports>
-    </div>
+    <ng-container *ngIf="ndtFilesViewComponent?.ndtFiles?.length">
+      <div class="col-sm-6">
+        <app-validation-reports #validationReportsComponent
+                                (onReportSelectionChange)="onReportSelectionChange($event)"
+        ></app-validation-reports>
+      </div>
+    </ng-container>
   </div>
-
-  <ng-container *ngIf="validationReportsComponent.selectedReport">
+  <ng-container *ngIf="selectedReport">
     <div class="col-sm-12">
       <app-validation-result
-        [validationReportID]="validationReportsComponent.selectedReport.report_id">
+        [validationReportID]="selectedReport.report_id">
       </app-validation-result>
     </div>
   </ng-container>
 
-  <ng-template #initialMsgTmp>
-    There is no NDT file was uploaded before.Click
-    <a (click)="initialWizard.openWizard()">here</a> to upload the initial file
-  </ng-template>
-
-  <app-initial-wizard #initialWizard
-                      (onDeployFinish)="onInitialDeployFinish($event)"></app-initial-wizard>
 </sms-plugin-base-component>

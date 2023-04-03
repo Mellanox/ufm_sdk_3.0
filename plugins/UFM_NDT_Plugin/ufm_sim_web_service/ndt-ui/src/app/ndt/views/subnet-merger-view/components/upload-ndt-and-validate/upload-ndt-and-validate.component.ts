@@ -1,5 +1,8 @@
 import {Component, EventEmitter, OnInit, Output} from '@angular/core';
 import {IFileUploaderOptions} from "../../../../packages/file-uploader/interfaces/file-uploader-options.interface";
+import {SubnetMergerConstants} from "../../../../packages/subnet-merger/constants/subnet-merger.constants";
+import {SubnetMergerBackendService} from "../../../../packages/subnet-merger/services/subnet-merger-backend.service";
+import {SubnetMergerViewService} from "../../services/subnet-merger-view.service";
 
 @Component({
   selector: 'app-upload-ndt-and-validate',
@@ -12,22 +15,24 @@ export class UploadNdtAndValidateComponent implements OnInit {
    * @OUTPUTS
    */
 
-  @Output() onFileValidated: EventEmitter<boolean> = new EventEmitter();
+  @Output() onFileValidated: EventEmitter<string> = new EventEmitter();
 
   /**
    * @VARIABLES
    */
 
   public fileUploaderConfig: IFileUploaderOptions = {
-    url: '/ufmRestV2/Topology_Compare/networkdiff', // merger_upload_ndt
-    filesTypes: []
+    url: SubnetMergerConstants.mergerAPIs.uploadNDT, // merger_upload_ndt
+    filesTypes: ['.csv', '.txt']
   }
 
   public fileIsUploaded: boolean = false;
+  public uploadedFileName: string;
   public validationIsRunning = false;
   public activeValidationReportID = undefined;
 
-  constructor() {
+  constructor(private subnetMergerBackend: SubnetMergerBackendService,
+              private subnetMergerViewService: SubnetMergerViewService) {
   }
 
   ngOnInit(): void {
@@ -38,21 +43,25 @@ export class UploadNdtAndValidateComponent implements OnInit {
   }
 
   public onFileUploaded($event): void {
+    this.uploadedFileName = $event[SubnetMergerConstants.validateAPIKeys.NDTFileName];
     this.fileIsUploaded = true;
+    this.subnetMergerViewService.refreshNDtsTable.emit();
   }
 
   public onValidateClick(): void {
-    // request to merger_verify_ndt
     this.validationIsRunning = true;
-    setTimeout(() => {
-      this.activeValidationReportID = "111";
-    }, 2000)
+    this.subnetMergerBackend.validateNDTFile(this.uploadedFileName).subscribe({
+      next: (data) => {
+        this.activeValidationReportID = data[SubnetMergerConstants.reportAPIKeys.reportID];
+        this.subnetMergerViewService.refreshReportsTable.emit();
+      }
+    })
   }
 
   public onValidationCompleted($event) {
     this.validationIsRunning = !$event;
     if ($event) {
-      this.onFileValidated.emit(true);
+      this.onFileValidated.emit(this.uploadedFileName);
     }
   }
 
