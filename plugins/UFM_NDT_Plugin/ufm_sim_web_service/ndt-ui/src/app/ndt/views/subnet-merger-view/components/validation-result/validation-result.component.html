@@ -6,7 +6,7 @@
       </ng-container>
     </div>
     <div class="card-body">
-      <ng-container *ngIf="!isReportCompleted; else reportBody">
+      <ng-container *ngIf="pollingTimer; else reportBody">
         <i class="center fa fa-spinner"></i>
       </ng-container>
     </div>

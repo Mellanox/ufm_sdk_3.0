@@ -3,7 +3,7 @@ import {
   Component,
   EventEmitter,
   Input,
-  OnChanges,
+  OnChanges, OnDestroy,
   OnInit,
   Output,
   SimpleChanges,
@@ -20,7 +20,9 @@ import {SubnetMergerBackendService} from "../../../../packages/subnet-merger/ser
 
 export enum NDTStatusTypes {
   running = "Running",
-  completed = "Completed successfully",
+  completed = "Completed",
+  completedSuccessfully = "Completed successfully",
+  completedWithCriticalErrors = "Completed with critical errors",
   completedWithErrors = "Completed with errors"
 }
 
@@ -32,12 +34,17 @@ export interface INDTValidationReport {
   error?: any;
 }
 
+export interface IonValidationCompletedEvent {
+  isReportCompleted: boolean,
+  report: INDTValidationReport
+}
+
 @Component({
   selector: 'app-validation-result',
   templateUrl: './validation-result.component.html',
   styleUrls: ['./validation-result.component.scss']
 })
-export class ValidationResultComponent implements OnInit, OnChanges {
+export class ValidationResultComponent implements OnInit, OnChanges, OnDestroy {
 
   /**
    * @INPUTS
@@ -48,7 +55,7 @@ export class ValidationResultComponent implements OnInit, OnChanges {
   /**
    * @OUTPUT
    */
-  @Output() onValidationCompleted = new EventEmitter<boolean>();
+  @Output() onValidationCompleted = new EventEmitter<IonValidationCompletedEvent>();
 
   /**
    * @CHILDREN
@@ -62,6 +69,7 @@ export class ValidationResultComponent implements OnInit, OnChanges {
 
   report: INDTValidationReport;
   reportTableOptions: XCoreAgGridOptions = new XCoreAgGridOptions();
+  pollingTimer;
 
   constructor(private subnetMergerBackendService: SubnetMergerBackendService,
               private cdr: ChangeDetectorRef) {
@@ -69,7 +77,7 @@ export class ValidationResultComponent implements OnInit, OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (this.validationReportID) {
-      this.onValidationCompleted.emit(this.isReportCompleted);
+      this.onValidationCompletedFn();
       this._pollReport();
     }
   }
@@ -112,13 +120,15 @@ export class ValidationResultComponent implements OnInit, OnChanges {
     this.subnetMergerBackendService.getValidationReports(this.validationReportID + '').subscribe({
       next: (data: INDTValidationReport) => {
         this.report = data;
-        if (!this.isReportCompleted) {
+        if (this.pollingTimer !== -1 && !this.isReportCompleted) {
           setTimeout(() => {
             this._pollReport();
           }, 5000);
         } else {
+          clearTimeout(this.pollingTimer);
+          this.pollingTimer = undefined;
           this.cdr.detectChanges();
-          this.onValidationCompleted.emit(this.isReportCompleted);
+          this.onValidationCompletedFn();
         }
       }
     })
@@ -131,7 +141,7 @@ export class ValidationResultComponent implements OnInit, OnChanges {
   public get reportStatusClass() {
     let classes = ""
     switch (this.report.status) {
-      case NDTStatusTypes.completed:
+      case NDTStatusTypes.completedSuccessfully:
         classes = "success";
         break;
       case NDTStatusTypes.completedWithErrors:
@@ -142,8 +152,21 @@ export class ValidationResultComponent implements OnInit, OnChanges {
   }
 
   public get isReportCompleted(): boolean {
-    return this.report &&
-      (this.report.status === NDTStatusTypes.completed || this.report.status === NDTStatusTypes.completedWithErrors)
+    return this.report && this.report.status.toLowerCase().includes(NDTStatusTypes.completed.toLowerCase());
+  }
+
+  public onValidationCompletedFn() {
+    this.onValidationCompleted.emit({
+      isReportCompleted: this.isReportCompleted,
+      report: this.report
+    });
+  }
+
+  ngOnDestroy(): void {
+    if (this.pollingTimer) {
+      clearTimeout(this.pollingTimer);
+    }
+    this.pollingTimer = -1;
   }
 
 }

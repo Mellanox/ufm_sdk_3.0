@@ -11,11 +11,11 @@
     <li>Make sure that you connected the new equipments</li>
     <li>Once you finish, please click
       <button class="btn btn-primary"
-              [disabled]="deploying"
+              [disabled]="deploying || connected"
               (click)="onConnectClick()">
         <i *ngIf="deploying"
           class="fa fa-spinner"></i>
-        Connect
+        {{connected ? 'Connected' : 'Connect'}}
       </button>
       to allow to the UFM to discover the new equipments</li>
   </ul>
@@ -23,6 +23,7 @@
 
 <ng-template #MergeTab>
   <app-upload-ndt-and-validate
+    (onReportCompleted)="onReportCompleted($event)"
     (onFileValidated)="onFileValidated($event)">
   </app-upload-ndt-and-validate>
 </ng-template>

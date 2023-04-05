@@ -3,6 +3,7 @@ import {XWizardComponent} from "../../../../../../../sms-ui-suite/x-wizard";
 import {InitialWizardService} from "./services/initial-wizard.service";
 import {SubnetMergerBackendService} from "../../../../packages/subnet-merger/services/subnet-merger-backend.service";
 import {SubnetMergerViewService} from "../../services/subnet-merger-view.service";
+import {IonValidationCompletedEvent, NDTStatusTypes} from "../validation-result/validation-result.component";
 
 @Component({
   selector: 'app-initial-wizard',
@@ -56,9 +57,14 @@ export class InitialWizardComponent implements OnInit {
 
   public onFileValidated($event) {
     this.selectedFileName = $event;
-    this.initialWizardService.tabs[1].isDisabled = false;
-    this.initialWizardService.tabs[1].isNextDisabled = false;
-    this.initialWizardService.tabs[0].isNextDisabled = false;
+  }
+
+  public onReportCompleted($event:IonValidationCompletedEvent) {
+    if($event.isReportCompleted && $event.report.status != NDTStatusTypes.completedWithCriticalErrors) {
+      this.initialWizardService.tabs[1].isDisabled = false;
+      this.initialWizardService.tabs[1].isNextDisabled = false;
+      this.initialWizardService.tabs[0].isNextDisabled = false;
+    }
   }
 
 }

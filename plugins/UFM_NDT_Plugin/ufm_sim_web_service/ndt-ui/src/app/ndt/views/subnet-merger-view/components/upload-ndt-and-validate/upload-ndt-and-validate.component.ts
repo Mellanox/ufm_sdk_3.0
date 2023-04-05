@@ -3,6 +3,7 @@ import {IFileUploaderOptions} from "../../../../packages/file-uploader/interface
 import {SubnetMergerConstants} from "../../../../packages/subnet-merger/constants/subnet-merger.constants";
 import {SubnetMergerBackendService} from "../../../../packages/subnet-merger/services/subnet-merger-backend.service";
 import {SubnetMergerViewService} from "../../services/subnet-merger-view.service";
+import {IonValidationCompletedEvent} from "../validation-result/validation-result.component";
 
 @Component({
   selector: 'app-upload-ndt-and-validate',
@@ -16,6 +17,7 @@ export class UploadNdtAndValidateComponent implements OnInit {
    */
 
   @Output() onFileValidated: EventEmitter<string> = new EventEmitter();
+  @Output() onReportCompleted: EventEmitter<IonValidationCompletedEvent> = new EventEmitter();
 
   /**
    * @VARIABLES
@@ -53,15 +55,17 @@ export class UploadNdtAndValidateComponent implements OnInit {
     this.subnetMergerBackend.validateNDTFile(this.uploadedFileName).subscribe({
       next: (data) => {
         this.activeValidationReportID = data[SubnetMergerConstants.reportAPIKeys.reportID];
+        this.subnetMergerViewService.refreshNDtsTable.emit();
         this.subnetMergerViewService.refreshReportsTable.emit();
       }
     })
   }
 
-  public onValidationCompleted($event) {
-    this.validationIsRunning = !$event;
-    if ($event) {
+  public onValidationCompleted($event:IonValidationCompletedEvent) {
+    this.validationIsRunning = !$event.isReportCompleted;
+    if ($event.isReportCompleted) {
       this.onFileValidated.emit(this.uploadedFileName);
+      this.onReportCompleted.emit($event);
     }
   }
 
