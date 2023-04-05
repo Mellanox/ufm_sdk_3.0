@@ -28,9 +28,10 @@
 </ng-template>
 
 <ng-template #actionsTmp let-data>
-  <div class="actions-btn-wrapper">
+  <div
+    *ngIf="data.row.file != activeNDTFile"
+    class="actions-btn-wrapper">
     <i
-      *ngIf="!fileIsDeployed(data.row)"
       class="fa fa-tasks"
       [tooltip]="'Validate'"
       container="body"
@@ -38,7 +39,7 @@
       (click)="onValidateClicked(data.row)">
     </i>
     <i
-      *ngIf="data.row.file_status == NDTFileStatus.verified"
+      *ngIf="data.row.file_status != NDTFileStatus.new"
       class="fa fa-object-group" [tooltip]="'Deploy'" container="body"
       placement="right"
       (click)="onDeployClicked(data.row)">

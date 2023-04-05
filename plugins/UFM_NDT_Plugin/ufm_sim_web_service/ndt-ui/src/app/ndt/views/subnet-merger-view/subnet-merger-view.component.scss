@@ -7,8 +7,6 @@
   }
 
   .card {
-    height: 100%;
-
     .card-body {
       padding: 10px;
     }
@@ -20,6 +18,10 @@ a {
 }
 
 :host ::ng-deep {
+  .card {
+    height: 100%;
+  }
+
   .center {
     margin-left: calc(50% - 45px);
   }

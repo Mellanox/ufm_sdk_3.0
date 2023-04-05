@@ -3,6 +3,7 @@ import {NewMergerWizardService} from "./services/new-merger-wizard.service";
 import {XWizardComponent} from "../../../../../../../sms-ui-suite/x-wizard";
 import {SubnetMergerBackendService} from "../../../../packages/subnet-merger/services/subnet-merger-backend.service";
 import {SubnetMergerViewService} from "../../services/subnet-merger-view.service";
+import {IonValidationCompletedEvent, NDTStatusTypes} from "../validation-result/validation-result.component";
 
 @Component({
   selector: 'app-new-merger-wizard',
@@ -32,6 +33,7 @@ export class NewMergerWizardComponent implements OnInit {
    */
 
   public deploying = false;
+  public connected = false;
   public newUploadedFile: string;
 
   constructor(public newMergerWizardService: NewMergerWizardService,
@@ -57,6 +59,8 @@ export class NewMergerWizardComponent implements OnInit {
   }
 
   public openWizard() {
+    this.deploying = false;
+    this.connected = false;
     this.newMergerWizardService.initWizardTabs();
     this.wizardRef.openModal()
   }
@@ -68,6 +72,7 @@ export class NewMergerWizardComponent implements OnInit {
         this.subnetMergerBackend.deployNDTFile(this.activeDeployedFile).subscribe({
           next: (data) => {
             this.deploying = false;
+            this.connected = true;
             this.newMergerWizardService.tabs[1].isDisabled = false;
             this.newMergerWizardService.tabs[0].isNextDisabled = false;
             this.subnetMergerViewService.refreshNDtsTable.emit();
@@ -85,7 +90,12 @@ export class NewMergerWizardComponent implements OnInit {
 
   public onFileValidated($event) {
     this.newUploadedFile = $event;
-    this.newMergerWizardService.tabs[1].isNextDisabled = false;
+  }
+
+  public onReportCompleted($event:IonValidationCompletedEvent) {
+    if($event.isReportCompleted && $event.report.status != NDTStatusTypes.completedWithCriticalErrors) {
+      this.newMergerWizardService.tabs[1].isNextDisabled = false;
+    }
   }
 
 }
