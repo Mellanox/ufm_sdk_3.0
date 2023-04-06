@@ -27,7 +27,7 @@ import logging
 class UFMResource(Resource):
     def __init__(self, switch_dict):
         self.switch_dict = switch_dict
-        self.registered_switches = set(self.read_json_file(helpers.SWITCHES_FILE))
+        self.registered_switches = set(self.read_json_file(helpers.ConfigParser.switches_file))
         self.datetime_format = "%Y-%m-%d %H:%M:%S"
 
     def get_timestamp(self):
@@ -64,7 +64,7 @@ class Switch(UFMResource):
             self.registered_switches = self.registered_switches - set(switches)
         else:
             self.registered_switches.update(switches)
-        with open(helpers.SWITCHES_FILE, "w") as file:
+        with open(helpers.ConfigParser.switches_file, "w") as file:
             json.dump(list(self.registered_switches), file)
 
     @staticmethod
@@ -138,7 +138,7 @@ class SwitchList(UFMResource):
 
 class TrapList(UFMResource):
     def get(self):
-        with open(helpers.TRAPS_POLICY_FILE, 'r') as traps_info_file:
+        with open(helpers.ConfigParser.traps_policy_file, 'r') as traps_info_file:
             result = []
             csvreader = csv.reader(traps_info_file)
             for row in csvreader:
@@ -158,14 +158,14 @@ class Trap(UFMResource):
         status = "Disabled" if disable else "Enabled"
         csv_traps_info = []
         field_names = []
-        with open(helpers.TRAPS_POLICY_FILE, 'r') as traps_info_file:
+        with open(helpers.ConfigParser.traps_policy_file, 'r') as traps_info_file:
             csv_traps_info_reader = csv.DictReader(traps_info_file)
             field_names = csv_traps_info_reader.fieldnames
             for trap_info in csv_traps_info_reader:
                 if trap_info["Name"] == trap:
                     trap_info["Status"] = status
                 csv_traps_info.append(trap_info)
-        with open(helpers.TRAPS_POLICY_FILE, 'w') as traps_info_file:
+        with open(helpers.ConfigParser.traps_policy_file, 'w') as traps_info_file:
             csv_traps_info_writer = csv.DictWriter(traps_info_file, field_names)
             csv_traps_info_writer.writeheader()
             csv_traps_info_writer.writerows(csv_traps_info)

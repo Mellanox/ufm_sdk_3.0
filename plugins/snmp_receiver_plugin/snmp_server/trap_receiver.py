@@ -53,7 +53,7 @@ class SnmpTrapReceiver:
         self.high_event_rate = 100
 
     def _init_traps_info(self):
-        with open(helpers.TRAPS_POLICY_FILE, 'r') as traps_info_file:
+        with open(helpers.ConfigParser.traps_policy_file, 'r') as traps_info_file:
             csv_traps_info = csv.DictReader(traps_info_file)
             for trap_info in csv_traps_info:
                 self.oid_to_traps_info[trap_info['OID']] = trap_info
@@ -100,7 +100,7 @@ class SnmpTrapReceiver:
                     for ip, switch in self.switch_dict.items():
                         if switch.guid == guid:
                             switches.remove(ip)
-            with open(helpers.SWITCHES_FILE, "w") as file:
+            with open(helpers.ConfigParser.switches_file, "w") as file:
                 json.dump(switches, file)
 
         # Register SNMP Application at the SNMP engine
@@ -134,15 +134,21 @@ class SnmpTrapReceiver:
 
         try:
             trap_oid = varBindsResolved[1][1].prettyPrint()
+        except (KeyError, IndexError) as e:
+            logging.info(f'Error while getting trap_oid from varBindsResolved: {e}')
+            trap_oid = "unknown trap"
+
+        try:
             trap_details = varBindsResolved[2][0].prettyPrint() + " = " + varBindsResolved[2][1].prettyPrint()
-        except KeyError as ke:
-            logging.info(f'Error while parsing varBindsResolved: {ke}')
-            trap_oid = "unknown"
+        except (KeyError, IndexError) as e:
+            logging.info(f'Error while getting trap_details for {trap_oid} trap from varBindsResolved: {e}')
+            trap_details = "no details"
+
         try:
             trap_info = self.oid_to_traps_info[trap_oid]
             severity = trap_info["Severity"]
         except:
-            logging.info(f'Received unsupported trap: {trap_oid}, skipping')
+            logging.info(f'Received unsupported trap from {switch_ip}: {trap_oid}, skipping')
             return
         trap = helpers.Trap(trap_oid, trap_details, severity)
         logging.debug(f'  {trap_oid}: {trap_details}')
