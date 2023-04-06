@@ -71,6 +71,8 @@ class SNMPWebProc:
                                                           backupCount=helpers.ConfigParser.log_file_backup_count)],
                             level=logging.getLevelName(helpers.ConfigParser.log_level),
                             format=helpers.ConfigParser.log_format)
+        logging.getLogger("requests").setLevel(logging.getLevelName(helpers.ConfigParser.log_level))
+        logging.getLogger("werkzeug").setLevel(logging.getLevelName(helpers.ConfigParser.log_level))
         self.loop = asyncio.get_event_loop()
         self.manager = Manager()
         switch_dict = helpers.get_ufm_switches()
