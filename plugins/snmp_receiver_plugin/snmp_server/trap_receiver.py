@@ -149,7 +149,7 @@ class SnmpTrapReceiver:
 
         switch_obj = self.switch_dict.get(switch_ip, None)
         if not switch_obj:
-            logging.warning(f'Notification from unknown ip {switch_ip}: {trap_oid}')
+            logging.warning(f'Notification from an ip unknown to UFM {switch_ip}: {trap_oid}')
         else:
             logging.info(f'Notification from switch {switch_obj.name}: {trap_oid}')
         self.ip_to_trap_to_count.setdefault(switch_ip, {}).setdefault(trap, 0)

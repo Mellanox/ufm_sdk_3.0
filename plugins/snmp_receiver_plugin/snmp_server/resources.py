@@ -96,7 +96,7 @@ class Switch(UFMResource):
         switches_set = set(switches)
         incorrect_switches = list(switches_set - set(self.switch_dict.keys()))
         if incorrect_switches:
-            return self.report_error(HTTPStatus.BAD_REQUEST, f"Switches {incorrect_switches} don't exist in the fabric or don't have an ip")
+            return self.report_error(HTTPStatus.NOT_FOUND, f"Switches {incorrect_switches} don't exist in the fabric or don't have an ip")
         not_registered = switches_set - set(self.registered_switches)
         if unregister:
             if not_registered == switches_set:
@@ -106,7 +106,8 @@ class Switch(UFMResource):
             if not not_registered:
                 return self.report_error(HTTPStatus.BAD_REQUEST, f"Provided switches have been already registered")
             switches = list(not_registered)
-        description = "Plugin registration as SNMP traps receiver"
+        prefix = "un" if unregister else ""
+        description = f"Plugin {prefix}registration as SNMP traps receiver"
         for ip in hosts:
             status_code, guid_to_response = helpers.get_provisioning_output(self.get_cli(ip, unregister), description, switches)
             if not helpers.succeded(status_code):
@@ -153,7 +154,7 @@ class Trap(UFMResource):
         return self.report_error(HTTPStatus.METHOD_NOT_ALLOWED, "Method is not allowed")
 
     @staticmethod
-    def update_csv(trap, disable=False):
+    def update_csv(trap, disable):
         status = "Disabled" if disable else "Enabled"
         csv_traps_info = []
         field_names = []
@@ -168,6 +169,21 @@ class Trap(UFMResource):
             csv_traps_info_writer = csv.DictWriter(traps_info_file, field_names)
             csv_traps_info_writer.writeheader()
             csv_traps_info_writer.writerows(csv_traps_info)
+
+    def validate_request(self, trap, disable):
+        expected_status = "Enabled" if disable else "Disabled"
+        with open(helpers.TRAPS_POLICY_FILE, 'r') as traps_info_file:
+            csv_traps_info_reader = csv.DictReader(traps_info_file)
+            trap_found = False
+            for trap_info in csv_traps_info_reader:
+                if trap_info["Name"] == trap:
+                    trap_found = True
+                    status = trap_info["Status"]
+                    if expected_status != status:
+                        return f"Trap {trap} is already {status}"
+            if not trap_found:
+                return f"Trap {trap} is not in the list of known plugin traps, see 'trap_list'"
+        return ""
 
     @staticmethod
     def get_cli(trap, disable=False):
@@ -190,10 +206,13 @@ class Trap(UFMResource):
             switches = list(self.switch_dict.keys())
             incorrect_switches = set(switches) - set(self.switch_dict.keys())
             if incorrect_switches:
-                return self.report_error(HTTPStatus.BAD_REQUEST, f"Switches {incorrect_switches} don't exist in the fabric or don't have an ip")
+                return self.report_error(HTTPStatus.NOT_FOUND, f"Switches {incorrect_switches} don't exist in the fabric or don't have an ip")
             description = "UFM event monitoring settings"
             one_succeeded = False
             for trap in traps:
+                error = self.validate_request(trap, disable)
+                if error:
+                    return self.report_error(HTTPStatus.BAD_REQUEST, error)
                 status_code, guid_to_response = helpers.get_provisioning_output(self.get_cli(trap, disable), description, switches)
                 if not helpers.succeded(status_code):
                     return self.report_error(status_code, guid_to_response)
