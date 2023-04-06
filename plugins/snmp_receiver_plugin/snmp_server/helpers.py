@@ -15,6 +15,7 @@
 import configparser
 from http import HTTPStatus
 import logging
+from logging.handlers import RotatingFileHandler
 import requests
 import os
 import socket
@@ -248,20 +249,49 @@ class ConfigParser:
     snmp_config = configparser.ConfigParser()
     if not os.path.exists(config_file):
         logging.error(f"No config file {config_file} found!")
+        quit()
     snmp_config.read(config_file)
     log_level = snmp_config.get("Log", "log_level")
     log_file_max_size = snmp_config.getint("Log", "log_file_max_size")
     log_file_backup_count = snmp_config.getint("Log", "log_file_backup_count")
     log_format = '%(asctime)-15s %(levelname)s %(message)s'
+    logging.basicConfig(handlers=[RotatingFileHandler(log_file,
+                                                      maxBytes=log_file_max_size,
+                                                      backupCount=log_file_backup_count)],
+                        level=logging.getLevelName(log_level),
+                        format=log_format)
+    logging.getLogger("requests").setLevel(logging.getLevelName(log_level))
+    logging.getLogger("werkzeug").setLevel(logging.getLevelName(log_level))
 
     snmp_port = snmp_config.getint("SNMP", "snmp_port", fallback=162)
+    if not snmp_port:
+        logging.error(f"Incorrect value for snmp_port")
+        quit()
     community = snmp_config.get("SNMP", "community", fallback="public")
+    if not community:
+        logging.error(f"Incorrect value for snmp_port")
+        quit()
     multiple_events = snmp_config.getboolean("SNMP", "multiple_events", fallback=False)
     snmp_version = snmp_config.getint("SNMP", "snmp_version", fallback=3)
+    if snmp_version not in [1, 3]:
+        logging.error(f"Incorrect value for snmp_version, should be '1' or '3'")
+        quit()
     snmp_mode = snmp_config.get("SNMP", "snmp_mode", fallback="auto")
+    if snmp_mode not in ["auto", "manual"]:
+        logging.error(f"Incorrect value for snmp_mode, should be 'auto' or 'manual'")
+        quit()
     snmp_user = snmp_config.get("SNMP", "snmp_user", fallback="auto")
+    if not snmp_user:
+        logging.error(f"Incorrect value for snmp_user")
+        quit()
     snmp_password = snmp_config.get("SNMP", "snmp_password", fallback="auto")
+    if not snmp_password:
+        logging.error(f"Incorrect value for snmp_password")
+        quit()
     snmp_priv = snmp_config.get("SNMP", "snmp_priv", fallback="auto")
+    if not snmp_priv:
+        logging.error(f"Incorrect value for snmp_priv")
+        quit()
 
     ufm_switches_update_interval = snmp_config.getint("UFM", "ufm_switches_update_interval", fallback=60)
 

@@ -15,8 +15,6 @@
 import asyncio
 from flask import Flask
 from flask_restful import Api
-import logging
-from logging.handlers import RotatingFileHandler
 from multiprocessing import Process, Manager
 import threading
 import time
@@ -67,11 +65,6 @@ class SNMPWebProc:
     """
     def __init__(self):
         print("Starting SNMP web server", flush=True)
-        logging.basicConfig(handlers=[RotatingFileHandler(helpers.ConfigParser.log_file,
-                                                          maxBytes=helpers.ConfigParser.log_file_max_size,
-                                                          backupCount=helpers.ConfigParser.log_file_backup_count)],
-                            level=logging.getLevelName(helpers.ConfigParser.log_level),
-                            format=helpers.ConfigParser.log_format)
         self.loop = asyncio.get_event_loop()
         self.manager = Manager()
         switch_dict = helpers.get_ufm_switches()

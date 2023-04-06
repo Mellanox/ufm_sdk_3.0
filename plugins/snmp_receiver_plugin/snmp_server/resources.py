@@ -70,16 +70,17 @@ class Switch(UFMResource):
     @staticmethod
     def get_cli(ip, unregister=False):
         # TODO: change to sha512 and aes-256
-        cli_register_v1_v2 = f"snmp-server host {ip} traps port {helpers.ConfigParser.snmp_port}"
-        cli_register_v3 = cli_register_v1_v2 + f" version 3 user {helpers.ConfigParser.snmp_user} \
-                          auth sha {helpers.ConfigParser.snmp_password} priv aes-128 {helpers.ConfigParser.snmp_priv}"
-        cli_register = cli_register_v3 if helpers.ConfigParser.snmp_version == 3 else cli_register_v1_v2
+        cli_register = f"snmp-server host {ip} traps port {helpers.ConfigParser.snmp_port}"
+        if helpers.ConfigParser.snmp_version == 1:
+            cli_register += " " + helpers.ConfigParser.community
+        if helpers.ConfigParser.snmp_version == 3:
+            cli_register += f" version 3 user {helpers.ConfigParser.snmp_user} \
+                auth sha {helpers.ConfigParser.snmp_password} priv aes-128 {helpers.ConfigParser.snmp_priv}"
         cli_unregister = f"no snmp-server host {ip}"
         return cli_unregister if unregister else cli_register
 
     def post(self, unregister=False):
         resource = "unregister" if unregister else "register"
-        logging.info(f"POST /plugin/snmp/{resource}")
         if not request.data or not request.json:
             switches = list(self.switch_dict.keys())
             hosts = []
@@ -95,7 +96,7 @@ class Switch(UFMResource):
         switches_set = set(switches)
         incorrect_switches = list(switches_set - set(self.switch_dict.keys()))
         if incorrect_switches:
-            return self.report_error(HTTPStatus.BAD_REQUEST, f"Switches {incorrect_switches} don't exist in the fabric or don't have an ip")
+            return self.report_error(HTTPStatus.NOT_FOUND, f"Switches {incorrect_switches} don't exist in the fabric or don't have an ip")
         not_registered = switches_set - set(self.registered_switches)
         if unregister:
             if not_registered == switches_set:
@@ -105,7 +106,8 @@ class Switch(UFMResource):
             if not not_registered:
                 return self.report_error(HTTPStatus.BAD_REQUEST, f"Provided switches have been already registered")
             switches = list(not_registered)
-        description = "Plugin registration as SNMP traps receiver"
+        prefix = "un" if unregister else ""
+        description = f"Plugin {prefix}registration as SNMP traps receiver"
         for ip in hosts:
             status_code, guid_to_response = helpers.get_provisioning_output(self.get_cli(ip, unregister), description, switches)
             if not helpers.succeded(status_code):
@@ -129,7 +131,6 @@ class UnregisterSwitch(Switch):
 
 class SwitchList(UFMResource):
     def get(self):
-        logging.info(f"GET /plugin/snmp/switch_list")
         return list(self.registered_switches), HTTPStatus.OK
 
     def post(self):
@@ -137,7 +138,6 @@ class SwitchList(UFMResource):
 
 class TrapList(UFMResource):
     def get(self):
-        logging.info(f"GET /plugin/snmp/trap_list")
         with open(helpers.ConfigParser.traps_policy_file, 'r') as traps_info_file:
             result = []
             csvreader = csv.reader(traps_info_file)
@@ -154,7 +154,7 @@ class Trap(UFMResource):
         return self.report_error(HTTPStatus.METHOD_NOT_ALLOWED, "Method is not allowed")
 
     @staticmethod
-    def update_csv(trap, disable=False):
+    def update_csv(trap, disable):
         status = "Disabled" if disable else "Enabled"
         csv_traps_info = []
         field_names = []
@@ -170,6 +170,21 @@ class Trap(UFMResource):
             csv_traps_info_writer.writeheader()
             csv_traps_info_writer.writerows(csv_traps_info)
 
+    def validate_request(self, trap, disable):
+        expected_status = "Enabled" if disable else "Disabled"
+        with open(helpers.TRAPS_POLICY_FILE, 'r') as traps_info_file:
+            csv_traps_info_reader = csv.DictReader(traps_info_file)
+            trap_found = False
+            for trap_info in csv_traps_info_reader:
+                if trap_info["Name"] == trap:
+                    trap_found = True
+                    status = trap_info["Status"]
+                    if expected_status != status:
+                        return f"Trap {trap} is already {status}"
+            if not trap_found:
+                return f"Trap {trap} is not in the list of known plugin traps, see 'trap_list'"
+        return ""
+
     @staticmethod
     def get_cli(trap, disable=False):
         cli_enable_traps = f"snmp-server notify event {trap}"
@@ -179,7 +194,6 @@ class Trap(UFMResource):
     def post(self, disable=False):
         # TODO: add trap check list - if no such trap, then error
         resource = "disable_trap" if disable == True else "enable_trap"
-        logging.info(f"POST /plugin/snmp/{resource}")
         if not request.data or not request.json:
             return self.report_error(HTTPStatus.BAD_REQUEST, "Upload request is empty")
         else:
@@ -192,10 +206,13 @@ class Trap(UFMResource):
             switches = list(self.switch_dict.keys())
             incorrect_switches = set(switches) - set(self.switch_dict.keys())
             if incorrect_switches:
-                return self.report_error(HTTPStatus.BAD_REQUEST, f"Switches {incorrect_switches} don't exist in the fabric or don't have an ip")
+                return self.report_error(HTTPStatus.NOT_FOUND, f"Switches {incorrect_switches} don't exist in the fabric or don't have an ip")
             description = "UFM event monitoring settings"
             one_succeeded = False
             for trap in traps:
+                error = self.validate_request(trap, disable)
+                if error:
+                    return self.report_error(HTTPStatus.BAD_REQUEST, error)
                 status_code, guid_to_response = helpers.get_provisioning_output(self.get_cli(trap, disable), description, switches)
                 if not helpers.succeded(status_code):
                     return self.report_error(status_code, guid_to_response)
@@ -221,7 +238,6 @@ class DisableTrap(Trap):
 
 class Version(UFMResource):
     def get(self):
-        logging.info("GET /plugin/ndt/version")
         version_file = "release.json"
         return self.read_json_file(version_file), HTTPStatus.OK
 
@@ -230,7 +246,6 @@ class Version(UFMResource):
 
 class Date(UFMResource):
     def get(self):
-        logging.info("GET /plugin/snmp/date")
         return {"date": self.get_timestamp()}, HTTPStatus.OK
 
     def post(self):
@@ -238,7 +253,6 @@ class Date(UFMResource):
 
 class Dummy(UFMResource):
     def get(self):
-        logging.info("GET /plugin/snmp/dummy")
         print("Hello from dummy resource!", flush=True)
         return self.report_success()
 
