@@ -28,7 +28,7 @@ from twisted.web.wsgi import WSGIResource
 from twisted.internet import reactor
 from twisted.web import server
 
-from resources import UFMResource, Compare, Ndts, Reports, ReportId,\
+from resources import UIFilesResources ,UFMResource, Compare, Ndts, Reports, ReportId,\
     Upload, Delete, Cancel, Version, Help, Date, Dummy
 
 
@@ -51,6 +51,7 @@ class UFMWebSim:
 
     def init_apis(self):
         default_apis = {
+            UIFilesResources: "/files/<path:file_name>",
             Ndts: "/list",
             Reports: "/reports",
             Delete: "/delete",

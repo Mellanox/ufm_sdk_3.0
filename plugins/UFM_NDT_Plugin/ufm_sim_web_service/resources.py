@@ -18,7 +18,7 @@ import configparser
 import json
 import os
 from flask_restful import Resource
-from flask import request
+from flask import request, send_from_directory
 from datetime import datetime, timedelta
 from topo_diff.topo_diff import compare_topologies
 import logging
@@ -127,6 +127,15 @@ def get_hash(file_content):
     sha1 = hashlib.sha1()
     sha1.update(file_content.encode('utf-8'))
     return sha1.hexdigest()
+
+
+class UIFilesResources(Resource):
+
+    def __init__(self):
+        self.files_path = "/opt/ufm/ufm_plugin_ndt/ufm_sim_web_service/media"
+
+    def get(self, file_name):
+        return send_from_directory(self.files_path, file_name)
 
 
 class Upload(UFMResource):
