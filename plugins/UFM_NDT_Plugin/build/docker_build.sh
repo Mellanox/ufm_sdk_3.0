@@ -8,6 +8,7 @@ if [ "$EUID" -ne 0 ]
 fi
 
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+PARENT_DIR=$(realpath "${SCRIPT_DIR}/../../../")
 
 IMAGE_VERSION=$1
 IMAGE_NAME=ufm-plugin-ndt
@@ -94,6 +95,16 @@ function build_docker_image()
     fi
     return 0
 }
+
+echo "Updating the git submodules..."
+pushd ${PARENT_DIR}
+git submodule update --init --remote
+exit_code=$?
+if [ $exit_code -ne 0 ]; then
+  echo "The git submodules wasn't updated successfully, please make sure that you have the correct access"
+  return $exit_code
+fi
+popd
 
 pushd ${SCRIPT_DIR}
 
