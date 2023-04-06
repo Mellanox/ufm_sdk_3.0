@@ -28,8 +28,6 @@ SESSION = requests.Session()
 SESSION.headers = {"X-Remote-User": "ufmsystem"}
 EMPTY_IP = "0.0.0.0"
 PROVISIONING_TIMEOUT = 20
-SWITCHES_FILE = "registered_switches.json"
-TRAPS_POLICY_FILE = "traps_policy.csv"
 COMPLETED_WITH_ERRORS = "Completed With Errors"
 COMPLETED = "Completed"
 
@@ -49,9 +47,12 @@ LOCAL_IP = get_local_ip()
 def succeded(status_code):
     return status_code in [HTTPStatus.OK, HTTPStatus.ACCEPTED]
 
-def get_request(resource):
+def get_request(resource, debug=False):
     request = PROTOCOL + '://' + HOST + resource
-    logging.info(f"GET {request}")
+    if debug:
+        logging.debug(f"GET {request}")
+    else:
+        logging.info(f"GET {request}")
     try:
         response = SESSION.get(request, verify=False)
         return response.status_code, response.json()
@@ -61,7 +62,11 @@ def get_request(resource):
 
 def post_request(resource, json=None, return_headers=False):
     request = PROTOCOL + '://' + HOST + resource
-    logging.info(f"POST {request}")
+    try:
+        description = json['description']
+    except Exception as e:
+        description = ""
+    logging.info(f"POST {request} {description}")
     try:
         response = SESSION.post(request, verify=False, json=json)
         if return_headers:
@@ -102,7 +107,7 @@ def get_provisioning_output(cli, description, switches):
         return status_code, f"Failed to post json api '{cli}' to switches {switches}"
     job_id = _extract_job_id(headers)
     for _ in range(PROVISIONING_TIMEOUT):
-        status_code, json = get_request(f"/jobs/{job_id}")
+        status_code, json = get_request(f"/jobs/{job_id}", debug=True)
         if not succeded(status_code):
             return status_code, f"Failed to get job {job_id} output"
         try:
@@ -111,12 +116,12 @@ def get_provisioning_output(cli, description, switches):
                 break
         except KeyError as ke:
             return HTTPStatus.BAD_REQUEST, f"No key {ke} found"
-        time.sleep(1)
+        time.sleep(3)
     else:
         return HTTPStatus.INTERNAL_SERVER_ERROR, f"Failed to complete the job {job_id} in {PROVISIONING_TIMEOUT} seconds"
 
     result = {}
-    status_code, jobs = get_request(f"/jobs?parent_id={job_id}")
+    status_code, jobs = get_request(f"/jobs?parent_id={job_id}", debug=True)
     if not succeded(status_code):
         return status_code, f"Failed to get childs of {job_id}"
     try:
@@ -232,10 +237,14 @@ class ConfigParser:
     # log_file="snmptrap.log"
     # throughput_file = "throughput.log"
     # httpd_config_file = "../build/config/snmp_httpd_proxy.conf"
+    # switches_file = "registered_switches.json"
+    # traps_policy_file = "traps_policy.csv"
     config_file = "/config/snmp.conf"
     log_file="/log/snmptrap.log"
     throughput_file = "/data/throughput.log"
     httpd_config_file = "/config/snmp_httpd_proxy.conf"
+    switches_file = "/data/registered_switches.json"
+    traps_policy_file = "/data/traps_policy.csv"
 
     snmp_config = configparser.ConfigParser()
     if not os.path.exists(config_file):
@@ -283,6 +292,8 @@ class ConfigParser:
     if not snmp_priv:
         logging.error(f"Incorrect value for snmp_priv")
         quit()
+
+    ufm_switches_update_interval = snmp_config.getint("UFM", "ufm_switches_update_interval", fallback=60)
 
     if not os.path.exists(httpd_config_file):
         logging.error(f"No config file {httpd_config_file} found!")
