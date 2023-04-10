@@ -150,6 +150,8 @@ class UFMResource(Resource):
         with open(self.ndts_list_file, "r+") as file:
             # unhandled exception in case ndts file was changed manually
             data = json.load(file)
+            # need to update time stamp on every file status change
+            self.timestamp = self.get_timestamp()
             for entry in data:
                 if entry["file"] == os.path.basename(ndt_file_name):
                     current_status = entry["file_status"]
@@ -160,10 +162,12 @@ class UFMResource(Resource):
                         if current_status == NDT_FILE_STATE_UPDATED_NO_DISCOVER:
                             file_status = NDT_FILE_STATE_DEPLOYED_NO_DISCOVER
                     entry["file_status"] = file_status
+                    entry["timestamp"] = self.timestamp
                 if (entry["file"] == last_deployed_file_name and
                     file_status == NDT_FILE_STATE_DEPLOYED
                     and entry["file_status"] == NDT_FILE_STATE_DEPLOYED_NO_DISCOVER):
                     entry["file_status"] = NDT_FILE_STATE_DEPLOYED_COMPLETED
+                    entry["timestamp"] = self.timestamp
                     # update last deployed file status to deployed_completed
             file.seek(0)
             json.dump(data, file)

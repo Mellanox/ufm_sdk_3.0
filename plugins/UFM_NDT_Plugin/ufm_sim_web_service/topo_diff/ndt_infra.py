@@ -18,7 +18,9 @@ import time
 import json
 from datetime import datetime
 import csv
-from topo_diff.topo_diff import parse_ndt_port, PortType
+import pandas as pd
+from topo_diff.topo_diff import parse_ndt_port, PortType, parse_ibdiagnet_dump
+
 
 DEFAULT_IBDIAGNET_OUTPUT_PATH = "/var/tmp/ibdiagnet2"
 DEFAULT_IBDIAGNET_NET_DUMP_PATH = "/var/tmp/ibdiagnet2/ibdiagnet2.net_dump"
@@ -28,8 +30,10 @@ TOPOCONFIG_DIRECTORY = "/config/topoconfig"
 IBDIAGNET_OUT_DIRECTORY = "/tmp/ndt_plugin"
 IBDIAGNET_LOG_FILE = "%s/%s" % (IBDIAGNET_OUT_DIRECTORY, "ibdiagnet2.log")
 IBDIAGNET_COMMAND = "ibdiagnet -o %s --enable_switch_dup_guid --skip dup_node_desc,lids,sm,nodes_info,pkey,pm,temp_sensing,virt" % IBDIAGNET_OUT_DIRECTORY
+IBDIAGNET_PORT_VERIFICATION_COMMAND = "ibdiagnet -o %s --discovery_only" % IBDIAGNET_OUT_DIRECTORY
 CHECK_DUPLICATED_GUIDS_COMMAND = "cat %s | grep \"Node GUID = .* is duplicated at\"" % (IBDIAGNET_LOG_FILE)
 IBDIAGNET_OUT_NET_DUMP_FILE_PATH = "%s/ibdiagnet2.net_dump" % IBDIAGNET_OUT_DIRECTORY
+IBDIAGNET_OUT_DB_CSV_FILE_PATH = "%s/ibdiagnet2.db_csv" % IBDIAGNET_OUT_DIRECTORY
 EMPTY_RESPOND_MESSAGE = "Empty respond message"
 IBDIAGNET_COMPLETION_MESSAGE = "ibdiagnet execution completed"
 IBDIAGNET_EXCEED_NUMBER_OF_TASKS = "Maximum number of task exceeded, please remove a task before adding a new one"
@@ -39,6 +43,7 @@ DEFAULT_IBDIAGNET_RESPONSE_DIR = '/tmp/ibdiagnet'  # temporarry - should be rece
 IBDIAGNET_AGE_INTERVAL_DEFAULT = 3600
 MERGER_OPEN_SM_CONFIG_FILE = "%s/%s" % (TOPOCONFIG_DIRECTORY, "topoconfig")
 LAST_DEPLOYED_NDT_FILE_INFO = "%s/%s" % (TOPOCONFIG_DIRECTORY, "deployed_ndt")
+PORT_CONFIG_CSV_FILE = "%s/%s" % (TOPOCONFIG_DIRECTORY, "port_discovery_data.csv")
 SWITCH_GUID = "Switch_GUID" 
 PORT_NUM = "Port_Num" 
 NEIGHBOR_GUID = "Neighbor_GUID" 
@@ -52,15 +57,33 @@ BOUNDARY_PORTS_STATES = [BOUNDARY_PORT_STATE_NO_DISCOVER,
                          BOUNDARY_PORT_STATE_DISABLED,
                          BOUNDARY_PORT_STATE_ACTIVE]
 TOPOCONFIG_FIELD_NAMES = ["port_guid", "port_num", "peer_port_guid", "peer_port_num", "host_type", "port_state"]
-NDT_FILE_STATE_NEW = "new"
-NDT_FILE_STATE_VERIFIED = "verified"
-NDT_FILE_STATE_DEPLOYED = "deployed"
-NDT_FILE_STATE_UPDATED = "updated"
-NDT_FILE_STATE_UPDATED_DISABLED = "updated_disabled"
-NDT_FILE_STATE_UPDATED_NO_DISCOVER = "updated_no_discover"
-NDT_FILE_STATE_DEPLOYED_DISABLED = "deployed_disabled"
-NDT_FILE_STATE_DEPLOYED_NO_DISCOVER = "deployed_no_discover"
-NDT_FILE_STATE_DEPLOYED_COMPLETED = "deployed_completed"
+NDT_FILE_STATE_NEW = "New"
+NDT_FILE_STATE_VERIFIED = "Verified"
+NDT_FILE_STATE_DEPLOYED = "Deployed"
+NDT_FILE_STATE_UPDATED = "Updated"
+NDT_FILE_STATE_UPDATED_DISABLED = "Updated, Boundary ports disabled"
+NDT_FILE_STATE_UPDATED_NO_DISCOVER = "Updated, Boundary ports No_discover"
+NDT_FILE_STATE_DEPLOYED_DISABLED = "Deployed, ready for extension"
+NDT_FILE_STATE_DEPLOYED_NO_DISCOVER = "Deployed, ready for verification"
+NDT_FILE_STATE_DEPLOYED_COMPLETED = "Deployed, not active"
+
+#port state mapping
+IB_PORT_PHYS_STATE_NO_CHANGE = 0
+IB_PORT_PHYS_STATE_SLEEP = 1
+IB_PORT_PHYS_STATE_POLLING = 2
+IB_PORT_PHYS_STATE_DISABLED = 3
+IB_PORT_PHYS_STATE_PORTCONFTRAIN = 4
+IB_PORT_PHYS_STATE_LINKUP = 5
+IB_PORT_PHYS_STATE_LINKERRRECOVER = 6
+IB_PORT_PHYS_STATE_PHYTEST = 7
+ib_port_state = {
+    IB_PORT_PHYS_STATE_DISABLED: BOUNDARY_PORT_STATE_DISABLED,
+    IB_PORT_PHYS_STATE_POLLING: BOUNDARY_PORT_STATE_DISABLED, # for old switches if disabled physical state could be polling (???)
+    IB_PORT_PHYS_STATE_LINKUP: BOUNDARY_PORT_STATE_NO_DISCOVER,
+    }
+
+def get_timestamp_str():
+    return str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
 
 def run_command_line_cmd(command):
     cmd = command.split()
@@ -128,12 +151,148 @@ def run_ibdiagnet():
     status , cmd_output = execute_generic_command(IBDIAGNET_COMMAND)
     return status
 
+def run_ibdiagnet_verification_command():
+    '''
+    Run ibdiagnet command for port status verification
+    '''
+    status, cmd_output = execute_generic_command(IBDIAGNET_PORT_VERIFICATION_COMMAND)
+    return status
+
+def get_boundary_ports_with_state(boundary_ports, global_verify_state=None):
+    '''
+    Get current port state for boundary ports
+    :param boundary_ports_list: list of boundary ports
+    IB_PORT_PHYS_STATE_NO_CHANGE 0
+    IB_PORT_PHYS_STATE_SLEEP 1
+    IB_PORT_PHYS_STATE_POLLING 2
+    IB_PORT_PHYS_STATE_DISABLED 3
+    IB_PORT_PHYS_STATE_PORTCONFTRAIN 4
+    IB_PORT_PHYS_STATE_LINKUP 5
+    IB_PORT_PHYS_STATE_LINKERRRECOVER 6
+    IB_PORT_PHYS_STATE_PHYTEST 7
+    
+    Disabled -> IB_PORT_PHYS_STATE_DISABLED  ---> 3
+    No-discover -> IB_PORT_PHYS_STATE_LINKUP ---> 5
+    No-discover -> IB_PORT_PHYS_STATE_POLLING---> 2
+    '''
+    boundary_port_info_list = list()
+    ports_lines = list()
+    with open(IBDIAGNET_OUT_DB_CSV_FILE_PATH, 'r', encoding="utf-8") as db_csv_file:
+        # just read file until START_PORTS, then take all the lined until not END_PORTS
+        port_section_started = False
+        while line := db_csv_file.readline():
+            if "START_PORTS" in line:
+                port_section_started = True
+            elif port_section_started:
+                if "END_PORTS" in line:
+                    break
+                else:
+                    ports_lines.append(line.strip().split(","))
+            else:
+                continue
+    # create struct for boundary ports
+    if not ports_lines:
+        logging.error("Failed to get ports info from file %s" % IBDIAGNET_OUT_DB_CSV_FILE_PATH)
+        return []
+    header = ports_lines[0]
+    data = ports_lines[1:]
+    data = pd.DataFrame(data, columns=header)
+    data.to_csv(PORT_CONFIG_CSV_FILE, index=False)
+    with open(PORT_CONFIG_CSV_FILE, 'r') as csvfile:
+        dictreader = csv.DictReader(csvfile)
+        try:
+            _ = iter(dictreader)
+        except TypeError as te:
+            error_message = "{} is empty or cannot be parsed: {}".format(PORT_CONFIG_CSV_FILE, te)
+            logging.error(error_message)
+            return boundary_port_info_list
+        for index, port_data in enumerate(dictreader):
+            boundary_port_entry = "%s___%s" % (port_data["PortGuid"], port_data["PortNum"])
+            if boundary_port_entry in boundary_ports:
+                current_port_state = ib_port_state.get(int(port_data["PortPhyState"]), "None")
+                verify_state = boundary_ports.get(boundary_port_entry, 0)
+                if current_port_state != verify_state:
+                    boundary_port_info_list.append(boundary_port_entry)
+    return boundary_port_info_list
+
 def check_duplicated_guids():
     '''
     Check ibdiagnet log file for duplicated guids error messages
     '''
     status , cmd_output = execute_generic_command(CHECK_DUPLICATED_GUIDS_COMMAND)
     return status, cmd_output
+
+def check_boundary_port_state(expected_state=None):
+    '''
+    Check boundary ports state - if they according to topoconfig definition
+    :param expected_state: state that we are expecting ports should be after topoconfig deploy
+    '''
+    # read boundary ports
+    # run ibdiagnet
+    # for boundary ports get their state
+    # compare with expected
+    # return true or false - depends on verification status
+    if not check_file_exist(MERGER_OPEN_SM_CONFIG_FILE):
+        error_message = "Topoconfig file {} not found".format(MERGER_OPEN_SM_CONFIG_FILE)
+        logging.error(error_message)
+        return False
+    sleep_interval = 5
+    number_of_attempts = 5
+    boundary_ports_info = dict()
+    with open(MERGER_OPEN_SM_CONFIG_FILE, 'r', encoding="utf-8") as topoconf_csv_file:
+        dictreader = csv.DictReader(topoconf_csv_file,
+                                    fieldnames=TOPOCONFIG_FIELD_NAMES)
+        try:
+            _ = iter(dictreader)
+        except TypeError as te:
+            error_message = "{} is empty or cannot be parsed: {}".format(MERGER_OPEN_SM_CONFIG_FILE, te)
+            logging.error(error_message)
+            return False
+        for index, row in enumerate(dictreader):
+            logging.debug("Check topoconfig file: {}".format(row))
+            try:
+                if row["peer_port_guid"] == "-": # boundary port
+                    port_guid_len = len(row["port_guid"])
+                    if port_guid_len < 18: # in case and we have guid that is short - need to add zero
+                        port_guid = "".join(["0x", "%s"%("0"*(18-port_guid_len)), row["port_guid"][2:]])
+                    else:
+                        port_guid = row["port_guid"]
+                    boundary_port_entry = "%s___%s" % (port_guid, row["port_num"])
+                    boundary_ports_info[boundary_port_entry] = row["port_state"]
+            except Exception as e:
+                error_message = "{}: failed to read boundary ports info: {}".format(MERGER_OPEN_SM_CONFIG_FILE, te)
+                logging.error(error_message)
+                return False
+        if boundary_ports_info:
+            number_of_check_attempts = number_of_attempts
+            while number_of_check_attempts > 0:
+                # run ibdiagnet and get state for boundary ports
+                if run_ibdiagnet_verification_command():
+                    # check for ibdiagnet2.db_csv file
+                    if not check_file_exist(IBDIAGNET_OUT_DB_CSV_FILE_PATH):
+                        error_message = "Get boundary port state failure: ile {} not exists".format(IBDIAGNET_OUT_DB_CSV_FILE_PATH)
+                        logging.error(error_message)
+                        return False
+                    # in loop pol for boundary ports state
+                    boundary_ports_current_state = get_boundary_ports_with_state(boundary_ports_info, expected_state)
+                    if not boundary_ports_current_state: # it meand there are boundary ports that have incorrect state - need to wait a bit more
+                        break
+                else:
+                    error_message = "Failed to run ibdiagnet command for boundary ports state verification"
+                    logging.error(error_message)
+                    return False
+                number_of_check_attempts -= 1
+                time.sleep(sleep_interval)
+            if not boundary_ports_current_state:
+                return True
+            else:
+                error_message = "Boundary ports state not matching expected. SM topoconfig reload failed"
+                logging.error(error_message)
+                return False
+        else:
+            error_message = "{}: No boundary ports info found".format(MERGER_OPEN_SM_CONFIG_FILE)
+            logging.error(error_message)
+            return False
 
 def check_ibdiagnet_net_dump_file_exist():
     '''
@@ -157,8 +316,54 @@ def check_ibdiagnet_net_dump_file_exist():
     else:
         return False
 
+def create_raw_topoconfig_file(ndt_file_path, boundary_port_state, patterns):
+    '''
+    Create topoconfig file upon request - not related to NDT file validation
+    will include only links from ibdiagnet output and NDT.
+    :param ndt_file_name:
+    :param boundary_port_state:
+    '''
+    # create links_info_dictiionary based on ibdiagnet
+    ndt_file_name = os.path.basename(ndt_file_path)
+    if run_ibdiagnet():
+        ibdiagnet_file_path = IBDIAGNET_OUT_NET_DUMP_FILE_PATH
+    else:
+        error_message = "Topoconfig file creation failed for {}. Failed to run ibdiagnet".format(ndt_file_name)
+        logging.error(error_message)
+        return False, error_message
+    if not check_file_exist(ibdiagnet_file_path):
+        error_message = "%s not exist" % IBDIAGNET_OUT_NET_DUMP_FILE_PATH
+        logging.error(error_message)
+        return False, error_message
+    # will not check for duplicated GUIDs
+    # get configuration from ibdiagnet
+    ibdiagnet_links, ibdiagnet_links_reverse, links_info, error_message = \
+                                   parse_ibdiagnet_dump(ibdiagnet_file_path)
+    if error_message:
+        logging.error(error_message)
+        return False, error_message
+    if links_info:
+        creation_timestamp = get_timestamp_str()
+        output_file_name = "%s_%s_%s_%s" % (MERGER_OPEN_SM_CONFIG_FILE, ndt_file_name,
+                                         boundary_port_state, creation_timestamp)
+        #this is the structure that contains names of the nodes and ports and GUIDs
+        # on base of this struct should be created topconfig file
+        if not create_topoconfig_file(links_info, ndt_file_path, patterns,
+                                                      boundary_port_state,
+                                                      output_file_name):
+            error_message = "Failed to create topoconfig file %s" % output_file_name
+            logging.error(error_message)
+            return False, error_message
+        else:
+            return True, "Topoconfig file %s based on %s created" % (output_file_name, ndt_file_name)
+    else:
+        error_message = "Failed to create topoconfig file - no links found"
+        logging.error(error_message)
+        return False, error_message
+
 def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
-                                                    boundary_port_state=None):
+                                                    boundary_port_state=None,
+                                                    output_file_name=None):
     '''
     Create topoconfig file
     this is the structure that contains names of the nodes and ports and GUIDs
@@ -186,7 +391,8 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
         logging.error(error_message)
         ndt_file.close()
         return False
-    with open(MERGER_OPEN_SM_CONFIG_FILE, 'w') as topoconfig_file:
+    output_file = MERGER_OPEN_SM_CONFIG_FILE if not output_file_name else output_file_name
+    with open(output_file, 'w') as topoconfig_file:
         for index, row in enumerate(dictreader):
             logging.debug("Parsing NDT link: {}".format(row))
             try:

@@ -25,12 +25,12 @@ import threading
 from resources import UFMResource, Upload, Compare, Delete
 from topo_diff.ndt_infra import check_file_exist,\
     DEFAULT_IBDIAGNET_NET_DUMP_PATH, check_ibdiagnet_net_dump_file_exist,\
-    run_ibdiagnet, IBDIAGNET_OUT_NET_DUMP_FILE_PATH
+    run_ibdiagnet, check_boundary_port_state, IBDIAGNET_OUT_NET_DUMP_FILE_PATH
 from topo_diff.topo_diff import parse_ibdiagnet_dump,\
                         parse_ndt_file,compare_topologies_ndt_ibdiagnet
 from topo_diff.ndt_infra import MERGER_OPEN_SM_CONFIG_FILE,\
     create_topoconfig_file, update_boundary_port_state_in_topoconfig_file,\
-    update_last_deployed_ndt, check_duplicated_guids,\
+    update_last_deployed_ndt, check_duplicated_guids, create_raw_topoconfig_file, \
     BOUNDARY_PORTS_STATES, IBDIAGNET_OUT_DIRECTORY,\
     IBDIAGNET_LOG_FILE, NDT_FILE_STATE_VERIFIED, NDT_FILE_STATE_DEPLOYED,\
     NDT_FILE_STATE_UPDATED, BOUNDARY_PORT_STATE_DISABLED, BOUNDARY_PORT_STATE_NO_DISCOVER,\
@@ -253,7 +253,7 @@ class MergerVerifyNDT(Compare):
         '''
         dg_category = "duplicated guids"
         report_content = {
-        "status": "Completed with errors",
+        "status": "Completed with critical errors",
         "error": "",
         "timestamp": self.timestamp,
         "NDT_file": os.path.basename(ndt_file_name),
@@ -390,6 +390,11 @@ class MergerDeployNDTConfig(UFMResource):
         # update status of the NDT file to verified - at least once we run verification
         if status_code not in (SUCCESS_CODE, ACCEPTED_CODE):
             return self.report_error(status_code, response)
+        if not check_boundary_port_state():
+            error_status_code = 400
+            error_response = "Failure: boundary ports state was not changed by OpenSM. No topology changes deployed."
+            logging.error(error_response)
+            return self.report_error(error_status_code, error_response)
         try:
             self.update_ndt_file_status(self.deploy_file_name,
                                                         NDT_FILE_STATE_DEPLOYED)
@@ -401,6 +406,56 @@ class MergerDeployNDTConfig(UFMResource):
             logging.error(error_response)
             return response, status_code
         return self.report_success()
+
+class MergerCreateNDTTopoconfig(UFMResource):
+    '''
+    Just create topoconfig on base of NDT file - no verification
+    Just include links that exist in NDT and in ibdiagnet output with boundary
+    ports in mode that received as parameter
+    '''
+    def __init__(self):
+        super().__init__()
+        self.subnet_merger_flow = True
+        self.ndts_list_file = self.ndts_merger_list_file
+        self.ndts_dir = self.ndts_merger_dir
+
+    def get(self):
+        return self.report_error(405, "Method is not allowed")
+
+    def parse_request(self, json_data):
+        logging.debug("Parsing JSON request: {}".format(json_data))
+        try:
+            self.expected_keys = ["boundary_port_state", "ndt_file_name"]
+            response, status_code = self.check_request_keys(json_data)
+            if status_code != self.success:
+                return self.report_error(status_code, response)
+            boundary_port_state = json_data["boundary_port_state"]
+            if boundary_port_state not in BOUNDARY_PORTS_STATES:
+                error_msg = ("Boundary port state is incorrect should be one of: {}").format(",".join(BOUNDARY_PORTS_STATES))
+                logging.info(error_msg)
+                return self.report_error(400, error_msg)
+        except TypeError:
+            return self.report_error(400, "Failed to get port state")
+        return self.report_success()
+
+    def post(self):
+        '''
+        Post rest 
+        '''
+        if request.json:
+            json_data = request.get_json(force=True)
+            response, status_code = self.parse_request(json_data)
+            if status_code != self.success:
+                return response, status_code
+            boundary_port_state = json_data["boundary_port_state"]
+            ndt_file_path = os.path.join(self.ndts_dir, json_data["ndt_file_name"])
+            status, error_message = create_raw_topoconfig_file(ndt_file_path, boundary_port_state,
+                                    self.switch_patterns + self.host_patterns)
+            if not status:
+                return self.report_error(400, error_message)
+            return self.report_success()
+        else:
+            return self.report_error(400, "Create topoconfig: Action parameters not received")
 
 class MergerUpdateNDTConfig(UFMResource):
     '''
@@ -466,3 +521,19 @@ class MergerDeployConfig(UFMResource):
 class MergerMergeReportId(UFMResource):
     def __init__(self):
         super().__init__()
+
+class MergerDummyTest(UFMResource):
+    def get(self):
+        logging.info("GET /plugin/ndt/merger_dummy_test")
+        print("Hello from dummy resource!", flush=True)
+        if not check_boundary_port_state():
+            error_status_code = 400
+            error_response = "Failure: boundary ports state was not changed by OpenSM. No topology changes deployed."
+            logging.error(error_response)
+            return self.report_error(error_status_code, error_response)
+        else:
+            return self.report_success()
+
+    def post(self):
+        logging.info("POST /plugin/ndt/merger_dummy_test")
+        return self.report_error(405, "Method is not allowed")

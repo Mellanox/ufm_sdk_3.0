@@ -30,9 +30,10 @@ from twisted.web import server
 
 from resources import UFMResource, Compare, Ndts, Reports, ReportId,\
     Upload, Delete, Cancel, Version, Help, Date, Dummy
-from merger_resources import MergerUploadNDT, MergerVerifyNDT, \
+from merger_resources import MergerUploadNDT, MergerVerifyNDT, MergerDummyTest, \
     MergerVerifyNDTReports, MergerVerifyNDTReportId, MergerDeployNDTConfig, \
-    MergerNdts, MergerDeleteNDT, MergerUpdateNDTConfig, MergerLatestDeployedNDT
+    MergerNdts, MergerDeleteNDT, MergerUpdateNDTConfig, MergerLatestDeployedNDT, \
+    MergerCreateNDTTopoconfig
 
 
 class UFMNDTWebServer:
@@ -69,6 +70,8 @@ class UFMNDTWebServer:
             MergerDeployNDTConfig: "/merger_deploy_ndt_config",
             MergerDeleteNDT: "/merger_delete_ndt",
             MergerLatestDeployedNDT: "/merger_deployed_ndt",
+            MergerCreateNDTTopoconfig: "/merger_create_topoconfig",
+            MergerDummyTest: "/merger_dymmy_test",
             # common
             Version: "/version",
             Help: "/help",
