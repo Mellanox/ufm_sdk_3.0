@@ -12,7 +12,7 @@ LABEL maintainer="atolikin@nvidia.com"
 
 RUN apt-get update && apt-get -y install supervisor python3 python3-pip rsyslog mc wget vim libcap2
 
-RUN python3 -m pip install flask flask_restful requests twisted apscheduler "tzlocal<3.0"
+RUN python3 -m pip install flask flask_restful requests pandas twisted apscheduler "tzlocal<3.0"
 
 COPY ufm_sim_web_service/ ${BASE_PATH}/ufm_sim_web_service/
 

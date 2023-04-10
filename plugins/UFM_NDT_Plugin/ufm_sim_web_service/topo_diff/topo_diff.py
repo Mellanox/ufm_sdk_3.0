@@ -442,7 +442,7 @@ def compare_topologies_ndt_ibdiagnet(timestamp,
     miss_wired = []
     miss_wired_key = "missing in wire"
     missing_in_ibdiag = []
-    missing_in_ibdiag_key = "missing in ibdiagnet"
+    missing_in_ibdiag_key = "missing in topology"
     missing_in_ndt = []
     missing_in_ndt_key = "missing in ndt"
     missing_map = {
@@ -478,7 +478,7 @@ def compare_topologies_ndt_ibdiagnet(timestamp,
         report_status = "Completed with errors"
     else:
         report_status = "Completed successfully"
-        report = "NDT and IBDIAGNET are fully match"
+        report = "NDT and current topology are fully match"
     
     response = {"status": report_status,
                 "error": "",
