@@ -222,7 +222,7 @@ def check_duplicated_guids():
     status , cmd_output = execute_generic_command(CHECK_DUPLICATED_GUIDS_COMMAND)
     return status, cmd_output
 
-def check_boundary_port_state(expected_state=None):
+def check_boundary_port_state(sleep_interval=5, number_of_attempts=5,expected_state=None):
     '''
     Check boundary ports state - if they according to topoconfig definition
     :param expected_state: state that we are expecting ports should be after topoconfig deploy
@@ -236,8 +236,6 @@ def check_boundary_port_state(expected_state=None):
         error_message = "Topoconfig file {} not found".format(MERGER_OPEN_SM_CONFIG_FILE)
         logging.error(error_message)
         return False
-    sleep_interval = 5
-    number_of_attempts = 5
     boundary_ports_info = dict()
     with open(MERGER_OPEN_SM_CONFIG_FILE, 'r', encoding="utf-8") as topoconf_csv_file:
         dictreader = csv.DictReader(topoconf_csv_file,
