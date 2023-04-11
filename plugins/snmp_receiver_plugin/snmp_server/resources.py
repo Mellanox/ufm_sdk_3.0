@@ -172,7 +172,7 @@ class Trap(UFMResource):
 
     def validate_request(self, trap, disable):
         expected_status = "Enabled" if disable else "Disabled"
-        with open(helpers.TRAPS_POLICY_FILE, 'r') as traps_info_file:
+        with open(helpers.ConfigParser.traps_policy_file, 'r') as traps_info_file:
             csv_traps_info_reader = csv.DictReader(traps_info_file)
             trap_found = False
             for trap_info in csv_traps_info_reader:
@@ -209,10 +209,12 @@ class Trap(UFMResource):
                 return self.report_error(HTTPStatus.NOT_FOUND, f"Switches {incorrect_switches} don't exist in the fabric or don't have an ip")
             description = "UFM event monitoring settings"
             one_succeeded = False
+            errors = []
             for trap in traps:
                 error = self.validate_request(trap, disable)
                 if error:
-                    return self.report_error(HTTPStatus.BAD_REQUEST, error)
+                    errors.append(error)
+                    continue
                 status_code, guid_to_response = helpers.get_provisioning_output(self.get_cli(trap, disable), description, switches)
                 if not helpers.succeded(status_code):
                     return self.report_error(status_code, guid_to_response)
@@ -225,7 +227,9 @@ class Trap(UFMResource):
                     logging.warning(f"Succeded to {resource} on some switches, updating trap info")
                     self.update_csv(trap, disable)
                 else:
-                    return self.report_error(HTTPStatus.BAD_REQUEST, f"Failed to {resource} {trap}, check logs for more information")
+                    errors.append(f"Failed to {resource} {trap}, check logs for more information")
+            if errors:
+                return self.report_error(HTTPStatus.BAD_REQUEST, errors)
             return self.report_success()
 
 class EnableTrap(Trap):
