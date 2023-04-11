@@ -57,6 +57,8 @@ class UFMResource(Resource):
         self.ndts_merger_list_file = os.path.join(self.ndts_merger_dir, "ndts_list.json")
         self.success = 200
         self.reports_to_save = 10
+        self.port_validation_sleep_interval = 5
+        self.port_validation_number_of_attempts = 5
         self.validation_enabled = True
         self.subnet_merger_flow = False
         self.switch_patterns = []
@@ -83,6 +85,10 @@ class UFMResource(Resource):
             self.reports_to_save = ndt_config.getint("Common", "reports_to_save", fallback=10)
             self.ufm_port = ndt_config.getint("Common", "ufm_port", fallback=8000)
             self.validation_enabled = ndt_config.getboolean("Validation", "enabled", fallback=True)
+            self.port_validation_sleep_interval = ndt_config.getint(
+                        "Merger", "port_validation_sleep_interval", fallback=5)
+            self.port_validation_number_of_attempts = ndt_config.getint(
+                        "Merger", "port_validation_number_of_attempts", fallback=5)
             if self.validation_enabled:
                 switch_patterns_str = ndt_config.get("Validation", "switch_patterns")
                 self.switch_patterns = switch_patterns_str.split(',')

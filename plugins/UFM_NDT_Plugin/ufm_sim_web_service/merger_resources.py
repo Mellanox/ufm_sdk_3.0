@@ -390,7 +390,8 @@ class MergerDeployNDTConfig(UFMResource):
         # update status of the NDT file to verified - at least once we run verification
         if status_code not in (SUCCESS_CODE, ACCEPTED_CODE):
             return self.report_error(status_code, response)
-        if not check_boundary_port_state():
+        if not check_boundary_port_state(self.port_validation_sleep_interval,
+                                         self.port_validation_number_of_attempts):
             error_status_code = 400
             error_response = "Failure: boundary ports state was not changed by OpenSM. No topology changes deployed."
             logging.error(error_response)
