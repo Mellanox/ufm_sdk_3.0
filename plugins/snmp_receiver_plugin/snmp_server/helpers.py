@@ -171,7 +171,7 @@ def init_engine_ids(switch_dict, guid_to_ip):
                     except KeyError as ke:
                         logging.error(f"No key {ke} found in {word}")
 
-def get_ufm_switches():
+def get_ufm_switches(existing_switches=None):
     resource = "/resources/systems?type=switch"
     status_code, json = get_request(resource)
     if not succeded(status_code):
@@ -184,7 +184,11 @@ def get_ufm_switches():
         if not ip == EMPTY_IP:
             switch_dict[ip] = Switch(switch["system_name"], switch["guid"])
             guid_to_ip[switch["guid"]] = ip
-    init_engine_ids(switch_dict, guid_to_ip)
+    if existing_switches:
+        if set(switch_dict.keys()) != set(existing_switches.keys()):
+            init_engine_ids(switch_dict, guid_to_ip)
+        else:
+            return {}
     logging.debug(f"List of switches in the fabric: {switch_dict.keys()}")
     return switch_dict
 

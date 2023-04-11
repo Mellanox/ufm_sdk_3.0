@@ -78,8 +78,10 @@ class SNMPWebProc:
 
     def _update_switches(self):
         while True:
-            self.switch_dict.clear()
-            self.switch_dict.update(helpers.get_ufm_switches())
+            new_switches = helpers.get_ufm_switches(self.switch_dict)
+            if new_switches:
+                self.switch_dict.clear()
+                self.switch_dict.update(new_switches)
             time.sleep(helpers.ConfigParser.ufm_switches_update_interval)
 
     def start_web_server(self):
