@@ -18,11 +18,11 @@ Functions commonly added by optional UFM plugins include:
 
 * Security, AAA 
 * lifecycle management for 
-* Deployment 
-* Configuration 
-* Health monitoring 
-* State persistency 
-* HA 
+    * Deployment 
+    * Configuration 
+    * Health monitoring 
+    * State persistency 
+    * HA 
 * Presentation (UI) 
 * Allows UFM capabilities extension by 3rd parties 
 
