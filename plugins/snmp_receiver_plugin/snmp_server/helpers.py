@@ -189,6 +189,8 @@ def get_ufm_switches(existing_switches=None):
             init_engine_ids(switch_dict, guid_to_ip)
         else:
             return {}
+    else:
+        init_engine_ids(switch_dict, guid_to_ip)
     logging.debug(f"List of switches in the fabric: {switch_dict.keys()}")
     return switch_dict
 
