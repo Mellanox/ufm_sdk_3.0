@@ -92,7 +92,7 @@ def run_command_line_cmd(command):
                          stderr=subprocess.STDOUT)
     return iter(p.stdout.readline, b'')
 
-def execute_generic_command_interractive(command):
+def execute_generic_command_interactive(command):
     logging.info("Server:Executing Command %s" % command)
     try:
         return run_command_line_cmd(command)
@@ -294,7 +294,7 @@ def check_boundary_port_state(sleep_interval=5, number_of_attempts=5,expected_st
 
 def check_ibdiagnet_net_dump_file_exist():
     '''
-    Check if ibdiagmet2.net_dump exist on standard location and could be taken as
+    Check if ibdiagnet2.net_dump exist on standard location and could be taken as
     an option if the file is not too old. Let's say was created defined time
     interval (in hours) ago.
     '''
