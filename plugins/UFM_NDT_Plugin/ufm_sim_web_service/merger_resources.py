@@ -61,7 +61,6 @@ class MergerLatestDeployedNDT(UFMResource):
 class MergerUploadNDT(Upload):
     def __init__(self):
         super().__init__()
-        self.possible_file_types = ["current_topo", "new_topo"]
         self.ndts_list_file = self.ndts_merger_list_file
         self.reports_list_file = self.reports_merger_list_file
         self.ndts_dir = self.ndts_merger_dir
@@ -104,7 +103,7 @@ class MergerVerifyNDT(Compare):
         super().__init__({'scheduler': None})
         self.report_number = 0
         self.timestamp = ""
-        self.expected_keys = ["NDT_file_path", "NDT_status"]
+        self.expected_keys = ["ndt_file_name", "NDT_status"]
         self.ndts_list_file = self.ndts_merger_list_file
         self.reports_list_file = self.reports_merger_list_file
         self.ndts_dir = self.ndts_merger_dir
@@ -115,7 +114,7 @@ class MergerVerifyNDT(Compare):
 
     def merger_report_running(self, ndt_file_name):
         '''
-        Report started. Return expected report number - in case it suceed 
+        Report started. Return expected report number - in case it succeed
         '''
         return {"ndt_file_name": os.path.basename(ndt_file_name),
                 "report_id": self.report_number}
@@ -134,38 +133,37 @@ class MergerVerifyNDT(Compare):
         "NDT_file": ndt_file_name,
         "report": ""
         }
-        report_id = self.create_report_started(report_content)
-        return report_id
+        return self.create_report_started(report_content)
 
     def create_report_started(self, report_content):
         '''
-        Get report planning next number and create a report
+        Create report with mention it is started to run
         :param report_content:
         '''
         scope = "Single"
-        response, status_code = self.create_report(scope, report_content, False)
+        return self.create_report(scope, report_content, False)
 
-    def verify(self, ndt_file_name, conf_stage="initial"):
+    def verify(self, ndt_file_name):
         '''
         conf stage could be initial and advanced. Initial is when the boundary
         ports should be disable and advanced - they should be No-Discover.
         The value should be received from REST request for verification
         '''
         # create an empty report with status running
-        try:
-            self.create_merger_report_running(ndt_file_name)
-        except Exception as e:
-            raise ValueError("FAiled to create initial report for %: %s" %
-                                                     (ndt_file_name, e))
-        th = threading.Thread(target=self.run_ibdiagnet_ndt_compare, 
-                              args=(ndt_file_name, conf_stage))
-        th.start()
+        
+        response, status_code = self.create_merger_report_running(ndt_file_name)
+        if status_code != self.success:
+            logging.error("Failed to create initial report for: %s verification" % ndt_file_name)
+            return self.report_error(status_code, response)
+        ndt_compare_thread = threading.Thread(target=self.run_ibdiagnet_ndt_compare,
+                              args=(ndt_file_name,))
+        ndt_compare_thread.start()
         return self.merger_report_running(ndt_file_name)
 
-    def run_ibdiagnet_ndt_compare(self, ndt_file_name, conf_stage="initial"):
+    def run_ibdiagnet_ndt_compare(self, ndt_file_name):
         '''
         Function that will be called from thread - not to block UI
-        and will create a report if suceed
+        and will create a report if succeed
         :param ndt_file_name:
         '''
         scope = "Single" # TODO: well ... not need it at all
@@ -214,15 +212,17 @@ class MergerVerifyNDT(Compare):
                 raise ValueError(error_message)
             # compare NDT with ibdiagnet
             # create report
-            if links_info:
+            if not links_info or not create_topoconfig_file(links_info, ndt_file_name,
+                            self.switch_patterns + self.host_patterns):
                 #this is the structure that contains names of the nodes and ports and GUIDs
                 # on base of this struct should be created topconfig file
-                if not create_topoconfig_file(links_info, ndt_file_name, 
-                            self.switch_patterns + self.host_patterns):
-                    logging.error("Failed to create topoconfig file.")
-
-            else:
-                logging.error("Failed to create topoconfig file - no links found")
+                # in case of failure - non eed to continue - crewate error report and return
+                report_content["error"] = "Failed to create topoconfig file",
+                report_content["status"] = "Failed on topoconfig creation",
+                report_content["timestamp"] = self.timestamp,
+                report_content["report"] = {}
+                report_content["NDT_file"] = os.path.basename(ndt_file_name)
+                raise ValueError(report_content["error"])
             report_content = compare_topologies_ndt_ibdiagnet(self.timestamp,
                                                               ibdiagnet_links,
                                                               ibdiagnet_links_reverse,
