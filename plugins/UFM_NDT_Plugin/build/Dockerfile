@@ -21,7 +21,7 @@ COPY config/supervisord.conf /etc/supervisor/conf.d/
 COPY config/init.sh config/deinit.sh config/ui_build.sh /
 COPY config/ndt_httpd_proxy.conf config/ndt.conf config/ufm_plugin_ndt_httpd.conf config/ndt_ui_conf.json ${BASE_PATH}/
 
-# RUN /ui_build.sh
+RUN /ui_build.sh
 
 RUN echo "wget -q https://content.mellanox.com/ofed/MLNX_OFED-${MOFED_VER}/${MOFED_DIR}.tgz"
 # Install OFED
