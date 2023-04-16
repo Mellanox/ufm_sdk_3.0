@@ -1,0 +1,130 @@
+<sms-plugin-base-component>
+  <div class="card card-default col-xs-12 col-md-7" style="padding:0;">
+    <div class="card-header">
+      Bright Configurations
+    </div>
+    <div class="card-body clearfix" style="padding: 10px;">
+      <ng-container *ngIf="dataIsLoading;else dataTemplate;">
+        <spinner class="spinnerInsteadOfTable"></spinner>
+      </ng-container>
+    </div>
+  </div>
+  <ng-template #dataTemplate>
+    <ng-container *ngIf="configurationsData; else serviceUnavailableData">
+      <div class="row">
+        <div class="col-sm-12">
+          <form [formGroup]="configurationsForm">
+            <div class="row form-group-container">
+              <div class="col-sm-12">
+                <label>Status</label>
+              </div>
+              <div class="col-sm-12 form-group">
+                <div class="btn-group "
+                     btnRadioGroup
+                     (ngModelChange)="onStatusChange()"
+                     [formControlName]="BRIGHT_CONF_SERVER_KEYS.enabled">
+                  <label [btnRadio]="'false'" class="btn btn-primary">Disabled</label>
+                  <label [btnRadio]="'true'" class="btn btn-primary">Enabled</label>
+                </div>
+              </div>
+            </div>
+            <div class="row form-group-container">
+              <div class="col-sm-12">
+                <label>Connection Status</label>
+              </div>
+              <div class="col-sm-12 form-group connection-status-label">
+                <label [ngClass]="status.value[BRIGHT_CONF_SERVER_KEYS.status]">
+                  {{status.value[BRIGHT_CONF_SERVER_KEYS.status]}} <ng-container *ngIf="errorMessage"> ({{errorMessage}})</ng-container>
+                </label>
+              </div>
+            </div>
+            <div class="row form-group-container clearfix">
+              <div class="col-sm-12">
+                <label>Host</label>
+              </div>
+              <div class=" col-sm-12 row form-group">
+                <div class="col-sm-5">
+                  <input class="form-control"
+                         name="destination"
+                         [formControlName]="BRIGHT_CONF_SERVER_KEYS.host"
+                         placeholder="IP/Hostname"></div>
+                <div class="col-sm-1 colon">:</div>
+                <div class="col-sm-2">
+                  <input class="form-control"
+                         name="port"
+                         type="number"
+                         [formControlName]="BRIGHT_CONF_SERVER_KEYS.port"
+                         placeholder="port"></div>
+
+              </div>
+              <div class="col-sm-5"
+                   *ngIf="(host.dirty || host.touched) && !host.disabled && host.errors">
+                <p class="help-block"
+                   *ngIf="host.errors['required']">
+                  Host field is required</p>
+                <p class="help-block"
+                   *ngIf="host.errors['host'] && !host.errors['required']">
+                  {{host.errors['host'].message}}</p>
+              </div>
+              <div class="col-sm-7 pull-right"
+                   *ngIf="(port.dirty || port.touched) && !port.disabled && port.errors">
+                <p class="help-block"
+                   *ngIf="port.errors['required']">
+                  Port field is required</p>
+                <p class="help-block"
+                   *ngIf="port.errors['port'] && !port.errors['required']">
+                  {{port.errors['port'].message}}</p>
+              </div>
+            </div>
+            <div class="row form-group-container">
+              <div class="col-sm-12">
+                <label>Certificate (.pem)</label>
+              </div>
+              <div class="col-sm-5 form-group">
+            <textarea class="form-control"
+                      name="certificate"
+                      [formControlName]="BRIGHT_CONF_SERVER_KEYS.certificate">
+            </textarea>
+              </div>
+            </div>
+            <div class="row form-group-container">
+              <div class="col-sm-12">
+                <label>Certificate Key(.key)</label>
+              </div>
+              <div class="col-sm-5 form-group">
+            <textarea class="form-control"
+                      name="certificate"
+                      [formControlName]="BRIGHT_CONF_SERVER_KEYS.certificateKey">
+            </textarea>
+              </div>
+            </div>
+            <div class="row form-group-container">
+              <div class="col-sm-12">
+                <label>Data Retention Period</label>
+              </div>
+              <div class="col-sm-2 form-group" style="display:flex;">
+                <input class="form-control"
+                       name="certificate"
+                       type="number"
+                       [formControlName]="BRIGHT_CONF_SERVER_KEYS.dataRetentionPeriod">
+                <label style="padding-top: 6px;padding-left: 6px;">Days</label>
+              </div>
+            </div>
+            <div class="pull-right">
+              <button class="btn btn-primary"
+                      [disabled]="configurationsForm.pristine || !configurationsForm.valid || updateInProgress"
+                      (click)="updateConfigurations()"
+                      type="submit">
+                <i *ngIf="updateInProgress" class="fa fa-spinner"></i>
+                Save
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </ng-container>
+    <ng-template #serviceUnavailableData>
+      Service Unavailable
+    </ng-template>
+  </ng-template>
+</sms-plugin-base-component>

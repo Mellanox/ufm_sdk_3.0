@@ -1,0 +1,5 @@
+SNMPv2-CONF DEFINITIONS ::= BEGIN
+
+-- everything is predefined in the mib compiler
+
+END

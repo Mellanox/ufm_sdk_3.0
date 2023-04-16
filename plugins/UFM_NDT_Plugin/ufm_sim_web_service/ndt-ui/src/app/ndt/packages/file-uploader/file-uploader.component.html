@@ -1,0 +1,23 @@
+<ng-container *ngIf="!selectedFile?.isUploading">
+  <div class="file-input-container">
+    <div class="browse-btn">
+      <input type="file" class="form-control qa-auto-file-input"
+             [accept]="options.filesTypes.toString()" ng2FileSelect [uploader]="uploader"/>
+      <button class="btn btn-primary"
+              style="width: 100%; border-top-right-radius:0; border-bottom-right-radius:0;">
+        <i class="fa fa-file"></i> Browse
+      </button>
+    </div>
+    <div class="selected-file-name">
+      <input class="form-control" type="text"
+             [class.success]="selectedFile?.isUploaded && selectedFile?.isSuccess && uploader?.progress == 100"
+             [class.danger]="selectedFile?.isUploaded && !selectedFile?.isSuccess && uploader?.progress == 100"
+             [value]="selectedFile?.file?.name || 'No file chosen'" disabled>
+    </div>
+  </div>
+</ng-container>
+<ng-container *ngIf="selectedFile?.isUploading">
+  <progressbar [value]="uploader?.progress"
+               [type]="selectedFile?.isUploaded && selectedFile?.isSuccess && uploader?.progress == 100 ? 'success' : (uploader?.progress <= 100 && !selectedFile?.isUploaded ? 'info' :'danger')"
+               [striped]="true" [animate]="true"><i> {{uploader?.progress}} %</i></progressbar>
+</ng-container>

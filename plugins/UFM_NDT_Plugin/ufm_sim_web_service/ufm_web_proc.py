@@ -28,7 +28,7 @@ from twisted.web.wsgi import WSGIResource
 from twisted.internet import reactor
 from twisted.web import server
 
-from resources import UFMResource, Compare, Ndts, Reports, ReportId,\
+from resources import UIFilesResources ,UFMResource, Compare, Ndts, Reports, ReportId,\
     Upload, Delete, Cancel, Version, Help, Date, Dummy
 from merger_resources import MergerUploadNDT, MergerVerifyNDT, MergerDummyTest, \
     MergerVerifyNDTReports, MergerVerifyNDTReportId, MergerDeployNDTConfig, \
@@ -55,6 +55,7 @@ class UFMNDTWebServer:
 
     def init_apis(self):
         default_apis = {
+            UIFilesResources: "/files/<path:file_name>",
             Ndts: "/list",
             Reports: "/reports",
             Delete: "/delete",

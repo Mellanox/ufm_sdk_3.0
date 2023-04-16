@@ -10,38 +10,30 @@
 # provided with the software product.
 #
 import argparse
-import plugins.grpc_streamer_plugin.ufm_sim_web_service.grpc_server as server
-import plugins.grpc_streamer_plugin.ufm_sim_web_service.grpc_client as client
 import grpc
-import plugins.grpc_streamer_plugin.ufm_sim_web_service.grpc_plugin_streamer_pb2_grpc as grpc_plugin_streamer_pb2_grpc
-import plugins.grpc_streamer_plugin.ufm_sim_web_service.grpc_plugin_streamer_pb2 as grpc_plugin_streamer_pb2
-from plugins.grpc_streamer_plugin.ufm_sim_web_service.Subscriber import Subscriber
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '../ufm_sim_web_service'))
+import ufm_sim_web_service.grpc_client as client
+import ufm_sim_web_service.grpc_plugin_streamer_pb2_grpc as grpc_plugin_streamer_pb2_grpc
+import ufm_sim_web_service.grpc_plugin_streamer_pb2 as grpc_plugin_streamer_pb2
+from ufm_sim_web_service.Subscriber import Subscriber
 from google.protobuf.empty_pb2 import Empty
-from plugins.grpc_streamer_plugin.ufm_sim_web_service.Config import Constants
+from ufm_sim_web_service.Config import Constants
 
 import sys
 
-DEFAULT_PASSWORD = "123456"
+DEFAULT_PASSWORD = "admin"
 DEFAULT_USERNAME = "admin"
 
 
 class TestPluginStreamer:
     def __init__(self,HOST_IP):
         self.job_id = 'coco'
-        self._server = server.GRPCPluginStreamerServer(HOST_IP)
+        self.host_ip=HOST_IP
         self._client = client.GrpcClient(HOST_IP, Constants.UFM_PLUGIN_PORT, self.job_id)
         self.FAILED_TESTS_COUNT = 0
-        self.start()
-
-    def stop(self):
-        self._server.stop()
-
-    def start(self):
-        self._server.start()
-
-    def cleanup(self):
-        self._server.subscribers.clear()
-        self._server._session.clear()
 
     def assert_equal(self,message, left_expr, right_expr, test_name="positive"):
         if left_expr == right_expr:
@@ -54,48 +46,42 @@ class TestPluginStreamer:
 
 
     def testAddSession(self):
-        self.cleanup()
         result = self._client.add_session(DEFAULT_USERNAME,DEFAULT_PASSWORD)
         self.assert_equal("create session using default logins",result,True)
+        self._client.onceIDApis([('Events'), ("junk")])
 
     def testAddUser(self):
-        self.cleanup()
         self._client.add_session(DEFAULT_USERNAME,DEFAULT_PASSWORD)
         result = self._client.added_job([('Events')])
         self.assert_equal("create destination(client) after session",result,True)
-        self.assert_equal("server contains only one user", len(self._server.subscribers), 1)
         try:
-            channel = grpc.insecure_channel(f'localhost:{Constants.UFM_PLUGIN_PORT}')
+            channel = grpc.insecure_channel(f'{self.host_ip}:{Constants.UFM_PLUGIN_PORT}')
             stub = grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamerServiceStub(channel)
             result = stub.ListSubscribers(Empty())
-            self.assert_equal("Rececive a list of clients ",isinstance(result,grpc_plugin_streamer_pb2.ListSubscriberParams),True)
-            self.assert_equal("The amount of clients in the server is 1",len(result.destinations),1)
+            self.assert_equal("Rececive a list of clients ",result.__class__.__name__,"ListSubscriberParams")
+            self.assert_equal("The amount of clients in the server is 1",len(result.subscribers),1)
         except grpc.RpcError as e:
             self.assert_equal("Error accorded",e,None)
 
     def testGetOnce(self):
-        self.cleanup()
         result = self._client.add_session(DEFAULT_USERNAME, DEFAULT_PASSWORD)
         self.assert_equal("create session using default logins", result, True)
         result = self._client.onceApis([('Events'), ("Alarms")],(DEFAULT_USERNAME, DEFAULT_PASSWORD))
         self.assert_equal("Receive data in get once rest api",result is not None,True)
 
     def testAddWithoutSession(self):
-        self.cleanup()
-        dest = Subscriber(self.job_id, [('Events'), ("Alarms")], None, None)
+        dest = Subscriber(self.job_id+"c", [('Events'), ("Alarms")], None, None)
         try:
-            channel = grpc.insecure_channel(f'localhost:{Constants.UFM_PLUGIN_PORT}')
+            channel = grpc.insecure_channel(f'{self.host_ip}:{Constants.UFM_PLUGIN_PORT}')
             stub = grpc_plugin_streamer_pb2_grpc.GeneralGRPCStreamerServiceStub(channel)
             result = stub.AddSubscriber(dest.to_message())
             channel.close()
-            self.assert_equal("Receive respond from add destination",isinstance(result,grpc_plugin_streamer_pb2.SessionRespond),True)
+            self.assert_equal("Receive respond from add destination",result.__class__.__name__,"SessionRespond")
             self.assert_equal("The message we receive is the same as we plan ",result.respond , Constants.LOG_CANNOT_SUBSCRIBER + Constants.LOG_CANNOT_NO_SESSION)
-            self.assert_equal("there are no new destinations ",len(self._server.subscribers),0)
         except grpc.RpcError as e:
             self.assert_equal("RpcError accorded",e,None)
 
     def testEmptyDestination(self):
-        self.cleanup()
         try:
             self._client.onceApis(['junk'], (DEFAULT_USERNAME, DEFAULT_PASSWORD))
         except Exception as e:
@@ -103,6 +89,10 @@ class TestPluginStreamer:
 
     def testAllTaskAreRestCalls(self):
         result = self._client.onceApis([('Events'), ("junk")],(DEFAULT_USERNAME, DEFAULT_PASSWORD))
+        if result is None:
+            self.FAILED_TESTS_COUNT += 1
+            print("    - test name: result from onceAPI is a message  -- FAIL (expected: runOnceRespond message, actual: None)")
+            return 1
         all_good=0
         for message in result.results:
             all_good+=1 if (message.ufm_api_name == 'Events') else 0

@@ -1,0 +1,123 @@
+<div class="datepicker-dropdown padding-left-5px">
+    <div class="btn-group dropdown" dropdown
+         #timeDropdown="bs-dropdown">
+        <div dropdownToggle class="psuedo_select ">
+            <span class="selected">{{selectedTimeLabel}}</span>
+                    <span class="dropdown-icon">
+                        <svg fill="var(--text-color)" height="18" viewBox="0 0 24 24"
+                             width="18"
+                             xmlns="http://www.w3.org/2000/svg">
+                            <path d="M7.41 7.84L12 12.42l4.59-4.58L18 9.25l-6 6-6-6z"></path>
+                            <path d="M0-.75h24v24H0z"
+                                  fill="none"></path>
+                        </svg>
+                    </span>
+        </div>
+        <div *dropdownMenu class="dropdown-menu min-width-420"
+             [class.dropdown-menu-right]="rightAlign"
+             role="menu" (click)="$event.stopPropagation()">
+            <div>
+                <div class="time-ranges-container time-option">
+                    <div class="radio-button-container">
+      <span>
+        <sms-radio-button [isSelected]="timeSelectionType==0"
+                          (onChange)="timeSelectionType=0"
+        ></sms-radio-button>
+      </span><span class="radio-btn-label">Time Range</span>
+                    </div>
+                    <div class="time-ranges" *ngIf="timeSelectionType==0">
+                        <div class="time-ranges-buttons" [(ngModel)]="selectedTimeRange" btnRadioGroup>
+                            <ng-container *ngFor="let range of timeRanges">
+                    <span class="range-button" tabindex="0" role="button"
+                          [btnRadio]="range.value">{{range.label}}</span>
+                            </ng-container>
+                        </div>
+                    </div>
+                </div>
+                <div class="custom-time-picker-container time-option">
+                    <div class="radio-button-container">
+      <span>
+        <sms-radio-button [isSelected]="timeSelectionType==1"
+                          (onChange)="timeSelectionType=1;dp.show()"
+        ></sms-radio-button>
+      </span><span class="radio-btn-label">Custom</span>
+                    </div>
+                    <div class="custom-time-picker" [class.hidden]="timeSelectionType!=1">
+                        <div class="date-time-texts">
+                            <div class="date-time">
+                                <label class="date-time-label">
+                                    From
+                                </label>
+                                <div>
+                                    <input type="text"
+                                           class="date-time-text"
+                                           [(ngModel)]="fromTime"
+                                           [readonly]="true">
+                                    <i class="fa fa-calendar calendar-icon"></i>
+                                </div>
+                            </div>
+                            <span class="dash">-</span>
+                            <div class="date-time">
+                                <label class="date-time-label">
+                                    To
+                                </label>
+                                <div>
+                                    <input type="text"
+                                           class="date-time-text"
+                                           [(ngModel)]="toTime"
+                                           [readonly]="true">
+                                    <i style="left: 92%" class="fa fa-calendar calendar-icon"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <input class="form-control" type="text"
+                                   style="visibility : hidden;"
+                                   placeholder="Daterangepicker"
+                                   [outsideClick]="false" container=""
+                                   (bsValueChange)="changeDateInterval(dp)"
+                                   triggers="" [(ngModel)]="selectedCustomTimeRange"
+                                   #dp="bsDaterangepicker"
+                                   bsDaterangepicker
+                                   [bsConfig]="bsConfig">
+                        </div>
+                        <div class="time-container">
+                            <label class="date-time-label">
+                                Time
+                            </label>
+                            <div class="datepicker-dropdown">
+                                <div class="btn-group dropdown" dropdown #timeHourDropdown="bs-dropdown">
+                                    <div dropdownToggle class="psuedo_select">
+                                        <span class="selected">{{selectedHour}}</span>
+              <span class="dropdown-icon">
+                <svg fill="#000" height="18" viewBox="0 0 24 24" width="18" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M7.41 7.84L12 12.42l4.59-4.58L18 9.25l-6 6-6-6z"></path>
+                    <path d="M0-.75h24v24H0z" fill="none"></path>
+                </svg>
+              </span>
+                                    </div>
+                                    <ul *dropdownMenu class="dropdown-menu" role="menu">
+                                        <ng-container *ngFor="let hour of hoursList">
+                                            <li role="menuitem">
+                                                <a class="dropdown-item" (click)="timeHourDropdown.hide();updateSelectedHour(hour)">{{hour}}</a>
+                                            </li>
+                                        </ng-container>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="time-dropdown-buttons centered-buttons-container">
+                    <div class="buttons-wrapper">
+                        <div class="filter-modal-cancel-btn" (click)="timeDropdown.hide()">Cancel</div>
+                        <div class="filter-modal-add-btn"
+                             [class.disabled]="selectedCustomTimeRange[0].getTime()==selectedCustomTimeRange[1].getTime()"
+                             (click)="updateTimeSelection();timeDropdown.hide();">Save
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -46,6 +46,18 @@ class Utils:
         return data
 
     @staticmethod
+    def write_text_to_file(path, text):
+        try:
+            if not os.path.exists(os.path.dirname(path)):
+                os.makedirs(os.path.dirname(path))
+            f = open(path, "w")
+            f.write(text)
+            f.close()
+            Logger.log_message(f'Finished writing to text file {path}', LOG_LEVELS.DEBUG)
+        except Exception as e:
+            logging.error(e)
+
+    @staticmethod
     def get_timebased_filename():
         dateTimeObj = datetime.now()
         file_name = f'{dateTimeObj.year}_{dateTimeObj.month}_{dateTimeObj.day}_' \
@@ -70,7 +82,6 @@ class Utils:
         current_abs_path = os.path.abspath(os.path.join(dirname, os.pardir))
         return os.path.join(current_abs_path, path)
 
-
     @staticmethod
     def get_plugin_port(port_conf_file, default_port_value):
         port = default_port_value
@@ -80,7 +91,16 @@ class Utils:
                 data = f.read()
             match = port_regex.search(data)
             if match:
-                port = match.group('web_port')
+                port = int(match.group('web_port'))
         except:
             pass
         return port
+
+    @staticmethod
+    def convert_str_to_type(value, new_type):
+        if isinstance(value, str):
+            if new_type == "integer":
+                value = int(value)
+            elif new_type == "boolean":
+                value = value.lower() == 'true'
+        return value

@@ -1,0 +1,47 @@
+<ng-container *ngIf="validationReportID">
+  <div class="card card-default">
+    <div class="card-header">
+      <ng-container *ngIf="report">
+        {{report?.NDT_file}} Validation Report - {{report?.timestamp}}
+      </ng-container>
+    </div>
+    <div class="card-body">
+      <ng-container *ngIf="pollingTimer; else reportBody">
+        <i class="center fa fa-spinner"></i>
+      </ng-container>
+    </div>
+  </div>
+
+  <ng-template #reportBody>
+    <ng-container
+      *ngIf="report"
+      [ngSwitch]="reportOutputType">
+      <ng-template *ngSwitchCase="'string'"
+                   [ngTemplateOutlet]="textReportOutput">
+      </ng-template>
+      <ng-template *ngSwitchCase="'object'"
+                   [ngTemplateOutlet]="tableReportOutput">
+      </ng-template>
+    </ng-container>
+  </ng-template>
+</ng-container>
+
+<ng-template #leftControlTemplate>
+  <div class="job-status">
+    <strong>Status: </strong>
+    <span [ngClass]="reportStatusClass">{{ report.status }}</span>
+  </div>
+</ng-template>
+
+<ng-template #textReportOutput>
+  <ng-template [ngTemplateOutlet]="leftControlTemplate"></ng-template>
+  <div class="job-output">
+    <strong>Output: </strong>
+    <div data-qa="job-output" [innerHTML]="report.report"></div>
+  </div>
+</ng-template>
+
+<ng-template #tableReportOutput>
+  <app-x-core-ag-grid [options]="reportTableOptions"
+                      [rowData]="report.report"></app-x-core-ag-grid>
+</ng-template>

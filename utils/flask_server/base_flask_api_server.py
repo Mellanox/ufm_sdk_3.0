@@ -12,11 +12,17 @@
 # @date:   Sep 19, 2022
 #
 
-from flask import Flask
+from flask import Flask, request
 from flask_restful import Api
 from http import HTTPStatus
 from functools import partial
 from utils.json_schema_validator import ValidationError, SchemaValidationError
+
+
+class InvalidRequestError(Exception):
+
+    def __init__(self, message):
+        Exception.__init__(self, message)
 
 
 class BaseAPIApplication:
@@ -30,6 +36,8 @@ class BaseAPIApplication:
 
     def _get_default_error_handlers(self):
         return [
+            (InvalidRequestError,
+             lambda e: (str(e), HTTPStatus.BAD_REQUEST)),
             (ValidationError,
              lambda e: (str(e), HTTPStatus.BAD_REQUEST)),
             (SchemaValidationError,
@@ -83,3 +91,26 @@ class BaseAPIApplication:
             self.app.config.setdefault(
                 'auth_level', {})[
                 endpoint.__func__.__name__] = auth_level
+
+    def _get_request_arg(self, arg_name, def_val=None):
+        """
+        Returns the value of a Request Argument, if validated ok.
+        :param arg_name:
+        :param def_val:
+        :param arg_type:
+        :return:
+        """
+        req_arg = request.args.get(arg_name, def_val)
+        if req_arg:
+            self.validate_ascii(req_arg)
+        return req_arg
+
+    @staticmethod
+    def validate_ascii(s):
+        if isinstance(s, str):
+            try:
+                s.encode('ascii')
+            except Exception:  # UnicodeEncodeError
+                raise InvalidRequestError(
+                    "Bad character encoding detected on request")
+            return s

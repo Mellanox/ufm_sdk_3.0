@@ -1,0 +1,39 @@
+.active {
+  font-size: 18px;
+  vertical-align: middle;
+
+  & {
+    color: var(--controller-background-color);
+
+    &:after {
+      content: "\f058";
+    }
+  }
+}
+
+.actions-btn-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+
+  .fa {
+    padding: 0 6px;
+    font-size: 16px;
+  }
+
+  .fa:hover {
+    cursor: pointer;
+    opacity: 0.4;
+  }
+
+  i {
+    color: var(--controller-background-color);
+  }
+}
+
+button.btn-primary {
+  height: 28px;
+  padding: 0 12px;
+  margin: 0 4px;
+}

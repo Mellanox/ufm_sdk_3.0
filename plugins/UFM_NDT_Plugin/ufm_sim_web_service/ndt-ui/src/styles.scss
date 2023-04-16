@@ -1,0 +1,216 @@
+/* You can add global styles to this file, and also import other style files */
+
+//default global variables
+$nav-bar-collapse-width: 15%;
+
+/* You can add global styles to this file, and also import other style files */
+@import "../sms-ui-suite/themes/sb-admin/sass/app.scss";
+@import "~ag-grid-community/dist/styles/ag-grid.css";
+@import "~ag-grid-community/dist/styles/ag-theme-balham.css";
+@import "~ag-grid-community/dist/styles/ag-theme-balham-dark.css";
+
+body {
+  --main-color: rgb(33, 33, 33);
+  --text-color: rgb(33, 33, 33);
+  --controller-text-color: rgb(255, 255, 255);
+  --controller-background-color: rgb(118, 185, 0);
+  --main-color-number: 33, 33, 33;
+  --text-color-number: 33, 33, 33;
+  --controller-background-color-number: 118, 185, 0;
+  --light-main-color: #49478B;
+  --bright-light-main-color: #ACABCA;
+  --warning-color: #F0AD4E;
+  --nav-bar-background-color: var(--main-color);
+  --card-header-color: #f5f5f5;
+  --card-header-border-color: #ddd;
+  --secondary-color: #f5f5f5;
+  --spinner-popup-background-color: #fff;
+  --scrollbar-color: #c1c1c1;
+  --bs-dropdown-menu-item-hover-color: var(--main-color);
+  --bs-dropdown-predifined-item-color: #f5f5f5;
+  --horizontal-bar-background-color: #F4F4F4;
+  --font-weight-bold: bold;
+  --network-map-node-text-color: var(--main-color);
+  --network-map-link-color: #000;
+}
+
+.btn-primary, .btn-primary.active, .nav-pills > li.active > a, .nav-pills > li.active > a:focus, .nav-pills > li.active > a:hover {
+  background: var(--controller-background-color) !important;
+  border-color: var(--controller-background-color) !important;
+}
+
+a {
+  color: var(--controller-background-color) !important;
+  -webkit-user-select: none !important;
+}
+
+.btn-primary:disabled:hover {
+  opacity: 0.9 !important;
+}
+
+.btn-primary:disabled, .btn-primary:focus,
+.btn-primary:hover {
+  background-color: var(--controller-background-color) !important;
+  color: var(--controller-text-color) !important;
+  border-color: var(--controller-background-color) !important;
+  opacity: 0.8;
+  outline: 0px auto #FFF !important;
+
+}
+
+.btn-primary:disabled, .btn-primary:disabled:focus, .btn-primary:disabled:hover, .btn-primary.disabled {
+  color: #333 !important;
+  background-color: #fff !important;
+  border-color: #ccc !important;
+  opacity: 0.5 !important;
+  pointer-events: none;
+}
+
+
+.btn-primary.active, .btn-primary:active, .open > .dropdown-toggle.btn-primary {
+  background-color: var(--controller-background-color) !important;
+  border-color: var(--controller-background-color) !important;
+}
+
+.centralized-spinner {
+  left: calc(50% - 45px);
+  top: calc(50% - 50px);
+  position: absolute;
+}
+
+
+#navigation-bar .nav > li > a.active,
+#navigation-bar .nav > li > a:hover {
+  background-color: #ffffff !important;
+  color: var(--main-color) !important;
+  outline: none;
+}
+
+
+//-------
+
+
+.talkbubble.enabled {
+  background: rgba(var(--main-color-number), 0.3);
+}
+
+.talkbubble.active {
+  background: rgba(var(--main-color-number), 0.8);
+  color: #fff !important;
+}
+
+.talkbubble.success {
+  background: var(--main-color);
+  color: #fff !important;
+}
+
+.talkbubble.disabled {
+  //background: rgba(#221f72, 0.1);
+  color: #6e6e6e;
+}
+
+.talkbubble.active:after {
+  border-left: 15px solid rgba(var(--main-color-number), 0.72);
+}
+
+.talkbubble.success:after {
+  border-left: 15px solid var(--main-color);
+}
+
+//----
+
+.tab-set .nav {
+  background-color: rgba(var(--main-color-number), 0.1) !important;
+  padding-right: 2.9px;
+  margin-right: 15px;
+  display: flex;
+  justify-content: space-between;
+
+  li {
+    float: none !important;
+    width: 100%;
+  }
+
+  .nav-link {
+    padding: 1px 15px !important;
+  }
+
+  li.disabled {
+    a span .talkbubble.disabled:before {
+      content: "";
+      position: absolute;
+      left: 0%;
+      width: 0;
+      height: 0;
+      top: 0px;
+      border-top: 23px solid transparent;
+      border-bottom: 22px solid transparent;
+      border-left: 15px solid rgba(var(--main-color-number), 0.3);
+    }
+
+  }
+
+  li.disabled + li:not(.disabled) {
+    a span .talkbubble.enabled {
+      padding-left: 11px !important;
+      margin-left: 0px;
+    }
+
+    a span .talkbubble.enabled:before {
+      content: "";
+      position: absolute;
+      left: -11%;
+      width: 0;
+      height: 0;
+      top: -0.29px;
+      border-left: 15px solid transparent;
+      border-top: 23px solid rgba(var(--main-color-number), 0.3);
+      border-bottom: 22px solid rgba(var(--main-color-number), 0.3);
+    }
+
+  }
+
+  li.disabled ~ li.disabled {
+    a span .talkbubble.disabled:before {
+      border-top: none;
+      border-bottom: none;
+      border-left: none;
+    }
+  }
+
+  li:last-child {
+    a span .talkbubble:after {
+      content: "";
+      position: absolute;
+      left: 100%;
+      width: 0;
+      height: 0;
+      top: 0px;
+      border-top: 23px solid transparent;
+      border-bottom: 22px solid transparent;
+      border-left: 15px solid rgba(var(--main-color-number), 0.1);
+      z-index: 1;
+    }
+
+    a span .talkbubble.enabled:after {
+      border-left: 15px solid rgba(var(--main-color-number), 0.38);
+    }
+
+    a span .talkbubble.active:after {
+      border-left: 15px solid rgba(var(--main-color-number), 0.83);
+    }
+  }
+}
+
+.vertical-fields-alignment {
+  margin: 0px 15px;
+  height: 80px;
+
+  .form-control, select {
+    width: 230px;
+  }
+
+  .use-custom-width {
+    width: unset;
+  }
+}

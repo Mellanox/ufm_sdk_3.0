@@ -18,7 +18,7 @@ import configparser
 import json
 import os
 from flask_restful import Resource
-from flask import request
+from flask import request, send_from_directory
 from datetime import datetime, timedelta
 from topo_diff.topo_diff import compare_topologies
 import logging
@@ -203,6 +203,15 @@ def get_hash(file_content):
     return sha1.hexdigest()
 
 
+class UIFilesResources(Resource):
+
+    def __init__(self):
+        self.files_path = "/opt/ufm/ufm_plugin_ndt/ufm_sim_web_service/media"
+
+    def get(self, file_name):
+        return send_from_directory(self.files_path, file_name)
+
+
 class Upload(UFMResource):
     def __init__(self):
         super().__init__()
@@ -290,7 +299,7 @@ class Upload(UFMResource):
             info_msg = "POST /plugin/ndt/upload"
         logging.info(info_msg)
         error_status_code, error_response = self.success, []
-        if not request.json:
+        if not request.data or not request.json:
             return self.report_error(400, "Upload request is empty")
         else:
             json_data = request.get_json(force=True)
@@ -380,7 +389,7 @@ class Delete(UFMResource):
 
     def post(self):
         logging.info("POST /plugin/ndt/delete")
-        if not request.json:
+        if not request.data or not request.json:
             return self.report_error(400, "Upload request is empty")
         else:
             error_status_code, error_response = self.success, []
@@ -554,7 +563,10 @@ class Compare(UFMResource):
 
     def post(self):
         logging.info("POST /plugin/ndt/compare")
-        if request.json:
+        if not request.data or not request.json:
+            logging.info("Running instant topology comparison")
+            return self.compare("Instant")
+        else:
             if len(self.scheduler.get_jobs()):
                 return self.report_error(400, "Periodic comparison is already running")
             json_data = request.get_json(force=True)
@@ -564,9 +576,6 @@ class Compare(UFMResource):
             if status_code != self.success:
                 return response, status_code
             return self.add_scheduler_jobs()
-        else:
-            logging.info("Running instant topology comparison")
-            return self.compare("Instant")
 
 
 class Cancel(UFMResource):

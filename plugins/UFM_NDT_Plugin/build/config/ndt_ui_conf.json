@@ -1,0 +1,14 @@
+[
+  {
+    "mfEntry": "ndt/files/remoteEntry.js",
+    "name": "ndt-ui",
+    "exposedModule": "NdtModule",
+    "ngModuleName": "NdtModule",
+    "hookInfo": {
+      "type": "dynamicLeftMenuItems",
+      "route": "ndt",
+      "menuItemsGetterServiceName": "NdtViewService",
+      "menuItemsGetterFnName": "getSideMenuItemsForUFM"
+    }
+  }
+]

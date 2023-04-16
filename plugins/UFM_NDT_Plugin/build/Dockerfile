@@ -16,9 +16,11 @@ RUN python3 -m pip install flask flask_restful requests pandas twisted apschedul
 
 COPY ufm_sim_web_service/ ${BASE_PATH}/ufm_sim_web_service/
 
+RUN config/ui_build.sh
+
 COPY config/supervisord.conf /etc/supervisor/conf.d/
 COPY config/init.sh config/deinit.sh /
-COPY config/ndt_httpd_proxy.conf config/ndt.conf config/ufm_plugin_ndt_httpd.conf ${BASE_PATH}/
+COPY config/ndt_httpd_proxy.conf config/ndt.conf config/ufm_plugin_ndt_httpd.conf config/ndt_ui_conf.json ${BASE_PATH}/
 
 RUN echo "wget -q https://content.mellanox.com/ofed/MLNX_OFED-${MOFED_VER}/${MOFED_DIR}.tgz"
 # Install OFED

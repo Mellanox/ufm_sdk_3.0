@@ -18,11 +18,11 @@ Functions commonly added by optional UFM plugins include:
 
 * Security, AAA 
 * lifecycle management for 
-* Deployment 
-* Configuration 
-* Health monitoring 
-* State persistency 
-* HA 
+    * Deployment 
+    * Configuration 
+    * Health monitoring 
+    * State persistency 
+    * HA 
 * Presentation (UI) 
 * Allows UFM capabilities extension by 3rd parties 
 
@@ -110,12 +110,28 @@ The plugin may contain separated UI (Angular) application that contains new pane
 In case of deploying the UI as part of UFM Web GUI, you need to define _**{plugin name}_ui_conf.json**_, which defines the views/components that are being to be added to the UFM and where they should be added (under which section or menu or tab). Please make sure to copy this file to _**/config**_ at the plugin's deployment stage.
 
 Currently, the UFM supports extending the following areas:
-1. Adding new items to the main UFM left navigation menu.
-2. Adding new items to the context menu of the selected devices
-3. Adding new tabs under the Settings view.
-4. Adding new tabs under the selected device's information view.
-5. Hooking the devices data table
-6. Replacing any exsiting view under the UFM GUI with new plugin's view.
+1. Adding new items to the main UFM left navigation menu [a.k.a 'leftMenu' or 'dynamicLeftMenuItems'].
+2. Adding new items to the context menu of the selected devices [a.k.a 'deviceContextMenu'].
+3. Adding new tabs under the Settings view [a.k.a 'settingsDetailsTabs'].
+4. Adding new tabs under the selected device's information view [a.k.a 'deviceDetailsTabs'].
+5. Hooking the devices data table [a.k.a 'devicesDataTable'].
+6. Replacing any existing view under the UFM GUI with new plugin's view [a.k.a 'existingRoute'].
+
+### UI Configuration Parameters Details:
+
+|      Parameter       | Required |                                                                                                      Description                                                                                                      |
+|:--------------------:|:--------:|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
+|       mfEntry        |   True   |                                                               URL for the remoteEntry.js path that will be generated after compiling the UI application                                                               |
+|         name         |   True   |                                                                                         Name of the plugin's  UI application                                                                                          |
+|    exposedModule     |   True   |                                                                               Name of the exposed module in the webpack configurations                                                                                |
+|     ngModuleName     |   True   |                                                                                    Class Name of the exposed module in typescript                                                                                     |
+|    hookInfo.type     |   True   | The Type of the added module/view, it should be one of the following types:['leftMenu', 'dynamicLeftMenuItems', 'devicesDataTable', 'deviceDetailsTabs' ,'settingsDetailsTabs' ,'deviceContextMenu', 'existingRoute'] |
+|    hookInfo.route    |   True   |                          The name of the new/existing UFM route that the added module/view should be added to (in case of type 'existingRoute', this attribute could be a string or a regex)                          |
+|    hookInfo.label    |   True   |                                                                                       The displayed name of the added menu/tab                                                                                        |
+|     hookInfo.key     |   True   |                                                                                         The unique key of the added menu/tab                                                                                          |
+| hookInfo.pluginRoute |  False   |                                                             The plugin's route that the UFM should navigate to it after loading the plugin's module/view                                                              |
+|    hookInfo.order    |  False   |                                                                                       The order of the added menu's item / tab                                                                                        |
+|    hookInfo.icon     |  False   |                                                                                            Fontawsome class to menu icons                                                                                             |
 
 You can find [this sample json](./conf/advanced_hello_world_ui_conf.json) that contains all the supported flows
 

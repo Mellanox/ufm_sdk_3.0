@@ -1,0 +1,21 @@
+{
+    "0": "No_FEC",
+    "1": "Firecode_FEC",
+    "2": "STD_RS-FEC_RS_528_514",
+    "3": "STD_LL_RS-FEC_RS_271_257",
+    "6": "Interleaved_STD_RS-FEC_RS_544_514",
+    "7": "STD_RS-FEC_RS_544_514",
+    "8": "Zero_Latency_FEC",
+    "9": "ETH_Consortium_LL_50G_RS_FEC_272_257+1",
+    "10": "Interleaved_ETH_Consortium_LL_50G_RS_FEC_272_257+1",
+    "11": "Interleaved_STD_RS_FEC_PLR_544_514",
+    "12": "RS-FEC_544_514_PLR",
+    "13": "LL-FEC_271_257_PLR",
+    "14": "ETH_Consortium_LL_50G_RS_FEC_PLR_272_257+1",
+    "15": "Interleaved_ETH_Consortium_LL_50G_RS_FEC_PLR_272_257+1",
+    "16": "MLNX_Strong_RS-FEC_RS_277_257",
+    "17": "MLNX_LL_RS-FEC_RS_163_155",
+    "18": "MLNX_Adaptive_RS-FEC",
+    "19": "Correct_on_Demand",
+    "255": "N/A"
+}

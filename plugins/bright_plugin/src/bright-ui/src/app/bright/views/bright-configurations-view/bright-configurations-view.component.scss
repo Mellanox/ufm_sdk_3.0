@@ -1,0 +1,20 @@
+.connection-status-label {
+  label.Healthy {
+    color: var(--controller-background-color);
+  }
+  label.Unhealthy, label.Disabled {
+    color: red;
+  }
+}
+
+.form-group-container {
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.colon {
+  width: 1%;
+  padding: 0;
+  font-weight: 700;
+  font-size: 21px;
+}

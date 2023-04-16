@@ -16,6 +16,9 @@
 import configparser
 import os
 import json
+
+from jsonschema.exceptions import ValidationError
+
 from utils.args_parser import ArgsParser
 from utils.ufm_rest_client import UfmProtocols, ApiErrorMessages
 from utils.exception_handler import  ExceptionHandler
@@ -197,12 +200,12 @@ class ConfigParser(object):
             schema = json.load(json_data)
             properties = schema.get('properties', None)
             if properties is None:
-                raise Exception("Failed to get the configurations schema properties")
+                raise ValidationError("Failed to get the configurations schema properties")
             conf_dict = {}
             for section in self.get_conf_sections():
                 section_properties = properties.get(section, None)
                 if section_properties is None:
-                    raise Exception("Failed to get the configurations schema for the section: " + section)
+                    raise ValidationError("Failed to get the configurations schema for the section: " + section)
                 section_properties = section_properties.get('properties', None)
                 section_items = self.get_section_items(section)
                 if section_properties:
@@ -211,7 +214,7 @@ class ConfigParser(object):
                         item_type = section_properties.get(item[0], None)
                         item_value = item[1]
                         if item_type is None:
-                            raise Exception(f"Failed to get the configurations schema for the item {item[0]} "
+                            raise ValidationError(f"Failed to get the configurations schema for the item {item[0]} "
                                             f"under the section: {section}")
                         item_type = item_type.get('type', None)
                         if isinstance(item_value, str):
