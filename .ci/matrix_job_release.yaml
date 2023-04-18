@@ -23,6 +23,7 @@ steps:
       printenv
       pwd
       ls
+      whoami
       mkdir -p /auto/mswg/release/ufm/ufm_sdk_3.0/${Plugin_name}
       cd plugins/${Plugin_name}/build
       bash -x ./docker_build.sh ${PLUGIN_VERSION} /auto/mswg/release/ufm/ufm_sdk_3.0/${Plugin_name}
