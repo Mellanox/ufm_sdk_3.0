@@ -25,6 +25,7 @@ echo " "
 if [ -z "${OUT_DIR}" ]; then
     OUT_DIR="."
 fi
+
 if [ -z "${IMAGE_VERSION}" ]; then
     IMAGE_VERSION="latest"
 fi
@@ -41,8 +42,8 @@ function build_docker_image()
     build_dir=$1
     image_name=$2
     image_version=$3
-    random_hash=$4
-    out_dir=$5
+    out_dir=$4
+    random_hash=$5
     keep_image=$6
     prefix="mellanox"
 
@@ -106,7 +107,7 @@ cp -r ../mibs ${BUILD_DIR}
 
 echo "BUILD_DIR    : [${BUILD_DIR}]"
 
-build_docker_image $BUILD_DIR $IMAGE_NAME $IMAGE_VERSION ${RANDOM_HASH} $OUT_DIR
+build_docker_image $BUILD_DIR $IMAGE_NAME $IMAGE_VERSION $OUT_DIR $RANDOM_HASH
 exit_code=$?
 rm -rf ${BUILD_DIR}
 popd
