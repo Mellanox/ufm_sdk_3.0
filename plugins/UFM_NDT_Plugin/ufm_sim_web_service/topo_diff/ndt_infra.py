@@ -59,6 +59,9 @@ BOUNDARY_PORTS_STATES = [BOUNDARY_PORT_STATE_NO_DISCOVER,
 TOPOCONFIG_FIELD_NAMES = ["port_guid", "port_num", "peer_port_guid", "peer_port_num", "host_type", "port_state"]
 NDT_FILE_STATE_NEW = "New"
 NDT_FILE_STATE_VERIFIED = "Verified"
+NDT_FILE_CAPABILITY_VERIFY = "Verify"
+NDT_FILE_CAPABILITY_VERIFY_DEPLOY_UPDATE = "Verify,Deploy,Update"
+NDT_FILE_CAPABILITY_DEPLOY_UPDATE = "Deploy,Update"
 NDT_FILE_STATE_DEPLOYED = "Deployed"
 NDT_FILE_STATE_UPDATED = "Updated"
 NDT_FILE_STATE_UPDATED_DISABLED = "Updated, Boundary ports disabled"
@@ -222,7 +225,8 @@ def check_duplicated_guids():
     status , cmd_output = execute_generic_command(CHECK_DUPLICATED_GUIDS_COMMAND)
     return status, cmd_output
 
-def check_boundary_port_state(sleep_interval=5, number_of_attempts=5,expected_state=None):
+def check_boundary_port_state(sleep_interval=5, number_of_attempts=5,
+                              ndt_file=None, expected_state=None):
     '''
     Check boundary ports state - if they according to topoconfig definition
     :param expected_state: state that we are expecting ports should be after topoconfig deploy
@@ -232,18 +236,19 @@ def check_boundary_port_state(sleep_interval=5, number_of_attempts=5,expected_st
     # for boundary ports get their state
     # compare with expected
     # return true or false - depends on verification status
-    if not check_file_exist(MERGER_OPEN_SM_CONFIG_FILE):
-        error_message = "Topoconfig file {} not found".format(MERGER_OPEN_SM_CONFIG_FILE)
+    topoconfig_file = MERGER_OPEN_SM_CONFIG_FILE if not ndt_file else get_topoconfig_file_name(ndt_file)
+    if not check_file_exist(topoconfig_file):
+        error_message = "Topoconfig file {} not found".format(topoconfig_file)
         logging.error(error_message)
         return False
     boundary_ports_info = dict()
-    with open(MERGER_OPEN_SM_CONFIG_FILE, 'r', encoding="utf-8") as topoconf_csv_file:
+    with open(topoconfig_file, 'r', encoding="utf-8") as topoconf_csv_file:
         dictreader = csv.DictReader(topoconf_csv_file,
                                     fieldnames=TOPOCONFIG_FIELD_NAMES)
         try:
             _ = iter(dictreader)
         except TypeError as te:
-            error_message = "{} is empty or cannot be parsed: {}".format(MERGER_OPEN_SM_CONFIG_FILE, te)
+            error_message = "{} is empty or cannot be parsed: {}".format(topoconfig_file, te)
             logging.error(error_message)
             return False
         for index, row in enumerate(dictreader):
@@ -258,7 +263,7 @@ def check_boundary_port_state(sleep_interval=5, number_of_attempts=5,expected_st
                     boundary_port_entry = "%s___%s" % (port_guid, row["port_num"])
                     boundary_ports_info[boundary_port_entry] = row["port_state"]
             except Exception as e:
-                error_message = "{}: failed to read boundary ports info: {}".format(MERGER_OPEN_SM_CONFIG_FILE, te)
+                error_message = "{}: failed to read boundary ports info: {}".format(topoconfig_file, te)
                 logging.error(error_message)
                 return False
         if boundary_ports_info:
@@ -267,8 +272,8 @@ def check_boundary_port_state(sleep_interval=5, number_of_attempts=5,expected_st
                 # run ibdiagnet and get state for boundary ports
                 if run_ibdiagnet_verification_command():
                     # check for ibdiagnet2.db_csv file
-                    if not check_file_exist(IBDIAGNET_OUT_DB_CSV_FILE_PATH):
-                        error_message = "Get boundary port state failure: ile {} not exists".format(IBDIAGNET_OUT_DB_CSV_FILE_PATH)
+                    if not check_file_exist(topoconfig_file):
+                        error_message = "Get boundary port state failure: ile {} not exists".format(topoconfig_file)
                         logging.error(error_message)
                         return False
                     # in loop pol for boundary ports state
@@ -288,7 +293,7 @@ def check_boundary_port_state(sleep_interval=5, number_of_attempts=5,expected_st
                 logging.error(error_message)
                 return False
         else:
-            error_message = "{}: No boundary ports info found".format(MERGER_OPEN_SM_CONFIG_FILE)
+            error_message = "{}: No boundary ports info found".format(topoconfig_file)
             logging.error(error_message)
             return False
 
@@ -359,6 +364,14 @@ def create_raw_topoconfig_file(ndt_file_path, boundary_port_state, patterns):
         logging.error(error_message)
         return False, error_message
 
+def get_topoconfig_file_name(ndt_file=None):
+    '''
+    Return combination of default topoconfig file name with ndt file name
+    :param ndt_file_name:
+    '''
+    ndt_file_path = "%s_%s" % (MERGER_OPEN_SM_CONFIG_FILE, os.path.basename(ndt_file))
+    return ndt_file_path
+
 def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
                                                     boundary_port_state=None,
                                                     output_file_name=None):
@@ -389,7 +402,7 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
         logging.error(error_message)
         ndt_file.close()
         return False
-    output_file = MERGER_OPEN_SM_CONFIG_FILE if not output_file_name else output_file_name
+    output_file = get_topoconfig_file_name(ndt_file_path) if not output_file_name else output_file_name
     with open(output_file, 'w') as topoconfig_file:
         for index, row in enumerate(dictreader):
             logging.debug("Parsing NDT link: {}".format(row))
@@ -432,7 +445,7 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
 
 
 def update_boundary_port_state_in_topoconfig_file(boundary_port_state,
-                                                  topoconfig_file_path=None):
+                                                  ndt_file=None):
     '''
     Update topoconfig file - change boundary file state to received
     this is the structure that contains names of the nodes and ports and GUIDs
@@ -445,7 +458,7 @@ def update_boundary_port_state_in_topoconfig_file(boundary_port_state,
         error_message = "Unknown boundary port state received: {}".format(boundary_port_state)
         logging.error(error_message)
         return False
-    topoconfig_file = MERGER_OPEN_SM_CONFIG_FILE if not topoconfig_file_path else topoconfig_file_path
+    topoconfig_file = MERGER_OPEN_SM_CONFIG_FILE if not ndt_file else get_topoconfig_file_name(ndt_file)
     if not check_file_exist(topoconfig_file):
         error_message = "Topoconfig file {} not found".format(topoconfig_file)
         logging.error(error_message)

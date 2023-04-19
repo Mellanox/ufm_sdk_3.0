@@ -38,6 +38,7 @@ from topo_diff.ndt_infra import MERGER_OPEN_SM_CONFIG_FILE,\
     LAST_DEPLOYED_NDT_FILE_INFO
 from resources import ReportId
 from topo_diff.topo_diff import upload_topoconfig_file, SUCCESS_CODE, ACCEPTED_CODE
+from ufm_sim_web_service.topo_diff.ndt_infra import get_topoconfig_file_name
 
 # merge specific API
 class MergerNdts(UFMResource):
@@ -367,20 +368,21 @@ class MergerDeployNDTConfig(UFMResource):
         response, status_code = self.parse_request(json_data)
         if status_code != self.success:
             return self.report_error(status_code, response)
-        if not check_file_exist(MERGER_OPEN_SM_CONFIG_FILE):
+        topoconfig_file_name = get_topoconfig_file_name(self.deploy_file_name)
+        if not check_file_exist(topoconfig_file_name):
             error_status_code = 400
-            error_response = "Topoconfig file %s not found" % MERGER_OPEN_SM_CONFIG_FILE
+            error_response = "Topoconfig file %s not found" % topoconfig_file_name
             logging.info(error_response)
             return self.report_error(error_status_code, error_response)
         # create payload for request
         payload = dict()
         payload["topo_type"] = "topo_config"
         try:
-            topoconf_file = open(MERGER_OPEN_SM_CONFIG_FILE, "r")
+            topoconf_file = open(topoconfig_file_name, "r")
             topoconf_data = topoconf_file.read()
         except Exception as e:
             error_status_code = 400
-            error_response = "Failed to read topoconfig file %s:" % (MERGER_OPEN_SM_CONFIG_FILE, e)
+            error_response = "Failed to read topoconfig file %s:" % (topoconfig_file_name, e)
             logging.info(error_response)
             return self.report_error(error_status_code, error_response)
         payload["file"] = topoconf_data
@@ -391,7 +393,102 @@ class MergerDeployNDTConfig(UFMResource):
         if status_code not in (SUCCESS_CODE, ACCEPTED_CODE):
             return self.report_error(status_code, response)
         if not check_boundary_port_state(self.port_validation_sleep_interval,
-                                         self.port_validation_number_of_attempts):
+                                         self.port_validation_number_of_attempts,
+                                         self.deploy_file_name):
+            error_status_code = 400
+            error_response = "Failure: boundary ports state was not changed by OpenSM. No topology changes deployed."
+            logging.error(error_response)
+            return self.report_error(error_status_code, error_response)
+        try:
+            self.update_ndt_file_status(self.deploy_file_name,
+                                                        NDT_FILE_STATE_DEPLOYED)
+            # update last uploaded ndt file name
+            update_last_deployed_ndt(self.deploy_file_name)
+        except Exception as e:
+            error_status_code = 400
+            error_response = "Failed to update NDT file %s status: %s" % (self.deploy_file_name, e)
+            logging.error(error_response)
+            return response, status_code
+        return self.report_success()
+
+class MergerUpdDeployNDTConfig(MergerDeployNDTConfig):
+    '''
+    Same action to set boundary ports state to received in request and to deploy
+    topoconfig to UFM server
+    '''
+    def __init__(self):
+        super().__init__()
+
+    def get(self):
+        return self.report_error(405, "Method is not allowed")
+
+    def parse_request(self, json_data):
+        logging.debug("Parsing JSON request: {}".format(json_data))
+        try:
+            self.expected_keys = ["ndt_file_name", "boundary_port_state"]
+            response, status_code = self.check_request_keys(json_data)
+            if status_code != self.success:
+                return self.report_error(status_code, response)
+            self.deploy_file_name = json_data["ndt_file_name"]
+            self.boundary_port_state = json_data["boundary_port_state"]
+        except TypeError:
+            return self.report_error(400, "Failed to get NDT file name")
+        return self.report_success()
+
+    def post(self):
+        '''
+        Send post to update topoconfig and to upload topoconfig file to UFM server
+        '''
+        error_status_code, error_response = self.success, []
+        info_msg = "POST /plugin/ndtmerger_update_deploy_ndt_config"
+        logging.info(info_msg)
+        json_data = request.get_json(force=True)
+        logging.debug("Parsing JSON request: {}".format(json_data))
+        response, status_code = self.parse_request(json_data)
+        topoconfig_file_name = get_topoconfig_file_name(self.deploy_file_name)
+        if status_code != self.success:
+            return self.report_error(status_code, response)
+        if not check_file_exist(topoconfig_file_name):
+            error_status_code = 400
+            error_response = "Topoconfig file %s not found" % topoconfig_file_name
+            logging.info(error_response)
+            return self.report_error(error_status_code, error_response)
+        # update topoconfig file with received boundary_port_state
+        if not update_boundary_port_state_in_topoconfig_file(self.boundary_port_state,
+                                                             self.deploy_file_name):
+            return self.report_error(400, "Failed to update topoconfig file")
+        try:
+            if self.boundary_port_state == BOUNDARY_PORT_STATE_DISABLED:
+                file_status = NDT_FILE_STATE_UPDATED_DISABLED
+            elif self.boundary_port_state == BOUNDARY_PORT_STATE_NO_DISCOVER:
+                file_status = NDT_FILE_STATE_UPDATED_NO_DISCOVER
+            else:
+                file_status = NDT_FILE_STATE_UPDATED
+            self.update_ndt_file_status(self.deploy_file_name, file_status)
+        except Exception as e:
+            logging.error("Failed to update NDT file %s status: %s" % (self.deploy_file_name, e))
+            return self.report_error(400, "Failed to update ndt file status")
+        # create payload for request
+        payload = dict()
+        payload["topo_type"] = "topo_config"
+        try:
+            topoconf_file = open(topoconfig_file_name, "r")
+            topoconf_data = topoconf_file.read()
+        except Exception as e:
+            error_status_code = 400
+            error_response = "Failed to read topoconfig file %s:" % (topoconfig_file_name, e)
+            logging.info(error_response)
+            return self.report_error(error_status_code, error_response)
+        payload["file"] = topoconf_data
+        response, status_code = upload_topoconfig_file(self.ufm_port, payload)
+#        if status_code != self.success:
+#            return response, status_code
+        # update status of the NDT file to verified - at least once we run verification
+        if status_code not in (SUCCESS_CODE, ACCEPTED_CODE):
+            return self.report_error(status_code, response)
+        if not check_boundary_port_state(self.port_validation_sleep_interval,
+                                         self.port_validation_number_of_attempts,
+                                         self.deploy_file_name):
             error_status_code = 400
             error_response = "Failure: boundary ports state was not changed by OpenSM. No topology changes deployed."
             logging.error(error_response)
@@ -497,7 +594,8 @@ class MergerUpdateNDTConfig(UFMResource):
                 return response, status_code
             boundary_port_state = json_data["boundary_port_state"]
             ndt_file_name = json_data["ndt_file_name"]
-            if not update_boundary_port_state_in_topoconfig_file(boundary_port_state):
+            if not update_boundary_port_state_in_topoconfig_file(boundary_port_state,
+                                                                 ndt_file_name):
                 return self.report_error(400, "Failed to update topoconfig file")
             try:
                 if boundary_port_state == BOUNDARY_PORT_STATE_DISABLED:

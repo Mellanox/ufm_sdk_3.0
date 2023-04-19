@@ -34,7 +34,9 @@ from topo_diff.ndt_infra import verify_fix_json_list_file, get_last_deployed_ndt
                 NDT_FILE_STATE_DEPLOYED, NDT_FILE_STATE_VERIFIED, BOUNDARY_PORT_STATE_DISABLED,\
                 NDT_FILE_STATE_UPDATED, NDT_FILE_STATE_UPDATED_NO_DISCOVER,\
                 NDT_FILE_STATE_DEPLOYED_DISABLED, NDT_FILE_STATE_DEPLOYED_NO_DISCOVER,\
-                NDT_FILE_STATE_UPDATED_DISABLED, NDT_FILE_STATE_DEPLOYED_COMPLETED
+                NDT_FILE_STATE_UPDATED_DISABLED, NDT_FILE_STATE_DEPLOYED_COMPLETED,\
+                NDT_FILE_CAPABILITY_VERIFY, NDT_FILE_CAPABILITY_VERIFY_DEPLOY_UPDATE,\
+                BOUNDARY_PORT_STATE_NO_DISCOVER, NDT_FILE_CAPABILITY_DEPLOY_UPDATE
 
 
 class UFMResource(Resource):
@@ -158,6 +160,12 @@ class UFMResource(Resource):
             data = json.load(file)
             # need to update time stamp on every file status change
             self.timestamp = self.get_timestamp()
+            if file_status in (NDT_FILE_STATE_VERIFIED, NDT_FILE_STATE_DEPLOYED,
+                               NDT_FILE_STATE_UPDATED_DISABLED,
+                               NDT_FILE_STATE_UPDATED_NO_DISCOVER, NDT_FILE_STATE_UPDATED):
+                file_capability = NDT_FILE_CAPABILITY_VERIFY_DEPLOY_UPDATE
+            else:
+                file_capability = ""
             for entry in data:
                 if entry["file"] == os.path.basename(ndt_file_name):
                     current_status = entry["file_status"]
@@ -165,15 +173,21 @@ class UFMResource(Resource):
                         if (current_status == NDT_FILE_STATE_VERIFIED or
                             current_status == NDT_FILE_STATE_UPDATED_DISABLED):
                             file_status = NDT_FILE_STATE_DEPLOYED_DISABLED
+                            file_capability = NDT_FILE_CAPABILITY_DEPLOY_UPDATE
                         if current_status == NDT_FILE_STATE_UPDATED_NO_DISCOVER:
                             file_status = NDT_FILE_STATE_DEPLOYED_NO_DISCOVER
+                            file_capability = NDT_FILE_CAPABILITY_DEPLOY_UPDATE
+                    if file_status == NDT_FILE_STATE_UPDATED_NO_DISCOVER:
+                        file_capability = NDT_FILE_CAPABILITY_DEPLOY_UPDATE
                     entry["file_status"] = file_status
                     entry["timestamp"] = self.timestamp
+                    entry["file_capabilities"] = file_capability
                 if (entry["file"] == last_deployed_file_name and
                     file_status == NDT_FILE_STATE_DEPLOYED
                     and entry["file_status"] == NDT_FILE_STATE_DEPLOYED_NO_DISCOVER):
                     entry["file_status"] = NDT_FILE_STATE_DEPLOYED_COMPLETED
                     entry["timestamp"] = self.timestamp
+                    entry["file_capabilities"] = ""
                     # update last deployed file status to deployed_completed
             file.seek(0)
             json.dump(data, file)
@@ -219,6 +233,7 @@ class Upload(UFMResource):
         self.file_name = ""
         self.sha1 = ""
         self.file_type = ""
+        self.file_capabilities = ""
         self.expected_checksum = ""
         self.file_status = NDT_FILE_STATE_NEW
         self.expected_keys = ["file_name", "file", "file_type"]
@@ -264,7 +279,8 @@ class Upload(UFMResource):
                          "timestamp": self.get_timestamp(),
                          "sha-1": self.sha1,
                          "file_type": self.file_type,
-                         "file_status": self.file_status}
+                         "file_status": self.file_status,
+                         "file_capabilities": "%s" % NDT_FILE_CAPABILITY_VERIFY}
                 logging.debug("New NDT: {}".format(entry))
                 data.append(entry)
             else:
@@ -274,6 +290,7 @@ class Upload(UFMResource):
                         entry["sha-1"] = self.sha1
                         entry["file_type"] = self.file_type
                         entry["file_status"] = self.file_status
+                        entry["file_capabilities"] = self.file_capabilities
             file.seek(0)
             json.dump(data, file)
         if verify_fix_json_list_file(self.ndts_list_file):
