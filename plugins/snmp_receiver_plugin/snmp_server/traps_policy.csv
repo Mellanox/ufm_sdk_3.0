@@ -14,3 +14,4 @@ MELLANOX-EFM-MIB::unexpectedShutdown,unexpected-shutdown,Unexpected system shutd
 SNMPv2-MIB::coldStart,cold-start,SNMP entity reinitialized,Enabled,Info
 IF-MIB::linkDown,link-down,An interface's link state has changed to down,Enabled,Minor
 IF-MIB::linkUp,link-up,An interface's link state has changed to up,Enabled,Info
+MELLANOX-SMI-MIB::mellanoxPowerCycle.1.1.3.1,power-cycle,Switch reboot,Enabled,Info

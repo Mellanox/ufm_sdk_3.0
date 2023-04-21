@@ -135,13 +135,15 @@ class SnmpTrapReceiver:
         try:
             trap_oid = varBindsResolved[1][1].prettyPrint()
         except (KeyError, IndexError) as e:
-            logging.info(f'Error while getting trap_oid from varBindsResolved: {e}')
+            logging.info(f'Cannot parse trap oid from {switch_ip}')
+            logging.debug(f'Error while getting trap_oid from varBindsResolved: {e}')
             trap_oid = "unknown trap"
 
         try:
             trap_details = varBindsResolved[2][0].prettyPrint() + " = " + varBindsResolved[2][1].prettyPrint()
         except (KeyError, IndexError) as e:
-            logging.info(f'Error while getting trap_details for {trap_oid} trap from varBindsResolved: {e}')
+            logging.info(f'No trap details found for {trap_oid}')
+            logging.debug(f'Error while getting trap_details for {trap_oid} trap from varBindsResolved: {e}')
             trap_details = "no details"
 
         try:
