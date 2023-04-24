@@ -72,7 +72,7 @@ class Switch(UFMResource):
         # TODO: change to sha512 and aes-256
         cli_register = f"snmp-server host {ip} traps port {helpers.ConfigParser.snmp_port}"
         if helpers.ConfigParser.snmp_version == 1:
-            cli_register += " " + helpers.ConfigParser.community
+            cli_register += " " + helpers.ConfigParser.snmp_community
         if helpers.ConfigParser.snmp_version == 3:
             cli_register += f" version 3 user {helpers.ConfigParser.snmp_user} \
                 auth sha {helpers.ConfigParser.snmp_password} priv aes-128 {helpers.ConfigParser.snmp_priv}"

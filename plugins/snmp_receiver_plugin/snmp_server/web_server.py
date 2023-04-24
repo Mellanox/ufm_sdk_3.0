@@ -73,8 +73,9 @@ class SNMPWebProc:
         snmp_trap_receiver = SnmpTrapReceiver(self.switch_dict)
         self.snmp_proc = Process(target=snmp_trap_receiver.run)
         self.snmp_proc.start()
-        self.switch_update_thread = threading.Thread(target=self._update_switches)
-        self.switch_update_thread.start()
+        if helpers.ConfigParser.snmp_mode == "auto":
+            self.switch_update_thread = threading.Thread(target=self._update_switches)
+            self.switch_update_thread.start()
 
     def _update_switches(self):
         while True:

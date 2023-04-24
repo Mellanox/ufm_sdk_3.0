@@ -273,8 +273,8 @@ class ConfigParser:
     if not snmp_port:
         logging.error(f"Incorrect value for snmp_port")
         quit()
-    community = snmp_config.get("SNMP", "community", fallback="public")
-    if not community:
+    snmp_community = snmp_config.get("SNMP", "snmp_community", fallback="public")
+    if not snmp_community:
         logging.error(f"Incorrect value for snmp_port")
         quit()
     multiple_events = snmp_config.getboolean("SNMP", "multiple_events", fallback=False)
@@ -286,18 +286,20 @@ class ConfigParser:
     if snmp_mode not in ["auto", "manual"]:
         logging.error(f"Incorrect value for snmp_mode, should be 'auto' or 'manual'")
         quit()
-    snmp_user = snmp_config.get("SNMP", "snmp_user", fallback="auto")
+    snmp_user = snmp_config.get("SNMP", "snmp_user", fallback="")
     if not snmp_user:
         logging.error(f"Incorrect value for snmp_user")
         quit()
-    snmp_password = snmp_config.get("SNMP", "snmp_password", fallback="auto")
+    snmp_password = snmp_config.get("SNMP", "snmp_password", fallback="")
     if not snmp_password:
         logging.error(f"Incorrect value for snmp_password")
         quit()
-    snmp_priv = snmp_config.get("SNMP", "snmp_priv", fallback="auto")
+    snmp_priv = snmp_config.get("SNMP", "snmp_priv", fallback="")
     if not snmp_priv:
         logging.error(f"Incorrect value for snmp_priv")
         quit()
+    snmp_additional_traps_str = snmp_config.get("SNMP", "snmp_additional_traps", fallback="")
+    snmp_additional_traps = snmp_additional_traps_str.split(',')
 
     ufm_switches_update_interval = snmp_config.getint("UFM", "ufm_switches_update_interval", fallback=60)
 

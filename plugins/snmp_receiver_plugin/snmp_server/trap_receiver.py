@@ -85,7 +85,7 @@ class SnmpTrapReceiver:
             for switch_obj in self.switch_dict.values():
                 self._register_v3_switch(switch_obj.engine_id)
         else:
-            config.addV1System(self.snmp_engine, 'my-area', helpers.ConfigParser.community)
+            config.addV1System(self.snmp_engine, 'my-area', helpers.ConfigParser.snmp_community)
 
         if helpers.ConfigParser.snmp_mode == "auto":
             switches = list(self.switch_dict.keys())
@@ -150,8 +150,12 @@ class SnmpTrapReceiver:
             trap_info = self.oid_to_traps_info[trap_oid]
             severity = trap_info["Severity"]
         except:
-            logging.info(f'Received unsupported trap from {switch_ip}: {trap_oid}, skipping')
-            return
+            if trap_oid in helpers.ConfigParser.snmp_additional_traps:
+                logging.debug(f'Received trap set as additional in snmp.conf from {switch_ip}: {trap_oid}')
+                severity = "Info"
+            else:
+                logging.info(f'Received unsupported trap from {switch_ip}: {trap_oid}, skipping')
+                return
         trap = helpers.Trap(trap_oid, trap_details, severity)
         logging.debug(f'  {trap_oid}: {trap_details}')
 
