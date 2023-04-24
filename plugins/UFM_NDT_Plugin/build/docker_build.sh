@@ -98,12 +98,13 @@ function build_docker_image()
 
 echo "Updating the git submodules..."
 pushd ${PARENT_DIR}
-git submodule update --init --remote
-exit_code=$?
-if [ $exit_code -ne 0 ]; then
-  echo "The git submodules wasn't updated successfully, please make sure that you have the correct access"
-  return $exit_code
-fi
+whoami
+# git submodule update --init --remote
+# exit_code=$?
+# if [ $exit_code -ne 0 ]; then
+#   echo "The git submodules wasn't updated successfully, please make sure that you have the correct access"
+#   return $exit_code
+# fi
 popd
 
 pushd ${SCRIPT_DIR}
