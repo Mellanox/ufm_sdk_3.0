@@ -155,7 +155,7 @@ class UFMResource(Resource):
         :param ndt_file_name:
         '''
         last_deployed_file_name = get_last_deployed_ndt()
-        with open(self.ndts_list_file, "r+") as file:
+        with open(self.ndts_list_file, "r") as file:
             # unhandled exception in case ndts file was changed manually
             data = json.load(file)
             # need to update time stamp on every file status change
@@ -188,8 +188,8 @@ class UFMResource(Resource):
                     entry["file_status"] = NDT_FILE_STATE_DEPLOYED_COMPLETED
                     entry["timestamp"] = self.timestamp
                     entry["file_capabilities"] = ""
-                    # update last deployed file status to deployed_completed
-            file.seek(0)
+        # update last deployed file status to deployed_completed
+        with open(self.ndts_list_file, "w") as file:
             json.dump(data, file)
         # very strange bug - of some reason at the end of file after dump appears "]]"
         # and this is a reason that json load failed
@@ -200,7 +200,7 @@ class UFMResource(Resource):
         else:
             message = "Failed to update NDTS list file %s: - probably json file corrupted." % ndt_file_name
             logging.error(message)
-            return self.report_error(400, )
+            return self.report_error(400, message)
 
     @staticmethod
     def report_error(status_code, message):
