@@ -150,7 +150,7 @@ class UFMResource(Resource):
 
     def update_ndt_file_status(self, ndt_file_name, file_status):
         '''
-        Initially the status should be new, onve run verification once - status become verified.
+        Initially the status should be new, once verification passed - status become verified.
         Once deployed to OpenSM - status become deployed
         :param ndt_file_name:
         '''
