@@ -36,4 +36,8 @@ Install my-project with npm
   TBD
   
 ```
+
+## Relase Job:
+Please use the following in order to build:
+http://hpc-master.lab.mtl.com:8080/job/UFM_PLUGINS_RELEASE/
     

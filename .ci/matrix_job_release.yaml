@@ -1,0 +1,40 @@
+---
+job: ufm-plugins
+
+registry_host: harbor.mellanox.com
+registry_path: /swx-storage/ci-demo
+registry_auth: swx-storage
+step_allow_single_selector: true
+
+kubernetes:
+  cloud: swx-k8s-spray
+
+credentials:
+  # harbor login/password
+  - {credentialsId: '425bb907-c357-4fde-92e0-67854a857b4f', usernameVariable: 'UFM_USER', passwordVariable: 'UFM_PASS'}
+
+runs_on_agents:
+  - nodeLabel: 'SWX-CI-DOCKER'
+
+steps:
+  - name: Build Plugin
+    agentSelector: "{nodeLabel: 'SWX-CI-DOCKER'}"
+    run: |
+      printenv
+      pwd
+      ls
+      whoami
+      mkdir -p /auto/mswg/release/ufm/ufm_sdk_3.0/${Plugin_name}
+      cd plugins/${Plugin_name}/build
+      bash -x ./docker_build.sh ${PLUGIN_VERSION} /auto/mswg/release/ufm/ufm_sdk_3.0/${Plugin_name}
+      ls /auto/mswg/release/ufm/ufm_sdk_3.0/${Plugin_name}
+
+    parallel: false
+
+
+pipeline_start:
+  run: echo "Build plugin"
+
+
+pipeline_stop:
+  run: echo All done

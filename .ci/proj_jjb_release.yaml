@@ -1,0 +1,76 @@
+########## UFM APPLIANCE GEN3 jobs ##################
+- project:
+    name: UFM_PLUGINS_SDK_RELEASE
+    jjb_owner: 'Amit Gueta'
+    jobs:
+        - "UFM_PLUGINS_SDK_RELEASE":
+            jjb_git: git@github.com:Mellanox/ufm_sdk_3.0.git
+            jjb_email: 'agueta@nvidia.com'
+            disabled_var: false
+            type: github
+            branch: main
+
+- job-template:
+    name: "UFM_PLUGINS_SDK_RELEASE"
+    project-type: pipeline
+    disabled: '{obj:disabled_var}'
+    properties:
+        - github:
+             url: "{jjb_git}"
+        - build-discarder:
+            days-to-keep: 15
+            num-to-keep: 15
+        - inject:
+            keep-system-variables: true
+            properties-content: |
+              REPOSITORY={jjb_git}
+    description: Do NOT edit this job through the Web GUI !
+    concurrent: false
+    parameters:
+        - string:
+            name: "sha1"
+            default: '{branch}'
+            description: "What branch to take in ufm_sdk_3.0"
+        - string:
+            name: "PLUGIN_VERSION"
+            default: 'latest'
+            description: "Plugin docker version to create ex: 1.0/1.1/2.0 etc.<br> <p style=color:red>default is latest</p>"
+        - string:
+            name: "EMAIL"
+            default: "{jjb_email}"
+            description: "email notifications <br>"
+        - choice:
+            name: "Plugin_name"
+            choices:
+                - bright_plugin
+                - fluentd_telemetry_plugin
+                - fluentd_topology_plugin
+                - grafana_infiniband_telemetry_plugin
+                - grafana_telemetry_plugin
+                - grpc_streamer_plugin
+                - SLURM-Integration
+                - snmp_receiver_plugin
+                - UFM_NDT_Plugin
+                - ufm_syslog_streaming_plugin
+                - zabbix_telemetry_plugin
+            description: "On which project to run?"
+        - string:
+            name: "conf_file"
+            default: ".ci/matrix_job_release.yaml"
+            description: "Regex to select job config file. Do not change it"
+    pipeline-scm:
+        scm:
+            - git:
+                url: "{jjb_git}"
+                credentials-id: '4a532b1d-81ff-4c06-8f20-ddfeede633e5'
+                branches: ['$sha1']
+                shallow-clone: true
+                browser: githubweb
+                browser-url: "{jjb_git}"
+                submodule:
+                    recursive: true
+                    tracking: true
+        script-path: ".ci/Jenkinsfile"
+    wrappers:
+      - timeout:
+          timeout: 30

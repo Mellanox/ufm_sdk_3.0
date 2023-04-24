@@ -1,0 +1,48 @@
+.file-input-container {
+  display: flex;
+  flex-flow: row;
+}
+
+.browse-btn {
+  flex: 0 1 auto;
+}
+
+.browse-btn input[type='file'] {
+  position: absolute;
+  opacity: 0;
+  top: 0;
+  left: 0;
+  cursor: pointer;
+  min-height: 56px;
+}
+
+.selected-file-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.form-control[disabled] {
+  cursor: text;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.close[disabled] {
+  cursor: not-allowed !important;
+}
+
+.browse-file-btn {
+  margin-bottom: 10px;
+  position: relative;
+}
+
+:host ::ng-deep {
+  progressbar.progress {
+    height: 34px;
+  }
+
+  .progress-bar {
+    line-height: 35px;
+    font-size: 15px;
+  }
+}

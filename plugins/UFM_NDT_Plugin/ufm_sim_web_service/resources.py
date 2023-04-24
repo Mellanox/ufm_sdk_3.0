@@ -18,11 +18,25 @@ import configparser
 import json
 import os
 from flask_restful import Resource
-from flask import request
+from flask import request, send_from_directory
 from datetime import datetime, timedelta
 from topo_diff.topo_diff import compare_topologies
 import logging
 import hashlib
+from topo_diff.ndt_infra import check_file_exist,\
+    DEFAULT_IBDIAGNET_NET_DUMP_PATH, check_ibdiagnet_net_dump_file_exist,\
+    run_ibdiagnet, IBDIAGNET_OUT_NET_DUMP_FILE_PATH
+from topo_diff.topo_diff import parse_ibdiagnet_dump,\
+                                      parse_ndt_file,\
+                                      compare_topologies_ndt_ibdiagnet
+from topo_diff.ndt_infra import verify_fix_json_list_file, get_last_deployed_ndt,\
+                NDT_FILE_STATE_NEW,\
+                NDT_FILE_STATE_DEPLOYED, NDT_FILE_STATE_VERIFIED, BOUNDARY_PORT_STATE_DISABLED,\
+                NDT_FILE_STATE_UPDATED, NDT_FILE_STATE_UPDATED_NO_DISCOVER,\
+                NDT_FILE_STATE_DEPLOYED_DISABLED, NDT_FILE_STATE_DEPLOYED_NO_DISCOVER,\
+                NDT_FILE_STATE_UPDATED_DISABLED, NDT_FILE_STATE_DEPLOYED_COMPLETED,\
+                NDT_FILE_CAPABILITY_VERIFY, NDT_FILE_CAPABILITY_VERIFY_DEPLOY_UPDATE,\
+                BOUNDARY_PORT_STATE_NO_DISCOVER, NDT_FILE_CAPABILITY_DEPLOY_UPDATE
 
 
 class UFMResource(Resource):
@@ -37,16 +51,24 @@ class UFMResource(Resource):
         # self.ndts_dir = "ndts"
         self.reports_dir = "/config/reports"
         self.ndts_dir = "/config/ndts"
+        self.ndts_merger_dir = "/config/merger_ndts"
+        self.reports_merger_dir = "/config/merger_reports"
         self.reports_list_file = os.path.join(self.reports_dir, "reports_list.json")
         self.ndts_list_file = os.path.join(self.ndts_dir, "ndts_list.json")
+        self.reports_merger_list_file = os.path.join(self.reports_merger_dir, "merger_reports_list.json")
+        self.ndts_merger_list_file = os.path.join(self.ndts_merger_dir, "ndts_list.json")
         self.success = 200
         self.reports_to_save = 10
+        self.port_validation_sleep_interval = 5
+        self.port_validation_number_of_attempts = 5
         self.validation_enabled = True
+        self.subnet_merger_flow = False
         self.switch_patterns = []
         self.host_patterns = []
         self.datetime_format = "%Y-%m-%d %H:%M:%S"
         self.ufm_port = 8000
         self.expected_keys = set()
+        self.optional_keys = set()
         # self.version_file = "release.json"
         # self.help_file = "help.json"
         self.version_file = "/opt/ufm/ufm_plugin_ndt/ufm_sim_web_service/release.json"
@@ -54,6 +76,8 @@ class UFMResource(Resource):
 
         self.create_reports_file(self.reports_list_file)
         self.create_reports_file(self.ndts_list_file)
+        self.create_reports_file(self.reports_merger_list_file)
+        self.create_reports_file(self.ndts_merger_list_file)
         self.parse_config()
 
     def parse_config(self):
@@ -63,6 +87,10 @@ class UFMResource(Resource):
             self.reports_to_save = ndt_config.getint("Common", "reports_to_save", fallback=10)
             self.ufm_port = ndt_config.getint("Common", "ufm_port", fallback=8000)
             self.validation_enabled = ndt_config.getboolean("Validation", "enabled", fallback=True)
+            self.port_validation_sleep_interval = ndt_config.getint(
+                        "Merger", "port_validation_sleep_interval", fallback=5)
+            self.port_validation_number_of_attempts = ndt_config.getint(
+                        "Merger", "port_validation_number_of_attempts", fallback=5)
             if self.validation_enabled:
                 switch_patterns_str = ndt_config.get("Validation", "switch_patterns")
                 self.switch_patterns = switch_patterns_str.split(',')
@@ -79,13 +107,16 @@ class UFMResource(Resource):
         return os.path.join(self.reports_dir, file_name)
 
     def get(self):
-        return self.read_json_file(self.response_file), self.success
+        if check_file_exist(self.response_file):
+            return self.read_json_file(self.response_file), self.success
+        else:
+            return {}, self.success
 
     def post(self):
         return self.report_success()
 
-    def report_success(self):
-        return {}, self.success
+    def report_success(self, ret_params={}):
+        return ret_params, self.success
 
     def check_request_keys(self, json_data):
         try:
@@ -94,7 +125,10 @@ class UFMResource(Resource):
             return "Request format is incorrect", 400
         extra_keys = keys_dict - self.expected_keys
         if extra_keys:
-            return "Incorrect format, extra keys in request: {}".format(extra_keys), 400
+            if self.optional_keys and set(extra_keys).issubset(self.optional_keys):
+                pass
+            else:
+                return "Incorrect format, extra keys in request: {}".format(extra_keys), 400
         missing_keys = self.expected_keys - keys_dict
         if missing_keys:
             return "Incorrect format, missing keys in request: {}".format(missing_keys), 400
@@ -114,6 +148,60 @@ class UFMResource(Resource):
             with open(file_name, "w") as file:
                 json.dump([], file)
 
+    def update_ndt_file_status(self, ndt_file_name, file_status):
+        '''
+        Initially the status should be new, once verification passed - status become verified.
+        Once deployed to OpenSM - status become deployed
+        :param ndt_file_name:
+        '''
+        last_deployed_file_name = get_last_deployed_ndt()
+        with open(self.ndts_list_file, "r") as file:
+            # unhandled exception in case ndts file was changed manually
+            data = json.load(file)
+            # need to update time stamp on every file status change
+            self.timestamp = self.get_timestamp()
+            if file_status in (NDT_FILE_STATE_VERIFIED, NDT_FILE_STATE_DEPLOYED,
+                               NDT_FILE_STATE_UPDATED_DISABLED,
+                               NDT_FILE_STATE_UPDATED_NO_DISCOVER, NDT_FILE_STATE_UPDATED):
+                file_capability = NDT_FILE_CAPABILITY_VERIFY_DEPLOY_UPDATE
+            else:
+                file_capability = ""
+            for entry in data:
+                if entry["file"] == os.path.basename(ndt_file_name):
+                    current_status = entry["file_status"]
+                    if file_status == NDT_FILE_STATE_DEPLOYED:
+                        if (current_status == NDT_FILE_STATE_VERIFIED or
+                            current_status == NDT_FILE_STATE_UPDATED_DISABLED):
+                            file_status = NDT_FILE_STATE_DEPLOYED_DISABLED
+                            file_capability = NDT_FILE_CAPABILITY_DEPLOY_UPDATE
+                        if current_status == NDT_FILE_STATE_UPDATED_NO_DISCOVER:
+                            file_status = NDT_FILE_STATE_DEPLOYED_NO_DISCOVER
+                            file_capability = NDT_FILE_CAPABILITY_DEPLOY_UPDATE
+                    if file_status == NDT_FILE_STATE_UPDATED_NO_DISCOVER:
+                        file_capability = NDT_FILE_CAPABILITY_DEPLOY_UPDATE
+                    entry["file_status"] = file_status
+                    entry["timestamp"] = self.timestamp
+                    entry["file_capabilities"] = file_capability
+                if (entry["file"] == last_deployed_file_name and
+                    file_status == NDT_FILE_STATE_DEPLOYED
+                    and entry["file_status"] == NDT_FILE_STATE_DEPLOYED_NO_DISCOVER):
+                    entry["file_status"] = NDT_FILE_STATE_DEPLOYED_COMPLETED
+                    entry["timestamp"] = self.timestamp
+                    entry["file_capabilities"] = ""
+        # update last deployed file status to deployed_completed
+        with open(self.ndts_list_file, "w") as file:
+            json.dump(data, file)
+        # very strange bug - of some reason at the end of file after dump appears "]]"
+        # and this is a reason that json load failed
+        # so the work arround is to check if data written correctly and if file has "]]"
+        # at the end - to remove it and to write back
+        if verify_fix_json_list_file(self.ndts_list_file):
+            return self.report_success()
+        else:
+            message = "Failed to update NDTS list file %s: - probably json file corrupted." % ndt_file_name
+            logging.error(message)
+            return self.report_error(400, message)
+
     @staticmethod
     def report_error(status_code, message):
         logging.error(message)
@@ -129,6 +217,15 @@ def get_hash(file_content):
     return sha1.hexdigest()
 
 
+class UIFilesResources(Resource):
+
+    def __init__(self):
+        self.files_path = "/opt/ufm/ufm_plugin_ndt/ufm_sim_web_service/media"
+
+    def get(self, file_name):
+        return send_from_directory(self.files_path, file_name)
+
+
 class Upload(UFMResource):
     def __init__(self):
         super().__init__()
@@ -136,8 +233,11 @@ class Upload(UFMResource):
         self.file_name = ""
         self.sha1 = ""
         self.file_type = ""
+        self.file_capabilities = ""
         self.expected_checksum = ""
-        self.expected_keys = ["file_name", "file", "file_type", "sha-1"]
+        self.file_status = NDT_FILE_STATE_NEW
+        self.expected_keys = ["file_name", "file", "file_type"]
+        self.optional_keys = ["sha-1"]
 
     def get(self):
         return self.report_error(405, "Method is not allowed")
@@ -155,13 +255,16 @@ class Upload(UFMResource):
         if self.file_type not in self.possible_file_types:
             return "", ("Incorrect file type. Possible file types: {}."
                         .format(",".join(self.possible_file_types)), 400)
-        self.expected_checksum = json_data["sha-1"]
+        if "sha-1" in json_data: # optional for merger
+            self.expected_checksum = json_data["sha-1"]
+        else:
+            self.expected_checksum = ""
         return file_content, self.report_success()
 
     def check_sha1(self, file_content):
         self.sha1 = get_hash(file_content)
         file_content = file_content.replace('\r\n', '\n')
-        if self.expected_checksum != self.sha1:
+        if self.expected_checksum and self.expected_checksum != self.sha1:
             return "", ("Provided sha-1 {} for {} is different from actual one {}"
                         .format(self.expected_checksum, self.file_name, self.sha1), 400)
         else:
@@ -175,7 +278,9 @@ class Upload(UFMResource):
                 entry = {"file": self.file_name,
                          "timestamp": self.get_timestamp(),
                          "sha-1": self.sha1,
-                         "file_type": self.file_type}
+                         "file_type": self.file_type,
+                         "file_status": self.file_status,
+                         "file_capabilities": "%s" % NDT_FILE_CAPABILITY_VERIFY}
                 logging.debug("New NDT: {}".format(entry))
                 data.append(entry)
             else:
@@ -184,9 +289,16 @@ class Upload(UFMResource):
                         entry["timestamp"] = self.get_timestamp()
                         entry["sha-1"] = self.sha1
                         entry["file_type"] = self.file_type
+                        entry["file_status"] = self.file_status
+                        entry["file_capabilities"] = self.file_capabilities
             file.seek(0)
             json.dump(data, file)
-        return self.report_success()
+        if verify_fix_json_list_file(self.ndts_list_file):
+            return self.report_success()
+        else:
+            message = "Update NDTS list. Failed to update NDTS list file %s: - probably json ndts list file corrupted." % self.self.file_name
+            logging.error(message)
+            return self.report_error(400, )
 
     def save_ndt(self, file_content):
         logging.debug("Uploading file: {}".format(self.file_name))
@@ -198,7 +310,11 @@ class Upload(UFMResource):
                 return self.report_error(500, "Cannot save ndt {}: {}".format(self.file_name, oe))
 
     def post(self):
-        logging.info("POST /plugin/ndt/upload")
+        if self.subnet_merger_flow:
+            info_msg = "POST /plugin/ndt//merger_upload_ndt"
+        else:
+            info_msg = "POST /plugin/ndt/upload"
+        logging.info(info_msg)
         error_status_code, error_response = self.success, []
         if not request.data or not request.json:
             return self.report_error(400, "Upload request is empty")
@@ -326,6 +442,19 @@ class Compare(UFMResource):
     def get(self):
         return self.report_error(405, "Method is not allowed")
 
+    def get_next_report_id_number(self):
+        '''
+        Return next expected report number
+        '''
+        next_report_number = 0 # initial value - will cause an error return
+        with open(self.reports_list_file, "r", encoding="utf-8") as reports_list_file:
+            # unhandled exception in case reports file was changed manually
+            data = json.load(reports_list_file)
+            next_report_number = len(data) + 1
+            if next_report_number > self.reports_to_save:
+                next_report_number = self.reports_to_save
+        return next_report_number
+
     def update_reports_list(self, scope):
         with open(self.reports_list_file, "r", encoding="utf-8") as reports_list_file:
             # unhandled exception in case reports file was changed manually
@@ -337,7 +466,8 @@ class Compare(UFMResource):
             if self.report_number > self.reports_to_save:
                 oldest_report = self.get_report_path("report_1.json")
                 # unhandled exception in case report was deleted or renamed manually
-                os.remove(oldest_report)
+                if check_file_exist(oldest_report):
+                    os.remove(oldest_report)
                 data.remove(data[0])
                 for report in data:
                     report["report_id"] -= 1
@@ -361,8 +491,14 @@ class Compare(UFMResource):
         except OSError as oe:
             return self.report_error(500, "Cannot save report {}: {}".format(report, oe))
 
-    def create_report(self, scope, report_content):
-        response, status_code = self.update_reports_list(scope)
+    def create_report(self, scope, report_content, completed=True):
+        '''
+        
+        :param scope:
+        :param report_content:
+        :param completed: If status of the report will be running or completed
+        '''
+        response, status_code = self.update_reports_list(scope, completed)
         if status_code != self.success:
             return response, status_code
         response, status_code = self.save_report(report_content)
@@ -487,7 +623,7 @@ class ReportId(UFMResource):
         with open(self.reports_list_file, "r", encoding="utf-8") as file:
             self.data = json.load(file)
 
-    def post(self, report_id):
+    def post(self):
         return self.report_error(405, "Method is not allowed")
 
     def get(self, report_id):
@@ -565,3 +701,4 @@ class Dummy(UFMResource):
 
     def post(self):
         return self.report_error(405, "Method is not allowed")
+

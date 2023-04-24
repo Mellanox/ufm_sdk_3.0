@@ -8,6 +8,7 @@ if [ "$EUID" -ne 0 ]
 fi
 
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+PARENT_DIR=$(realpath "${SCRIPT_DIR}/../../../")
 
 IMAGE_VERSION=$1
 IMAGE_NAME=ufm-plugin-ndt
@@ -41,8 +42,8 @@ function build_docker_image()
     build_dir=$1
     image_name=$2
     image_version=$3
-    random_hash=$4
-    out_dir=$5
+    out_dir=$4
+    random_hash=$5
     keep_image=$6
     prefix="mellanox"
 
@@ -95,6 +96,16 @@ function build_docker_image()
     return 0
 }
 
+echo "Updating the git submodules..."
+pushd ${PARENT_DIR}
+git submodule update --init --remote
+exit_code=$?
+if [ $exit_code -ne 0 ]; then
+  echo "The git submodules wasn't updated successfully, please make sure that you have the correct access"
+  return $exit_code
+fi
+popd
+
 pushd ${SCRIPT_DIR}
 
 BUILD_DIR=$(create_out_dir)
@@ -105,7 +116,7 @@ cp -r ../ufm_sim_web_service ${BUILD_DIR}
 
 echo "BUILD_DIR    : [${BUILD_DIR}]"
 
-build_docker_image $BUILD_DIR $IMAGE_NAME $IMAGE_VERSION ${RANDOM_HASH} $OUT_DIR
+build_docker_image $BUILD_DIR $IMAGE_NAME $IMAGE_VERSION $OUT_DIR ${RANDOM_HASH} 
 exit_code=$?
 rm -rf ${BUILD_DIR}
 popd

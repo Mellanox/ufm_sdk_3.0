@@ -19,11 +19,15 @@ set -eE
 mv /opt/ufm/ufm_plugin_ndt/ndt.conf /config
 mv /opt/ufm/ufm_plugin_ndt/ndt_httpd_proxy.conf /config
 mv /opt/ufm/ufm_plugin_ndt/ufm_plugin_ndt_httpd.conf /config
+mv /opt/ufm/ufm_plugin_ndt/ndt_ui_conf.json /config
 touch /config/ndt_shared_volumes.conf
 touch /config/ndt_cmdline_args.conf
 
 mkdir /config/reports
+mkdir /config/merger_reports
 mkdir /config/ndts
+mkdir /config/merger_ndts
+mkdir /config/topoconfig
 
 echo /opt/ufm/files/log:/log > /config/ndt_shared_volumes.conf
 echo /dev:/host_dev >> /config/ndt_shared_volumes.conf

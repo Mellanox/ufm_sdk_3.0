@@ -1,0 +1,66 @@
+<ng-container *ngIf="!ndtFiles; else cardBodyTmp">
+  <i class="fa fa-spinner center"></i>
+</ng-container>
+
+<ng-template #cardBodyTmp>
+  <ng-container *ngIf="ndtFiles?.length; else initialMsgTmp">
+    <app-x-core-ag-grid [dataIsLoading]="loading"
+                        [options]="tableOptions"
+                        [rowData]="ndtFiles">
+    </app-x-core-ag-grid>
+  </ng-container>
+</ng-template>
+
+<ng-template #initialMsgTmp>
+  There is no NDT file was uploaded before.Click
+  <a (click)="initialWizard.openWizard()">here</a> to upload the initial file
+</ng-template>
+
+
+<app-initial-wizard #initialWizard
+                    (onDeployFinish)="onInitialDeployFinish($event)"></app-initial-wizard>
+
+<ng-template #fileNameTmp let-data>
+  {{data.col}}
+  <ng-container *ngIf="data.col == activeNDTFile">
+    <i class="fa active" tooltip="Active" placement="top" container="body"></i>
+  </ng-container>
+</ng-template>
+
+<ng-template #actionsTmp let-data>
+  <div
+    *ngIf="data.row.file != activeNDTFile"
+    class="actions-btn-wrapper">
+    <i
+      class="fa fa-tasks"
+      [tooltip]="'Validate'"
+      container="body"
+      placement="left"
+      (click)="onValidateClicked(data.row)">
+    </i>
+    <i
+      *ngIf="data.row.file_status != NDTFileStatus.new"
+      class="fa fa-object-group" [tooltip]="'Deploy'" container="body"
+      placement="right"
+      (click)="onDeployClicked(data.row)">
+    </i>
+  </div>
+</ng-template>
+
+<ng-template #rightControlTemplates>
+  <button class="btn btn-primary">
+    <i class="fa fa-sync" [class.fa-spin]="loading" (click)="loadNDTFiles()"></i>
+  </button>
+  <ng-container *ngIf="activeNDTFile">
+    <button class="btn btn-primary"
+            (click)="newMergerWizard.openWizard()">
+      <i class="fa fa-plus"></i>
+      New Merger
+    </button>
+  </ng-container>
+</ng-template>
+
+<app-new-merger-wizard #newMergerWizard
+                       [activeDeployedFile]="activeNDTFile"
+                       (onMergeFinish)="onNewMerger.emit()">
+</app-new-merger-wizard>

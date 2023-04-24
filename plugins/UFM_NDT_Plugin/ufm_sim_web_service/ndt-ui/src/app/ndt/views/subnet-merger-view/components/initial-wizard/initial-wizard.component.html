@@ -1,0 +1,20 @@
+<x-wizard #wizard
+          [templates]="[InitiateTab, DeployTab]"
+          [config]="initialWizardService.wizardConfig"
+          [tabs]="initialWizardService.tabs"
+          (onWizardFinish)="onWizardFinish()"
+          (onTabNext)="onWizardNext($event)">
+</x-wizard>
+
+<ng-template #InitiateTab>
+  <app-upload-ndt-and-validate
+    (onReportCompleted)="onReportCompleted($event)"
+    (onFileValidated)="onFileValidated($event)">
+  </app-upload-ndt-and-validate>
+</ng-template>
+
+<ng-template #DeployTab>
+  <ul>
+    <li>Deploy current NDT to the subnet manager</li>
+  </ul>
+</ng-template>

@@ -17,16 +17,17 @@
 import asyncio
 import signal
 
-from ufm_web_sim import UFMWebSim
+from ufm_web_proc import UFMNDTWebServer
 
 
-class UFMWebSimProc:
-    """Main class of the UFM web sim daemon
+class UFMNDTWebProc:
+    """
+        Main class of the UFM web sim daemon
     """
 
     def __init__(self):
         print("Starting NDT web server", flush=True)
-        self.web_server = UFMWebSim()
+        self.web_server = UFMNDTWebServer()
 
     def _start_web_server(self):
         loop = asyncio.get_event_loop()
@@ -44,14 +45,14 @@ class UFMWebSimProc:
 
 if __name__ == "__main__":
     _loop = asyncio.get_event_loop()
-    ufm_web_sim = UFMWebSimProc()
+    ufm_web_proc = UFMNDTWebProc()
     try:
-        signal.signal(signal.SIGTERM, ufm_web_sim.shutdown)
-        ufm_web_sim.main()
+        signal.signal(signal.SIGTERM, ufm_web_proc.shutdown)
+        ufm_web_proc.main()
         _loop.run_forever()
     except KeyboardInterrupt:
         pass
     finally:
         print("Stopping NDT web server", flush=True)
-        _loop.run_until_complete(ufm_web_sim.cleanup())
+        _loop.run_until_complete(ufm_web_proc.cleanup())
         _loop.stop()
