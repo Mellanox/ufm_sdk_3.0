@@ -275,7 +275,7 @@ class ConfigParser:
         quit()
     snmp_community = snmp_config.get("SNMP", "snmp_community", fallback="public")
     if not snmp_community:
-        logging.error(f"Incorrect value for snmp_port")
+        logging.error(f"Incorrect value for snmp_community")
         quit()
     multiple_events = snmp_config.getboolean("SNMP", "multiple_events", fallback=False)
     snmp_version = snmp_config.getint("SNMP", "snmp_version", fallback=3)
