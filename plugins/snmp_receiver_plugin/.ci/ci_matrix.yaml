@@ -28,7 +28,7 @@ steps:
       pwd
       ls
       cd plugins/snmp_receiver_plugin/build
-      bash -x ./docker_build.sh
+      bash -x ./docker_build.sh latest /
       cp /ufm-plugin-snmp* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
     parallel: false
 
