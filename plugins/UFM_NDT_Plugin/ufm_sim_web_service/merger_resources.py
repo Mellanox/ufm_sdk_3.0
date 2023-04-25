@@ -38,7 +38,7 @@ from topo_diff.ndt_infra import MERGER_OPEN_SM_CONFIG_FILE,\
     LAST_DEPLOYED_NDT_FILE_INFO
 from resources import ReportId
 from topo_diff.topo_diff import upload_topoconfig_file, SUCCESS_CODE, ACCEPTED_CODE
-from ufm_sim_web_service.topo_diff.ndt_infra import get_topoconfig_file_name
+from topo_diff.ndt_infra import get_topoconfig_file_name
 
 # merge specific API
 class MergerNdts(UFMResource):
