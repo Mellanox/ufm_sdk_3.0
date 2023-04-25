@@ -72,6 +72,7 @@ export class NdtFilesViewComponent implements OnInit, OnChanges {
   public activeNDTFile: string;
   public loading = false;
   public refreshSub: Subscription;
+  public subnetMergerIsEnabled = false;
 
   constructor(private cdr: ChangeDetectorRef,
               private subnetMergerBackend: SubnetMergerBackendService,
@@ -103,33 +104,42 @@ export class NdtFilesViewComponent implements OnInit, OnChanges {
   public loadNDTFiles() {
     this.loading = true;
     this.cdr.detectChanges();
-    this.subnetMergerBackend.getNDTsList().pipe(finalize(() => {
-      this.loading = false;
-      this.cdr.detectChanges();
-    })).subscribe({
+    this.subnetMergerBackend.getUFMConf().subscribe({
       next: (data) => {
-        this.subnetMergerBackend.getActiveDeployedFile().subscribe({
-          next: (activeDeployedFile) => {
-            if (activeDeployedFile && activeDeployedFile[SubnetMergerConstants.NDTFileKeys.last_deployed_file]) {
-              this.activeNDTFile = activeDeployedFile[SubnetMergerConstants.NDTFileKeys.last_deployed_file]
-            }
-
-            this.ndtFiles = data.map((file) => {
-              const fileCapabilities = {};
-              file.file_capabilities.split(",").forEach((cap) => {
-                if (cap && cap.length) {
-                  fileCapabilities[cap] = cap;
-                }
-              });
-              if (file.file != this.activeNDTFile) {
-                fileCapabilities[NDTFileCapabilities.Remove] = NDTFileCapabilities.Remove;
-              }
-              file.file_capabilities = fileCapabilities;
-              return file;
-            }).slice();
+        this.subnetMergerIsEnabled = data['subnet_merger_is_enabled'];
+        if (this.subnetMergerIsEnabled) {
+          this.subnetMergerBackend.getNDTsList().pipe(finalize(() => {
+            this.loading = false;
             this.cdr.detectChanges();
-          }
-        })
+          })).subscribe({
+            next: (data) => {
+              this.subnetMergerBackend.getActiveDeployedFile().subscribe({
+                next: (activeDeployedFile) => {
+                  if (activeDeployedFile && activeDeployedFile[SubnetMergerConstants.NDTFileKeys.last_deployed_file]) {
+                    this.activeNDTFile = activeDeployedFile[SubnetMergerConstants.NDTFileKeys.last_deployed_file]
+                  }
+
+                  this.ndtFiles = data.map((file) => {
+                    const fileCapabilities = {};
+                    file.file_capabilities.split(",").forEach((cap) => {
+                      if (cap && cap.length) {
+                        fileCapabilities[cap] = cap;
+                      }
+                    });
+                    if (file.file != this.activeNDTFile) {
+                      fileCapabilities[NDTFileCapabilities.Remove] = NDTFileCapabilities.Remove;
+                    }
+                    file.file_capabilities = fileCapabilities;
+                    return file;
+                  }).slice();
+                  this.cdr.detectChanges();
+                }
+              })
+            }
+          })
+        } else {
+          this.ndtFiles = [];
+        }
       }
     })
   }

@@ -70,4 +70,9 @@ export class SubnetMergerBackendService {
     }];
     return this.httpService.post(url, payload);
   }
+
+  public getUFMConf(): Observable<any> {
+    const url = `${SubnetMergerConstants.ufmConfigAPI.ufmConfig}`;
+    return this.httpService.get(url);
+  }
 }
