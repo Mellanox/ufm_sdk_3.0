@@ -71,6 +71,10 @@ export class ValidationReportsComponent implements OnInit, OnDestroy {
         ]
       });
 
+    Object.assign(this.tableOptions.extraOptions, {
+      [XCoreAgGridConstants.suppressColumnsFiltering]: true
+    });
+
   }
 
   public loadData() {

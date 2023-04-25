@@ -28,12 +28,20 @@ export enum NDTFileStatus {
   deployed = "deployed"
 }
 
+export enum NDTFileCapabilities {
+  Verify = "Verify",
+  Deploy = "Deploy",
+  Update = "Update",
+  Remove = "Remove"
+}
+
 export interface INDTFile {
   [SubnetMergerConstants.NDTFileKeys.file]: string,
   [SubnetMergerConstants.NDTFileKeys.file_type]: string,
   [SubnetMergerConstants.NDTFileKeys.file_status]: NDTFileStatus,
   [SubnetMergerConstants.NDTFileKeys.timestamp]: string,
-  [SubnetMergerConstants.NDTFileKeys.sha_1]: string
+  [SubnetMergerConstants.NDTFileKeys.sha_1]: string,
+  [SubnetMergerConstants.NDTFileKeys.file_capabilities]: any,
 }
 
 @Component({
@@ -105,9 +113,23 @@ export class NdtFilesViewComponent implements OnInit, OnChanges {
             if (activeDeployedFile && activeDeployedFile[SubnetMergerConstants.NDTFileKeys.last_deployed_file]) {
               this.activeNDTFile = activeDeployedFile[SubnetMergerConstants.NDTFileKeys.last_deployed_file]
             }
+
+            this.ndtFiles = data.map((file) => {
+              const fileCapabilities = {};
+              file.file_capabilities.split(",").forEach((cap) => {
+                if (cap && cap.length) {
+                  fileCapabilities[cap] = cap;
+                }
+              });
+              if (file.file != this.activeNDTFile) {
+                fileCapabilities[NDTFileCapabilities.Remove] = NDTFileCapabilities.Remove;
+              }
+              file.file_capabilities = fileCapabilities;
+              return file;
+            }).slice();
+            this.cdr.detectChanges();
           }
         })
-        this.ndtFiles = data;
       }
     })
   }
@@ -145,18 +167,20 @@ export class NdtFilesViewComponent implements OnInit, OnChanges {
             [XCoreAgGridConstants.cellRendererParams]: {
               [XCoreAgGridConstants.ngTemplate]: this.actionsTmp
             },
-            [XCoreAgGridConstants.cellClass]: "center-aligned"
+            [XCoreAgGridConstants.cellClass]: "center-aligned",
+            [XCoreAgGridConstants.maxWidth]: 100
           },
         ]
       });
 
     Object.assign(this.tableOptions.extraOptions, {
-      [XCoreAgGridConstants.rightAdditionalControlsTemplate]: this.rightControlTemplates
+      [XCoreAgGridConstants.rightAdditionalControlsTemplate]: this.rightControlTemplates,
+      [XCoreAgGridConstants.suppressColumnsFiltering]: true
     })
   }
 
-  public get NDTFileStatus() {
-    return NDTFileStatus
+  public get NDTFileCapabilities() {
+    return NDTFileCapabilities
   }
 
   public onValidateClicked(row: INDTFile) {
@@ -175,8 +199,12 @@ export class NdtFilesViewComponent implements OnInit, OnChanges {
     })
   }
 
-  public fileIsDeployed(row: INDTFile) {
-    return row.file_status.includes(NDTFileStatus.deployed);
+  public onRemoveClicked(row: INDTFile) {
+    this.subnetMergerBackend.deleteNDTFile(row.file).subscribe({
+      next: (data) => {
+        this.subnetMergerViewService.refreshNDtsTable.emit();
+      }
+    })
   }
 
 }

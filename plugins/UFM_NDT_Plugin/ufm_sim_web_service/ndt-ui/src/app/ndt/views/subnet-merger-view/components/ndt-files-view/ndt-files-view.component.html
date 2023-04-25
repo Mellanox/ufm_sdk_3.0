@@ -21,28 +21,32 @@
                     (onDeployFinish)="onInitialDeployFinish($event)"></app-initial-wizard>
 
 <ng-template #fileNameTmp let-data>
-  {{data.col}}
   <ng-container *ngIf="data.col == activeNDTFile">
     <i class="fa active" tooltip="Active" placement="top" container="body"></i>
   </ng-container>
+  {{data.col}}
 </ng-template>
 
 <ng-template #actionsTmp let-data>
   <div
-    *ngIf="data.row.file != activeNDTFile"
     class="actions-btn-wrapper">
-    <i
+    <i *ngIf="data.row.file_capabilities[NDTFileCapabilities.Verify]"
       class="fa fa-tasks"
       [tooltip]="'Validate'"
       container="body"
       placement="left"
       (click)="onValidateClicked(data.row)">
     </i>
-    <i
-      *ngIf="data.row.file_status != NDTFileStatus.new"
+    <i *ngIf="data.row.file_capabilities[NDTFileCapabilities.Deploy]"
       class="fa fa-object-group" [tooltip]="'Deploy'" container="body"
       placement="right"
       (click)="onDeployClicked(data.row)">
+    </i>
+
+    <i *ngIf="data.row.file_capabilities[NDTFileCapabilities.Remove]"
+      class="fa fa-trash" [tooltip]="'Remove'" container="body"
+      placement="top"
+      (click)="onRemoveClicked(data.row)">
     </i>
   </div>
 </ng-template>
