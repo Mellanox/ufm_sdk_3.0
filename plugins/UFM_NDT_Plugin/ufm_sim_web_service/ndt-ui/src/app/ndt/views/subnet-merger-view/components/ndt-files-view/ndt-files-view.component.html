@@ -12,8 +12,13 @@
 </ng-template>
 
 <ng-template #initialMsgTmp>
-  There is no NDT file was uploaded before.Click
-  <a (click)="initialWizard.openWizard()">here</a> to upload the initial file
+  <ng-container *ngIf="subnetMergerIsEnabled; else disabledFeatureMsg">
+    There is no NDT file was uploaded before.Click
+    <a (click)="initialWizard.openWizard()">here</a> to upload the initial file
+  </ng-container>
+  <ng-template #disabledFeatureMsg>
+    The Subnet merger feature is disabled, please enable it via the UFM Configurations file and restart the UFM.
+  </ng-template>
 </ng-template>
 
 

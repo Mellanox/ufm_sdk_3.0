@@ -48,4 +48,8 @@ export class SubnetMergerConstants {
 
   }
 
+  public static ufmConfigAPI = {
+    ufmConfig: `${NdtViewService.ufmRESTBase}/app/ufm_config`
+  }
+
 }
