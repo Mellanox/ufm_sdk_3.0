@@ -53,4 +53,21 @@ export class SubnetMergerBackendService {
     const url = SubnetMergerConstants.mergerAPIs.lastDeployedNDT;
     return this.httpService.get(url);
   }
+
+  public updatePortBoundariesAndDeploy(fileName: string, state = SubnetMergerConstants.boundariesStates.noDiscover): Observable<any> {
+    const url = `${SubnetMergerConstants.mergerAPIs.updateDeployNdtConfig}`
+    const payload = {
+      [SubnetMergerConstants.validateAPIKeys.NDTFileName]: fileName,
+      [SubnetMergerConstants.boundariesStates.boundaryPortState]: state
+    };
+    return this.httpService.post(url, payload);
+  }
+
+  public deleteNDTFile(fileName: string): Observable<any> {
+    const url = `${SubnetMergerConstants.mergerAPIs.mergerDeleteNdt}`;
+    const payload = [{
+      file_name: fileName
+    }];
+    return this.httpService.post(url, payload);
+  }
 }

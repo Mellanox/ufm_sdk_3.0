@@ -110,7 +110,8 @@ export class ValidationResultComponent implements OnInit, OnChanges, OnDestroy {
       })
 
     Object.assign(this.reportTableOptions.extraOptions, {
-      [XCoreAgGridConstants.leftAdditionalControlsTemplate]: this.leftControlTemplate
+      [XCoreAgGridConstants.leftAdditionalControlsTemplate]: this.leftControlTemplate,
+      [XCoreAgGridConstants.suppressColumnsFiltering]: true
     })
   }
 
