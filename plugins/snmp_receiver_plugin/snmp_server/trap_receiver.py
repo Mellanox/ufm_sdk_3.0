@@ -245,7 +245,8 @@ class SnmpTrapReceiver:
             self.snmp_engine.transportDispatcher.runDispatcher()
         except:
             self.snmp_engine.transportDispatcher.closeDispatcher()
-            self.throttling_thread.join(timeout=self.throttling_interval)
+            if self.throttling_thread:
+                self.throttling_thread.join(timeout=self.throttling_interval)
             raise
 
 if __name__ == "__main__":
