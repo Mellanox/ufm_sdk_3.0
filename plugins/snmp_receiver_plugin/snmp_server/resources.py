@@ -72,7 +72,7 @@ class Switch(UFMResource):
         # TODO: change to sha512 and aes-256
         cli_register = f"snmp-server host {ip} traps port {helpers.ConfigParser.snmp_port}"
         if helpers.ConfigParser.snmp_version == 1:
-            cli_register += " " + helpers.ConfigParser.community
+            cli_register += " " + helpers.ConfigParser.snmp_community
         if helpers.ConfigParser.snmp_version == 3:
             cli_register += f" version 3 user {helpers.ConfigParser.snmp_user} \
                 auth sha {helpers.ConfigParser.snmp_password} priv aes-128 {helpers.ConfigParser.snmp_priv}"
@@ -95,8 +95,10 @@ class Switch(UFMResource):
             hosts.append(helpers.LOCAL_IP)
         switches_set = set(switches)
         incorrect_switches = list(switches_set - set(self.switch_dict.keys()))
-        if incorrect_switches:
+        switches_set = switches_set - set(incorrect_switches)
+        if incorrect_switches and not switches_set:
             return self.report_error(HTTPStatus.NOT_FOUND, f"Switches {incorrect_switches} don't exist in the fabric or don't have an ip")
+        switches = list(switches_set)
         not_registered = switches_set - set(self.registered_switches)
         if unregister:
             if not_registered == switches_set:
@@ -119,6 +121,8 @@ class Switch(UFMResource):
                         if switch.guid == guid:
                             switches.remove(ip)
         self.update_registered_switches(switches, unregister)
+        if incorrect_switches:
+            return self.report_error(HTTPStatus.NOT_FOUND, f"Switches {incorrect_switches} don't exist in the fabric or don't have an ip")
         return self.report_success()
 
 class RegisterSwitch(Switch):

@@ -9,7 +9,7 @@ LABEL maintainer="atolikin@nvidia.com"
 
 RUN apt update && apt -y install supervisor python3 python3-pip mc
 
-RUN python3 -m pip install pysnmp requests flask flask_restful aiohttp
+RUN python3 -m pip install pyasn1==0.4.8 pysnmp requests flask flask_restful aiohttp
 
 COPY mibs/ ${BASE_PATH}/mibs/
 COPY snmp_server/ ${BASE_PATH}/snmp_server/
