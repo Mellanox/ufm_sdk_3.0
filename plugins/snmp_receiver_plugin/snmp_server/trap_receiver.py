@@ -222,9 +222,7 @@ class SnmpTrapReceiver:
                     # sending rest events
                     tasks.append(asyncio.ensure_future(self.post_external_event(session, multiple_events)))
                 else:
-                    for trap, count in trap_to_count.items():
-                        for _ in range(count):
-                            tasks.append(asyncio.ensure_future(self.post_external_event(session, payload)))
+                    tasks.append(asyncio.ensure_future(self.post_external_event(session, payload)))
                 # clear events dict
             await asyncio.gather(*tasks)
 
