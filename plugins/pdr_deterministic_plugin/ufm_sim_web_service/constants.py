@@ -44,21 +44,26 @@ class PDRConstants(object):
     GET_ACTIVE_PORTS_REST = "/resources/ports?active=true"
     API_HEALTHY_PORTS = "healthy_ports"
     API_ISOLATED_PORTS = "isolated_ports"
+    START_DYNAMIC_SESSION_REST = "/app/telemetry/instances/%s"
+    STOP_DYNAMIC_SESSION_REST = "/app/telemetry/instances/%s"
+    CONF_DYNAMIC_SESSION_REST = "/app/telemetry/instances/%s"
+    STATUS_DYNAMIC_SESSION_REST = "/app/telemetry/instances/status"
 
     POST_METHOD = "POST"
     PUT_METHOD = "PUT"
     GET_METHOD = "GET"
+    DELETE_METHOD = "DELETE"
     
     CONF_INTERNAL_PORT= "ufm_internal_port"
     UFM_HTTP_PORT = 8000
     CONF_USERNAME = 'admin'
     CONF_PASSWORD = 'password'
 
-    TEMP_COUNTER = "cable_temperature"
+    TEMP_COUNTER = "CableInfo.Temperature"
     ERRORS_COUNTER = "errors"
-    RCV_PACKETS_COUNTER = "Infiniband_PckIn"
-    RCV_ERRORS_COUNTER = "Infiniband_RcvErrors"
-    RCV_REMOTE_PHY_ERROR_COUNTER = "Infiniband_RcvRemotePhysErrors"
+    RCV_PACKETS_COUNTER = "PortRcvPktsExtended"
+    RCV_ERRORS_COUNTER = "PortRcvErrorsExtended"
+    RCV_REMOTE_PHY_ERROR_COUNTER = "PortRcvRemotePhysicalErrorsExtended"
     
     PHY_RAW_ERROR_LANE0 = "phy_raw_errors_lane0"
     PHY_RAW_ERROR_LANE1 = "phy_raw_errors_lane1"
@@ -95,3 +100,5 @@ class PDRConstants(object):
     CSV_RAW_BER_DEISOLATE = "Pre-FEC BER Normal"
     CSV_EFF_BER_DEISOLATE = "Post-FEC BER Normal"
     CSV_SYMBOL_BER_DEISOLATE = "Symbol BER Normal"
+
+    PDR_DYNAMIC_NAME = "pdr_dynamic"
