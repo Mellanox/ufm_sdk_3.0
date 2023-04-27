@@ -106,7 +106,7 @@ export class NdtFilesViewComponent implements OnInit, OnChanges {
     this.cdr.detectChanges();
     this.subnetMergerBackend.getUFMConf().subscribe({
       next: (data) => {
-        this.subnetMergerIsEnabled = data['subnet_merger_is_enabled'];
+        this.subnetMergerIsEnabled = data['subnet_merger_is_enabled'] || true; # This temporary until we merge the new UFM API change
         if (this.subnetMergerIsEnabled) {
           this.subnetMergerBackend.getNDTsList().pipe(finalize(() => {
             this.loading = false;
