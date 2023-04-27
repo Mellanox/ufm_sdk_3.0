@@ -14,8 +14,8 @@ from constants import PDRConstants as Constants
 import requests
 import logging
 import copy
-
-
+import http
+import pandas as pd
 class UFMCommunicator:
 
     def __init__(self, host='127.0.0.1', ufm_port=8000):
@@ -32,36 +32,39 @@ class UFMCommunicator:
             headers = self.headers
         response = requests.get(request, verify=False, headers=headers)
         logging.info("UFM API Request Status: {}, URL: {}".format(response.status_code, request))
-        if response.status_code == 200:
+        if response.status_code == http.client.OK:
             return response.json()
         else:
             return
     
-    def post_request(self, uri, data, post=True, headers=None):
+    def send_request(self, uri, data, method=Constants.POST_METHOD, headers=None):
         request = self.ufm_protocol + '://' + self._host + uri
         if not headers:
             headers = self.headers
-        if post:
+        if method == Constants.POST_METHOD:
             response = requests.post(url=request, json=data, verify=False, headers=headers)
-        else:
+        elif method == Constants.PUT_METHOD:
             response = requests.put(url=request, json=data, verify=False, headers=headers)
+        elif method == Constants.DELETE_METHOD:
+            response = requests.delete(url=request, verify=False, headers=headers)
         logging.info("UFM API Request Status: {}, URL: {}".format(response.status_code, request))
         return response
 
-    def get_telemetry(self):
-        # returns dictionary port_name: telemetry data ({"counter_name": value})
-        telemetry_data = self.get_request(Constants.GET_SESSION_DATA_REST)
-        if not telemetry_data:
-            return
-        else:
-            return telemetry_data
+    def get_telemetry(self, port, instance_name):
+        url = f"http://127.0.0.1:{port}/csv/xcset/{instance_name}"
+        try:
+            telemetry_data = pd.read_csv(url)
+        except Exception as e:
+            logging.error(e)
+            telemetry_data = None
+        return telemetry_data
     
     def send_event(self, message):
         data = {}
         data["event_id"] = 666
         data["description"] = message
         data["object_name"] = "PDR Plugin Event"
-        ret = self.post_request(Constants.POST_EVENT_REST, data)
+        ret = self.send_request(Constants.POST_EVENT_REST, data)
         if ret: 
             return True 
         return False
@@ -78,7 +81,7 @@ class UFMCommunicator:
             "ports_policy": "UNHEALTHY",
             "action": "isolate"
             }
-        return self.post_request(Constants.ISOLATION_REST, data, post=False)
+        return self.send_request(Constants.ISOLATION_REST, data, method=Constants.PUT_METHOD)
 
     def deisolate_port(self, port_name):
         # PUT
@@ -92,10 +95,34 @@ class UFMCommunicator:
             "ports": [port_name],
             "ports_policy": "HEALTHY",
             }
-        return self.post_request(Constants.ISOLATION_REST, data, post=False)
+        return self.send_request(Constants.ISOLATION_REST, data, method=Constants.PUT_METHOD)
     
     def get_ports_metadata(self):
         return self.get_request(Constants.GET_ACTIVE_PORTS_REST)
 
     def get_port_metadata(self, port_name):
         return self.get_request("%s/%s" % (Constants.GET_PORTS_REST, port_name))
+
+    def start_dynamic_session(self, instance_name, counters, sample_rate):
+        data = {
+            "counters": counters,
+            "sample_rate": sample_rate
+            }
+        return self.send_request(Constants.START_DYNAMIC_SESSION_REST % instance_name, data, method=Constants.POST_METHOD)
+
+    def running_dynamic_session(self, instance_name):
+        response = self.get_request(Constants.STATUS_DYNAMIC_SESSION_REST)
+        if response:
+            instance_status = response.get(instance_name)
+            if instance_status and instance_status.get("status") == "running":
+                return True
+        return False
+
+    def stop_dynamic_session(self, instance_name):
+        data = {}
+        return self.send_request(Constants.STOP_DYNAMIC_SESSION_REST % instance_name, data, method=Constants.DELETE_METHOD)
+
+    def dynamic_session_get_port(self, instance_name):
+        data = self.get_request(Constants.CONF_DYNAMIC_SESSION_REST % instance_name)
+        if data:
+            return data.get("endpoint_port")

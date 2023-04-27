@@ -16,6 +16,7 @@ import time
 import configparser
 import pandas as pd
 import json
+import http
 
 from constants import PDRConstants as Constants
 from ufm_communication_mgr import UFMCommunicator
@@ -55,13 +56,20 @@ class Issue(object):
         self.cause = cause
         self.port = port
 
+def get_counter(counter_name, row, default=0):
+    try:
+        val = row.get(counter_name) if row.get(counter_name) else default
+    except Exception as e:
+        return default
+    return val
+
 class IsolationMgr:
     
     def __init__(self, ufm_client: UFMCommunicator, logger):
         self.ufm_client = ufm_client
         # {port_name: PortState}
         self.ports_states = dict()
-        # {port_name: telemetry + speed}
+        # {port_name: telemetry_data}
         self.ports_data = dict()
         self.ufm_latest_isolation_state = []
         
@@ -95,6 +103,19 @@ class IsolationMgr:
             "HDR": 50,
             "NDR": 100,
             }
+        self.telemetry_counters = [
+            Constants.PHY_RAW_ERROR_LANE0,
+            Constants.PHY_RAW_ERROR_LANE1,
+            Constants.PHY_RAW_ERROR_LANE2,
+            Constants.PHY_RAW_ERROR_LANE3,
+            Constants.PHY_EFF_ERROR,
+            Constants.PHY_SYMBOL_ERROR,
+            Constants.RCV_PACKETS_COUNTER,
+            Constants.RCV_ERRORS_COUNTER,
+            Constants.RCV_REMOTE_PHY_ERROR_COUNTER,
+            Constants.TEMP_COUNTER,
+            Constants.FEC_MODE
+        ]
                 
         # DEBUG
         # self.iteration = 0
@@ -192,22 +213,22 @@ class IsolationMgr:
         self.ports_data.get(port_name)[counter_name] = new_val
         return counter_delta
 
-    def read_next_set_of_high_ber_or_pdr_ports(self):
+    def read_next_set_of_high_ber_or_pdr_ports(self, endpoint_port):
         issues = {}
-        ports_counters = self.ufm_client.get_telemetry()
-        if not ports_counters:
+        ports_counters = self.ufm_client.get_telemetry(endpoint_port, Constants.PDR_DYNAMIC_NAME)
+        if ports_counters is None:
+            # implement health check for the telemetry instance
             self.logger.error("Couldn't retrieve telemetry data")
             return issues
-        ports_counters = list(ports_counters.values())[0]
-        for port_name, statistics in ports_counters.get("Ports").items():
-            # if not self.ports_states.get(port_name):
-            #     self.ports_states[port_name] = PortState(port_name)
-            counters = statistics.get('statistics')
-            errors = counters.get(Constants.RCV_ERRORS_COUNTER, 0) + counters.get(Constants.RCV_REMOTE_PHY_ERROR_COUNTER, 0) 
-            error_rate = self.get_rate_and_update(port_name, Constants.ERRORS_COUNTER, errors)
-            rcv_pkts = counters.get(Constants.RCV_PACKETS_COUNTER, 0)
+        for index, row in ports_counters.iterrows():
+            port_name = f"{row.get('port_guid', '').split('x')[-1]}_{row.get('port_num', '')}"
+            rcv_error = get_counter(Constants.RCV_ERRORS_COUNTER, row)
+            rcv_remote_phy_error = get_counter(Constants.RCV_REMOTE_PHY_ERROR_COUNTER, row)
+            errors = rcv_error + rcv_remote_phy_error
+            error_rate = self.get_rate_and_update(port_name, Constants.ERRORS_COUNTER, row)
+            rcv_pkts = get_counter(Constants.RCV_PACKETS_COUNTER, row)
             rcv_pkt_rate = self.get_rate_and_update(port_name, Constants.RCV_PACKETS_COUNTER, rcv_pkts)
-            cable_temp = counters.get(Constants.TEMP_COUNTER)
+            cable_temp = get_counter(Constants.TEMP_COUNTER, row, default=None)
             # DEBUG
             # if port_name == "e41d2d0300062380_3":
             #     self.iteration += 1
@@ -224,13 +245,13 @@ class IsolationMgr:
                 issues[port_name] = Issue(port_name, Constants.ISSUE_OONOC)
             if self.configured_ber_check:
                 symbol_ber_val = sum([
-                    counters.get(Constants.PHY_RAW_ERROR_LANE0, 0),
-                    counters.get(Constants.PHY_RAW_ERROR_LANE1, 0),
-                    counters.get(Constants.PHY_RAW_ERROR_LANE2, 0),
-                    counters.get(Constants.PHY_RAW_ERROR_LANE3, 0),
+                    get_counter(Constants.PHY_RAW_ERROR_LANE0, row),
+                    get_counter(Constants.PHY_RAW_ERROR_LANE1, row),
+                    get_counter(Constants.PHY_RAW_ERROR_LANE2, row),
+                    get_counter(Constants.PHY_RAW_ERROR_LANE3, row),
                     ])
-                eff_ber_val = counters.get(Constants.PHY_EFF_ERROR)
-                raw_ber_val = counters.get(Constants.RAW_BER)
+                eff_ber_val = get_counter(Constants.PHY_EFF_ERROR, row, default=None)
+                raw_ber_val = get_counter(Constants.RAW_BER, row, default=None)
                 if symbol_ber_val is not None or eff_ber_val is not None or raw_ber_val is not None:
                     timestamp = time.time()
                     ber_data = {
@@ -239,11 +260,11 @@ class IsolationMgr:
                         Constants.EFF_BER : eff_ber_val,
                         Constants.SYMBOL_BER : symbol_ber_val
                     }
-                    self.ber_tele_data = self.ber_tele_data.concat(ber_data, ignore_index=True)
+                    self.ber_tele_data.loc[len(self.ber_tele_data)] = ber_data
                     self.ber_tele_data = self.ber_tele_data[self.ber_tele_data[Constants.TIMESTAMP] > self.start_time - self.ber_wait_time + self.t_isolate * 10]
                     self.start_time = self.ber_tele_data[Constants.TIMESTAMP].min()
                     port_data = self.ports_data.get(port_name)
-                    fec_mode = counters.get(Constants.FEC_MODE)
+                    fec_mode = get_counter(Constants.FEC_MODE, row, default=None)
                     if fec_mode is None:
                         continue
                     port_speed = port_data.get(Constants.ACTIVE_SPEED)
@@ -255,7 +276,11 @@ class IsolationMgr:
                         port_data[Constants.ASIC] = port_asic
                         port_data[Constants.WIDTH] = port_width
                     if not port_asic:
-                        logger.debug(f"Couldn't retrieve HW technology for port {port_name}, can't verify it's BER values")
+                        self.logger.debug(f"Couldn't retrieve HW technology for port {port_name}, can't verify it's BER values")
+                        continue
+                    if not port_width:
+                        self.logger.debug(f"port width for port {port_name} is None, can't verify it's BER values")
+                        continue
 
                     if timestamp - self.start_time < self.ber_wait_time:
                         continue
@@ -318,7 +343,8 @@ class IsolationMgr:
                 self.ports_data[port_name][Constants.ACTIVE_SPEED] = port.get(Constants.ACTIVE_SPEED)
                 self.ports_data[port_name][Constants.ASIC] = port.get(Constants.HW_TECHNOLOGY)
                 port_width = port.get(Constants.WIDTH)
-                port_width = int(port_width.strip('x'))    
+                if port_width:
+                    port_width = int(port_width.strip('x'))    
                 self.ports_data[port_name][Constants.WIDTH] = port_width
 
     def get_port_metadata(self, port_name):
@@ -328,7 +354,8 @@ class IsolationMgr:
             port_speed = port_data.get(Constants.ACTIVE_SPEED)
             port_asic = port_data.get(Constants.HW_TECHNOLOGY)
             port_width = port_data.get(Constants.WIDTH)
-            port_width = int(port_width.strip('x'))
+            if port_width:
+                port_width = int(port_width.strip('x'))
             return port_speed, port_asic, port_width
 
 
@@ -350,15 +377,33 @@ class IsolationMgr:
                 port_state.update(Constants.STATE_ISOLATED, Constants.ISSUE_OONOC)
                 self.ports_states[port] = port_state
 
+    def start_telemetry_session(self):
+        self.logger.info("Starting telemetry session")
+        response = self.ufm_client.start_dynamic_session(Constants.PDR_DYNAMIC_NAME, self.telemetry_counters, self.t_isolate)
+        if response and response.status_code == http.HTTPStatus.ACCEPTED:
+            port = str(response.content)
+        else:
+            self.logger.error(f"Failed to start dynamic session: {response}")
+            return False
+        return port       
+
+    def run_telemetry_get_port(self):
+        while not self.ufm_client.running_dynamic_session(Constants.PDR_DYNAMIC_NAME):
+            endpoint_port = self.start_telemetry_session()
+            time.sleep(20)
+        endpoint_port = self.ufm_client.dynamic_session_get_port(Constants.PDR_DYNAMIC_NAME)
+        return endpoint_port
+
     def main_flow(self):
         # sync to the telemetry clock by blocking read
         self.logger.info("Isolation Manager initialized, starting isolation loop")
-        self.get_ports_metadata()
+        self.get_ports_metadata()        
+        endpoint_port = self.run_telemetry_get_port()
         while(True):
             try:
                 self.get_isolation_state()
                 self.logger.info("Retrieving telemetry data to determine ports' states")
-                issues = self.read_next_set_of_high_ber_or_pdr_ports()
+                issues = self.read_next_set_of_high_ber_or_pdr_ports(endpoint_port)
                 if len(issues) > self.max_num_isolate:
                     # UFM send external event
                     event_msg = "got too many ports detected as unhealthy: %d, skipping isolation" % len(issues)
