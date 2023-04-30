@@ -181,9 +181,9 @@ def get_mapping_port_labels2port_numbers():
                 if "END_PORT_HIERARCHY_INFO" in line:
                     break
                 else:
-                    # somehow the output of ibnetdiscover will be differen (versions)
+                    # somehow the output of ibdiagnet in db_csv will be different (versions)
                     # need to take fields based on format and not on order. So need to get location
-                    # of the field using heade names
+                    # of the field using header names
                     port_hierarchy_info = line.strip().split(",")
                     if port_line_number == 1:
                         #heade line need to set indexes for ports that we want to use
@@ -397,7 +397,7 @@ def create_raw_topoconfig_file(ndt_file_path, boundary_port_state, patterns):
                                          boundary_port_state, creation_timestamp)
         #this is the structure that contains names of the nodes and ports and GUIDs
         # on base of this struct should be created topconfig file
-        create_status, error_message = create_topoconfig_file(links_info, ndt_file_path, patterns,
+        create_status, error_message, failed_ports = create_topoconfig_file(links_info, ndt_file_path, patterns,
                                                       boundary_port_state,
                                                       output_file_name)
         if not create_status:
@@ -452,6 +452,7 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
     output_file = get_topoconfig_file_name(ndt_file_path) if not output_file_name else output_file_name
     # get mapping between node_guid and port lable to port number
     node_guid_lable2port_num = get_mapping_port_labels2port_numbers()
+    failed_lable_conversion = []
     with open(output_file, 'w') as topoconfig_file:
         for index, row in enumerate(dictreader):
             logging.debug("Parsing NDT link: {}".format(row))
@@ -480,6 +481,19 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
             port_guid = links_info_dict.get(link_key)
             if not start_device in device_to_guid_map:
                 device_to_guid_map[start_device] = port_guid
+            if not start_port.isnumeric():
+                port_key = "%s___%s" % (start_device, start_port)
+                start_port_num = node_guid_lable2port_num.get(port_key, None)
+                if start_port_num:
+                    start_port = str(start_port_num)
+                else:
+                    error_message = "Failed to convert port label for GUID {}, Label {} to port number".format(start_device, start_port)
+                    report_error_message = "Topoconfig file creation failure: failed to convert port label to port number"
+                    logging.error(error_message)
+                    # TODO: AT what is the correct behavior in such case
+                    file_creation_failed = True
+                    failed_lable_conversion.append(port_key.replace("___", " Port:"))
+                    continue
             if peer_device and peer_port:
                 link_key_peer = "%s___%s" % (peer_device, peer_port)
                 peer_port_guid = links_info_dict.get(link_key_peer)
@@ -490,11 +504,13 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
                     if peer_port_num:
                         peer_port = str(peer_port_num)
                     else:
-                        error_message = "Failed to convert port label for GUID {}, Label {} to port number".format(peer_port_guid, peer_port)
+                        error_message = "Failed to convert port label for GUID {}, Label {} to port number".format(peer_device, peer_port)
                         report_error_message = "Topoconfig file creation failure: failed to convert port label to port number"
                         logging.error(error_message)
                         # TODO: AT what is the correct behavior in such case
                         file_creation_failed = True
+                        failed_lable_conversion.append(port_key.replace("___", " Port:"))
+                        continue
             else:
                 port_guid = device_to_guid_map.get(start_device)
                 peer_port_guid = "-"
@@ -504,11 +520,12 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
                 topoconfig_file.write("%s,%s,%s,%s,%s,%s\n" % (port_guid, start_port,
                             peer_port_guid, peer_port,host_type,port_state))
     ndt_file.close()
-    if file_creation_failed:
-        if os.path.exists(output_file):
-            os.remove(output_file)
-        return False, report_error_message
-    return True, "success"
+#     ATB - no need to remove file
+#     if file_creation_failed:
+#         if os.path.exists(output_file):
+#             os.remove(output_file)
+#         return False, report_error_message, failed_lable_conversion
+    return True, "success", failed_lable_conversion
 
 
 def update_boundary_port_state_in_topoconfig_file(boundary_port_state,
