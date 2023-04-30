@@ -200,7 +200,7 @@ def parse_ibdiagnet_dump(net_dump_file_path):
                 link_info_dict = {}
                 link_info_dict["node_name"] = switch_info[0].strip('"')
                 link_info_dict["node_guid"] = switch_info[2].strip()
-                link_info_dict["node_port_number"] = link_info_list[1].strip()
+                link_info_dict["node_port_number"] = link_info_list[0].strip()
                 link_info_dict["peer_node_name"] = link_info_list[12].strip().strip('"')
                 link_info_dict["peer_node_guid"] = link_info_list[9].strip()
                 link_info_dict["peer_node_port_number"] = link_info_list[10].strip()

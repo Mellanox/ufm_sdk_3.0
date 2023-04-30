@@ -234,18 +234,31 @@ class MergerVerifyNDT(Compare):
                 report_content["error"] = "Failed to create topoconfig file. No links found"
                 report_content["status"] = "Verification failed."
                 raise ValueError(report_content["error"])
-            topoconfig_creation_status, message = create_topoconfig_file(links_info,
-                      ndt_file_name, self.switch_patterns + self.host_patterns)
-            if not topoconfig_creation_status:
-                report_content["error"] = message
-                report_content["status"] = "Verification failed."
-                raise ValueError(message)
             report_content = compare_topologies_ndt_ibdiagnet(self.timestamp,
                                                               ibdiagnet_links,
                                                               ibdiagnet_links_reverse,
                                                               ndt_links,
                                                               ndt_links_reversed)
             report_content["NDT_file"] = os.path.basename(ndt_file_name)
+            topoconfig_creation_status, message, failed_ports = create_topoconfig_file(links_info,
+                      ndt_file_name, self.switch_patterns + self.host_patterns)
+            # If open comments below - remove / comment next if statement
+            if not topoconfig_creation_status or failed_ports:
+                report_content["error"] = message
+                report_content["status"] = "Verification failed."
+                logging.error(message)
+                raise ValueError(report_content["error"])
+            # TODO: ATB additional section/category in report for labels that
+            # failed to be converted to port number. Uncomment if will be request for such info
+#             if failed_ports:
+#                 report_content["error"] = message
+#                 report_content["status"] = "Verification failed."
+#                 for failed_port in failed_ports:
+#                     problematic_port_entry = {
+#                                "category": "port label is missing in setup",
+#                                "description": failed_port
+#                     }
+#                 report_content["report"].append(problematic_port_entry)
             if report_content["error"]:
                 response, status_code = self.create_report(scope, report_content)
                 if status_code != self.success:
