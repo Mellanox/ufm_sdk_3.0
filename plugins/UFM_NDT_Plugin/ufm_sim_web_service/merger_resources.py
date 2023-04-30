@@ -35,7 +35,7 @@ from topo_diff.ndt_infra import MERGER_OPEN_SM_CONFIG_FILE,\
     IBDIAGNET_LOG_FILE, NDT_FILE_STATE_VERIFIED, NDT_FILE_STATE_DEPLOYED,\
     NDT_FILE_STATE_UPDATED, BOUNDARY_PORT_STATE_DISABLED, BOUNDARY_PORT_STATE_NO_DISCOVER,\
     NDT_FILE_STATE_UPDATED_NO_DISCOVER,NDT_FILE_STATE_UPDATED_DISABLED,\
-    LAST_DEPLOYED_NDT_FILE_INFO
+    LAST_DEPLOYED_NDT_FILE_INFO, NDT_FILE_STATE_VERIFY_FILED
 from resources import ReportId
 from topo_diff.topo_diff import upload_topoconfig_file, SUCCESS_CODE, ACCEPTED_CODE
 from topo_diff.ndt_infra import get_topoconfig_file_name
@@ -170,8 +170,13 @@ class MergerVerifyNDT(Compare):
         scope = "Single" # TODO: well ... not need it at all
         # prepare structure from NDT file
         # NDT file should be received as part of request by name
+        ndt_status = NDT_FILE_STATE_VERIFIED
         try:
             report_content = dict()
+            # basic report in case of failure
+            report_content["timestamp"] = self.timestamp,
+            report_content["report"] = {}
+            report_content["NDT_file"] = os.path.basename(ndt_file_name)
 #           Standard ibnetdiscover output is not good enough - need to check GUIDs for duplication
 #           So this flow (checking for existing net_dump file to use commented)
 #             if check_ibdiagnet_net_dump_file_exist():
@@ -181,13 +186,19 @@ class MergerVerifyNDT(Compare):
             if run_ibdiagnet():
                 ibdiagnet_file_path = IBDIAGNET_OUT_NET_DUMP_FILE_PATH
             else:
-                raise ValueError("Report creation failed for %s: Failed to run ibdiagnet" % ndt_file_name)
+                report_content["error"] = "Report creation failed for %s: Failed to run ibdiagnet" % ndt_file_name
+                report_content["status"] = "Verification failed."
+                raise ValueError(report_content["error"])
             if not check_file_exist(ibdiagnet_file_path):
-                raise ValueError("%s not exist" % IBDIAGNET_OUT_NET_DUMP_FILE_PATH)
+                report_content["error"] = "Report creation failed for %s: File %s not exists" % (ndt_file_name, BDIAGNET_OUT_NET_DUMP_FILE_PATH)
+                report_content["status"] = "Verification failed."
+                raise ValueError(report_content["error"])
             self.timestamp = self.get_timestamp()
             # check first for duplicated GUIDs in setup
             if not check_file_exist(IBDIAGNET_LOG_FILE):
-                raise ValueError("%s not exist" % (IBDIAGNET_LOG_FILE))
+                report_content["error"] = "Report creation failed for %s: Filed to check duplicated GUIDs. File %s not exists" % (ndt_file_name, IBDIAGNET_LOG_FILE)
+                report_content["status"] = "Verification failed."
+                raise ValueError(report_content["error"])
             status, duplicated_guids = check_duplicated_guids()
             if status and duplicated_guids:
                 # in case of duplicated GUIDs verification of links will not be performed
@@ -198,11 +209,15 @@ class MergerVerifyNDT(Compare):
                 if status_code != self.success:
                     raise ValueError(report_content["error"])
                 else:
-                    return
+                    report_content["error"] = "Report creation failed for %s: Filed to check duplicated GUIDs. File %s not exists" % (ndt_file_name, IBDIAGNET_LOG_FILE)
+                    report_content["status"] = "Verification failed."
+                    raise ValueError(report_content["error"])
             # get configuration from ibdiagnet
             ibdiagnet_links, ibdiagnet_links_reverse, links_info, error_message = \
                                            parse_ibdiagnet_dump(ibdiagnet_file_path)
             if error_message:
+                report_content["error"] = error_message
+                report_content["status"] = "Verification failed."
                 raise ValueError(error_message)
             ndt_links = set()
             ndt_links_reversed = set()
@@ -210,20 +225,21 @@ class MergerVerifyNDT(Compare):
                             self.switch_patterns + self.host_patterns,
                             ndt_links_reversed, True)
             if error_message:
+                report_content["error"] = error_message
+                report_content["status"] = "Verification failed."
                 raise ValueError(error_message)
             # compare NDT with ibdiagnet
             # create report
-            if not links_info or not create_topoconfig_file(links_info, ndt_file_name,
-                            self.switch_patterns + self.host_patterns):
-                #this is the structure that contains names of the nodes and ports and GUIDs
-                # on base of this struct should be created topconfig file
-                # in case of failure - non eed to continue - crewate error report and return
-                report_content["error"] = "Failed to create topoconfig file",
-                report_content["status"] = "Failed on topoconfig creation",
-                report_content["timestamp"] = self.timestamp,
-                report_content["report"] = {}
-                report_content["NDT_file"] = os.path.basename(ndt_file_name)
+            if not links_info:
+                report_content["error"] = "Failed to create topoconfig file. No links found"
+                report_content["status"] = "Verification failed."
                 raise ValueError(report_content["error"])
+            topoconfig_creation_status, message = create_topoconfig_file(links_info,
+                      ndt_file_name, self.switch_patterns + self.host_patterns)
+            if not topoconfig_creation_status:
+                report_content["error"] = message
+                report_content["status"] = "Verification failed."
+                raise ValueError(message)
             report_content = compare_topologies_ndt_ibdiagnet(self.timestamp,
                                                               ibdiagnet_links,
                                                               ibdiagnet_links_reverse,
@@ -237,13 +253,13 @@ class MergerVerifyNDT(Compare):
         except ValueError as e:
             if "error" not in report_content:
                 report_content["error"] = e.args[0]
-
+            ndt_status = NDT_FILE_STATE_VERIFY_FILED
         response, status_code = self.create_report(scope, report_content)
         if status_code != self.success:
             logging.error("Failed to create verification report: %s" % response)
         # update status of the NDT file to verified - at least once we run verification
         try:
-            self.update_ndt_file_status(ndt_file_name, NDT_FILE_STATE_VERIFIED)
+            self.update_ndt_file_status(ndt_file_name, ndt_status)
         except Exception as e:
             logging.error("Failed to update NDT file %s status" % ndt_file_name)
 
