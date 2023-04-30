@@ -181,10 +181,27 @@ def get_mapping_port_labels2port_numbers():
                 if "END_PORT_HIERARCHY_INFO" in line:
                     break
                 else:
-                    if port_line_number >= 2:
-                        port_hierarchy_info = line.strip().split(",")
-                        port_key = "%s___%s" % (port_hierarchy_info[0], port_hierarchy_info[4].strip("\""))
-                        port_guid_lable_to_port_num[port_key] = int(port_hierarchy_info[3])
+                    # somehow the output of ibnetdiscover will be differen (versions)
+                    # need to take fields based on format and not on order. So need to get location
+                    # of the field using heade names
+                    port_hierarchy_info = line.strip().split(",")
+                    if port_line_number == 1:
+                        #heade line need to set indexes for ports that we want to use
+                        column_index = 0
+                        for header_column_name in port_hierarchy_info:
+                            if header_column_name == "NodeGUID":
+                                node_guid_index = column_index
+                            elif header_column_name == "PortNum":
+                                port_num_index = column_index
+                            elif header_column_name == "Label":
+                                label_index = column_index
+                            column_index += 1
+                    elif port_line_number >= 2:
+                        try:
+                            port_key = "%s___%s" % (port_hierarchy_info[node_guid_index], port_hierarchy_info[label_index].strip("\""))
+                            port_guid_lable_to_port_num[port_key] = int(port_hierarchy_info[port_num_index])
+                        except Exception as e:
+                            logging.error("Failed to convert port Label to port number:%s." % e)
                     port_line_number += 1
             else:
                 continue
