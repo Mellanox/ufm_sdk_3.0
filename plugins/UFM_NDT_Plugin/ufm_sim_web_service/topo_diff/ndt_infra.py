@@ -58,6 +58,7 @@ BOUNDARY_PORTS_STATES = [BOUNDARY_PORT_STATE_NO_DISCOVER,
                          BOUNDARY_PORT_STATE_ACTIVE]
 TOPOCONFIG_FIELD_NAMES = ["port_guid", "port_num", "peer_port_guid", "peer_port_num", "host_type", "port_state"]
 NDT_FILE_STATE_NEW = "New"
+NDT_FILE_STATE_VERIFY_FILED = "Verification Failed"
 NDT_FILE_STATE_VERIFIED = "Verified"
 NDT_FILE_CAPABILITY_VERIFY = "Verify"
 NDT_FILE_CAPABILITY_VERIFY_DEPLOY_UPDATE = "Verify,Deploy,Update"
@@ -160,6 +161,34 @@ def run_ibdiagnet_verification_command():
     '''
     status, cmd_output = execute_generic_command(IBDIAGNET_PORT_VERIFICATION_COMMAND)
     return status
+
+
+def get_mapping_port_labels2port_numbers():
+    '''
+    Return map with mapping between node_guid and port_lable to port number
+    to be used for topoconfig creation
+    '''
+    port_guid_lable_to_port_num = dict()
+    with open(IBDIAGNET_OUT_DB_CSV_FILE_PATH, 'r', encoding="utf-8") as db_csv_file:
+        # just read file until START_PORTS, then take all the lined until not END_PORTS
+        hierarchy_section_started = False
+        port_line_number = 0
+        while line := db_csv_file.readline():
+            if "START_PORT_HIERARCHY_INFO" in line:
+                hierarchy_section_started = True
+                port_line_number += 1
+            elif hierarchy_section_started:
+                if "END_PORT_HIERARCHY_INFO" in line:
+                    break
+                else:
+                    if port_line_number >= 2:
+                        port_hierarchy_info = line.strip().split(",")
+                        port_key = "%s___%s" % (port_hierarchy_info[0], port_hierarchy_info[4].strip("\""))
+                        port_guid_lable_to_port_num[port_key] = int(port_hierarchy_info[3])
+                    port_line_number += 1
+            else:
+                continue
+    return port_guid_lable_to_port_num
 
 def get_boundary_ports_with_state(boundary_ports, global_verify_state=None):
     '''
@@ -351,10 +380,10 @@ def create_raw_topoconfig_file(ndt_file_path, boundary_port_state, patterns):
                                          boundary_port_state, creation_timestamp)
         #this is the structure that contains names of the nodes and ports and GUIDs
         # on base of this struct should be created topconfig file
-        if not create_topoconfig_file(links_info, ndt_file_path, patterns,
+        create_status, error_message = create_topoconfig_file(links_info, ndt_file_path, patterns,
                                                       boundary_port_state,
-                                                      output_file_name):
-            error_message = "Failed to create topoconfig file %s" % output_file_name
+                                                      output_file_name)
+        if not create_status:
             logging.error(error_message)
             return False, error_message
         else:
@@ -395,14 +424,17 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
     ndt_file = open(ndt_file_path, "r", encoding="utf-8")
     dictreader = csv.DictReader(ndt_file)
     host_type = "Any"
+    file_creation_failed = False
     try:
         _ = iter(dictreader)
     except TypeError as te:
-        error_message = "{} is empty or cannot be parsed: {}".format(ndt_file_path, te)
+        error_message = "Topoconfig file creation failure: {} is empty or cannot be parsed: {}".format(ndt_file_path, te)
         logging.error(error_message)
         ndt_file.close()
-        return False
+        return False, error_message
     output_file = get_topoconfig_file_name(ndt_file_path) if not output_file_name else output_file_name
+    # get mapping between node_guid and port lable to port number
+    node_guid_lable2port_num = get_mapping_port_labels2port_numbers()
     with open(output_file, 'w') as topoconfig_file:
         for index, row in enumerate(dictreader):
             logging.debug("Parsing NDT link: {}".format(row))
@@ -416,8 +448,10 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
 
             except KeyError as ke:
                 error_message = "No such column: {}, in line: {}".format(ke, index)
+                report_error_message = "Topoconfig file creation failure: Error on NDT file {} parsing".format(os.path.basename(ndt_file_path))
                 logging.error(error_message)
-                continue # ATB ??? what to do?
+                file_creation_failed = True
+                continue
             link_key = "%s___%s" % (start_device, start_port)
             # initially on verification boundary port state should be disabled
             # the question will it be the part of config file or UFM decision
@@ -432,6 +466,18 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
             if peer_device and peer_port:
                 link_key_peer = "%s___%s" % (peer_device, peer_port)
                 peer_port_guid = links_info_dict.get(link_key_peer)
+                # in case peer port is not a number - get number from mapping
+                if not peer_port.isnumeric():
+                    port_key = "%s___%s" % (peer_port_guid, peer_port)
+                    peer_port_num = node_guid_lable2port_num.get(port_key, None)
+                    if peer_port_num:
+                        peer_port = str(peer_port_num)
+                    else:
+                        error_message = "Failed to convert port label for GUID {}, Label {} to port number".format(peer_port_guid, peer_port)
+                        report_error_message = "Topoconfig file creation failure: failed to convert port label to port number"
+                        logging.error(error_message)
+                        # TODO: AT what is the correct behavior in such case
+                        file_creation_failed = True
             else:
                 port_guid = device_to_guid_map.get(start_device)
                 peer_port_guid = "-"
@@ -441,7 +487,11 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
                 topoconfig_file.write("%s,%s,%s,%s,%s,%s\n" % (port_guid, start_port,
                             peer_port_guid, peer_port,host_type,port_state))
     ndt_file.close()
-    return True
+    if file_creation_failed:
+        if os.path.exists(output_file):
+            os.remove(output_file)
+        return False, report_error_message
+    return True, "success"
 
 
 def update_boundary_port_state_in_topoconfig_file(boundary_port_state,
