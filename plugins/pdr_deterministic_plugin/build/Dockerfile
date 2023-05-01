@@ -12,6 +12,12 @@ ARG SCRIPTS_PATH=${BASE_PATH}/scripts
 EXPOSE 8000
 EXPOSE 8982
 EXPOSE 443
+EXPOSE 9002
+EXPOSE 9003
+EXPOSE 9004
+EXPOSE 9005
+EXPOSE 9006
+EXPOSE 9007
 
 RUN apt-get update && apt-get -y install supervisor python3 python3-pip rsyslog vim curl sudo
 

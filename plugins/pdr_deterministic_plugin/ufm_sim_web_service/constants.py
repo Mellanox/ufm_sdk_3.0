@@ -44,9 +44,7 @@ class PDRConstants(object):
     GET_ACTIVE_PORTS_REST = "/resources/ports?active=true"
     API_HEALTHY_PORTS = "healthy_ports"
     API_ISOLATED_PORTS = "isolated_ports"
-    START_DYNAMIC_SESSION_REST = "/app/telemetry/instances/%s"
-    STOP_DYNAMIC_SESSION_REST = "/app/telemetry/instances/%s"
-    CONF_DYNAMIC_SESSION_REST = "/app/telemetry/instances/%s"
+    DYNAMIC_SESSION_REST = "/app/telemetry/instances/%s"
     STATUS_DYNAMIC_SESSION_REST = "/app/telemetry/instances/status"
 
     POST_METHOD = "POST"
@@ -81,6 +79,11 @@ class PDRConstants(object):
     WIDTH = "active_width"
     FEC_MODE = "fec_mode_active"
     PORT_NAME = "name"
+    DESCRIPTION = "description"
+    EXTERNAL_NUMBER = "external_number"
+    GUID = "guid"
+    SYSTEM_ID = "systemID"
+    PORT_NUM = "port_num"
     
     ISSUE_PDR = "pdr"
     ISSUE_BER = "ber"

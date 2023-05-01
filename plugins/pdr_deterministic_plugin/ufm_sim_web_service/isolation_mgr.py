@@ -340,12 +340,33 @@ class IsolationMgr:
                 port_name = port.get(Constants.PORT_NAME)
                 if not self.ports_data.get(port_name):
                     self.ports_data[port_name] = {}
-                self.ports_data[port_name][Constants.ACTIVE_SPEED] = port.get(Constants.ACTIVE_SPEED)
-                self.ports_data[port_name][Constants.ASIC] = port.get(Constants.HW_TECHNOLOGY)
-                port_width = port.get(Constants.WIDTH)
-                if port_width:
-                    port_width = int(port_width.strip('x'))    
-                self.ports_data[port_name][Constants.WIDTH] = port_width
+                self.update_port_metadata(port_name, port)
+        
+    def update_port_metadata(self, port_name, port):
+        self.ports_data[port_name][Constants.ACTIVE_SPEED] = port.get(Constants.ACTIVE_SPEED)
+        self.ports_data[port_name][Constants.ASIC] = port.get(Constants.HW_TECHNOLOGY)
+        self.ports_data[port_name][Constants.GUID] = port.get(Constants.SYSTEM_ID)
+        if "Computer IB Port" in port.get(Constants.DESCRIPTION):
+            self.ports_data[port_name][Constants.PORT_NUM] = 1
+        else:
+            self.ports_data[port_name][Constants.PORT_NUM] = port.get(Constants.EXTERNAL_NUMBER)
+        port_width = port.get(Constants.WIDTH)
+        if port_width:
+            port_width = int(port_width.strip('x'))    
+        self.ports_data[port_name][Constants.WIDTH] = port_width
+
+
+    def update_ports_data(self):
+        meta_data = self.ufm_client.get_ports_metadata()
+        ports_updated = False
+        if meta_data and len(meta_data) > 0:
+            for port in meta_data:
+                port_name = port.get(Constants.PORT_NAME)
+                if not self.ports_data.get(port_name):
+                    self.ports_data[port_name] = {}
+                    self.update_port_metadata(port_name, port)
+                    ports_updated = True
+        return ports_updated
 
     def get_port_metadata(self, port_name):
         meta_data = self.ufm_client.get_port_metadata(port_name)
@@ -379,13 +400,31 @@ class IsolationMgr:
 
     def start_telemetry_session(self):
         self.logger.info("Starting telemetry session")
-        response = self.ufm_client.start_dynamic_session(Constants.PDR_DYNAMIC_NAME, self.telemetry_counters, self.t_isolate)
+        guids = self.get_requested_guids()
+        response = self.ufm_client.start_dynamic_session(Constants.PDR_DYNAMIC_NAME, self.telemetry_counters, self.t_isolate, guids)
         if response and response.status_code == http.HTTPStatus.ACCEPTED:
-            port = str(response.content)
+            port = str(int(response.content))
         else:
             self.logger.error(f"Failed to start dynamic session: {response}")
             return False
-        return port       
+        return port
+
+    def update_telemetry_session(self):
+        self.logger.info("Updating telemetry session")
+        guids = self.get_requested_guids()
+        response = self.ufm_client.update_dynamic_session(Constants.PDR_DYNAMIC_NAME, self.t_isolate, guids)
+        return response
+
+    def get_requested_guids(self):
+        guids = {}
+        for port in self.ports_data.values():
+            sys_guid = port.get(Constants.GUID)
+            if sys_guid in guids:
+                guids[sys_guid].append(port.get(Constants.PORT_NUM))
+            else:
+                guids[sys_guid] = [port.get(Constants.PORT_NUM)]
+        requested_guids = [{"guid": sys_guid, "ports": ports} for sys_guid, ports in guids.items()]
+        return requested_guids
 
     def run_telemetry_get_port(self):
         while not self.ufm_client.running_dynamic_session(Constants.PDR_DYNAMIC_NAME):
@@ -397,10 +436,11 @@ class IsolationMgr:
     def main_flow(self):
         # sync to the telemetry clock by blocking read
         self.logger.info("Isolation Manager initialized, starting isolation loop")
-        self.get_ports_metadata()        
+        self.get_ports_metadata()      
         endpoint_port = self.run_telemetry_get_port()
         while(True):
             try:
+                t_begin = time.time()
                 self.get_isolation_state()
                 self.logger.info("Retrieving telemetry data to determine ports' states")
                 issues = self.read_next_set_of_high_ber_or_pdr_ports(endpoint_port)
@@ -428,9 +468,14 @@ class IsolationMgr:
                         #     so need to re-evaluate if to return it to service
                         if self.automatic_deisolate or cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED:
                             self.eval_deisolate(port_state.name)
+                ports_updated = self.update_ports_data()
+                if ports_updated:
+                    self.update_telemetry_session()
+                t_end = time.time()
             except Exception as e:
                 self.logger.warning(e)
-            time.sleep(self.t_isolate)
+                t_end = time.time()
+            time.sleep(self.t_isolate - (t_end - t_begin))
             # DEBUG
             #time.sleep(15)
         
