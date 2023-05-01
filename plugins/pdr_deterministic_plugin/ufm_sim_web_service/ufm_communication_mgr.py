@@ -103,12 +103,20 @@ class UFMCommunicator:
     def get_port_metadata(self, port_name):
         return self.get_request("%s/%s" % (Constants.GET_PORTS_REST, port_name))
 
-    def start_dynamic_session(self, instance_name, counters, sample_rate):
+    def start_dynamic_session(self, instance_name, counters, sample_rate, guids):
         data = {
             "counters": counters,
-            "sample_rate": sample_rate
+            "sample_rate": sample_rate,
+            "requested_guids": guids
             }
-        return self.send_request(Constants.START_DYNAMIC_SESSION_REST % instance_name, data, method=Constants.POST_METHOD)
+        return self.send_request(Constants.DYNAMIC_SESSION_REST % instance_name, data, method=Constants.POST_METHOD)
+
+    def update_dynamic_session(self, instance_name, sample_rate, guids):
+        data = {
+            "sample_rate": sample_rate,
+            "requested_guids": guids
+            }
+        return self.send_request(Constants.DYNAMIC_SESSION_REST % instance_name, data, method=Constants.PUT_METHOD)
 
     def running_dynamic_session(self, instance_name):
         response = self.get_request(Constants.STATUS_DYNAMIC_SESSION_REST)
@@ -120,9 +128,9 @@ class UFMCommunicator:
 
     def stop_dynamic_session(self, instance_name):
         data = {}
-        return self.send_request(Constants.STOP_DYNAMIC_SESSION_REST % instance_name, data, method=Constants.DELETE_METHOD)
+        return self.send_request(Constants.DYNAMIC_SESSION_REST % instance_name, data, method=Constants.DELETE_METHOD)
 
     def dynamic_session_get_port(self, instance_name):
-        data = self.get_request(Constants.CONF_DYNAMIC_SESSION_REST % instance_name)
+        data = self.get_request(Constants.DYNAMIC_SESSION_REST % instance_name)
         if data:
             return data.get("endpoint_port")
