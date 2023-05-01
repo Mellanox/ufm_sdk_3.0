@@ -71,6 +71,11 @@ NDT_FILE_STATE_DEPLOYED_DISABLED = "Deployed, ready for extension"
 NDT_FILE_STATE_DEPLOYED_NO_DISCOVER = "Deployed, ready for verification"
 NDT_FILE_STATE_DEPLOYED_COMPLETED = "Deployed, not active"
 
+NODE_GUID_INDEX_NAME = "NodeGUID"
+PORT_NUM_INDEX_NAME = "PortNum"
+LABEL_INDEX_NAME = "Label"
+START_PORT_HIERARCHY_INFO_LABEL = "START_PORT_HIERARCHY_INFO"
+END_PORT_HIERARCHY_INFO_LABEL = "END_PORT_HIERARCHY_INFO"
 #port state mapping
 IB_PORT_PHYS_STATE_NO_CHANGE = 0
 IB_PORT_PHYS_STATE_SLEEP = 1
@@ -174,11 +179,11 @@ def get_mapping_port_labels2port_numbers():
         hierarchy_section_started = False
         port_line_number = 0
         while line := db_csv_file.readline():
-            if "START_PORT_HIERARCHY_INFO" in line:
+            if START_PORT_HIERARCHY_INFO_LABEL in line:
                 hierarchy_section_started = True
                 port_line_number += 1
             elif hierarchy_section_started:
-                if "END_PORT_HIERARCHY_INFO" in line:
+                if END_PORT_HIERARCHY_INFO_LABEL in line:
                     break
                 else:
                     # somehow the output of ibdiagnet in db_csv will be different (versions)
@@ -189,11 +194,11 @@ def get_mapping_port_labels2port_numbers():
                         #heade line need to set indexes for ports that we want to use
                         column_index = 0
                         for header_column_name in port_hierarchy_info:
-                            if header_column_name == "NodeGUID":
+                            if header_column_name == NODE_GUID_INDEX_NAME:
                                 node_guid_index = column_index
-                            elif header_column_name == "PortNum":
+                            elif header_column_name == PORT_NUM_INDEX_NAME:
                                 port_num_index = column_index
-                            elif header_column_name == "Label":
+                            elif header_column_name == LABEL_INDEX_NAME:
                                 label_index = column_index
                             column_index += 1
                     elif port_line_number >= 2:
