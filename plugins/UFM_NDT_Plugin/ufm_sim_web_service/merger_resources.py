@@ -266,7 +266,6 @@ class MergerVerifyNDT(Compare):
         except ValueError as e:
             if "error" not in report_content:
                 report_content["error"] = e.args[0]
-            ndt_status = NDT_FILE_STATE_VERIFY_FILED
         response, status_code = self.create_report(scope, report_content)
         if status_code != self.success:
             logging.error("Failed to create verification report: %s" % response)
