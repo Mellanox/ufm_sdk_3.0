@@ -206,7 +206,7 @@ def get_mapping_port_labels2port_numbers():
                             port_key = "%s___%s" % (port_hierarchy_info[node_guid_index], port_hierarchy_info[label_index].strip("\""))
                             port_guid_lable_to_port_num[port_key] = int(port_hierarchy_info[port_num_index])
                         except Exception as e:
-                            logging.error("Failed to convert port Label to port number:%s." % e)
+                            logging.error("Failed to convert port Label %s to port number:%s." % (port_key, e))
                     port_line_number += 1
             else:
                 continue
@@ -525,12 +525,7 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
                 topoconfig_file.write("%s,%s,%s,%s,%s,%s\n" % (port_guid, start_port,
                             peer_port_guid, peer_port,host_type,port_state))
     ndt_file.close()
-#     ATB - no need to remove file
-#     if file_creation_failed:
-#         if os.path.exists(output_file):
-#             os.remove(output_file)
-#         return False, report_error_message, failed_lable_conversion
-    return True, "success", failed_lable_conversion
+    return True, "", failed_lable_conversion
 
 
 def update_boundary_port_state_in_topoconfig_file(boundary_port_state,
