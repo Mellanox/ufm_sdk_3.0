@@ -71,6 +71,7 @@ NDT_FILE_STATE_DEPLOYED_DISABLED = "Deployed, ready for extension"
 NDT_FILE_STATE_DEPLOYED_NO_DISCOVER = "Deployed, ready for verification"
 NDT_FILE_STATE_DEPLOYED_COMPLETED = "Deployed, not active"
 
+NDT_FILE_STATUS_VERIFICATION_FAILED = "Verification failed"
 NODE_GUID_INDEX_NAME = "NodeGUID"
 PORT_NUM_INDEX_NAME = "PortNum"
 LABEL_INDEX_NAME = "Label"
