@@ -11,8 +11,11 @@ export class SubnetMergerBackendService {
   constructor(private httpService: HttpClientService) {
   }
 
-  public getNDTsList(): Observable<any> {
-    const url = SubnetMergerConstants.mergerAPIs.NDTsList;
+  public getNDTsList(filename?: string): Observable<any> {
+    let url = SubnetMergerConstants.mergerAPIs.NDTsList;
+    if (filename) {
+      url = `${url}/${filename}`;
+    }
     return this.httpService.get(url);
   }
 

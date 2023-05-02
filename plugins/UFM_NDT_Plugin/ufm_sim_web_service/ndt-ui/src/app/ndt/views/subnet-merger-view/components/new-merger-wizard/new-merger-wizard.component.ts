@@ -86,9 +86,11 @@ export class NewMergerWizardComponent implements OnInit {
   }
 
   public onReportCompleted($event: IonValidationCompletedEvent) {
-    if ($event.isReportCompleted && $event.report.status != NDTStatusTypes.completedWithCriticalErrors) {
-      this.newMergerWizardService.tabs[1].isNextDisabled = false;
-    }
+    this.newMergerWizardService.tabs[1].isNextDisabled = !$event.isFileDeployable;
+  }
+
+  public onFileUploaded($event) {
+    this.newMergerWizardService.tabs[1].isNextDisabled = true;
   }
 
 }
