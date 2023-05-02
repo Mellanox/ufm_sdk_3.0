@@ -443,6 +443,7 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
     # The issue is that boundary port will appear earlier than any other port of that device
     # OPEN ISSUE
     device_to_guid_map = dict()
+    failed_lable_conversion = []
     ndt_file = open(ndt_file_path, "r", encoding="utf-8")
     dictreader = csv.DictReader(ndt_file)
     host_type = "Any"
@@ -453,11 +454,10 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
         error_message = "Topoconfig file creation failure: {} is empty or cannot be parsed: {}".format(ndt_file_path, te)
         logging.error(error_message)
         ndt_file.close()
-        return False, error_message
+        return False, error_message, failed_lable_conversion
     output_file = get_topoconfig_file_name(ndt_file_path) if not output_file_name else output_file_name
     # get mapping between node_guid and port lable to port number
     node_guid_lable2port_num = get_mapping_port_labels2port_numbers()
-    failed_lable_conversion = []
     with open(output_file, 'w') as topoconfig_file:
         for index, row in enumerate(dictreader):
             logging.debug("Parsing NDT link: {}".format(row))
@@ -525,7 +525,8 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
                 topoconfig_file.write("%s,%s,%s,%s,%s,%s\n" % (port_guid, start_port,
                             peer_port_guid, peer_port,host_type,port_state))
     ndt_file.close()
-    return True, "", failed_lable_conversion
+    msg = "Failed to resolve port label to port number. Check log file." if failed_lable_conversion else ""
+    return True, msg, failed_lable_conversion
 
 
 def update_boundary_port_state_in_topoconfig_file(boundary_port_state,
