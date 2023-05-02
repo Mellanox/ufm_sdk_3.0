@@ -73,6 +73,7 @@ class MergerNdtsFile(UFMResource):
             for entry in data:
                 if entry["file"] == ndt_file_name:
                     ndt_file_properties = entry
+                    break
         except Exception as e:
             error_message = "Filed to read data from NDTs list file: %s" % e
             logging.error(error_message)
