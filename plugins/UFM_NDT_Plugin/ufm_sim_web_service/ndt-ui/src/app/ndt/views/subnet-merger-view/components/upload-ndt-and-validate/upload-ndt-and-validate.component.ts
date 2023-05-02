@@ -18,6 +18,7 @@ export class UploadNdtAndValidateComponent implements OnInit {
 
   @Output() onFileValidated: EventEmitter<string> = new EventEmitter();
   @Output() onReportCompleted: EventEmitter<IonValidationCompletedEvent> = new EventEmitter();
+  @Output() onFileUploaded: EventEmitter<string> = new EventEmitter();
 
   /**
    * @VARIABLES
@@ -44,10 +45,11 @@ export class UploadNdtAndValidateComponent implements OnInit {
     return this.fileIsUploaded && !this.validationIsRunning;
   }
 
-  public onFileUploaded($event): void {
+  public onFileUploadedFN($event): void {
     this.uploadedFileName = $event[SubnetMergerConstants.validateAPIKeys.NDTFileName];
     this.fileIsUploaded = true;
     this.subnetMergerViewService.refreshNDtsTable.emit();
+    this.onFileUploaded.emit(this.uploadedFileName);
   }
 
   public onValidateClick(): void {

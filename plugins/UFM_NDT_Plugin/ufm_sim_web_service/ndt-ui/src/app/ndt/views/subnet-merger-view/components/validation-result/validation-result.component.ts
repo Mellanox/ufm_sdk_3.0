@@ -17,9 +17,11 @@ import {
 } from "../../../../../../../sms-ui-suite/x-core-ag-grid/constants/x-core-ag-grid.constants";
 import {SubnetMergerConstants} from "../../../../packages/subnet-merger/constants/subnet-merger.constants";
 import {SubnetMergerBackendService} from "../../../../packages/subnet-merger/services/subnet-merger-backend.service";
+import {INDTFile, NDTFileCapabilities} from "../ndt-files-view/ndt-files-view.component";
 
 export enum NDTStatusTypes {
   running = "Running",
+  new = "New",
   completed = "Completed",
   completedSuccessfully = "Completed successfully",
   completedWithCriticalErrors = "Completed with critical errors",
@@ -36,7 +38,8 @@ export interface INDTValidationReport {
 
 export interface IonValidationCompletedEvent {
   isReportCompleted: boolean,
-  report: INDTValidationReport
+  report: INDTValidationReport,
+  isFileDeployable: boolean
 }
 
 @Component({
@@ -141,11 +144,15 @@ export class ValidationResultComponent implements OnInit, OnChanges, OnDestroy {
 
   public get reportStatusClass() {
     let classes = ""
-    switch (this.report.status) {
-      case NDTStatusTypes.completedSuccessfully:
+    switch (this.report.status.toLowerCase()) {
+      case NDTStatusTypes.running.toLowerCase():
+      case NDTStatusTypes.new.toLowerCase():
+        classes = "info";
+        break;
+      case NDTStatusTypes.completedSuccessfully.toLowerCase():
         classes = "success";
         break;
-      case NDTStatusTypes.completedWithErrors:
+      default:
         classes = "danger";
         break;
     }
@@ -153,14 +160,19 @@ export class ValidationResultComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   public get isReportCompleted(): boolean {
-    return this.report && this.report.status.toLowerCase().includes(NDTStatusTypes.completed.toLowerCase());
+    return this.report && !this.report.status.toLowerCase().includes(NDTStatusTypes.running.toLowerCase());
   }
 
   public onValidationCompletedFn() {
-    this.onValidationCompleted.emit({
-      isReportCompleted: this.isReportCompleted,
-      report: this.report
-    });
+    if(this.report) {
+      this.subnetMergerBackendService.getNDTsList(this.report.NDT_file).subscribe((ndtFile:INDTFile)=>{
+        this.onValidationCompleted.emit({
+          isReportCompleted: this.isReportCompleted,
+          report: this.report,
+          isFileDeployable: ndtFile.file_capabilities.includes(NDTFileCapabilities.Deploy)
+        });
+      })
+    }
   }
 
   ngOnDestroy(): void {

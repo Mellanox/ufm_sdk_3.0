@@ -8,6 +8,7 @@
 
 <ng-template #InitiateTab>
   <app-upload-ndt-and-validate
+    (onFileUploaded)="onFileUploaded($event)"
     (onReportCompleted)="onReportCompleted($event)"
     (onFileValidated)="onFileValidated($event)">
   </app-upload-ndt-and-validate>
