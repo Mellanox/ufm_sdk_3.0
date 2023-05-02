@@ -50,6 +50,39 @@ class MergerNdts(UFMResource):
     def post(self):
         return self.report_error(405, "Method is not allowed")
 
+class MergerNdtsFile(UFMResource):
+    def __init__(self):
+        logging.info("GET /plugin/ndt/merger_ndts_list/<ndt_file_name>")
+        super().__init__()
+        self.ndts_list_file = self.ndts_merger_list_file
+        self.reports_list_file = self.reports_merger_list_file
+        self.ndts_dir = self.ndts_merger_dir
+        self.subnet_merger_flow = True
+
+    def get(self, ndt_file_name):
+        logging.info("GET /plugin/ndt/merger_ndts_list/<ndt_file_name>")
+        # unhandled exception in case reports file was changed manually
+        file_name = ndt_file_name
+        file_path = os.path.join(self.ndts_dir, file_name)
+        ndt_file_properties = None
+        if not check_file_exist(file_path):
+            return self.report_error(400, "NDT file '{}' is not exist".format(file_name))
+        try:
+            with open(self.ndts_list_file, "r", encoding="utf-8") as file:
+                data = json.load(file)
+            for entry in data:
+                if entry["file"] == ndt_file_name:
+                    ndt_file_properties = entry
+        except Exception as e:
+            error_message = "Filed to read data from NDTs list file: %s" % e
+            logging.error(error_message)
+            return self.report_error(400, {error_message})
+        if not ndt_file_properties:
+            error_message = "NDT file {} not found".format(ndt_file_name)
+            logging.error(error_message)
+            return self.report_error(400, {error_message})
+        return self.report_success(ndt_file_properties)
+
 class MergerLatestDeployedNDT(UFMResource):
     def __init__(self):
         logging.info("GET /plugin/ndt/merger_deployed_ndt")
@@ -321,7 +354,7 @@ class MergerVerifyNDT(Compare):
 
 class MergerVerifyNDTReports(UFMResource):
     def __init__(self):
-        logging.info("GET /plugin/ndt/verify_ndt_reports")
+        logging.info("GET /plugin/ndt/merger_verify_ndt_reports")
         super().__init__()
         self.reports_list_file = self.reports_merger_list_file
         self.response_file = self.reports_list_file
@@ -331,7 +364,7 @@ class MergerVerifyNDTReports(UFMResource):
 
 class MergerVerifyNDTReportId(ReportId):
     def __init__(self):
-        logging.info("GET /plugin/ndt/verify_ndt_reports/<report_id>")
+        logging.info("GET /plugin/ndt/merger_verify_ndt_reports/<report_id>")
         super().__init__()
         self.reports_list_file = self.reports_merger_list_file
         self.reports_dir = self.reports_merger_dir
