@@ -66,7 +66,7 @@ class MergerNdtsFile(UFMResource):
         file_path = os.path.join(self.ndts_dir, file_name)
         ndt_file_properties = None
         if not check_file_exist(file_path):
-            return self.report_error(400, "NDT file '{}' is not exist".format(file_name))
+            return self.report_error(400, "NDT file '{}' does not exist".format(file_name))
         try:
             with open(self.ndts_list_file, "r", encoding="utf-8") as file:
                 data = json.load(file)
@@ -75,7 +75,7 @@ class MergerNdtsFile(UFMResource):
                     ndt_file_properties = entry
                     break
         except Exception as e:
-            error_message = "Filed to read data from NDTs list file: %s" % e
+            error_message = "Failed to read data from NDTs list file: %s" % e
             logging.error(error_message)
             return self.report_error(400, {error_message})
         if not ndt_file_properties:
