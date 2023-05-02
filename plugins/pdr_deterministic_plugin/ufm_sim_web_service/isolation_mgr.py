@@ -9,7 +9,7 @@
 # This software product is governed by the End User License Agreement
 # provided with the software product.
 #
-
+import traceback
 from datetime import datetime
 from datetime import timedelta
 import time
@@ -225,7 +225,7 @@ class IsolationMgr:
             rcv_error = get_counter(Constants.RCV_ERRORS_COUNTER, row)
             rcv_remote_phy_error = get_counter(Constants.RCV_REMOTE_PHY_ERROR_COUNTER, row)
             errors = rcv_error + rcv_remote_phy_error
-            error_rate = self.get_rate_and_update(port_name, Constants.ERRORS_COUNTER, row)
+            error_rate = self.get_rate_and_update(port_name, Constants.ERRORS_COUNTER, errors)
             rcv_pkts = get_counter(Constants.RCV_PACKETS_COUNTER, row)
             rcv_pkt_rate = self.get_rate_and_update(port_name, Constants.RCV_PACKETS_COUNTER, rcv_pkts)
             cable_temp = get_counter(Constants.TEMP_COUNTER, row, default=None)
@@ -428,6 +428,7 @@ class IsolationMgr:
 
     def run_telemetry_get_port(self):
         while not self.ufm_client.running_dynamic_session(Constants.PDR_DYNAMIC_NAME):
+            self.logger.info("Waiting for dynamic session to start")
             endpoint_port = self.start_telemetry_session()
             time.sleep(20)
         endpoint_port = self.ufm_client.dynamic_session_get_port(Constants.PDR_DYNAMIC_NAME)
@@ -436,8 +437,10 @@ class IsolationMgr:
     def main_flow(self):
         # sync to the telemetry clock by blocking read
         self.logger.info("Isolation Manager initialized, starting isolation loop")
-        self.get_ports_metadata()      
+        self.get_ports_metadata()    
+        self.logger.info("Retrieved ports metadata")
         endpoint_port = self.run_telemetry_get_port()
+        self.logger.info("telemetry session started")
         while(True):
             try:
                 t_begin = time.time()
@@ -473,7 +476,10 @@ class IsolationMgr:
                     self.update_telemetry_session()
                 t_end = time.time()
             except Exception as e:
+                self.logger.warning("Error in main loop")
                 self.logger.warning(e)
+                traceback_err = traceback.format_exc()
+                self.logger.warning(traceback_err)
                 t_end = time.time()
             time.sleep(self.t_isolate - (t_end - t_begin))
             # DEBUG
