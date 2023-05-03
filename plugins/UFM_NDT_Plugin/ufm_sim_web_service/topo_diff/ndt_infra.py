@@ -488,7 +488,7 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
             if not start_device in device_to_guid_map:
                 device_to_guid_map[start_device] = port_guid
             if not start_port.isnumeric():
-                port_key = "%s___%s" % (start_device, start_port)
+                port_key = "%s___%s" % (port_guid, start_port)
                 start_port_num = node_guid_lable2port_num.get(port_key, None)
                 if start_port_num:
                     start_port = str(start_port_num)
