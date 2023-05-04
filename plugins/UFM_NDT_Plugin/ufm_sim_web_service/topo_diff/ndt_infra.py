@@ -19,6 +19,7 @@ import json
 from datetime import datetime
 import csv
 import pandas as pd
+import re
 from topo_diff.topo_diff import parse_ndt_port, PortType, parse_ibdiagnet_dump
 
 
@@ -168,6 +169,38 @@ def run_ibdiagnet_verification_command():
     status, cmd_output = execute_generic_command(IBDIAGNET_PORT_VERIFICATION_COMMAND)
     return status
 
+def get_switch_port_label2port_num_map():
+    '''
+    For switch ports that are not part of HIERARCHY info  in db|_csv take the information for
+    port number from net_dump file
+    :param net_dump_file_path: path to net_dump file
+    '''
+    switch_name2switch_guid = dict()
+    name_label2port_num = dict()
+    try:
+        net_dump_file_path = IBDIAGNET_OUT_NET_DUMP_FILE_PATH
+        with open(net_dump_file_path, 'r') as f:
+            lines = f.readlines()
+            for line in lines:
+                if not line.strip():
+                    continue
+                elif re.match(r'^#', line.strip()):
+                    continue
+                elif re.match(r'^"', line):
+                    # beginning of the switch
+                    switch_info = line.split(",")
+                    switch_name2switch_guid[switch_info[0].strip("\"")] = switch_info[2].strip()
+                    continue
+                else:
+                    # lines of switch
+                    link_info_list = line.split(":")
+                    port_key = "%s___%s" % (switch_info[2].strip(), link_info_list[0].strip())
+                    name_label2port_num[port_key] = int(link_info_list[1].strip())
+    except Exception as e:
+        logging.error("Failed to create switch port labels to port num mapping from %s file: %s" % (net_dump_file_path,
+                                                                            e))
+    return name_label2port_num, switch_name2switch_guid
+
 
 def get_mapping_port_labels2port_numbers():
     '''
@@ -211,6 +244,8 @@ def get_mapping_port_labels2port_numbers():
                     port_line_number += 1
             else:
                 continue
+    # in addition need to get boundary ports for switch ports that are not connected
+    # will be taken from net_dump
     return port_guid_lable_to_port_num
 
 def get_boundary_ports_with_state(boundary_ports, global_verify_state=None):
@@ -345,9 +380,10 @@ def check_boundary_port_state(sleep_interval=5, number_of_attempts=5,
                 logging.error(error_message)
                 return False
         else:
-            error_message = "{}: No boundary ports info found".format(topoconfig_file)
-            logging.error(error_message)
-            return False
+            message = "{}: No boundary ports info found. Not available to extend fabric from this point.".format(topoconfig_file)
+            logging.info(message)
+            # probably the file does not contain boundary ports - no extention
+            return True
 
 def check_ibdiagnet_net_dump_file_exist():
     '''
@@ -459,6 +495,8 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
     output_file = get_topoconfig_file_name(ndt_file_path) if not output_file_name else output_file_name
     # get mapping between node_guid and port lable to port number
     node_guid_lable2port_num = get_mapping_port_labels2port_numbers()
+    switch_node_guid_lable2port_num, switch_name2switch_guid = get_switch_port_label2port_num_map()
+    node_guid_lable2port_num.update(switch_node_guid_lable2port_num)
     with open(output_file, 'w') as topoconfig_file:
         for index, row in enumerate(dictreader):
             logging.debug("Parsing NDT link: {}".format(row))
@@ -485,6 +523,8 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
             port_state = row["State"]
             port_domain = row["Domain"]
             port_guid = links_info_dict.get(link_key)
+            if not port_guid:
+                port_guid = switch_name2switch_guid.get(start_device)
             if not start_device in device_to_guid_map:
                 device_to_guid_map[start_device] = port_guid
             if not start_port.isnumeric():
