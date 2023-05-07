@@ -336,7 +336,7 @@ class IsolationMgr:
             if not min_value or not max_value:
                 return 0
             actual_speed = self.speed_types.get(port_speed, 100000)
-            return (max_value - min_value) / ((max_timestamp - min_timestamp) * actual_speed * port_width * 1000 * 1000)
+            return (max_value - min_value) / ((max_timestamp - min_timestamp) * actual_speed * port_width * 1024 * 1024 * 1024)
         except Exception as e:
             self.logger.error(f"Error calculating {col_name}, error: {e}")
             return 0
