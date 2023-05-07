@@ -17,6 +17,7 @@ import configparser
 import pandas as pd
 import json
 import http
+import numpy
 
 from constants import PDRConstants as Constants
 from ufm_communication_mgr import UFMCommunicator
@@ -58,7 +59,7 @@ class Issue(object):
 
 def get_counter(counter_name, row, default=0):
     try:
-        val = row.get(counter_name) if row.get(counter_name) else default
+        val = row.get(counter_name) if (row.get(counter_name) and not numpy.isnan(row.get(counter_name))) else default
     except Exception as e:
         return default
     return val
@@ -87,6 +88,7 @@ class IsolationMgr:
         self.do_deisolate = pdr_config.getboolean(Constants.CONF_COMMON,Constants.DO_DEISOLATION)
         self.deisolate_consider_time = pdr_config.getint(Constants.CONF_COMMON,Constants.DEISOLATE_CONSIDER_TIME)
         self.automatic_deisolate = pdr_config.getboolean(Constants.CONF_COMMON,Constants.AUTOMATIC_DEISOLATE)
+        self.dynamic_wait_time = pdr_config.getint(Constants.CONF_COMMON,"DYNAMIC_WAIT_TIME")
         # Take from Conf
         self.logger = logger
         self.isolation_matrix = pd.read_csv(Constants.BER_MATRIX)
@@ -96,7 +98,8 @@ class IsolationMgr:
             Constants.CSV_SYMBOL_BER_ISOLATE, Constants.CSV_SYMBOL_BER_DEISOLATE]].min().min()
         self.ber_wait_time = self.calc_max_ber_wait_time(min_threshold)
         self.start_time = time.time()
-        self.ber_tele_data = pd.DataFrame(columns=[Constants.TIMESTAMP, Constants.RAW_BER, Constants.EFF_BER, Constants.SYMBOL_BER])
+        self.max_time = self.start_time
+        self.ber_tele_data = pd.DataFrame(columns=[Constants.TIMESTAMP, Constants.RAW_BER, Constants.EFF_BER, Constants.SYMBOL_BER, Constants.PORT_NAME])
         self.speed_types = {
             "FDR": 14,
             "EDR": 25,
@@ -119,7 +122,9 @@ class IsolationMgr:
                 
         # DEBUG
         # self.iteration = 0
+        # self.t_isolate = 1
         # self.deisolate_consider_time = 0
+        # self.dry_run = True
         # self.d_tmax = 9000
         
     def calc_max_ber_wait_time(self, min_threshold):
@@ -150,7 +155,7 @@ class IsolationMgr:
         
         if not self.dry_run:
             ret = self.ufm_client.isolate_port(port_name)
-            if not ret or ret.status_code != 200:
+            if not ret or ret.status_code != http.HTTPStatus.OK:
                 self.logger.warning("Failed isolating port: %s with cause: %s... status_code= %s", port_name, cause, ret.status_code)        
                 return
         port_state = self.ports_states.get(port_name)
@@ -158,7 +163,7 @@ class IsolationMgr:
             self.ports_states[port_name] = PortState(port_name)
         self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
             
-        self.logger.warning("Isolated port: %s cause: %s", port_name, cause)
+        self.logger.warning(f"Isolated port: {port_name} cause: {cause}. dry_run: {self.dry_run}")
 
     def eval_deisolate(self, port_name):
         if not port_name in self.ufm_latest_isolation_state:
@@ -174,8 +179,13 @@ class IsolationMgr:
 
         # we need some time after the change in state
         elif datetime.now() >= self.ports_states[port_name].get_change_time() + timedelta(minutes=self.deisolate_consider_time):
-            # TODO: handle BER
-            if self.check_ber_threshold(port_name, port_speed, asic, fec_mode, raw_ber_val, eff_ber_val, symbol_ber_val, isolation=False):
+            port_data = self.ports_data.get(port_name)
+            port_speed = port_data.get(Constants.ACTIVE_SPEED)
+            port_asic = port_data.get(Constants.ASIC)
+            port_width = port_data.get(Constants.WIDTH)
+            fec_mode = port_data.get(Constants.FEC_MODE)
+            raw_ber_rate, eff_ber_rate, symbol_ber_rate = self.calc_ber_rates(port_name, port_speed, port_width)
+            if self.check_ber_threshold(port_name, port_speed, port_asic, fec_mode, raw_ber_rate, eff_ber_rate, symbol_ber_rate, isolation=False):
                 cause = Constants.ISSUE_BER
                 self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
                 return
@@ -193,18 +203,18 @@ class IsolationMgr:
             # }
         if not self.dry_run:
             ret = self.ufm_client.deisolate_port(port_name)
-            if not ret or ret.status_code != 200:
+            if not ret or ret.status_code != http.HTTPStatus.OK:
                 self.logger.warning("Failed deisolating port: %s with cause: %s... status_code= %s", port_name, self.ports_states[port_name].cause, ret.status_code)        
                 return
         self.ports_states.pop(port_name)
-        self.logger.warning("Deisolated port: %s", port_name)
+        self.logger.warning(f"Deisolated port: {port_name}. dry_run: {self.dry_run}")
                 
     def get_rate_and_update(self, port_name, counter_name, new_val):
         port_data = self.ports_data.get(port_name)
         if port_data:
             old_val = port_data.get(counter_name)
             if old_val and new_val > old_val:
-                counter_delta = (old_val - new_val) / self.t_isolate
+                counter_delta = (new_val - old_val) / self.t_isolate
             else:
                 counter_delta = 0
         else:
@@ -236,7 +246,10 @@ class IsolationMgr:
             #         cable_temp = 90
             #     else:
             #         cable_temp = 30
-            if cable_temp is not None:
+            if cable_temp is not None and not numpy.isnan(cable_temp):
+                if cable_temp == "NA" or cable_temp == "N/A" or cable_temp == "" or cable_temp == "0C":
+                    continue
+                cable_temp = int(cable_temp.split("C")[0]) if type(cable_temp) == str else cable_temp
                 dT = abs(self.ports_data[port_name].get(Constants.TEMP_COUNTER, 0) - cable_temp)
                 self.ports_data[port_name][Constants.TEMP_COUNTER] = cable_temp
             if rcv_pkt_rate and error_rate / rcv_pkt_rate > self.max_pdr:
@@ -244,27 +257,47 @@ class IsolationMgr:
             elif cable_temp and (cable_temp > self.tmax or dT > self.d_tmax):
                 issues[port_name] = Issue(port_name, Constants.ISSUE_OONOC)
             if self.configured_ber_check:
-                symbol_ber_val = sum([
-                    get_counter(Constants.PHY_RAW_ERROR_LANE0, row),
-                    get_counter(Constants.PHY_RAW_ERROR_LANE1, row),
-                    get_counter(Constants.PHY_RAW_ERROR_LANE2, row),
-                    get_counter(Constants.PHY_RAW_ERROR_LANE3, row),
-                    ])
+                error_lane_0 = get_counter(Constants.PHY_RAW_ERROR_LANE0, row, default=None)
+                error_lane_1 = get_counter(Constants.PHY_RAW_ERROR_LANE1, row, default=None)
+                error_lane_2 = get_counter(Constants.PHY_RAW_ERROR_LANE2, row, default=None)
+                error_lane_3 = get_counter(Constants.PHY_RAW_ERROR_LANE3, row, default=None)
+                if error_lane_0 and error_lane_1 and error_lane_2 and error_lane_3:
+                    symbol_ber_val = sum([
+                        get_counter(Constants.PHY_RAW_ERROR_LANE0, row),
+                        get_counter(Constants.PHY_RAW_ERROR_LANE1, row),
+                        get_counter(Constants.PHY_RAW_ERROR_LANE2, row),
+                        get_counter(Constants.PHY_RAW_ERROR_LANE3, row),
+                        ])
+                else:
+                    symbol_ber_val = None
                 eff_ber_val = get_counter(Constants.PHY_EFF_ERROR, row, default=None)
                 raw_ber_val = get_counter(Constants.RAW_BER, row, default=None)
+                #DEBUG
+                # if self.iteration < 2:
+                #     symbol_ber_val = 10
+                # else:
+                #     symbol_ber_val = 40000
+                #DEBUG
                 if symbol_ber_val is not None or eff_ber_val is not None or raw_ber_val is not None:
-                    timestamp = time.time()
+                    curr_timestamp = int(time.time())
                     ber_data = {
-                        Constants.TIMESTAMP : timestamp,
+                        Constants.TIMESTAMP : curr_timestamp,
                         Constants.RAW_BER : raw_ber_val,
                         Constants.EFF_BER : eff_ber_val,
-                        Constants.SYMBOL_BER : symbol_ber_val
+                        Constants.SYMBOL_BER : symbol_ber_val, 
+                        Constants.PORT_NAME: port_name
                     }
                     self.ber_tele_data.loc[len(self.ber_tele_data)] = ber_data
-                    self.ber_tele_data = self.ber_tele_data[self.ber_tele_data[Constants.TIMESTAMP] > self.start_time - self.ber_wait_time + self.t_isolate * 10]
-                    self.start_time = self.ber_tele_data[Constants.TIMESTAMP].min()
+                    # self.ber_tele_data = self.ber_tele_data[self.ber_tele_data[Constants.TIMESTAMP] > self.start_time - self.ber_wait_time + self.t_isolate * 10]
                     port_data = self.ports_data.get(port_name)
                     fec_mode = get_counter(Constants.FEC_MODE, row, default=None)
+                    #DEBUG
+                    # fec_mode=14
+                    # port_data[Constants.ASIC] = "7nm"
+                    # self.ber_wait_time = 0
+                    # port_data[Constants.ACTIVE_SPEED] = "NDR"
+                    #DEBUG
+                    port_data[Constants.FEC_MODE] = fec_mode
                     if fec_mode is None:
                         continue
                     port_speed = port_data.get(Constants.ACTIVE_SPEED)
@@ -282,10 +315,8 @@ class IsolationMgr:
                         self.logger.debug(f"port width for port {port_name} is None, can't verify it's BER values")
                         continue
 
-                    if timestamp - self.start_time < self.ber_wait_time:
-                        continue
-                    raw_ber_rate, eff_ber_rate, symbol_ber_rate = self.calc_ber_rates(port_speed, port_width, timestamp, self.start_time)
-                    if self.check_ber_threshold(port_name, port_speed, port_asic, fec_mode, raw_ber_rate, eff_ber_rate, symbol_ber_rate, isolation=True):
+                    raw_ber_rate, eff_ber_rate, symbol_ber_rate = self.calc_ber_rates(port_name, port_speed, port_width)
+                    if (raw_ber_rate or eff_ber_rate or symbol_ber_rate) and self.check_ber_threshold(port_name, port_speed, port_asic, fec_mode, raw_ber_rate, eff_ber_rate, symbol_ber_rate, isolation=True):
                         issued_port = issues.get(port_name)
                         if issued_port:
                             issued_port.cause = Constants.ISSUE_PDR_BER
@@ -293,23 +324,34 @@ class IsolationMgr:
                             issues[port_name] = Issue(port_name, Constants.ISSUE_BER)                    
         return issues
 
-    def calc_single_rate(self, port_speed, port_width, min_timestamp, max_timestamp, col_name):
-        min_value = self.ber_tele_data.loc[self.ber_tele_data[Constants.TIMESTAMP] == min_timestamp, col_name].values[0]
-        max_value = self.ber_tele_data.loc[self.ber_tele_data[Constants.TIMESTAMP] == max_timestamp, col_name].values[0]
-        actual_speed = self.speed_types.get(port_speed, 100000)
-        return (max_value - min_value) / ((max_timestamp - min_timestamp) * actual_speed * port_width)
+    def calc_single_rate(self, port_name, port_speed, port_width, col_name):
+        try:
+            min_timestamp = self.ber_tele_data.loc[self.ber_tele_data[Constants.PORT_NAME] == port_name, Constants.TIMESTAMP].min()
+            max_timestamp = self.ber_tele_data.loc[self.ber_tele_data[Constants.PORT_NAME] == port_name, Constants.TIMESTAMP].max()
+            self.ber_tele_data[Constants.TIMESTAMP].min()
+            if max_timestamp == min_timestamp or max_timestamp - min_timestamp < self.ber_wait_time:
+                return 0
+            min_value = self.ber_tele_data.loc[(self.ber_tele_data[Constants.TIMESTAMP] == min_timestamp) & (self.ber_tele_data[Constants.PORT_NAME] == port_name), col_name].values[0]
+            max_value = self.ber_tele_data.loc[(self.ber_tele_data[Constants.TIMESTAMP] == max_timestamp) & (self.ber_tele_data[Constants.PORT_NAME] == port_name), col_name].values[0]
+            if not min_value or not max_value:
+                return 0
+            actual_speed = self.speed_types.get(port_speed, 100000)
+            return (max_value - min_value) / ((max_timestamp - min_timestamp) * actual_speed * port_width * 1000 * 1000)
+        except Exception as e:
+            self.logger.error(f"Error calculating {col_name}, error: {e}")
+            return 0
     
-    def calc_ber_rates(self, port_speed, port_width, min_timestamp, max_timestamp):
-        raw_rate = self.calc_single_rate(min_timestamp, max_timestamp, Constants.RAW_BER)
-        eff_rate = self.calc_single_rate(min_timestamp, max_timestamp, Constants.EFF_BER)
-        symbol_rate = self.calc_single_rate(min_timestamp, max_timestamp, Constants.SYMBOL_BER)
+    def calc_ber_rates(self, port_name, port_speed, port_width):
+        raw_rate = self.calc_single_rate(port_name, port_speed, port_width, Constants.RAW_BER)
+        eff_rate = self.calc_single_rate(port_name, port_speed, port_width, Constants.EFF_BER)
+        symbol_rate = self.calc_single_rate(port_name, port_speed, port_width, Constants.SYMBOL_BER)
         return raw_rate, eff_rate, symbol_rate
         
         
 
     def check_ber_threshold(self, port_name, port_speed, asic, fec_mode, raw_ber_val, eff_ber_val, symbol_ber_val, isolation=True):
         if not asic:
-            logger.debug(f"{port_name} doesn't support asic retrieval. skipping BER check")
+            self.logger.debug(f"{port_name} doesn't support asic retrieval. skipping BER check")
             return False
         if isolation:
             raw_ber_string = Constants.CSV_RAW_BER_ISOLATE
@@ -320,7 +362,7 @@ class IsolationMgr:
             eff_ber_string = Constants.CSV_EFF_BER_DEISOLATE
             symbol_ber_string = Constants.CSV_SYMBOL_BER_DEISOLATE
 
-        rows = self.isolation_matrix[(self.isolation_matrix[Constants.ACTIVE_SPEED] == port_speed) &
+        rows = self.isolation_matrix[(self.isolation_matrix[Constants.CSV_SPEED] == port_speed) &
          (self.isolation_matrix[Constants.CSV_FEC_OPCODE] == fec_mode) &
          (self.isolation_matrix[Constants.CSV_ASIC] == asic) &
          ((raw_ber_val > self.isolation_matrix[raw_ber_string]) |
@@ -330,7 +372,7 @@ class IsolationMgr:
         if rows.empty:
             return False
         else:
-            logger.warning(f"port {port_name} BER counter crossed the threshold. fec={fec_mode}, port_speed={port_speed}, asic={asic}, raw={raw_ber_val}, eff={eff_ber_val}, symbol={symbol_ber_val}")
+            self.logger.warning(f"port {port_name} BER counter crossed the threshold. fec={fec_mode}, port_speed={port_speed}, asic={asic}, raw={raw_ber_val}, eff={eff_ber_val}, symbol={symbol_ber_val}")
             return True
 
     def get_ports_metadata(self):
@@ -427,10 +469,14 @@ class IsolationMgr:
         return requested_guids
 
     def run_telemetry_get_port(self):
-        while not self.ufm_client.running_dynamic_session(Constants.PDR_DYNAMIC_NAME):
-            self.logger.info("Waiting for dynamic session to start")
-            endpoint_port = self.start_telemetry_session()
-            time.sleep(20)
+        try:
+            while not self.ufm_client.running_dynamic_session(Constants.PDR_DYNAMIC_NAME):
+                self.logger.info("Waiting for dynamic session to start")
+                endpoint_port = self.start_telemetry_session()
+                time.sleep(self.dynamic_wait_time)
+        except Exception as e:
+            self.ufm_client.stop_dynamic_session(Constants.PDR_DYNAMIC_NAME)
+            time.sleep(self.dynamic_wait_time)
         endpoint_port = self.ufm_client.dynamic_session_get_port(Constants.PDR_DYNAMIC_NAME)
         return endpoint_port
 
@@ -481,7 +527,10 @@ class IsolationMgr:
                 traceback_err = traceback.format_exc()
                 self.logger.warning(traceback_err)
                 t_end = time.time()
-            time.sleep(self.t_isolate - (t_end - t_begin))
+            #DEBUG
+            # self.iteration += 1
+            # DEBUG                
+            time.sleep(max(1, self.t_isolate - (t_end - t_begin)))
             # DEBUG
             #time.sleep(15)
         

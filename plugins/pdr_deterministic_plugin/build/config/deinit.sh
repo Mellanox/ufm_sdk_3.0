@@ -16,5 +16,5 @@
 set -eE
 
 rm -f /log/pdr_deterministic*.log*
-rm -f /scripts/init_pdr_conf.sh
+curl -X "DELETE" http://127.0.0.1:8000/app/telemetry/instances/pdr_dynamic -H "X-Remote-User: ufmsystem"
 exit 0

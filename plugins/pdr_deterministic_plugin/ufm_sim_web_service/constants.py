@@ -97,6 +97,7 @@ class PDRConstants(object):
 
     CSV_FEC_OPCODE = "FEC OPCODE"
     CSV_ASIC = "ASIC"
+    CSV_SPEED = "Speed"
     CSV_RAW_BER_ISOLATE = "Pre-FEC BER Error"
     CSV_EFF_BER_ISOLATE = "Post-FEC BER Error"
     CSV_SYMBOL_BER_ISOLATE = "Symbol BER Error"
