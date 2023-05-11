@@ -18,6 +18,7 @@ from datetime import datetime
 import requests
 import sys
 import time
+from http import HTTPStatus
 
 # rest api
 GET = "GET"
@@ -26,6 +27,8 @@ POST = "POST"
 DATE = "date"
 SWITCH_LIST = "switch_list"
 UNREGISTER = "unregister"
+ENABLE_TRAP = "enable_trap"
+DISABLE_TRAP = "disable_trap"
 REGISTER = "register"
 TRAP_LIST = "trap_list"
 
@@ -36,6 +39,7 @@ DATETIME_MS_FORMAT = DATETIME_FORMAT + ",%f"
 
 FAILED_TESTS_COUNT = 0
 SWITCHES = []
+SWITCH_IP = ""
 
 def make_request(request_type, resource, payload=None, user="admin", password=DEFAULT_PASSWORD,
                  rest_version="", headers=None, api="plugin/snmp"):
@@ -97,39 +101,42 @@ def unregister_all():
     print("Unregister all switches and check switch list is empty")
     test = "get registered switches"
     response, request_string = make_request(GET, SWITCH_LIST)
-    assert_equal(request_string, get_code(response), 200, test)
+    assert_equal(request_string, get_code(response), int(HTTPStatus.OK), test)
     global SWITCHES
     SWITCHES = (get_response(response))
+    global SWITCH_IP
+    try:
+        SWITCH_IP = SWITCHES[0]
+    except:
+        print("Failed to get SWITCH_IP")
+        return
 
     test = "unregister all"
     response, request_string = make_request(POST, UNREGISTER)
-    assert_equal(request_string, get_code(response), 200, test)
+    assert_equal(request_string, get_code(response), int(HTTPStatus.OK), test)
 
     test = "empty switch list"
     response, request_string = make_request(GET, SWITCH_LIST)
-    assert_equal(request_string, get_code(response), 200, test)
+    assert_equal(request_string, get_code(response), int(HTTPStatus.OK), test)
     assert_equal(request_string, get_response(response), [], test)
 
 def register_switch():
     print("Register 1 switch")
     global SWITCHES
+    global SWITCH_IP
     test = "managed switches in the fabric"
     assert_equal(SWITCH_LIST, len(SWITCHES), 2, test)
-    try:
-        switch = SWITCHES[0]
-    except:
-        return
     register_request = {
-        "switches": [switch]
+        "switches": [SWITCH_IP]
     }
     test = "register switch"
     response, request_string = make_request(POST, REGISTER, payload=register_request)
-    assert_equal(request_string, get_code(response), 200, test)
+    assert_equal(request_string, get_code(response), int(HTTPStatus.OK), test)
 
     test = "switch registered"
     response, request_string = make_request(GET, SWITCH_LIST)
-    assert_equal(request_string, get_code(response), 200, test)
-    assert_equal(request_string, get_response(response), [switch], test)
+    assert_equal(request_string, get_code(response), int(HTTPStatus.OK), test)
+    assert_equal(request_string, get_response(response), [SWITCH_IP], test)
 
 def get_trap_list():
     print("Get trap list")
@@ -141,18 +148,18 @@ def get_trap_list():
 
     test = "trap list"
     response, request_string = make_request(GET, TRAP_LIST)
-    assert_equal(request_string, get_code(response), 200, test)
+    assert_equal(request_string, get_code(response), int(HTTPStatus.OK), test)
     assert_equal(request_string, get_response(response), gold, test)
 
 def register_all():
     print("Register all switches to bring initial state")
     test = "register all"
     response, request_string = make_request(POST, REGISTER)
-    assert_equal(request_string, get_code(response), 200, test)
+    assert_equal(request_string, get_code(response), int(HTTPStatus.OK), test)
 
     test = "all switches registered"
     response, request_string = make_request(GET, SWITCH_LIST)
-    assert_equal(request_string, get_code(response), 200, test)
+    assert_equal(request_string, get_code(response), int(HTTPStatus.OK), test)
     global SWTICHES
     assert_equal(request_string, get_response(response), SWITCHES, test)
     time.sleep(30)
@@ -171,7 +178,7 @@ def send_test_trap():
     }
 
     response, request_string = make_request(POST, "actions", send_trap_request, api="")
-    assert_equal(request_string, get_code(response), 202, "send test trap")
+    assert_equal(request_string, get_code(response), int(HTTPStatus.ACCEPTED), "send test trap")
     time.sleep(30)
 
 def trap_in_log():
@@ -203,7 +210,7 @@ def get_server_datetime():
 def trap_in_ufm_events():
     print("Check trap event in UFM events")
     response, request_string = make_request(GET, "app/events", api="")
-    assert_equal(request_string, get_code(response), 200, "get ufm events")
+    assert_equal(request_string, get_code(response), int(HTTPStatus.OK), "get ufm events")
     events = get_response(response)
     gold_result = "Event has been sent successfully"
     expected_trap = "MELLANOX-EFM-MIB::testTrap"
@@ -221,10 +228,106 @@ def trap_in_ufm_events():
             result = f"No {expected_trap} has been found in events"
     assert_equal("compare timings", result, gold_result, "new trap in log")
 
+def unregister_incorrect():
+    print("Unregister incorrect switch")
+    
+    request = {
+        "123456": "qwerty"
+    }
+    test = "incorrect request"
+    response, request_string = make_request(POST, UNREGISTER, payload=request)
+    assert_equal(request_string, get_code(response), int(HTTPStatus.BAD_REQUEST), test)
+    assert_equal(request_string, get_response(response), {"error": "Upload request is empty"}, test)
+
+    global SWITCH_IP
+    request = {
+        "switches": ["1.1.1.1", SWITCH_IP]
+    }
+    test = "incorrect + correct"
+    response, request_string = make_request(POST, UNREGISTER, payload=request)
+    assert_equal(request_string, get_code(response), int(HTTPStatus.NOT_FOUND), test)
+    switches = ["1.1.1.1"]
+    assert_equal(request_string, get_response(response), {"error": f"Switches {switches} don't exist in the fabric or don't have an ip"}, test)
+
+    request = {
+        "switches": [SWITCH_IP]
+    }
+    test = "double unregister"
+    response, request_string = make_request(POST, UNREGISTER, payload=request)
+    assert_equal(request_string, get_code(response), int(HTTPStatus.BAD_REQUEST), test)
+    assert_equal(request_string, get_response(response), {"error": "Provided switches are not registered"}, test)
+
+def register_incorrect():
+    print("Unregister incorrect switch")
+
+    global SWITCH_IP
+    request = {
+        "switches": ["1.1.1.1", SWITCH_IP]
+    }
+    test = "incorrect + correct"
+    response, request_string = make_request(POST, REGISTER, payload=request)
+    assert_equal(request_string, get_code(response), int(HTTPStatus.NOT_FOUND), test)
+    switches = ["1.1.1.1"]
+    assert_equal(request_string, get_response(response), {"error": f"Switches {switches} don't exist in the fabric or don't have an ip"}, test)
+
+    request = {
+        "switches": [SWITCH_IP]
+    }
+    test = "double register"
+    response, request_string = make_request(POST, REGISTER, payload=request)
+    assert_equal(request_string, get_code(response), int(HTTPStatus.BAD_REQUEST), test)
+    assert_equal(request_string, get_response(response), {"error": "Provided switches have been already registered"}, test)
+
+def disable_trap():
+    print("Disable trap")
+
+    request = {
+        "123456": "qwerty"
+    }
+    test = "incorrect request"
+    response, request_string = make_request(POST, DISABLE_TRAP, payload=request)
+    assert_equal(request_string, get_code(response), int(HTTPStatus.BAD_REQUEST), test)
+    assert_equal(request_string, get_response(response), {"error": f"Incorrect format: 'traps'"}, test)
+
+    request = {
+        "traps": ["qwerty", "asic-chip-down"]
+    }
+    test = "incorrect + correct"
+    response, request_string = make_request(POST, DISABLE_TRAP, payload=request)
+    assert_equal(request_string, get_code(response), int(HTTPStatus.BAD_REQUEST), test)
+    assert_equal(request_string, get_response(response), {"error": [f"Trap qwerty is not in the list of known plugin traps, see 'trap_list'"]}, test)
+
+    request = {
+        "traps": ["asic-chip-down"]
+    }
+    test = "double disable"
+    response, request_string = make_request(POST, DISABLE_TRAP, payload=request)
+    assert_equal(request_string, get_code(response), int(HTTPStatus.BAD_REQUEST), test)
+    assert_equal(request_string, get_response(response), {"error": [f"Trap asic-chip-down is already Disabled"]}, test)
+
+def enable_trap():
+    print("Enable trap")
+    request = {
+        "traps": ["qwerty", "asic-chip-down"]
+    }
+    test = "incorrect + correct"
+    response, request_string = make_request(POST, ENABLE_TRAP, payload=request)
+    assert_equal(request_string, get_code(response), int(HTTPStatus.BAD_REQUEST), test)
+    assert_equal(request_string, get_response(response), {"error": [f"Trap qwerty is not in the list of known plugin traps, see 'trap_list'"]}, test)
+
+    request = {
+        "traps": ["asic-chip-down"]
+    }
+    test = "double enable"
+    response, request_string = make_request(POST, ENABLE_TRAP, payload=request)
+    assert_equal(request_string, get_code(response), int(HTTPStatus.BAD_REQUEST), test)
+    assert_equal(request_string, get_response(response), {"error": [f"Trap asic-chip-down is already Enabled"]}, test)
+
 def main():
     import urllib3
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+    print("POSITIVE TESTS")
     unregister_all()
     register_switch()
     get_trap_list()
@@ -232,6 +335,11 @@ def main():
     send_test_trap()
     # trap_in_log()
     trap_in_ufm_events()
+    print("NEGATIVE TESTS")
+    unregister_incorrect()
+    register_incorrect()
+    enable_trap()
+    disable_trap()
 
     if FAILED_TESTS_COUNT > 0:
         print("\n{} tests failed".format(FAILED_TESTS_COUNT))
