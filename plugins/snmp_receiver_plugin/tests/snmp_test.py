@@ -237,7 +237,7 @@ def unregister_incorrect():
     test = "incorrect request"
     response, request_string = make_request(POST, UNREGISTER, payload=request)
     assert_equal(request_string, get_code(response), int(HTTPStatus.BAD_REQUEST), test)
-    assert_equal(request_string, get_response(response), {"error": "Upload request is empty"}, test)
+    assert_equal(request_string, get_response(response), {"error": "Incorrect format: 'switches'"}, test)
 
     global SWITCH_IP
     request = {
@@ -338,8 +338,8 @@ def main():
     print("NEGATIVE TESTS")
     unregister_incorrect()
     register_incorrect()
-    enable_trap()
     disable_trap()
+    enable_trap()
 
     if FAILED_TESTS_COUNT > 0:
         print("\n{} tests failed".format(FAILED_TESTS_COUNT))
