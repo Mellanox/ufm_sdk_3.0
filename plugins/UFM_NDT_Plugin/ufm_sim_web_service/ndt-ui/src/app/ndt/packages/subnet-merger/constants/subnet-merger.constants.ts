@@ -19,7 +19,8 @@ export class SubnetMergerConstants {
     "file_type": "file_type" as "file_type",
     "file_status": "file_status" as "file_status",
     "sha_1": "sha-1" as "sha-1",
-    "last_deployed_file": "last_deployed_file" as "last_deployed_file"
+    "last_deployed_file": "last_deployed_file" as "last_deployed_file",
+    "file_capabilities": "file_capabilities" as "file_capabilities",
   }
 
   public static validateAPIKeys = {
@@ -41,8 +42,14 @@ export class SubnetMergerConstants {
     deployNDTFile: `${SubnetMergerConstants.baseApiUrl}/merger_deploy_ndt_config`,
     validationReports: `${SubnetMergerConstants.baseApiUrl}/merger_verify_ndt_reports`,
     updateBoundaryPortsState: `${SubnetMergerConstants.baseApiUrl}/merger_update_topoconfig`,
-    lastDeployedNDT: `${SubnetMergerConstants.baseApiUrl}/merger_deployed_ndt`
+    lastDeployedNDT: `${SubnetMergerConstants.baseApiUrl}/merger_deployed_ndt`,
+    mergerDeleteNdt: `${SubnetMergerConstants.baseApiUrl}/merger_delete_ndt`,
+    updateDeployNdtConfig: `${SubnetMergerConstants.baseApiUrl}/merger_update_deploy_ndt_config`
 
+  }
+
+  public static ufmConfigAPI = {
+    ufmConfig: `${NdtViewService.ufmRESTBase}/app/ufm_config`
   }
 
 }

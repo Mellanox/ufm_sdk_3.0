@@ -59,12 +59,12 @@ export class InitialWizardComponent implements OnInit {
     this.selectedFileName = $event;
   }
 
-  public onReportCompleted($event:IonValidationCompletedEvent) {
-    if($event.isReportCompleted && $event.report.status != NDTStatusTypes.completedWithCriticalErrors) {
-      this.initialWizardService.tabs[1].isDisabled = false;
-      this.initialWizardService.tabs[1].isNextDisabled = false;
-      this.initialWizardService.tabs[0].isNextDisabled = false;
-    }
+  public onReportCompleted($event: IonValidationCompletedEvent) {
+    this.initialWizardService.tabs[1].isDisabled = this.initialWizardService.tabs[1].isNextDisabled = this.initialWizardService.tabs[0].isNextDisabled = !$event.isFileDeployable;
+  }
+
+  public onFileUploaded($event) {
+    this.initialWizardService.tabs[1].isDisabled = this.initialWizardService.tabs[1].isNextDisabled = this.initialWizardService.tabs[0].isNextDisabled = true;
   }
 
 }

@@ -11,8 +11,11 @@ export class SubnetMergerBackendService {
   constructor(private httpService: HttpClientService) {
   }
 
-  public getNDTsList(): Observable<any> {
-    const url = SubnetMergerConstants.mergerAPIs.NDTsList;
+  public getNDTsList(filename?: string): Observable<any> {
+    let url = SubnetMergerConstants.mergerAPIs.NDTsList;
+    if (filename) {
+      url = `${url}/${filename}`;
+    }
     return this.httpService.get(url);
   }
 
@@ -51,6 +54,28 @@ export class SubnetMergerBackendService {
 
   public getActiveDeployedFile(): Observable<any> {
     const url = SubnetMergerConstants.mergerAPIs.lastDeployedNDT;
+    return this.httpService.get(url);
+  }
+
+  public updatePortBoundariesAndDeploy(fileName: string, state = SubnetMergerConstants.boundariesStates.noDiscover): Observable<any> {
+    const url = `${SubnetMergerConstants.mergerAPIs.updateDeployNdtConfig}`
+    const payload = {
+      [SubnetMergerConstants.validateAPIKeys.NDTFileName]: fileName,
+      [SubnetMergerConstants.boundariesStates.boundaryPortState]: state
+    };
+    return this.httpService.post(url, payload);
+  }
+
+  public deleteNDTFile(fileName: string): Observable<any> {
+    const url = `${SubnetMergerConstants.mergerAPIs.mergerDeleteNdt}`;
+    const payload = [{
+      file_name: fileName
+    }];
+    return this.httpService.post(url, payload);
+  }
+
+  public getUFMConf(): Observable<any> {
+    const url = `${SubnetMergerConstants.ufmConfigAPI.ufmConfig}`;
     return this.httpService.get(url);
   }
 }

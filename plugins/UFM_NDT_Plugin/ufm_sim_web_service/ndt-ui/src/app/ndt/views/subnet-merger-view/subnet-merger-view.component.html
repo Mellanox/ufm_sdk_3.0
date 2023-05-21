@@ -19,7 +19,7 @@
       </div>
     </ng-container>
   </div>
-  <ng-container *ngIf="selectedReport">
+  <ng-container *ngIf="ndtFilesViewComponent?.ndtFiles?.length && selectedReport">
     <div class="col-sm-12">
       <app-validation-result
         [validationReportID]="selectedReport.report_id">

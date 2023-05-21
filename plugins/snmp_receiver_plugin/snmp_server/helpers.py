@@ -171,7 +171,7 @@ def init_engine_ids(switch_dict, guid_to_ip):
                     except KeyError as ke:
                         logging.error(f"No key {ke} found in {word}")
 
-def get_ufm_switches():
+def get_ufm_switches(existing_switches=None):
     resource = "/resources/systems?type=switch"
     status_code, json = get_request(resource)
     if not succeded(status_code):
@@ -184,7 +184,13 @@ def get_ufm_switches():
         if not ip == EMPTY_IP:
             switch_dict[ip] = Switch(switch["system_name"], switch["guid"])
             guid_to_ip[switch["guid"]] = ip
-    init_engine_ids(switch_dict, guid_to_ip)
+    if existing_switches:
+        if set(switch_dict.keys()) != set(existing_switches.keys()):
+            init_engine_ids(switch_dict, guid_to_ip)
+        else:
+            return {}
+    else:
+        init_engine_ids(switch_dict, guid_to_ip)
     logging.debug(f"List of switches in the fabric: {switch_dict.keys()}")
     return switch_dict
 
@@ -267,9 +273,9 @@ class ConfigParser:
     if not snmp_port:
         logging.error(f"Incorrect value for snmp_port")
         quit()
-    community = snmp_config.get("SNMP", "community", fallback="public")
-    if not community:
-        logging.error(f"Incorrect value for snmp_port")
+    snmp_community = snmp_config.get("SNMP", "snmp_community", fallback="public")
+    if not snmp_community:
+        logging.error(f"Incorrect value for snmp_community")
         quit()
     multiple_events = snmp_config.getboolean("SNMP", "multiple_events", fallback=False)
     snmp_version = snmp_config.getint("SNMP", "snmp_version", fallback=3)
@@ -280,18 +286,20 @@ class ConfigParser:
     if snmp_mode not in ["auto", "manual"]:
         logging.error(f"Incorrect value for snmp_mode, should be 'auto' or 'manual'")
         quit()
-    snmp_user = snmp_config.get("SNMP", "snmp_user", fallback="auto")
+    snmp_user = snmp_config.get("SNMP", "snmp_user", fallback="")
     if not snmp_user:
         logging.error(f"Incorrect value for snmp_user")
         quit()
-    snmp_password = snmp_config.get("SNMP", "snmp_password", fallback="auto")
+    snmp_password = snmp_config.get("SNMP", "snmp_password", fallback="")
     if not snmp_password:
         logging.error(f"Incorrect value for snmp_password")
         quit()
-    snmp_priv = snmp_config.get("SNMP", "snmp_priv", fallback="auto")
+    snmp_priv = snmp_config.get("SNMP", "snmp_priv", fallback="")
     if not snmp_priv:
         logging.error(f"Incorrect value for snmp_priv")
         quit()
+    snmp_additional_traps_str = snmp_config.get("SNMP", "snmp_additional_traps", fallback="")
+    snmp_additional_traps = snmp_additional_traps_str.split(',')
 
     ufm_switches_update_interval = snmp_config.getint("UFM", "ufm_switches_update_interval", fallback=60)
 

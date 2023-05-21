@@ -33,7 +33,7 @@ from resources import UIFilesResources ,UFMResource, Compare, Ndts, Reports, Rep
 from merger_resources import MergerUploadNDT, MergerVerifyNDT, MergerDummyTest, \
     MergerVerifyNDTReports, MergerVerifyNDTReportId, MergerDeployNDTConfig, \
     MergerNdts, MergerDeleteNDT, MergerUpdateNDTConfig, MergerLatestDeployedNDT, \
-    MergerCreateNDTTopoconfig, MergerUpdDeployNDTConfig
+    MergerCreateNDTTopoconfig, MergerUpdDeployNDTConfig, MergerNdtsFile
 
 
 class UFMNDTWebServer:
@@ -63,6 +63,7 @@ class UFMNDTWebServer:
             ReportId: "/reports/<report_id>",
             # merger specific APIs
             MergerNdts: "/merger_ndts_list",
+            MergerNdtsFile: "/merger_ndts_list/<ndt_file_name>",
             MergerUploadNDT: "/merger_upload_ndt",
             MergerVerifyNDT: "/merger_verify_ndt",
             MergerVerifyNDTReports: "/merger_verify_ndt_reports",

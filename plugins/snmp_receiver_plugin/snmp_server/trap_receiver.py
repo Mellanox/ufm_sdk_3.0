@@ -85,7 +85,7 @@ class SnmpTrapReceiver:
             for switch_obj in self.switch_dict.values():
                 self._register_v3_switch(switch_obj.engine_id)
         else:
-            config.addV1System(self.snmp_engine, 'my-area', helpers.ConfigParser.community)
+            config.addV1System(self.snmp_engine, 'my-area', helpers.ConfigParser.snmp_community)
 
         if helpers.ConfigParser.snmp_mode == "auto":
             switches = list(self.switch_dict.keys())
@@ -135,21 +135,27 @@ class SnmpTrapReceiver:
         try:
             trap_oid = varBindsResolved[1][1].prettyPrint()
         except (KeyError, IndexError) as e:
-            logging.info(f'Error while getting trap_oid from varBindsResolved: {e}')
+            logging.info(f'Cannot parse trap oid from {switch_ip}')
+            logging.debug(f'Error while getting trap_oid from varBindsResolved: {e}')
             trap_oid = "unknown trap"
 
         try:
             trap_details = varBindsResolved[2][0].prettyPrint() + " = " + varBindsResolved[2][1].prettyPrint()
         except (KeyError, IndexError) as e:
-            logging.info(f'Error while getting trap_details for {trap_oid} trap from varBindsResolved: {e}')
+            logging.info(f'No trap details found for {trap_oid}')
+            logging.debug(f'Error while getting trap_details for {trap_oid} trap from varBindsResolved: {e}')
             trap_details = "no details"
 
         try:
             trap_info = self.oid_to_traps_info[trap_oid]
             severity = trap_info["Severity"]
         except:
-            logging.info(f'Received unsupported trap from {switch_ip}: {trap_oid}, skipping')
-            return
+            if trap_oid in helpers.ConfigParser.snmp_additional_traps:
+                logging.debug(f'Received trap set as additional in snmp.conf from {switch_ip}: {trap_oid}')
+                severity = "Info"
+            else:
+                logging.info(f'Received unsupported trap from {switch_ip}: {trap_oid}, skipping')
+                return
         trap = helpers.Trap(trap_oid, trap_details, severity)
         logging.debug(f'  {trap_oid}: {trap_details}')
 
@@ -216,9 +222,7 @@ class SnmpTrapReceiver:
                     # sending rest events
                     tasks.append(asyncio.ensure_future(self.post_external_event(session, multiple_events)))
                 else:
-                    for trap, count in trap_to_count.items():
-                        for _ in range(count):
-                            tasks.append(asyncio.ensure_future(self.post_external_event(session, payload)))
+                    tasks.append(asyncio.ensure_future(self.post_external_event(session, payload)))
                 # clear events dict
             await asyncio.gather(*tasks)
 
@@ -239,7 +243,8 @@ class SnmpTrapReceiver:
             self.snmp_engine.transportDispatcher.runDispatcher()
         except:
             self.snmp_engine.transportDispatcher.closeDispatcher()
-            self.throttling_thread.join(timeout=self.throttling_interval)
+            if self.throttling_thread:
+                self.throttling_thread.join(timeout=self.throttling_interval)
             raise
 
 if __name__ == "__main__":

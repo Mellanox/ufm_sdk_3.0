@@ -67,20 +67,13 @@ export class NewMergerWizardComponent implements OnInit {
 
   public onConnectClick(): void {
     this.deploying = true;
-    this.subnetMergerBackend.updatePortsBoundaries(this.activeDeployedFile).subscribe({
+    this.subnetMergerBackend.updatePortBoundariesAndDeploy(this.activeDeployedFile).subscribe({
       next: (data) => {
-        this.subnetMergerBackend.deployNDTFile(this.activeDeployedFile).subscribe({
-          next: (data) => {
-            this.deploying = false;
-            this.connected = true;
-            this.newMergerWizardService.tabs[1].isDisabled = false;
-            this.newMergerWizardService.tabs[0].isNextDisabled = false;
-            this.subnetMergerViewService.refreshNDtsTable.emit();
-          },
-          error: () => {
-            this.deploying = false;
-          }
-        })
+        this.deploying = false;
+        this.connected = true;
+        this.newMergerWizardService.tabs[1].isDisabled = false;
+        this.newMergerWizardService.tabs[0].isNextDisabled = false;
+        this.subnetMergerViewService.refreshNDtsTable.emit();
       },
       error: () => {
         this.deploying = false;
@@ -92,10 +85,12 @@ export class NewMergerWizardComponent implements OnInit {
     this.newUploadedFile = $event;
   }
 
-  public onReportCompleted($event:IonValidationCompletedEvent) {
-    if($event.isReportCompleted && $event.report.status != NDTStatusTypes.completedWithCriticalErrors) {
-      this.newMergerWizardService.tabs[1].isNextDisabled = false;
-    }
+  public onReportCompleted($event: IonValidationCompletedEvent) {
+    this.newMergerWizardService.tabs[1].isNextDisabled = !$event.isFileDeployable;
+  }
+
+  public onFileUploaded($event) {
+    this.newMergerWizardService.tabs[1].isNextDisabled = true;
   }
 
 }

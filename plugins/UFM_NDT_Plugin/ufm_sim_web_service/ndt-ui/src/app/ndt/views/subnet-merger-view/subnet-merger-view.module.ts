@@ -13,7 +13,6 @@ import {ValidationResultComponent} from './components/validation-result/validati
 import {XCoreAgGridModule} from "../../../../../sms-ui-suite/x-core-ag-grid/x-core-ag-grid.module";
 import {NdtFilesViewComponent} from './components/ndt-files-view/ndt-files-view.component';
 import {TooltipModule} from "ngx-bootstrap/tooltip";
-import {BrowserAnimationsModule} from "@angular/platform-browser/animations";
 import { NewMergerWizardComponent } from './components/new-merger-wizard/new-merger-wizard.component';
 import { ValidationReportsComponent } from './components/validation-reports/validation-reports.component';
 
@@ -29,7 +28,6 @@ import { ValidationReportsComponent } from './components/validation-reports/vali
     ValidationReportsComponent
   ],
   imports: [
-    BrowserAnimationsModule,
     CommonModule,
     XWizardModule,
     FileUploaderModule,

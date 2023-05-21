@@ -200,7 +200,7 @@ def parse_ibdiagnet_dump(net_dump_file_path):
                 link_info_dict = {}
                 link_info_dict["node_name"] = switch_info[0].strip('"')
                 link_info_dict["node_guid"] = switch_info[2].strip()
-                link_info_dict["node_port_number"] = link_info_list[1].strip()
+                link_info_dict["node_port_number"] = link_info_list[0].strip()
                 link_info_dict["peer_node_name"] = link_info_list[12].strip().strip('"')
                 link_info_dict["peer_node_guid"] = link_info_list[9].strip()
                 link_info_dict["peer_node_port_number"] = link_info_list[10].strip()
@@ -405,7 +405,7 @@ def get_port(link, port_type):
         return ""
 
 
-def check_miswired(port_type, ndt_unique, ufm_unique, miss_wired):
+def check_miswired(port_type, ndt_unique, ufm_unique, miss_wired, merger=False):
     ndt_dict = {(link.start_dev.upper(), link.end_dev.upper(), get_port(link, port_type))
                 : link for link in ndt_unique}
     ufm_dict = {(link.start_dev.upper(), link.end_dev.upper(), get_port(link, port_type))
@@ -414,8 +414,11 @@ def check_miswired(port_type, ndt_unique, ufm_unique, miss_wired):
     for start_port, link_ndt in ndt_dict.items():
         link_ufm = ufm_dict.get(start_port)
         if link_ufm:
-            miss_wired.append({"expected": str(link_ndt),
-                               "actual": str(link_ufm)})
+            if merger:
+                miss_wired.append("expected: %s. actual: %s" %(str(link_ndt),str(link_ufm)))
+            else:
+                miss_wired.append({"expected": str(link_ndt),
+                                   "actual": str(link_ufm)})
             print("NDT: actual \"{}\" does not match expected \"{}\"".format(link_ufm, link_ndt), flush=True)
 
             ndt_unique.remove(link_ndt)
@@ -454,8 +457,8 @@ def compare_topologies_ndt_ibdiagnet(timestamp,
     ndt_unique = ndt_links - ibdiagnet_links - ibdiagnet_links_reverse
     ibdiagnet_unique = ibdiagnet_links - ndt_links - ndt_links_reversed
 
-    check_miswired(PortType.SOURCE, ndt_unique, ibdiagnet_unique, miss_wired)
-    check_miswired(PortType.DESTINATION, ndt_unique, ibdiagnet_unique, miss_wired)
+    check_miswired(PortType.SOURCE, ndt_unique, ibdiagnet_unique, miss_wired, True)
+    check_miswired(PortType.DESTINATION, ndt_unique, ibdiagnet_unique, miss_wired, True)
 
     while ndt_unique:
         link = str(ndt_unique.pop())
