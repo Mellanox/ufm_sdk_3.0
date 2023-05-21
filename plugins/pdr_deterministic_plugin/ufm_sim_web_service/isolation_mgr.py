@@ -399,6 +399,7 @@ class IsolationMgr:
 
 
     def update_ports_data(self):
+        # update the ports metadata, 
         meta_data = self.ufm_client.get_ports_metadata()
         ports_updated = False
         if meta_data and len(meta_data) > 0:
@@ -442,8 +443,7 @@ class IsolationMgr:
 
     def start_telemetry_session(self):
         self.logger.info("Starting telemetry session")
-        guids = self.get_requested_guids()
-        response = self.ufm_client.start_dynamic_session(Constants.PDR_DYNAMIC_NAME, self.telemetry_counters, self.t_isolate, guids)
+        response = self.ufm_client.start_dynamic_session(Constants.PDR_DYNAMIC_NAME, self.telemetry_counters, self.t_isolate, [])
         if response and response.status_code == http.HTTPStatus.ACCEPTED:
             port = str(int(response.content))
         else:
@@ -518,8 +518,6 @@ class IsolationMgr:
                         if self.automatic_deisolate or cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED:
                             self.eval_deisolate(port_state.name)
                 ports_updated = self.update_ports_data()
-                if ports_updated:
-                    self.update_telemetry_session()
                 t_end = time.time()
             except Exception as e:
                 self.logger.warning("Error in main loop")
