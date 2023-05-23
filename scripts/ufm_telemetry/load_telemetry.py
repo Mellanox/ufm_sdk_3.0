@@ -15,6 +15,7 @@
 @author: Nasr Ajaj
 @date:   Aug 1, 2022
 """
+
 from utils.utils import Utils
 import requests
 import logging
