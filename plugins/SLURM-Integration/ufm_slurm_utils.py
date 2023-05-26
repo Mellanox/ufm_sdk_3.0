@@ -16,6 +16,7 @@
 # Author: Anas Badaha
 
 import os
+import sys
 import re
 import subprocess
 import json
@@ -99,6 +100,10 @@ class GeneralUtils:
 
     def read_conf_file(self, key):
         conf_file = self.getSlurmConfFile()
+        conf_mode = os.stat(conf_file).st_mode
+        if conf_mode & 0o77 != 0:
+            logging.error(f"Permissions for configuration file {conf_file} are too open: {oct(conf_mode & 0o777)}")
+            sys.exit(1)
         file = open(conf_file, 'r')
         confs = file.read()
         match = re.search(r'%s=(.*)' % key, confs)
