@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright © 2017-2021 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright © 2017-2023 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -98,19 +98,26 @@ class GeneralUtils:
         else:
             return "%s/%s" % (Constants.SLURM_DEF_PATH, Constants.UFM_SLURM_CONF_NAME)
 
-    def read_conf_file(self, key):
-        conf_file = self.getSlurmConfFile()
-        conf_mode = os.stat(conf_file).st_mode
+    def get_conf_parameter_value(self, conf_param_name):
+        """
+        This function is used to get the ufm slurm config parameter value from ufm_slurm.conf file.
+        :param conf_param_name: configuration parameter name you want to get from ufm_slurm.conf file.
+        :return conf_param_value: configuration parameter value in case the parameter name was found in ufm_slurm.conf file.
+        :return None: in case the parameter name was not found in ufm_slurm.conf file.
+        """
+        conf_file_path = self.getSlurmConfFile()
+        conf_mode = os.stat(conf_file_path).st_mode
         if conf_mode & 0o77 != 0:
-            logging.error(f"Permissions for configuration file {conf_file} are too open: {oct(conf_mode & 0o777)}")
+            logging.error(f"Permissions for configuration file {conf_file_path} are too open: {oct(conf_mode & 0o777)}")
             sys.exit(1)
-        file = open(conf_file, 'r')
-        confs = file.read()
-        match = re.search(r'%s=(.*)' % key, confs)
-        if match:
-            return match.groups()[0]
-        else:
-            return None
+        regex_pattern = r'^(?!#).*\b{}\b.*=.*$'.format(re.escape(conf_param_name))
+        with open(conf_file_path, 'r') as file:
+            for line in file:
+                matched = re.match(regex_pattern, line)
+                if matched:
+                    conf_param_value = (line.split("="))[1].strip()
+                    return conf_param_value
+        return None
 
     def isFileExist(self, file_name):
         if os.path.exists(file_name):
@@ -119,7 +126,7 @@ class GeneralUtils:
             return False
 
     def is_debug_mode(self):
-        debug_value = self.read_conf_file(Constants.CONF_DEBUG_MODE)
+        debug_value = self.get_conf_parameter_value(Constants.CONF_DEBUG_MODE)
         if debug_value:
             if debug_value.lower() == "true":
                 return True
@@ -285,7 +292,7 @@ class UFM:
             return False
 
     def getUfmIP(self):
-        ufm_manual_ip = self.utils.read_conf_file(Constants.CONF_UFM_IP)
+        ufm_manual_ip = self.utils.get_conf_parameter_value(Constants.CONF_UFM_IP)
         if ufm_manual_ip:
             if self.IPAddressValidation(ufm_manual_ip):
                 return ufm_manual_ip, None
