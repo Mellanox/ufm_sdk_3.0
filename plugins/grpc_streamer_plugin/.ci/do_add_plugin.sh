@@ -13,10 +13,10 @@ send -- "show ufm status\n"
 expect "/(config/) # "
 send -- "ufm start\n"
 expect "/(config/) # "
-sleep 20
+sleep 30
 send -- "ufm plugin grpc-streamer remove\n"
 expect "/(config/) # "
-sleep 10
+sleep 20
 send -- "ufm plugin grpc-streamer add tag latest\n"
 expect "/(config/) # "
 send -- "ufm plugin grpc-streamer enable\n"
