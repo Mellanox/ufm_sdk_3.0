@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright © 2017-2021 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright © 2017-2023 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -97,15 +97,16 @@ class GeneralUtils:
         else:
             return "%s/%s" % (Constants.SLURM_DEF_PATH, Constants.UFM_SLURM_CONF_NAME)
 
-    def read_conf_file(self, key):
+    def read_conf_file(self, conf_param_name):
         conf_file = self.getSlurmConfFile()
-        file = open(conf_file, 'r')
-        confs = file.read()
-        match = re.search(r'%s=(.*)' % key, confs)
-        if match:
-            return match.groups()[0]
-        else:
-            return None
+        regex_pattern = r'^(?!#).*\b{}\b.*=.*$'.format(re.escape(conf_param_name))
+        with open(conf_file, 'r') as file:
+            for line in file:
+                matched = re.match(regex_pattern, line)
+                if matched:
+                    conf_param_value = (line.split("="))[1].strip()
+                    return conf_param_value
+        return None
 
     def isFileExist(self, file_name):
         if os.path.exists(file_name):
