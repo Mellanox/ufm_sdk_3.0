@@ -1,6 +1,6 @@
 #!/bin/bash -x
 export SERVER_HOST=$SERVER_HOST
-expect << EOF
+expect << 'EOF'
 spawn ssh admin@${SERVER_HOST}
 expect "Password:*"
 send -- "admin\r"
