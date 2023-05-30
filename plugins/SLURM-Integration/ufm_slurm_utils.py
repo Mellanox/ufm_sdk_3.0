@@ -98,6 +98,12 @@ class GeneralUtils:
             return "%s/%s" % (Constants.SLURM_DEF_PATH, Constants.UFM_SLURM_CONF_NAME)
 
     def read_conf_file(self, conf_param_name):
+        """
+        This function is used to get the ufm slurm config parameter value form ufm_slurm.conf file.
+        :param conf_param_name: configuration parameter name you want to get from ufm_slurm.conf file.
+        :return conf_param_value: configuration parameter value in case the parameter name was found in ufm_slurm.conf file.
+        :return None: in case the parameter name was not found in ufm_slurm.conf file.
+        """
         conf_file = self.getSlurmConfFile()
         regex_pattern = r'^(?!#).*\b{}\b.*=.*$'.format(re.escape(conf_param_name))
         with open(conf_file, 'r') as file:
