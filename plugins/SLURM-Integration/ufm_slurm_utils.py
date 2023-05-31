@@ -100,7 +100,7 @@ class GeneralUtils:
 
     def get_conf_parameter_value(self, conf_param_name):
         """
-        This function is used to get the ufm slurm config parameter value form ufm_slurm.conf file.
+        This function is used to get the ufm slurm config parameter value from ufm_slurm.conf file.
         :param conf_param_name: configuration parameter name you want to get from ufm_slurm.conf file.
         :return conf_param_value: configuration parameter value in case the parameter name was found in ufm_slurm.conf file.
         :return None: in case the parameter name was not found in ufm_slurm.conf file.
