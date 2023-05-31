@@ -16,6 +16,7 @@
 # Author: Anas Badaha
 
 import os
+import sys
 import re
 import subprocess
 import json
@@ -97,16 +98,20 @@ class GeneralUtils:
         else:
             return "%s/%s" % (Constants.SLURM_DEF_PATH, Constants.UFM_SLURM_CONF_NAME)
 
-    def read_conf_file(self, conf_param_name):
+    def get_conf_parameter_value(self, conf_param_name):
         """
         This function is used to get the ufm slurm config parameter value form ufm_slurm.conf file.
         :param conf_param_name: configuration parameter name you want to get from ufm_slurm.conf file.
         :return conf_param_value: configuration parameter value in case the parameter name was found in ufm_slurm.conf file.
         :return None: in case the parameter name was not found in ufm_slurm.conf file.
         """
-        conf_file = self.getSlurmConfFile()
+        conf_file_path = self.getSlurmConfFile()
+        conf_mode = os.stat(conf_file_path).st_mode
+        if conf_mode & 0o77 != 0:
+            logging.error(f"Permissions for configuration file {conf_file_path} are too open: {oct(conf_mode & 0o777)}")
+            sys.exit(1)
         regex_pattern = r'^(?!#).*\b{}\b.*=.*$'.format(re.escape(conf_param_name))
-        with open(conf_file, 'r') as file:
+        with open(conf_file_path, 'r') as file:
             for line in file:
                 matched = re.match(regex_pattern, line)
                 if matched:
@@ -121,7 +126,7 @@ class GeneralUtils:
             return False
 
     def is_debug_mode(self):
-        debug_value = self.read_conf_file(Constants.CONF_DEBUG_MODE)
+        debug_value = self.get_conf_parameter_value(Constants.CONF_DEBUG_MODE)
         if debug_value:
             if debug_value.lower() == "true":
                 return True
@@ -287,7 +292,7 @@ class UFM:
             return False
 
     def getUfmIP(self):
-        ufm_manual_ip = self.utils.read_conf_file(Constants.CONF_UFM_IP)
+        ufm_manual_ip = self.utils.get_conf_parameter_value(Constants.CONF_UFM_IP)
         if ufm_manual_ip:
             if self.IPAddressValidation(ufm_manual_ip):
                 return ufm_manual_ip, None
