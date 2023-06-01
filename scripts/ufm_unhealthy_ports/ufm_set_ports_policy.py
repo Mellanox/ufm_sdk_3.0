@@ -41,17 +41,18 @@ class UfmPortsPolicyConstants:
     API_PORTS = "ports"
     API_PORTS_POLICY = "ports_policy"
     API_ACTION = "action"
+    ACTION_ISOLATE = "isolate"
     UNHEALTHY_PORT_ACTION = "UNHEALTHY"
     HEALTHY_PORT_ACTION = "HEALTHY"
 
     UNHEALTHY_PORTS_OPERATIONS = {
         "get_unhealthy_ports": "get_unhealthy_ports",
-        "set_ports_polict": "set_ports_polict"
+        "set_ports_policy": "set_ports_policy"
     }
 
     args_list = [
         {
-            "name": f'--{UNHEALTHY_PORTS_OPERATIONS.get("set_ports_polict")}',
+            "name": f'--{UNHEALTHY_PORTS_OPERATIONS.get("set_ports_policy")}',
             "help": "Option to set the ports policy to Healthy/Unhealthy",
             "no_value": True
         },
@@ -85,7 +86,7 @@ class UfmSetPortsPolicyConfigParser(ConfigParser):
 class UfmSetPortsPolicyManagement:
 
     @staticmethod
-    def set_ports_polict(ports_numbers_list, ports_policy, action):
+    def set_ports_policy(ports_numbers_list, ports_policy, action):
         if ports_policy == UfmPortsPolicyConstants.UNHEALTHY_PORT_ACTION:
             payload = {
                 UfmPortsPolicyConstants.API_PORTS: ports_numbers_list,
@@ -134,23 +135,25 @@ if __name__ == "__main__":
 
     # init ufm rest client
     ufm_rest_client = UfmRestClient(host = config_parser.get_ufm_host(),
-                                    client_token=config_parser.get_ufm_access_token(),username = config_parser.get_ufm_username(),
-                                    password = config_parser.get_ufm_password(),ws_protocol=config_parser.get_ufm_protocol())
+                                    client_token=config_parser.get_ufm_access_token(),
+                                    username = config_parser.get_ufm_username(),
+                                    password = config_parser.get_ufm_password(),
+                                    ws_protocol=config_parser.get_ufm_protocol())
     args_dict = args.__dict__
-    if args_dict.get(UfmPortsPolicyConstants.UNHEALTHY_PORTS_OPERATIONS.get("set_ports_polict")):
+    if args_dict.get(UfmPortsPolicyConstants.UNHEALTHY_PORTS_OPERATIONS.get("set_ports_policy")):
         try:
             ports_number_list = config_parser.safe_get_list(args_dict.get(UfmPortsPolicyConstants.API_PORTS),
                                                             None,None)
         except Exception as e:
-            ExceptionHandler.handel_arg_exception(UfmPortsPolicyConstants.UNHEALTHY_PORTS_OPERATIONS.get("set_ports_polict"),
+            ExceptionHandler.handel_arg_exception(UfmPortsPolicyConstants.UNHEALTHY_PORTS_OPERATIONS.get("set_ports_policy"),
                                                   UfmPortsPolicyConstants.API_PORTS)
 
         ports_policy = config_parser.get_config_value(args_dict.get(UfmPortsPolicyConstants.API_PORTS_POLICY),
                                                       None, None, UfmPortsPolicyConstants.UNHEALTHY_PORT_ACTION)
         action = config_parser.get_config_value(args_dict.get(UfmPortsPolicyConstants.API_ACTION),
-                                                None, None, "isolate")
+                                                None, None, UfmPortsPolicyConstants.ACTION_ISOLATE)
 
-        UfmSetPortsPolicyManagement.set_ports_polict(ports_number_list, ports_policy, action)
+        UfmSetPortsPolicyManagement.set_ports_policy(ports_number_list, ports_policy, action)
     elif args_dict.get(UfmPortsPolicyConstants.UNHEALTHY_PORTS_OPERATIONS.get("get_unhealthy_ports")):
         UfmSetPortsPolicyManagement.get_unhealthy_ports()
     else:
