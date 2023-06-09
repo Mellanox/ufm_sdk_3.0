@@ -1,0 +1,853 @@
+[
+	{
+		"hostname": "c-237-153-80-083-bf2",
+		"trans_mode": 1,
+		"message_type": "Inventory",
+		"message": [
+			{
+				"timestamp": 1669109706.1853793,
+				"hostname": "c-237-153-80-083-bf2",
+				"cpu_arch": "aarch64",
+				"cpu_nos": "1",
+				"cpu_model": "Cortex-A72",
+				"cpu_max_freq": "1999 MHz",
+				"os_name": "Ubuntu",
+				"os_version": "20.04.4 LTS (Focal Fossa)",
+				"os_version_id": "20.04",
+				"asic_model": "BlueField-2 integrated ConnectX-6 Dx network controller (rev 01)",
+				"asic_vendor": "Mellanox Technologies",
+				"asic_serial_number": "MT2132X06829",
+				"memory_data": [
+					{
+						"id": "firmware",
+						"class": "memory",
+						"claimed": true,
+						"description": "BIOS",
+						"vendor": "https://www.mellanox.com",
+						"physid": "0",
+						"version": "BlueField:3.9.2-4-gf2113bc",
+						"date": "Jul 25 2022",
+						"units": "bytes",
+						"size": 1048576,
+						"capacity": 4194304,
+						"capabilities": {
+							"pci": "PCI bus",
+							"upgrade": "BIOS EEPROM can be upgraded",
+							"bootselect": "Selectable boot path",
+							"int14serial": "INT14 serial line control",
+							"acpi": "ACPI",
+							"uefi": "UEFI specification is supported"
+						}
+					},
+					{
+						"id": "memory",
+						"class": "memory",
+						"claimed": true,
+						"handle": "DMI:000D",
+						"description": "System Memory",
+						"physid": "d",
+						"slot": "System board or motherboard",
+						"units": "bytes",
+						"size": 17179869184,
+						"configuration": {
+							"errordetection": "multi-bit-ecc"
+						},
+						"capabilities": {
+							"ecc": "Multi-bit error-correcting code (ECC)"
+						},
+						"children": [
+							{
+								"id": "bank",
+								"class": "memory",
+								"claimed": true,
+								"handle": "DMI:000E",
+								"description": "DRAM Synchronous 3200 MHz (0.3 ns)",
+								"vendor": "Mellanox",
+								"physid": "0",
+								"slot": "DDR4 memory",
+								"units": "bytes",
+								"size": 17179869184,
+								"width": 64,
+								"clock": 3200000000
+							}
+						]
+					}
+				],
+				"cpu_data": [
+					{
+						"id": "cpu",
+						"class": "processor",
+						"claimed": true,
+						"handle": "DMI:0004",
+						"description": "CPU",
+						"product": "ARMv8 (OPN: MBF2M516A-EEEO)",
+						"vendor": "https://www.mellanox.com",
+						"physid": "4",
+						"businfo": "cpu@0",
+						"version": "Mellanox BlueField-2 [A1] A72(D08) r1p0",
+						"serial": "Unspecified Serial Number",
+						"slot": "Socket 0",
+						"units": "Hz",
+						"size": 1999000000,
+						"capacity": 1999000000,
+						"clock": 200000000,
+						"configuration": {
+							"cores": "8",
+							"enabledcores": "8"
+						},
+						"capabilities": {
+							"lm": "64-bit capable"
+						}
+					}
+				],
+				"platform_vendor": "mellanox",
+				"platform_model": "BlueField SoC",
+				"platform_serial_number": "MT2132X06829.",
+				"memory_total_size": "15954.57 MB",
+				"agent_version": "1.4.0",
+				"asic_core_bw": "100GbE/EDR/HDR100",
+				"asic_ports": "BlueField-2 E-Series DPU 100GbE/EDR/HDR100 VPI Dual-Port QSFP56",
+				"asic_data": {},
+				"platform_label_revision": "01",
+				"disk_total_size": "57.05 GB",
+				"disk_data": [
+					{
+						"name": "mmcblk0",
+						"size": "58.3G",
+						"d_type": "disk",
+						"vendor": "N/A",
+						"transport": "N/A",
+						"rev": "0x8",
+						"model": "N/A"
+					}
+				],
+				"asic_model_id": "MT_0000000559",
+				"platform_base_mac": "08:c0:eb:20:65:be",
+				"platform_part_number": "MBF2M516A-EEEO_Ax_Bx",
+				"fw_version": "24.34.1002",
+				"network_interfaces": [
+					{
+						"ifindex": 1,
+						"ifname": "lo",
+						"flags": [
+							"LOOPBACK",
+							"UP",
+							"LOWER_UP"
+						],
+						"mtu": 65536,
+						"qdisc": "noqueue",
+						"operstate": "UNKNOWN",
+						"linkmode": "DEFAULT",
+						"group": "default",
+						"txqlen": 1000,
+						"link_type": "loopback",
+						"address": "00:00:00:00:00:00",
+						"broadcast": "00:00:00:00:00:00"
+					},
+					{
+						"ifindex": 2,
+						"ifname": "tmfifo_net0",
+						"flags": [
+							"BROADCAST",
+							"MULTICAST",
+							"UP",
+							"LOWER_UP"
+						],
+						"mtu": 1500,
+						"qdisc": "fq_codel",
+						"operstate": "UP",
+						"linkmode": "DEFAULT",
+						"group": "default",
+						"txqlen": 1000,
+						"link_type": "ether",
+						"address": "00:1a:ca:ff:ff:01",
+						"broadcast": "ff:ff:ff:ff:ff:ff",
+						"FEC": "N/A"
+					},
+					{
+						"ifindex": 3,
+						"ifname": "oob_net0",
+						"flags": [
+							"BROADCAST",
+							"MULTICAST",
+							"UP",
+							"LOWER_UP"
+						],
+						"mtu": 1500,
+						"qdisc": "fq_codel",
+						"operstate": "UP",
+						"linkmode": "DEFAULT",
+						"group": "default",
+						"txqlen": 1000,
+						"link_type": "ether",
+						"address": "08:c0:eb:20:65:c8",
+						"broadcast": "ff:ff:ff:ff:ff:ff",
+						"FEC": "N/A"
+					},
+					{
+						"ifindex": 4,
+						"ifname": "p0",
+						"flags": [
+							"BROADCAST",
+							"MULTICAST",
+							"UP",
+							"LOWER_UP"
+						],
+						"mtu": 1500,
+						"qdisc": "mq",
+						"master": "ovs-system",
+						"operstate": "UP",
+						"linkmode": "DEFAULT",
+						"group": "default",
+						"txqlen": 1000,
+						"link_type": "ether",
+						"address": "08:c0:eb:20:65:c2",
+						"broadcast": "ff:ff:ff:ff:ff:ff",
+						"vfinfo_list": [],
+						"FEC": {
+							"Configured FEC encodings": "Auto",
+							"Active FEC encoding": "RS"
+						}
+					},
+					{
+						"ifindex": 5,
+						"ifname": "p1",
+						"flags": [
+							"BROADCAST",
+							"MULTICAST",
+							"UP",
+							"LOWER_UP"
+						],
+						"mtu": 1500,
+						"qdisc": "mq",
+						"master": "ovs-system",
+						"operstate": "UP",
+						"linkmode": "DEFAULT",
+						"group": "default",
+						"txqlen": 1000,
+						"link_type": "ether",
+						"address": "08:c0:eb:20:65:c3",
+						"broadcast": "ff:ff:ff:ff:ff:ff",
+						"vfinfo_list": [],
+						"FEC": {
+							"Configured FEC encodings": "Auto",
+							"Active FEC encoding": "RS"
+						}
+					},
+					{
+						"ifindex": 6,
+						"ifname": "pf0hpf",
+						"flags": [
+							"BROADCAST",
+							"MULTICAST",
+							"UP",
+							"LOWER_UP"
+						],
+						"mtu": 1500,
+						"qdisc": "mq",
+						"master": "ovs-system",
+						"operstate": "UP",
+						"linkmode": "DEFAULT",
+						"group": "default",
+						"txqlen": 1000,
+						"link_type": "ether",
+						"address": "c6:d5:f3:de:b2:5c",
+						"broadcast": "ff:ff:ff:ff:ff:ff",
+						"FEC": "N/A"
+					},
+					{
+						"ifindex": 7,
+						"ifname": "pf1hpf",
+						"flags": [
+							"BROADCAST",
+							"MULTICAST",
+							"UP",
+							"LOWER_UP"
+						],
+						"mtu": 1500,
+						"qdisc": "mq",
+						"master": "ovs-system",
+						"operstate": "UP",
+						"linkmode": "DEFAULT",
+						"group": "default",
+						"txqlen": 1000,
+						"link_type": "ether",
+						"address": "fe:1a:4e:fa:98:bd",
+						"broadcast": "ff:ff:ff:ff:ff:ff",
+						"FEC": "N/A"
+					},
+					{
+						"ifindex": 8,
+						"ifname": "en3f0pf0sf0",
+						"flags": [
+							"BROADCAST",
+							"MULTICAST",
+							"UP",
+							"LOWER_UP"
+						],
+						"mtu": 1500,
+						"qdisc": "mq",
+						"master": "ovs-system",
+						"operstate": "UP",
+						"linkmode": "DEFAULT",
+						"group": "default",
+						"txqlen": 1000,
+						"link_type": "ether",
+						"address": "5a:8e:ef:26:a5:30",
+						"broadcast": "ff:ff:ff:ff:ff:ff",
+						"FEC": "N/A"
+					},
+					{
+						"ifindex": 9,
+						"ifname": "enp3s0f0s0",
+						"flags": [
+							"BROADCAST",
+							"MULTICAST",
+							"UP",
+							"LOWER_UP"
+						],
+						"mtu": 1500,
+						"qdisc": "mq",
+						"operstate": "UP",
+						"linkmode": "DEFAULT",
+						"group": "default",
+						"txqlen": 1000,
+						"link_type": "ether",
+						"address": "02:7d:58:7b:05:d0",
+						"broadcast": "ff:ff:ff:ff:ff:ff",
+						"vfinfo_list": [],
+						"FEC": "N/A"
+					},
+					{
+						"ifindex": 10,
+						"ifname": "en3f1pf1sf0",
+						"flags": [
+							"BROADCAST",
+							"MULTICAST",
+							"UP",
+							"LOWER_UP"
+						],
+						"mtu": 1500,
+						"qdisc": "mq",
+						"master": "ovs-system",
+						"operstate": "UP",
+						"linkmode": "DEFAULT",
+						"group": "default",
+						"txqlen": 1000,
+						"link_type": "ether",
+						"address": "ee:06:20:b8:dd:ad",
+						"broadcast": "ff:ff:ff:ff:ff:ff",
+						"FEC": "N/A"
+					},
+					{
+						"ifindex": 11,
+						"ifname": "enp3s0f1s0",
+						"flags": [
+							"BROADCAST",
+							"MULTICAST",
+							"UP",
+							"LOWER_UP"
+						],
+						"mtu": 1500,
+						"qdisc": "mq",
+						"operstate": "UP",
+						"linkmode": "DEFAULT",
+						"group": "default",
+						"txqlen": 1000,
+						"link_type": "ether",
+						"address": "02:a0:49:0c:18:3a",
+						"broadcast": "ff:ff:ff:ff:ff:ff",
+						"vfinfo_list": [],
+						"FEC": "N/A"
+					},
+					{
+						"ifindex": 12,
+						"ifname": "ovs-system",
+						"flags": [
+							"BROADCAST",
+							"MULTICAST"
+						],
+						"mtu": 1500,
+						"qdisc": "noop",
+						"operstate": "DOWN",
+						"linkmode": "DEFAULT",
+						"group": "default",
+						"txqlen": 1000,
+						"link_type": "ether",
+						"address": "6a:2a:43:ad:f9:d9",
+						"broadcast": "ff:ff:ff:ff:ff:ff",
+						"FEC": "N/A"
+					},
+					{
+						"ifindex": 13,
+						"ifname": "ovsbr1",
+						"flags": [
+							"BROADCAST",
+							"MULTICAST"
+						],
+						"mtu": 1500,
+						"qdisc": "noop",
+						"operstate": "DOWN",
+						"linkmode": "DEFAULT",
+						"group": "default",
+						"txqlen": 1000,
+						"link_type": "ether",
+						"address": "08:c0:eb:20:65:c2",
+						"broadcast": "ff:ff:ff:ff:ff:ff",
+						"FEC": "N/A"
+					},
+					{
+						"ifindex": 14,
+						"ifname": "ovsbr2",
+						"flags": [
+							"BROADCAST",
+							"MULTICAST"
+						],
+						"mtu": 1500,
+						"qdisc": "noop",
+						"operstate": "DOWN",
+						"linkmode": "DEFAULT",
+						"group": "default",
+						"txqlen": 1000,
+						"link_type": "ether",
+						"address": "08:c0:eb:20:65:c3",
+						"broadcast": "ff:ff:ff:ff:ff:ff",
+						"FEC": "N/A"
+					},
+					{
+						"ifindex": 15,
+						"ifname": "docker0",
+						"flags": [
+							"NO-CARRIER",
+							"BROADCAST",
+							"MULTICAST",
+							"UP"
+						],
+						"mtu": 1500,
+						"qdisc": "noqueue",
+						"operstate": "DOWN",
+						"linkmode": "DEFAULT",
+						"group": "default",
+						"link_type": "ether",
+						"address": "02:42:d5:e8:11:99",
+						"broadcast": "ff:ff:ff:ff:ff:ff",
+						"FEC": "N/A"
+					}
+				],
+				"pci_info": [
+					{
+						"Slot": "00:00.0",
+						"Class": "0604",
+						"Vendor": "15b3",
+						"Device": "a2d4",
+						"Rev": "01"
+					},
+					{
+						"Slot": "01:00.0",
+						"Class": "0604",
+						"Vendor": "15b3",
+						"Device": "1978",
+						"Rev": "01"
+					},
+					{
+						"Slot": "02:00.0",
+						"Class": "0604",
+						"Vendor": "15b3",
+						"Device": "1978",
+						"Rev": "01"
+					},
+					{
+						"Slot": "03:00.0",
+						"Class": "0200",
+						"Vendor": "15b3",
+						"Device": "a2d6",
+						"SVendor": "15b3",
+						"SDevice": "0070",
+						"Rev": "01"
+					}
+				],
+				"hw_counters": {
+					"/dev/mst/mt41686_pciconf0.1": {
+						"result": {
+							"output": {
+								"EYE Opening Info": {
+									"Height Eye Opening [mV]": {
+										"values": [
+											"10",
+											"14"
+										]
+									},
+									"Phase  Eye Opening [psec]": {
+										"values": [
+											"15",
+											"16"
+										]
+									},
+									"Physical Grade": {
+										"values": [
+											"1952",
+											"2690"
+										]
+									}
+								},
+								"Module Info": {
+									"Active Set Host Compliance Code": "N/A",
+									"Active Set Media Compliance Code": "N/A",
+									"Attenuation (5g,7g,12g) [dB]": "2,3,4",
+									"Bias Current [mA]": "N/A",
+									"CDR RX": {
+										"values": [
+											"N/A"
+										]
+									},
+									"CDR TX": {
+										"values": [
+											"N/A"
+										]
+									},
+									"Cable Breakout": "Channels implemented [1,2,3,4]/Cable with single far-end with 4 channels implemented, or separable module with a 4-channel connector",
+									"Cable Rx AMP": "N/A",
+									"Cable Rx Emphasis": "N/A",
+									"Cable Rx Post Emphasis": "N/A",
+									"Cable Technology": "Copper cable unequalized",
+									"Cable Tx Equalization": "N/A",
+									"Cable Type": "Passive copper cable",
+									"Compliance": "50GBASE-CR, 100GBASE-CR2, or 200GBASE-CR4",
+									"DataPath FW Fault": "N/A",
+									"DataPath state [per lane]": {
+										"values": [
+											"N/A"
+										]
+									},
+									"Digital Diagnostic Monitoring": "No",
+									"Error Code Response": "N/A",
+									"FW Version": "N/A",
+									"IB Cable Width": "1x,2x,4x",
+									"Identifier": "QSFP28",
+									"LOS Alarm": "N/A",
+									"Linear Direct Drive": "0",
+									"MAX Power": "0",
+									"Manufacturing Date": "24_08_20",
+									"Memory Map Revision": "8",
+									"Module FW Fault": "N/A",
+									"Module State": "N/A",
+									"Nominal bit rate": "26.500Gb/s",
+									"OUI": "Mellanox",
+									"Power Class": "N/A",
+									"Rev": "A4",
+									"Rx CDR LOL [per lane]": {
+										"values": [
+											"N/A"
+										]
+									},
+									"Rx Input Valid [per lane]": {
+										"values": [
+											"N/A"
+										]
+									},
+									"Rx LOS [per lane]": {
+										"values": [
+											"N/A"
+										]
+									},
+									"Rx Output Valid [per lane]": {
+										"values": [
+											"N/A"
+										]
+									},
+									"Rx Power Current [dBm]": "N/A",
+									"Rx Power Type": "OMA",
+									"SMF Length": "N/A",
+									"Temperature [C]": "N/A",
+									"Transfer Distance [m]": "1",
+									"Tx Adaptive EQ Fault [per lane]": {
+										"values": [
+											"N/A"
+										]
+									},
+									"Tx CDR LOL [per lane]": {
+										"values": [
+											"N/A"
+										]
+									},
+									"Tx Fault [per lane]": {
+										"values": [
+											"N/A"
+										]
+									},
+									"Tx LOS [per lane]": {
+										"values": [
+											"N/A"
+										]
+									},
+									"Tx Power Current [dBm]": "N/A",
+									"Vendor Name": "Mellanox",
+									"Vendor Part Number": "MCP1650-H00AE30",
+									"Vendor Serial Number": "MT2035VB02547",
+									"Voltage [mV]": "N/A",
+									"Wavelength Tolerance": "N/A",
+									"Wavelength [nm]": "N/A"
+								},
+								"Operational Info": {
+									"Auto Negotiation": "ON",
+									"FEC": "Standard_RS-FEC - (544,514)",
+									"Loopback Mode": "No Loopback",
+									"Physical state": "LinkUp",
+									"Speed": "100G",
+									"State": "Active",
+									"Width": "2x"
+								},
+								"Physical Counters and BER Info": {
+									"Effective Physical BER": "15E-255",
+									"Effective Physical Errors": "0",
+									"Raw Physical BER": "3E-10",
+									"Raw Physical Errors Per Lane": {
+										"values": [
+											"5922257",
+											"5088529"
+										]
+									},
+									"Time Since Last Clear [Min]": "4909.8"
+								},
+								"Supported Info": {
+									"Enabled Link Speed (Ext.)": {
+										"mask": "0x000007f2",
+										"values": [
+											"100G_2X",
+											"100G_4X",
+											"50G_1X",
+											"50G_2X",
+											"40G",
+											"25G",
+											"10G",
+											"1G"
+										]
+									},
+									"Supported Cable Speed (Ext.)": {
+										"mask": "0x000017f2",
+										"values": [
+											"200G_4X",
+											"100G_2X",
+											"100G_4X",
+											"50G_1X",
+											"50G_2X",
+											"40G",
+											"25G",
+											"10G",
+											"1G"
+										]
+									}
+								},
+								"Tool Information": {
+									"Firmware Version": "24.34.1002",
+									"MFT Version": "mft 4.21.0-99",
+									"amBER Version": "2.02"
+								},
+								"Troubleshooting Info": {
+									"Group Opcode": "N/A",
+									"Recommendation": "No issue was observed.",
+									"Status Opcode": "0"
+								}
+							}
+						},
+						"status": {
+							"code": 0,
+							"message": "success"
+						}
+					},
+					"/dev/mst/mt41686_pciconf0": {
+						"result": {
+							"output": {
+								"EYE Opening Info": {
+									"Height Eye Opening [mV]": {
+										"values": [
+											"10",
+											"10"
+										]
+									},
+									"Phase  Eye Opening [psec]": {
+										"values": [
+											"17",
+											"15"
+										]
+									},
+									"Physical Grade": {
+										"values": [
+											"2215",
+											"1810"
+										]
+									}
+								},
+								"Module Info": {
+									"Active Set Host Compliance Code": "N/A",
+									"Active Set Media Compliance Code": "N/A",
+									"Attenuation (5g,7g,12g) [dB]": "2,3,4",
+									"Bias Current [mA]": "N/A",
+									"CDR RX": {
+										"values": [
+											"N/A"
+										]
+									},
+									"CDR TX": {
+										"values": [
+											"N/A"
+										]
+									},
+									"Cable Breakout": "Channels implemented [1,2,3,4]/Cable with single far-end with 4 channels implemented, or separable module with a 4-channel connector",
+									"Cable Rx AMP": "N/A",
+									"Cable Rx Emphasis": "N/A",
+									"Cable Rx Post Emphasis": "N/A",
+									"Cable Technology": "Copper cable unequalized",
+									"Cable Tx Equalization": "N/A",
+									"Cable Type": "Passive copper cable",
+									"Compliance": "50GBASE-CR, 100GBASE-CR2, or 200GBASE-CR4",
+									"DataPath FW Fault": "N/A",
+									"DataPath state [per lane]": {
+										"values": [
+											"N/A"
+										]
+									},
+									"Digital Diagnostic Monitoring": "No",
+									"Error Code Response": "N/A",
+									"FW Version": "N/A",
+									"IB Cable Width": "1x,2x,4x",
+									"Identifier": "QSFP28",
+									"LOS Alarm": "N/A",
+									"Linear Direct Drive": "0",
+									"MAX Power": "0",
+									"Manufacturing Date": "10_01_20",
+									"Memory Map Revision": "8",
+									"Module FW Fault": "N/A",
+									"Module State": "N/A",
+									"Nominal bit rate": "26.500Gb/s",
+									"OUI": "Mellanox",
+									"Power Class": "N/A",
+									"Rev": "A4",
+									"Rx CDR LOL [per lane]": {
+										"values": [
+											"N/A"
+										]
+									},
+									"Rx Input Valid [per lane]": {
+										"values": [
+											"N/A"
+										]
+									},
+									"Rx LOS [per lane]": {
+										"values": [
+											"N/A"
+										]
+									},
+									"Rx Output Valid [per lane]": {
+										"values": [
+											"N/A"
+										]
+									},
+									"Rx Power Current [dBm]": "N/A",
+									"Rx Power Type": "OMA",
+									"SMF Length": "N/A",
+									"Temperature [C]": "N/A",
+									"Transfer Distance [m]": "1",
+									"Tx Adaptive EQ Fault [per lane]": {
+										"values": [
+											"N/A"
+										]
+									},
+									"Tx CDR LOL [per lane]": {
+										"values": [
+											"N/A"
+										]
+									},
+									"Tx Fault [per lane]": {
+										"values": [
+											"N/A"
+										]
+									},
+									"Tx LOS [per lane]": {
+										"values": [
+											"N/A"
+										]
+									},
+									"Tx Power Current [dBm]": "N/A",
+									"Vendor Name": "Mellanox",
+									"Vendor Part Number": "MCP1650-H00AE30",
+									"Vendor Serial Number": "MT2034VS03392",
+									"Voltage [mV]": "N/A",
+									"Wavelength Tolerance": "N/A",
+									"Wavelength [nm]": "N/A"
+								},
+								"Operational Info": {
+									"Auto Negotiation": "ON",
+									"FEC": "Standard_RS-FEC - (544,514)",
+									"Loopback Mode": "No Loopback",
+									"Physical state": "LinkUp",
+									"Speed": "100G",
+									"State": "Active",
+									"Width": "2x"
+								},
+								"Physical Counters and BER Info": {
+									"Effective Physical BER": "15E-255",
+									"Effective Physical Errors": "0",
+									"Raw Physical BER": "4E-10",
+									"Raw Physical Errors Per Lane": {
+										"values": [
+											"6945913",
+											"5682358"
+										]
+									},
+									"Time Since Last Clear [Min]": "4909.8"
+								},
+								"Supported Info": {
+									"Enabled Link Speed (Ext.)": {
+										"mask": "0x000007f2",
+										"values": [
+											"100G_2X",
+											"100G_4X",
+											"50G_1X",
+											"50G_2X",
+											"40G",
+											"25G",
+											"10G",
+											"1G"
+										]
+									},
+									"Supported Cable Speed (Ext.)": {
+										"mask": "0x000017f2",
+										"values": [
+											"200G_4X",
+											"100G_2X",
+											"100G_4X",
+											"50G_1X",
+											"50G_2X",
+											"40G",
+											"25G",
+											"10G",
+											"1G"
+										]
+									}
+								},
+								"Tool Information": {
+									"Firmware Version": "24.34.1002",
+									"MFT Version": "mft 4.21.0-99",
+									"amBER Version": "2.02"
+								},
+								"Troubleshooting Info": {
+									"Group Opcode": "N/A",
+									"Recommendation": "No issue was observed.",
+									"Status Opcode": "0"
+								}
+							}
+						},
+						"status": {
+							"code": 0,
+							"message": "success"
+						}
+					}
+				},
+				"containers": "N/A",
+				"ofed_version": "MLNX_OFED_LINUX-5.7-1.0.2.0:",
+				"bfb_version": "DOCA_1.4.0_BSP_3.9.2_Ubuntu_20.04-4"
+			}
+		]
+	}
+]

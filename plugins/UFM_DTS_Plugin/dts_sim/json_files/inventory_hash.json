@@ -1,0 +1,13 @@
+[ {
+        "hostname": "c-237-153-80-083-bf2",
+        "message": [
+            {
+                "hash": "1b0cd191a0dd9c5ae9d0d303139b0c",
+                "hostname": "c-237-153-80-083-bf2",
+                "timestamp": 1669109716.33916
+            }
+        ],
+        "message_type": "InventoryHash",
+        "trans_mode": 0
+    }
+]
