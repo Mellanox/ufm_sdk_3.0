@@ -17,6 +17,11 @@ send -- "show ufm plugin\r"
 expect "/(config/) # "
 send "show ufm status\r"
 expect "/(config/) # "
-send -- "ufm mode mgmt"
+send "no ufm start\r"
+expect "/(config/) # "
+send -- "ufm mode mgmt\r"
+expect "/(config/) # "
+send -- "no fae ufm sm-simulator enable\r"
+expect "/(config/) # "
 sleep 20
 EOF

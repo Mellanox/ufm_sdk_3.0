@@ -1,5 +1,5 @@
 - job-template:
-    name: ufm_ndt
+    name: ufm_sdk_3.0
     project-type: pipeline
     properties:
         - github:
@@ -68,7 +68,7 @@
                 refspec: "+refs/pull/*:refs/remotes/origin/pr/*"
                 browser: githubweb
                 browser-url: "{jjb_git}"
-        script-path: "plugins/UFM_NDT_Plugin/.ci/Jenkinsfile"
+        script-path: ".ci/Jenkinsfile"
     publishers:
       - email-ext:
           recipients: ekaidrikov@nvidia.com
@@ -95,13 +95,13 @@
       - timeout:
           timeout: 120
 - project:
-    name: ufm_ndt
+    name: ufm_sdk_3.0
     jjb_email: 'ekaidrikov@nvidia.com'
-    jjb_proj: 'ufm_ndt'
+    jjb_proj: 'ufm_sdk_3.0'
     jjb_git: 'https://github.com/Mellanox/ufm_sdk_3.0'
     jjb_owner: 'Evgeny Kaidrikov'
     jobs:
-        - ufm_ndt
+        - ufm_sdk_3.0
 
 
 
