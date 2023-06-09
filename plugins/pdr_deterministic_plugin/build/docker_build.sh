@@ -100,6 +100,8 @@ pushd ${SCRIPT_DIR}
 BUILD_DIR=$(create_out_dir)
 
 cp Dockerfile ${BUILD_DIR}
+curl -l -k 'https://l-webdev01:28443/raw/golan_fw.git/master_rc/docs!Field_BER_Thresholds.csv' -o Field_BER_Thresholds.csv
+mv -f Field_BER_Thresholds.csv config
 cp -r config ${BUILD_DIR}
 cp -r scripts ${BUILD_DIR}
 cp -r ../ufm_sim_web_service ${BUILD_DIR}
