@@ -1,27 +1,24 @@
-#!/bin/bash -x
-# Executing script for debug
-#\cp /auto/UFM/tmp/GVVM_CI/* .ci/
-cd .ci
-printenv
-env
+# Declare an array with plugin names
+plugins=("UFM_NDT_Plugin" "snmp_receiver_plugin" "grpc_streamer_plugin" "sysinfo_plugin")
 
-#UPDATE softlink according to git changes
+# Declare a variable for the common path
+path_to_yaml="../plugins/%s/.ci/ci_matrix.yaml"
 
 changed_files=$(git diff --name-only remotes/origin/$ghprbTargetBranch)
-echo "------------------------------"
-UFM_NDT_Plugin=$(git diff --name-only remotes/origin/$ghprbTargetBranch | grep UFM_NDT_Plugin |grep -v .gitmodules |wc -l)
-snmp_receiver_plugin=$(git diff --name-only remotes/origin/$ghprbTargetBranch | grep snmp_receiver_plugin |grep -v .gitmodules |wc -l)
-grpc_streamer_plugin=$(git diff --name-only remotes/origin/$ghprbTargetBranch | grep grpc_streamer_plugin |grep -v .gitmodules |wc -l)
-sysinfo_plugin=$(git diff --name-only remotes/origin/$ghprbTargetBranch | grep sysinfo_plugin |grep -v .gitmodules |wc -l)
-total=$(git diff --name-only remotes/origin/$ghprbTargetBranch |grep -v .gitmodules |wc -l)
-if [ $UFM_NDT_Plugin -eq $total ] && [ $total -ne 0 ]; then
-    ln -snf ../plugins/UFM_NDT_Plugin/.ci/ci_matrix.yaml matrix_job_ci.yaml
-elif [ $snmp_receiver_plugin -eq $total ] && [ $total -ne 0 ]; then
-    ln -snf ../plugins/snmp_receiver_plugin/.ci/ci_matrix.yaml matrix_job_ci.yaml
-elif [ $grpc_streamer_plugin -eq $total ] && [ $total -ne 0 ]; then
-    ln -snf ../plugins/grpc_streamer_plugin/.ci/ci_matrix.yaml matrix_job_ci.yaml
-elif [ $sysinfo_plugin -eq $total ] && [ $total -ne 0 ]; then
-    ln -snf ../plugins/sysinfo_plugin/.ci/ci_matrix.yaml matrix_job_ci.yaml
-else
+
+# Initialize variable to track if any plugin had changes
+plugin_had_changes=0
+
+# Loop over the plugins array
+for plugin in "${plugins[@]}"; do
+    plugin_changes=$(echo "$changed_files" | grep "$plugin" | grep -v .gitmodules | wc -l)
+    if [ "$plugin_changes" -gt 0 ]; then
+        ln -snf $(printf "$path_to_yaml" "$plugin") matrix_job_ci.yaml
+        plugin_had_changes=1
+    fi
+done
+
+# If no specific plugin changes were found
+if [ "$plugin_had_changes" -eq 0 ]; then
     ln -snf ci_matrix.yaml matrix_job_ci.yaml
 fi

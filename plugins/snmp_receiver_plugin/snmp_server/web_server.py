@@ -11,7 +11,7 @@
 #
 # @author: Alexander Tolikin
 # @date:   November, 2022
-#
+# trigger ci
 import asyncio
 from flask import Flask
 from flask_restful import Api
