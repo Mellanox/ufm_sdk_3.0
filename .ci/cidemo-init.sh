@@ -13,9 +13,23 @@ if [ -n "$changes_excluding_gitmodules" ] && [ $(echo "$changes_excluding_gitmod
     # Get the directory name
     dir_name=$(echo "$changes_excluding_gitmodules" | cut -d '/' -f1)
 
-    # Create symbolic link to the directory's CI file
-    ln -snf ../plugins/$dir_name/.ci/ci_matrix.yaml matrix_job_ci.yaml
+    # Check if the directory's CI file exists
+    if [ -f "../plugins/$dir_name/.ci/ci_matrix.yaml" ]; then
+        # Create symbolic link to the directory's CI file
+        ln -snf ../plugins/$dir_name/.ci/ci_matrix.yaml matrix_job_ci.yaml
+    else
+        # Print error message and exit with error status
+        echo "Error: CI configuration file for $dir_name not found."
+        exit 1
+    fi
 else
-    # Create symbolic link to the default CI file
-    ln -snf ci_matrix.yaml matrix_job_ci.yaml
+    # Check if the default CI file exists
+    if [ -f "ci_matrix.yaml" ]; then
+        # Create symbolic link to the default CI file
+        ln -snf ci_matrix.yaml matrix_job_ci.yaml
+    else
+        # Print error message and exit with error status
+        echo "Error: Default CI configuration file not found."
+        exit 1
+    fi
 fi
