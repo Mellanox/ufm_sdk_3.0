@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright © 2019-2021 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright © 2019-2023 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -23,29 +23,29 @@ from logging.handlers import RotatingFileHandler
 
 
 class UfmSlurmBase():
-    should_fail = 0 #set 0 the script will not fail; 1 the script will fail
+    should_fail = 1 #set 0 the script will not fail; 1 the script will fail
     ufm = UFM()
     general_utils = GeneralUtils()
     integration = Integration()
 
     def init(self):
-        self.server = self.general_utils.read_conf_file(Constants.CONF_UFM_IP)
-        self.user = self.general_utils.read_conf_file(Constants.CONF_UFM_USER)
-        self.password = self.general_utils.read_conf_file(Constants.CONF_UFM_PASSWORD)
-        self.pkey_allocation = self.general_utils.read_conf_file(Constants.CONF_PKEY_ALLOCATION)
+        self.server = self.general_utils.get_conf_parameter_value(Constants.CONF_UFM_IP)
+        self.user = self.general_utils.get_conf_parameter_value(Constants.CONF_UFM_USER)
+        self.password = self.general_utils.get_conf_parameter_value(Constants.CONF_UFM_PASSWORD)
+        self.pkey_allocation = self.general_utils.get_conf_parameter_value(Constants.CONF_PKEY_ALLOCATION)
         self.pkey_allocation = self._toBoolean(self.pkey_allocation, Constants.CONF_PKEY_ALLOCATION, True)
-        self.pkey = self.general_utils.read_conf_file(Constants.CONF_PKEY_PARAM)
-        self.ip_over_ib = self.general_utils.read_conf_file(Constants.CONF_IP_OVER_IB_PARAM)
+        self.pkey = self.general_utils.get_conf_parameter_value(Constants.CONF_PKEY_PARAM)
+        self.ip_over_ib = self.general_utils.get_conf_parameter_value(Constants.CONF_IP_OVER_IB_PARAM)
         if not self.ip_over_ib:
             self.ip_over_ib = True
-        self.index0 = self.general_utils.read_conf_file(Constants.CONF_INDEX0_PARAM)
+        self.index0 = self.general_utils.get_conf_parameter_value(Constants.CONF_INDEX0_PARAM)
         if not self.index0:
             self.index0 = False
-        self.sharp_allocation = self.general_utils.read_conf_file(Constants.CONF_SHARP_ALLOCATION)
+        self.sharp_allocation = self.general_utils.get_conf_parameter_value(Constants.CONF_SHARP_ALLOCATION)
         self.sharp_allocation = self._toBoolean(self.sharp_allocation, Constants.CONF_SHARP_ALLOCATION, False)
-        self.partially_alloc = self.general_utils.read_conf_file(Constants.CONF_PARTIALLY_ALLOC)
+        self.partially_alloc = self.general_utils.get_conf_parameter_value(Constants.CONF_PARTIALLY_ALLOC)
         self.partially_alloc = self._toBoolean(self.partially_alloc, Constants.CONF_PARTIALLY_ALLOC, True)
-        self.app_resources_limit = self.general_utils.read_conf_file(Constants.CONF_APP_RESOURCES_LIMIT)
+        self.app_resources_limit = self.general_utils.get_conf_parameter_value(Constants.CONF_APP_RESOURCES_LIMIT)
         if self.app_resources_limit and int(self.app_resources_limit) < -1:
             logging.error("app_resources_limit param must be an integer number greater than -1!")
             sys.exit(1)
@@ -58,9 +58,6 @@ class UfmSlurmBase():
         parser.add_argument("-i", "--job_id", action="store",
                                     dest="job_id", default=None,
                                     help="Job ID")
-        parser.add_argument("-s", "--step_id", action="store",
-                                    dest="step_id", nargs="?", const="", default=None,
-                                    help="Step ID")
         self.args = parser.parse_args(sys.argv[1:])
 
     def prepare_logger(self, file):
@@ -69,7 +66,7 @@ class UfmSlurmBase():
         conf_file = self.general_utils.getSlurmConfFile()
 
         if self.general_utils.isFileExist(conf_file):
-            self.log_name = self.general_utils.read_conf_file(Constants.CONF_LOGFILE_NAME)
+            self.log_name = self.general_utils.get_conf_parameter_value(Constants.CONF_LOGFILE_NAME)
         else:
             self.log_name = Constants.DEF_LOG_FILE
 

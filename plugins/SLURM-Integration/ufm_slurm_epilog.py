@@ -24,17 +24,17 @@ class UfmSlurmEpilog(UfmSlurmBase):
 
     def epilog_init(self):
         try:
-            self.auth_type = self.general_utils.read_conf_file(Constants.AUTH_TYPE)
+            self.auth_type = self.general_utils.get_conf_parameter_value(Constants.AUTH_TYPE)
             if self.auth_type == Constants.BASIC_AUTH:
-                user2 = self.general_utils.read_conf_file(Constants.CONF_UFM_USER)
-                password2 = self.general_utils.read_conf_file(Constants.CONF_UFM_PASSWORD)
+                user2 = self.general_utils.get_conf_parameter_value(Constants.CONF_UFM_USER)
+                password2 = self.general_utils.get_conf_parameter_value(Constants.CONF_UFM_PASSWORD)
                 if user2 is None or password2 is None:
                     logging.error("For using %s you should set a valid %s %s in ufm_slurm.conf" % (
                         Constants.BASIC_AUTH, Constants.CONF_UFM_USER, Constants.CONF_UFM_PASSWORD))
                     sys.exit(self.should_fail)
                 self.session = self.ufm.getServerSession(auth_type=self.auth_type, username=user2, password=password2)
             elif self.auth_type == Constants.TOKEN_AUTH:
-                token = self.general_utils.read_conf_file(Constants.CONF_TOKEN)
+                token = self.general_utils.get_conf_parameter_value(Constants.CONF_TOKEN)
                 if token is None:
                     logging.error("For using %s you should set a valid %s in ufm_slurm.conf" % (
                         Constants.TOKEN_AUTH, Constants.CONF_TOKEN))
