@@ -26,7 +26,7 @@ steps:
   - name: Build Plugin
     containerSelector: "{name: 'plugin_worker'}"
     run: |
-      cd plugins/plugin_dir/build
+      cd plugins/$plugin_dir/build
       bash -x ./docker_build.sh latest /
       cp /$plugin_name* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
     parallel: true
