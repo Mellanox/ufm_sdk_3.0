@@ -39,7 +39,8 @@ pipeline_start:
 
 pipeline_stop:
   run: |
-    sudo rm -rf /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
+    echo 'All done';
+    #sudo rm -rf /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
   
 
 
