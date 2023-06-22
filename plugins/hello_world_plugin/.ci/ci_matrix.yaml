@@ -17,7 +17,7 @@ volumes:
 
 
 runs_on_dockers:
-   - {file: 'Dockerfile', arch: 'x86_64', name: 'plugin_worker', tag: 'latest'}
+   - {file: '.ci/Dockerfile', arch: 'x86_64', name: 'plugin_worker', tag: 'latest'}
 
 
 steps:
