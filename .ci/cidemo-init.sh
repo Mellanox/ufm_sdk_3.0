@@ -9,9 +9,9 @@ changed_files=$(git diff --name-only remotes/origin/$ghprbTargetBranch)
 changes_excluding_gitmodules_and_root_ci=$(echo "$changed_files" | grep -v -e '.gitmodules' -e '^\.ci/')
 
 # Check if changes exist and only in a single plugin directory (including its .ci directory)
-if [ -n "$changes_excluding_gitmodules_and_root_ci" ] && [ $(echo "$changes_excluding_gitmodules_and_root_ci" | cut -d '/' -f1 | uniq | wc -l) -eq 1 ]; then
+if [ -n "$changes_excluding_gitmodules_and_root_ci" ] && [ $(echo "$changes_excluding_gitmodules_and_root_ci" | cut -d '/' -f1,2 | uniq | wc -l) -eq 1 ]; then
     # Get the plugin directory name
-    plugin_dir_name=$(echo "$changes_excluding_gitmodules_and_root_ci" | cut -d '/' -f1 | uniq)
+    plugin_dir_name=$(echo "$changes_excluding_gitmodules_and_root_ci" | cut -d '/' -f1,2 | uniq)
 
     # Check if the plugin's CI file exists
     if [ -f "../$plugin_dir_name/.ci/ci_matrix.yaml" ]; then
