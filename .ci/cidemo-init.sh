@@ -5,21 +5,21 @@ cd .ci
 # Get the list of changed files
 changed_files=$(git diff --name-only remotes/origin/$ghprbTargetBranch)
 
-# Check for changes excluding .gitmodules
-changes_excluding_gitmodules=$(echo "$changed_files" | grep -v .gitmodules)
+# Check for changes excluding .gitmodules and root .ci directory
+changes_excluding_gitmodules_and_root_ci=$(echo "$changed_files" | grep -v -e '.gitmodules' -e '^\.ci/')
 
-# Check if changes exist and only in a single directory
-if [ -n "$changes_excluding_gitmodules" ] && [ $(echo "$changes_excluding_gitmodules" | grep -o "/" | wc -l) -eq $(echo "$changes_excluding_gitmodules" | wc -l) ]; then
-    # Get the directory name
-    dir_name=$(echo "$changes_excluding_gitmodules" | cut -d '/' -f1)
+# Check if changes exist and only in a single plugin directory (including its .ci directory)
+if [ -n "$changes_excluding_gitmodules_and_root_ci" ] && [ $(echo "$changes_excluding_gitmodules_and_root_ci" | cut -d '/' -f1 | uniq | wc -l) -eq 1 ]; then
+    # Get the plugin directory name
+    plugin_dir_name=$(echo "$changes_excluding_gitmodules_and_root_ci" | cut -d '/' -f1 | uniq)
 
-    # Check if the directory's CI file exists
-    if [ -f "../plugins/$dir_name/.ci/ci_matrix.yaml" ]; then
-        # Create symbolic link to the directory's CI file
-        ln -snf ../plugins/$dir_name/.ci/ci_matrix.yaml matrix_job_ci.yaml
+    # Check if the plugin's CI file exists
+    if [ -f "../plugins/$plugin_dir_name/.ci/ci_matrix.yaml" ]; then
+        # Create symbolic link to the plugin's CI file
+        ln -snf ../plugins/$plugin_dir_name/.ci/ci_matrix.yaml matrix_job_ci.yaml
     else
         # Print error message and exit with error status
-        echo "Error: CI configuration file for $dir_name not found."
+        echo "Error: CI configuration file for $plugin_dir_name not found."
         exit 1
     fi
 else
