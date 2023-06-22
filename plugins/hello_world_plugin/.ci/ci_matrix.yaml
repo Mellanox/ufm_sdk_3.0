@@ -7,12 +7,15 @@ registry_auth: swx-storage
 
 env:
   plugin_name: "hello_world_plugin"
+  DOCKER_CLI_EXPERIMENTAL: enabled
 
 kubernetes:
   cloud: swx-k8s-spray
 
 volumes:
   - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
+  - {mountPath: /auto/UFM, hostPath: /auto/UFM }
+
 
 runs_on_dockers:
    - {file: 'plugins/$plugin_name/.ci/Dockerfile', arch: 'x86_64', name: '$plugin_name', tag: 'latest'}
@@ -47,4 +50,3 @@ pipeline_stop:
 
 # Fail job if one of the steps fails or continue
 failFast: false
-batchSize: 1
