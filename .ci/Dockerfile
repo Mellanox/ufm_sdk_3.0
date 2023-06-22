@@ -24,7 +24,8 @@ RUN apt-get update && \
     ca-certificates \
     curl \
     gnupg \
-    lsb-release && \
+    lsb-release \
+    software-properties-common && \
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - && \
     add-apt-repository \
     "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
@@ -32,6 +33,7 @@ RUN apt-get update && \
     stable" && \
     apt-get update && \
     apt-get install -y docker-ce-cli
+
 
 RUN echo "${_LOGIN} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 RUN echo "root ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
