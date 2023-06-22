@@ -15,7 +15,7 @@ volumes:
   - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
 
 runs_on_dockers:
-   - {file: 'plugins/hello_world_plugin/.ci/Dockerfile', arch: 'x86_64', name: '$plugin_name', tag: 'latest'}
+   - {file: 'plugins/$plugin_name/.ci/Dockerfile', arch: 'x86_64', name: '$plugin_name', tag: 'latest'}
 
 
 steps:
@@ -26,6 +26,7 @@ steps:
       cd plugins/$plugin_name/build
       bash -x ./docker_build.sh latest /
       cp /$plugin_name* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
+    parallel: true
 
 pipeline_start:
   run: |
