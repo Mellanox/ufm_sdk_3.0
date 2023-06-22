@@ -10,7 +10,7 @@ fi
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 PARENT_DIR=$(realpath "${SCRIPT_DIR}/../../../")
 
-PLUGIN_NAME=ufm-plugin-hello-world
+PLUGIN_NAME=hello_world
 IMAGE_NAME=ufm-plugin-hello-world
 IMAGE_VERSION=$1
 OUT_DIR=$2
@@ -70,9 +70,9 @@ function build_docker_image()
 
     pushd ${build_dir}
 
-    echo "docker build --network host --no-cache --pull -t ${image_with_prefix_and_version} . --compress --build-arg PLUGIN_NAME=${PLUGIN_NAME}"
+    echo "docker build --network host --no-cache --pull -t ${image_with_prefix_and_version} . --compress --build-arg PLUGIN_NAME=${IMAGE_NAME}"
 
-    docker build --network host --no-cache --pull -t ${image_with_prefix_and_version} . --compress --build-arg PLUGIN_NAME=${PLUGIN_NAME}
+    docker build --network host --no-cache --pull -t ${image_with_prefix_and_version} . --compress --build-arg PLUGIN_NAME=${IMAGE_NAME}
     exit_code=$?
     popd
     if [ $exit_code -ne 0 ]; then
