@@ -10,8 +10,7 @@ fi
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 PARENT_DIR=$(realpath "${SCRIPT_DIR}/../../../")
 
-PLUGIN_DIR=hello_world
-PLUGIN_NAME=hello-world
+PLUGIN_NAME=hello_world
 IMAGE_NAME="ufm-plugin-${PLUGIN_NAME}"
 IMAGE_VERSION=$1
 OUT_DIR=$2
@@ -71,9 +70,9 @@ function build_docker_image()
 
     pushd ${build_dir}
 
-    echo "docker build --network host --no-cache --pull -t ${image_with_prefix_and_version} . --compress --build-arg PLUGIN_NAME=${image_name}"
+    echo "docker build --network host --no-cache --pull -t ${image_with_prefix_and_version} . --compress --build-arg PLUGIN_NAME=${PLUGIN_NAME}"
 
-    docker build --network host --no-cache --pull -t ${image_with_prefix_and_version} . --compress --build-arg PLUGIN_NAME=${image_name}
+    docker build --network host --no-cache --pull -t ${image_with_prefix_and_version} . --compress --build-arg PLUGIN_NAME=${PLUGIN_NAME}
     exit_code=$?
     popd
     if [ $exit_code -ne 0 ]; then
@@ -102,12 +101,12 @@ function build_docker_image()
 
 pushd ${SCRIPT_DIR}
 
-echo ${IMAGE_VERSION} > ../../${PLUGIN_DIR}_plugin/version
+echo ${IMAGE_VERSION} > ../../${PLUGIN_NAME}_plugin/version
 
 BUILD_DIR=$(create_out_dir)
 cp Dockerfile ${BUILD_DIR}
 cp -r ../../../utils ${BUILD_DIR}
-cp -r ../../${PLUGIN_DIR}_plugin* ${BUILD_DIR}
+cp -r ../../${PLUGIN_NAME}_plugin ${BUILD_DIR}
 
 echo "BUILD_DIR    : [${BUILD_DIR}]"
 
