@@ -30,11 +30,13 @@ steps:
 
 pipeline_start:
   run: |
+    echo "Debug ======= hello_world_plugin ======== "
     mkdir -p /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
 
 
 pipeline_stop:
   run: |
+    echo "Debug ======= hello_world_plugin ======== "
     sudo rm -rf /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
   
 
