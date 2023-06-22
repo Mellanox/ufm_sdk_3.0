@@ -21,7 +21,7 @@ runs_on_dockers:
 
 steps:
   - name: build Plugin
-    containerSelector: "{name: 'hello_world_plugin'}"
+    containerSelector: "{name: '$plugin_name'}"
     shell: '#!/bin/bash -x'
     run: |
       cd plugins/$plugin_name/build
