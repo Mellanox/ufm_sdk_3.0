@@ -21,7 +21,7 @@ runs_on_dockers:
 
 steps:
   - name: build Plugin
-    runs_on_dockers: "$plugin_name"
+    containerSelector: "{name:'$plugin_name'}"
     run: |
       cd plugins/$plugin_name/build
       bash -x ./docker_build.sh latest /
