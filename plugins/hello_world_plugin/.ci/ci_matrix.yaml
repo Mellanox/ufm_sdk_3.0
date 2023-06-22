@@ -4,7 +4,6 @@ job: ufm-hello-world-plugin
 registry_host: harbor.mellanox.com
 registry_path: /swx-storage/ci-demo
 registry_auth: swx-storage
-step_allow_single_selector: true
 
 env:
   plugin_name: "hello_world_plugin"
@@ -20,7 +19,7 @@ runs_on_dockers:
 
 
 steps:
-  - name: build Plugin
+  - name: Build Plugin
     containerSelector: "{name: '$plugin_name'}"
     shell: '#!/bin/bash -x'
     run: |
@@ -30,13 +29,11 @@ steps:
 
 pipeline_start:
   run: |
-    echo "Debug ======= hello_world_plugin ======== "
     mkdir -p /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
 
 
 pipeline_stop:
   run: |
-    echo "Debug ======= hello_world_plugin ======== "
     sudo rm -rf /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
   
 
