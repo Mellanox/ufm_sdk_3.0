@@ -70,9 +70,9 @@ function build_docker_image()
 
     pushd ${build_dir}
 
-    echo "docker build --network host --no-cache --pull -t ${image_with_prefix_and_version} . --compress --build-arg PLUGIN_NAME=${IMAGE_NAME}"
+    echo "docker build --network host --no-cache --pull -t ${image_with_prefix_and_version} . --compress --build-arg PLUGIN_NAME=${image_name}"
 
-    docker build --network host --no-cache --pull -t ${image_with_prefix_and_version} . --compress --build-arg PLUGIN_NAME=${IMAGE_NAME}
+    docker build --network host --no-cache --pull -t ${image_with_prefix_and_version} . --compress --build-arg PLUGIN_NAME=${image_name}
     exit_code=$?
     popd
     if [ $exit_code -ne 0 ]; then
@@ -106,7 +106,7 @@ echo ${IMAGE_VERSION} > ../../${PLUGIN_NAME}_plugin/version
 BUILD_DIR=$(create_out_dir)
 cp Dockerfile ${BUILD_DIR}
 cp -r ../../../utils ${BUILD_DIR}
-cp -r ../../${PLUGIN_NAME}_plugin ${BUILD_DIR}
+cp -r ../../${PLUGIN_NAME}* ${BUILD_DIR}
 
 echo "BUILD_DIR    : [${BUILD_DIR}]"
 
