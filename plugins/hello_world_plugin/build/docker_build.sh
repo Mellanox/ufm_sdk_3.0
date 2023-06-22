@@ -10,6 +10,7 @@ fi
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 PARENT_DIR=$(realpath "${SCRIPT_DIR}/../../../")
 
+PLUGIN_DIR=hello_world
 PLUGIN_NAME=hello-world
 IMAGE_NAME="ufm-plugin-${PLUGIN_NAME}"
 IMAGE_VERSION=$1
@@ -101,12 +102,12 @@ function build_docker_image()
 
 pushd ${SCRIPT_DIR}
 
-echo ${IMAGE_VERSION} > ../../${PLUGIN_NAME}_plugin/version
+echo ${IMAGE_VERSION} > ../../${PLUGIN_DIR}_plugin/version
 
 BUILD_DIR=$(create_out_dir)
 cp Dockerfile ${BUILD_DIR}
 cp -r ../../../utils ${BUILD_DIR}
-cp -r ../../${PLUGIN_NAME}* ${BUILD_DIR}
+cp -r ../../${PLUGIN_DIR}_plugin* ${BUILD_DIR}
 
 echo "BUILD_DIR    : [${BUILD_DIR}]"
 
