@@ -14,9 +14,9 @@ if [ -n "$changes_excluding_gitmodules_and_root_ci" ] && [ $(echo "$changes_excl
     plugin_dir_name=$(echo "$changes_excluding_gitmodules_and_root_ci" | cut -d '/' -f1 | uniq)
 
     # Check if the plugin's CI file exists
-    if [ -f "../plugins/$plugin_dir_name/.ci/ci_matrix.yaml" ]; then
+    if [ -f "..$plugin_dir_name/.ci/ci_matrix.yaml" ]; then
         # Create symbolic link to the plugin's CI file
-        ln -snf ../plugins/$plugin_dir_name/.ci/ci_matrix.yaml matrix_job_ci.yaml
+        ln -snf ..$plugin_dir_name/.ci/ci_matrix.yaml matrix_job_ci.yaml
     else
         # Print error message and exit with error status
         echo "Error: CI configuration file for $plugin_dir_name not found."
