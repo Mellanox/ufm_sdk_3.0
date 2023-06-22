@@ -1,10 +1,6 @@
 ---
 job: ufm-hello-world-plugin
 
-registry_host: harbor.mellanox.com
-registry_path: /swx-storage/ci-demo
-registry_auth: swx-storage
-
 env:
   plugin_name: "hello_world_plugin"
   DOCKER_CLI_EXPERIMENTAL: enabled
