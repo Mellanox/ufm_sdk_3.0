@@ -11,7 +11,7 @@ SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 PARENT_DIR=$(realpath "${SCRIPT_DIR}/../../../")
 
 PLUGIN_NAME=ufm-plugin-hello-world
-IMAGE_NAME="ufm-plugin-${PLUGIN_NAME}"
+IMAGE_NAME=ufm-plugin-hello-world
 IMAGE_VERSION=$1
 OUT_DIR=$2
 RANDOM_HASH=$3
