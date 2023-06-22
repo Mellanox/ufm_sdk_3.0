@@ -7,7 +7,7 @@ registry_auth: swx-storage
 step_allow_single_selector: true
 
 env:
-  - plugin_name: "hello_world_plugin"
+  plugin_name: "hello_world_plugin"
 
 kubernetes:
   cloud: swx-k8s-spray
