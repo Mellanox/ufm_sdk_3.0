@@ -48,3 +48,4 @@ pipeline_stop:
 
 # Fail job if one of the steps fails or continue
 failFast: false
+batchSize: 1
