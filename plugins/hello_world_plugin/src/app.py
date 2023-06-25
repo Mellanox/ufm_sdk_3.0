@@ -10,7 +10,6 @@
 # provided with the software product.
 # @author: Anan Al-Aghbar
 # @date:   Feb 13, 2023
-# Test
 
 from flask import Flask
 
