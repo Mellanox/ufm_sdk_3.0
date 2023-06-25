@@ -51,6 +51,7 @@ This project supports integration of custom plugins into the Continuous Integrat
 Your plugin should have a dedicated `.ci` directory that contains a `ci_matrix.yaml` file. This file is used by the CI pipeline to manage the build process for your plugin.
 
 You can use the `ci_matrix.yaml` file found in the `hello_world_plugin` directory as a template.
+https://github.com/Mellanox/ufm_sdk_3.0/blob/main/plugins/hello_world_plugin/.ci/ci_matrix.yaml
 
 
 ## CI Configuration Steps
