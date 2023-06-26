@@ -103,15 +103,20 @@ pushd ${SCRIPT_DIR}
 
 echo ${IMAGE_VERSION} > ../../bright_plugin/version
 
-echo "Updating the git submodules..."
-pushd ${PARENT_DIR}
-git submodule update --init --remote
-exit_code=$?
-if [ $exit_code -ne 0 ]; then
-  echo "The git submodules wasn't updated successfully, please make sure that you have the correct access"
-  return $exit_code
+echo "Checking if this is run by Jenkins or not..."
+if [ -z "$JENKINS_URL" ]; then
+  echo "Not running under Jenkins, updating the git submodules..."
+  pushd ${PARENT_DIR}
+  git submodule update --init --remote
+  exit_code=$?
+  if [ $exit_code -ne 0 ]; then
+    echo "The git submodules wasn't updated successfully, please make sure that you have the correct access"
+    return $exit_code
+  fi
+  popd
+else
+  echo "Running under Jenkins, skipping git submodule update..."
 fi
-popd
 
 BUILD_DIR=$(create_out_dir)
 cp Dockerfile ${BUILD_DIR}
