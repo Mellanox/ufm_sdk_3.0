@@ -1,27 +1,35 @@
 #!/bin/bash -x
-# Executing script for debug
-#\cp /auto/UFM/tmp/GVVM_CI/* .ci/
 cd .ci
-printenv
-env
+# You can print specific environment variables here if required
 
-#UPDATE softlink according to git changes
-
+# Get the list of changed files
 changed_files=$(git diff --name-only remotes/origin/$ghprbTargetBranch)
-echo "------------------------------"
-UFM_NDT_Plugin=$(git diff --name-only remotes/origin/$ghprbTargetBranch | grep UFM_NDT_Plugin |grep -v .gitmodules |wc -l)
-snmp_receiver_plugin=$(git diff --name-only remotes/origin/$ghprbTargetBranch | grep snmp_receiver_plugin |grep -v .gitmodules |wc -l)
-grpc_streamer_plugin=$(git diff --name-only remotes/origin/$ghprbTargetBranch | grep grpc_streamer_plugin |grep -v .gitmodules |wc -l)
-sysinfo_plugin=$(git diff --name-only remotes/origin/$ghprbTargetBranch | grep sysinfo_plugin |grep -v .gitmodules |wc -l)
-total=$(git diff --name-only remotes/origin/$ghprbTargetBranch |grep -v .gitmodules |wc -l)
-if [ $UFM_NDT_Plugin -eq $total ] && [ $total -ne 0 ]; then
-    ln -snf ../plugins/UFM_NDT_Plugin/.ci/ci_matrix.yaml matrix_job_ci.yaml
-elif [ $snmp_receiver_plugin -eq $total ] && [ $total -ne 0 ]; then
-    ln -snf ../plugins/snmp_receiver_plugin/.ci/ci_matrix.yaml matrix_job_ci.yaml
-elif [ $grpc_streamer_plugin -eq $total ] && [ $total -ne 0 ]; then
-    ln -snf ../plugins/grpc_streamer_plugin/.ci/ci_matrix.yaml matrix_job_ci.yaml
-elif [ $sysinfo_plugin -eq $total ] && [ $total -ne 0 ]; then
-    ln -snf ../plugins/sysinfo_plugin/.ci/ci_matrix.yaml matrix_job_ci.yaml
+
+# Check for changes excluding .gitmodules and root .ci directory
+changes_excluding_gitmodules_and_root_ci=$(echo "$changed_files" | grep -v -e '.gitmodules' -e '^\.ci/')
+
+# Check if changes exist and only in a single plugin directory (including its .ci directory)
+if [ -n "$changes_excluding_gitmodules_and_root_ci" ] && [ $(echo "$changes_excluding_gitmodules_and_root_ci" | cut -d '/' -f1,2 | uniq | wc -l) -eq 1 ]; then
+    # Get the plugin directory name
+    plugin_dir_name=$(echo "$changes_excluding_gitmodules_and_root_ci" | cut -d '/' -f1,2 | uniq)
+
+    # Check if the plugin's CI file exists
+    if [ -f "../$plugin_dir_name/.ci/ci_matrix.yaml" ]; then
+        # Create symbolic link to the plugin's CI file
+        ln -snf ../$plugin_dir_name/.ci/ci_matrix.yaml matrix_job_ci.yaml
+    else
+        # Print error message and exit with error status
+        echo "Error: CI configuration file for $plugin_dir_name not found."
+        exit 1
+    fi
 else
-    ln -snf ci_matrix.yaml matrix_job_ci.yaml
+    # Check if the default CI file exists
+    if [ -f "ci_matrix.yaml" ]; then
+        # Create symbolic link to the default CI file
+        ln -snf ci_matrix.yaml matrix_job_ci.yaml
+    else
+        # Print error message and exit with error status
+        echo "Error: Default CI configuration file not found."
+        exit 1
+    fi
 fi

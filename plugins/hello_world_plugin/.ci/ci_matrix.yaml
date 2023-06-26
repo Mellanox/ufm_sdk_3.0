@@ -1,0 +1,54 @@
+---
+job: ufm-hello-world-plugin
+
+registry_host: harbor.mellanox.com
+registry_path: /swx-storage/ci-demo
+registry_auth: swx-storage
+
+env:
+  plugin_dir: hello_world_plugin
+  plugin_name: ufm-plugin-hello-world
+  DOCKER_CLI_EXPERIMENTAL: enabled
+
+kubernetes:
+  cloud: swx-k8s-spray
+
+volumes:
+  - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
+  - {mountPath: /auto/UFM, hostPath: /auto/UFM }
+
+
+runs_on_dockers:
+   - {file: '.ci/Dockerfile', arch: 'x86_64', name: 'plugin_worker', tag: 'latest'}
+
+
+steps:
+  - name: Build Plugin
+    containerSelector: "{name: 'plugin_worker'}"
+    run: |
+      cd plugins/$plugin_dir/build
+      bash -x ./docker_build.sh latest /
+      ls -l /
+      cp /ufm-plugin* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
+    parallel: true
+
+pipeline_start:
+  run: |
+    mkdir -p /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
+
+
+pipeline_stop:
+  run: |
+    echo 'All done';
+    #sudo rm -rf /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
+  
+
+
+
+
+
+
+
+
+# Fail job if one of the steps fails or continue
+failFast: false
