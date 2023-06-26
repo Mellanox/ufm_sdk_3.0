@@ -7,7 +7,7 @@ registry_auth: swx-storage
 
 env:
   plugin_dir: bright_plugin
-  plugin_name: ufm-bright-plugin
+  plugin_name: ufm-plugin-bright
   DOCKER_CLI_EXPERIMENTAL: enabled
 
 kubernetes:
