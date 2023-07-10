@@ -37,8 +37,11 @@ function copy_integration_files()
     do
     sudo cp -f "$file" $SLURM_DIR
     check_failure $? "Error while copying integration file: $file"
-    sudo chmod 755 "$SLURM_DIR/$file"
-    check_failure $? "Error while changing permissions for file: $file"
+    # skipp permission change for ufm_slurm.conf file, needs to keep the default permission which is 644.
+    if [ "$file" != ${UFM_SLURM_CONF} ]; then
+        sudo chmod 755 "$SLURM_DIR/$file"
+        check_failure $? "Error while changing permissions for file: $file"
+    fi
     done
 
 }
