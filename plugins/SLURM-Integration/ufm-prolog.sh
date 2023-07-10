@@ -10,7 +10,6 @@
 # This software product is governed by the End User License Agreement
 # provided with the software product.
 #
-echo "==Pre job==:"
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 cd $SCRIPTPATH
 python3 ufm_slurm_prolog.py -i $SLURM_JOBID

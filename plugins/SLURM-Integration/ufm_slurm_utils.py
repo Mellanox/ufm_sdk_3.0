@@ -16,6 +16,7 @@
 # Author: Anas Badaha
 
 import os
+import stat
 import sys
 import re
 import subprocess
@@ -106,9 +107,11 @@ class GeneralUtils:
         :return None: in case the parameter name was not found in ufm_slurm.conf file.
         """
         conf_file_path = self.getSlurmConfFile()
-        conf_mode = os.stat(conf_file_path).st_mode
-        if conf_mode & 0o77 != 0:
-            logging.error(f"Permissions for configuration file {conf_file_path} are too open: {oct(conf_mode & 0o777)}")
+        conf_mode = stat.S_IMODE(os.lstat(conf_file_path).st_mode)
+        # conf_mode = os.stat(conf_file_path).st_mode
+        if conf_mode != 0o644:
+            logging.error(f"The configuration file {conf_file_path} has excessively permissive permissions: "
+                          f"{oct(conf_mode & 0o777)}. Please adjust the permissions to 644.")
             sys.exit(1)
         regex_pattern = r'^(?!#).*\b{}\b.*=.*$'.format(re.escape(conf_param_name))
         with open(conf_file_path, 'r') as file:
