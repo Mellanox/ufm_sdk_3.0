@@ -108,7 +108,7 @@ class GeneralUtils:
         """
         conf_file_path = self.getSlurmConfFile()
         conf_mode = stat.S_IMODE(os.lstat(conf_file_path).st_mode)
-        # conf_mode = os.stat(conf_file_path).st_mode
+        # needs to keep the default permission of the ufm_slurm.conf file which are 644.
         if conf_mode != 0o644:
             logging.error(f"The configuration file {conf_file_path} has excessively permissive permissions: "
                           f"{oct(conf_mode & 0o777)}. Please adjust the permissions to 644.")
