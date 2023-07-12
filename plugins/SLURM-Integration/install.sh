@@ -69,11 +69,11 @@ function update_python_path_for_ufm_prolog_epilog()
     python_path=$(which python3)
     sudo sed -i -e "s#python3_path#$python_path#g" $SLURM_DIR/$UFM_PROLOG_FILE
     if [[ $? -ne 0 ]];then
-        echo "Warning:: Failed to replace the output of 'which pythn3' command with python3_path keyword in $SLURM_DIR/$UFM_PROLOG_FILE file, please try to do it manually."
+        echo "Warning:: Failed to replace the output of 'which pythn3' command with python3_path keyword in ${SLURM_DIR/$UFM_PROLOG_FILE} file, please try to do it manually."
     fi
     sudo sed -i -e "s#python3_path#$python_path#g" $SLURM_DIR/$UFM_EPILOG_FILE
     if [[ $? -ne 0 ]];then
-        echo "Warning:: Failed to replace the output of 'which pythn3' command with python3_path keyword in $SLURM_DIR/$UFM_EPILOG_FILE file, please try to do it manually."
+        echo "Warning:: Failed to replace the output of 'which pythn3' command with python3_path keyword in ${SLURM_DIR/$UFM_EPILOG_FILE} file, please try to do it manually."
     fi
 }
 
