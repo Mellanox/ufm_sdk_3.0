@@ -64,26 +64,17 @@ function update_slurm_conf()
     fi
 }
 
-function set_python3_path()
-{   local full_python3_path=$1
-    local file_name=$2
-    sed -i -e "s#python3_path#$full_python3_path#g" $SLURM_DIR/$file_name
-    if [[ $? -ne 0 ]];then
-        echo "Failed to set PYTHONPATH for $file_name, please set it manually at $SLURM_DIR/$file_name by setting python3_path parameter, prior to running the UFM-Slurm integration."
-    fi
-}
-
 function update_python_path_for_ufm_prolog_epilog()
-# This function is used to get the full path of python3 and replace it with keyward python3_path
-# In both ufm-prolog and ufm-epilog files
 {
-    python3_path=$(type -p python3)
+    python_path=$(which python3)
+    sudo sed -i -e "s#python3_path#$python_path#g" $SLURM_DIR/$UFM_PROLOG_FILE
     if [[ $? -ne 0 ]];then
-        echo "Failed to run (type -p python3) command, please make sure that python3 is installed and configured appropriately, prior to running the UFM-Slurm integration."
+        echo "Warning:: Failed to replace the output of 'which pythn3' command with python3_path keyword in $SLURM_DIR/$UFM_PROLOG_FILE file, please try to do it manually."
     fi
-    python3_path=$(echo "$python3_path" | cut -d ' ' -f 3)
-    set_python3_path $python3_path $UFM_PROLOG_FILE
-    set_python3_path $python3_path $UFM_EPILOG_FILE
+    sudo sed -i -e "s#python3_path#$python_path#g" $SLURM_DIR/$UFM_EPILOG_FILE
+    if [[ $? -ne 0 ]];then
+        echo "Warning:: Failed to replace the output of 'which pythn3' command with python3_path keyword in $SLURM_DIR/$UFM_EPILOG_FILE file, please try to do it manually."
+    fi
 }
 
 function validate_requirements()
