@@ -27,7 +27,6 @@ class UfmSlurmProlog(UfmSlurmBase):
 
     def prolog_init(self):
         try:
-
             logging.info("Start JobID: " + self.args.job_id)
             self.auth_type = self.general_utils.get_conf_parameter_value(Constants.AUTH_TYPE)
             if self.auth_type == Constants.BASIC_AUTH:
@@ -64,6 +63,9 @@ class UfmSlurmProlog(UfmSlurmBase):
         except Exception as exc:
             logging.error(Constants.LOG_ERROR_GET_NODES % str(exc))
             sys.exit(self.should_fail)
+
+    def get_should_fail_param(self):
+        return self.general_utils.get_conf_parameter_value(Constants.CONF_SHOULD_FAIL_SLURM_JOB_PARAM)
 
 
 if __name__ == '__main__':
