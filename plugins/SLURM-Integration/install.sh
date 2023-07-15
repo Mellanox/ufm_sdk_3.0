@@ -64,6 +64,19 @@ function update_slurm_conf()
     fi
 }
 
+function update_python_path_for_ufm_prolog_epilog()
+{
+    python_path=$(which python3)
+    sudo sed -i -e "s#python3_path#$python_path#g" $SLURM_DIR/$UFM_PROLOG_FILE
+    if [[ $? -ne 0 ]];then
+        echo "Warning:: Failed to replace the output of 'which pythn3' command with python3_path keyword in ${SLURM_DIR/$UFM_PROLOG_FILE} file, please try to do it manually."
+    fi
+    sudo sed -i -e "s#python3_path#$python_path#g" $SLURM_DIR/$UFM_EPILOG_FILE
+    if [[ $? -ne 0 ]];then
+        echo "Warning:: Failed to replace the output of 'which pythn3' command with python3_path keyword in ${SLURM_DIR/$UFM_EPILOG_FILE} file, please try to do it manually."
+    fi
+}
+
 function validate_requirements()
 {
     # Check if script is running on SLURM controller
@@ -246,6 +259,7 @@ copy_integration_files
 echo $CONF_SETTINGS
 update_slurm_conf $PROLOG_SLURMCTLD "$SLURM_DIR/$UFM_PROLOG_FILE"
 update_slurm_conf $EPILOG_SLURMCTLD "$SLURM_DIR/$UFM_EPILOG_FILE"
+update_python_path_for_ufm_prolog_epilog
 echo $INSTALLATION_COMPLETED_SUCCESSFULLY
 echo $SET_UFM_SLURM_CONF
 exit 0

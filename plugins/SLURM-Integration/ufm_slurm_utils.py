@@ -43,6 +43,7 @@ class Constants:
     CONF_APP_RESOURCES_LIMIT = 'app_resources_limit'
     CONF_LOGFILE_NAME = 'log_file_name'
     CONF_DEBUG_MODE = 'debug_mode'
+    CONF_SHOULD_FAIL_SLURM_JOB_PARAM = "should_fail_slurm_job"
     BASIC_AUTH = "basic_auth"
     TOKEN_AUTH = "token_auth"
     LS_JOB_NAME = 'slurm_job_'
