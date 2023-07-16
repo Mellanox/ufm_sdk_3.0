@@ -48,7 +48,7 @@ class UfmSlurmBase():
         self.app_resources_limit = self.general_utils.get_conf_parameter_value(Constants.CONF_APP_RESOURCES_LIMIT)
         if self.app_resources_limit and int(self.app_resources_limit) < -1:
             logging.error(
-                "app_resources_limit param must be an integer number greater than -1, (got {0}), using default value - 1".format(self.app_resources_limit))
+                "app_resources_limit param must be an integer number greater than -1, (got {0}), using default value: - 1".format(self.app_resources_limit))
             self.app_resources_limit = -1
         else:
             self.app_resources_limit = -1
