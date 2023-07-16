@@ -507,7 +507,6 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
                 peer_device, peer_port, error_message = parse_ndt_port(
                                          os.path.basename(ndt_file_path), row, index,
                                          PortType.DESTINATION, patterns, True)
-
             except KeyError as ke:
                 error_message = "No such column: {}, in line: {}".format(ke, index)
                 report_error_message = "Topoconfig file creation failure: Error on NDT file {} parsing".format(os.path.basename(ndt_file_path))
@@ -543,6 +542,15 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
             if peer_device and peer_port:
                 link_key_peer = "%s___%s" % (peer_device, peer_port)
                 peer_port_guid = links_info_dict.get(link_key_peer)
+                if not peer_port_guid:
+                    # unwired link: incorrect peer port number. Such link should
+                    # not be written into topoconfig file - if will cause opensm malfunction
+                    # such line should not appear in topoconfig - continue
+                    error_message = "Failed to detect peer port GUID. Skip link in topoconfig file: peer device: {} peer port: {}".format(peer_device, peer_port)
+                    logging.error(error_message)
+                    file_creation_failed = True
+                    failed_lable_conversion.append(port_key.replace("___", " Port:"))
+                    continue
                 # in case peer port is not a number - get number from mapping
                 if not peer_port.isnumeric():
                     port_key = "%s___%s" % (peer_port_guid, peer_port)
