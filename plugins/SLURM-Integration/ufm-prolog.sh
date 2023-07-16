@@ -12,4 +12,4 @@
 #
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 cd $SCRIPTPATH
-sudo python3_path ufm_slurm_prolog.py -i $SLURM_JOBID
+python3_path ufm_slurm_prolog.py -i $SLURM_JOBID
