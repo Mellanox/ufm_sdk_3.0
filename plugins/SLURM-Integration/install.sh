@@ -140,7 +140,7 @@ function set_python3_path()
     if grep -wq "python3_path" "$SLURM_DIR/$file_name"; then
         sed -i -e "s#python3_path#$full_python3_path#g" $SLURM_DIR/$file_name
         if [[ $? -ne 0 ]];then
-            echo "Failed to set PYTHONPATH for $file_name, please set it manually at $SLURM_DIR/$file_name by setting python3_path parameter, prior to running the UFM-Slurm integration."
+            echo "Failed to replace 'python3_path' keyword with actual python3 path inside $SLURM_DIR/$file_name file using sed command, prior to running the UFM-Slurm integration."
             exit 2
         fi
     fi
@@ -339,6 +339,7 @@ copy_integration_files
 echo $CONF_SETTINGS
 update_slurm_conf $PROLOG_SLURMCTLD "$SLURM_DIR/$UFM_PROLOG_FILE"
 update_slurm_conf $EPILOG_SLURMCTLD "$SLURM_DIR/$UFM_EPILOG_FILE"
+update_python_path_for_ufm_prolog_epilog
 echo $INSTALLATION_COMPLETED_SUCCESSFULLY
 echo $SET_UFM_SLURM_CONF
 exit 0
