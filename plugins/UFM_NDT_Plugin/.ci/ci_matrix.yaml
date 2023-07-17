@@ -68,7 +68,7 @@ steps:
   - name: build Plugin
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
-      cd build
+      cd plugins/UFM_NDT_Plugin/build
       bash -x ./docker_build.sh
       cp /ufm-plugin-ndt* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
     parallel: false
