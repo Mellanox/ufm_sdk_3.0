@@ -26,6 +26,7 @@ Installing
 
 ### 2) Run the installation script.
 	   sudo ./install.sh
+	   or run the ./install.sh with root permissions
 
 
 
