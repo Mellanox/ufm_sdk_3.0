@@ -25,7 +25,7 @@ Installing
 	   tar -xf ufm_slurm_integration.tar.gz
 
 ### 2) Run the installation script.
-	   ./install.sh
+	   sudo ./install.sh
 
 
 
