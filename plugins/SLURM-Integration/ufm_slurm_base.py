@@ -23,10 +23,10 @@ from logging.handlers import RotatingFileHandler
 
 
 class UfmSlurmBase():
-    should_fail = 1 #set 0 the script will not fail; 1 the script will fail
     ufm = UFM()
     general_utils = GeneralUtils()
     integration = Integration()
+    should_fail = int(general_utils.get_conf_parameter_value(Constants.CONF_FAIL_SLURM_JOB_UPON_FAILURE_PARAM))
 
     def init(self):
         self.server = self.general_utils.get_conf_parameter_value(Constants.CONF_UFM_IP)
@@ -47,8 +47,10 @@ class UfmSlurmBase():
         self.partially_alloc = self._toBoolean(self.partially_alloc, Constants.CONF_PARTIALLY_ALLOC, True)
         self.app_resources_limit = self.general_utils.get_conf_parameter_value(Constants.CONF_APP_RESOURCES_LIMIT)
         if self.app_resources_limit and int(self.app_resources_limit) < -1:
-            logging.error("app_resources_limit param must be an integer number greater than -1!")
-            sys.exit(1)
+            logging.error(
+                "app_resources_limit param must be an integer number greater than -1, (got {0}), using default value: - 1".format(
+                    self.app_resources_limit))
+            self.app_resources_limit = -1
         else:
             self.app_resources_limit = -1
         self.is_in_debug_mode = self.general_utils.is_debug_mode()
