@@ -27,7 +27,6 @@ install_status=0
 WORK_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 # Get the current PATH
-current_path="$PATH"
 export PATH=$PATH:/usr/bin:/usr/local/bin:/opt/local/bin
 
 errorlog() {
