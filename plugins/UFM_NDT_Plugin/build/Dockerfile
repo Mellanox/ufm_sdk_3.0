@@ -10,7 +10,7 @@ ARG BASE_PATH=/opt/ufm/ufm_plugin_ndt
 
 LABEL maintainer="atolikin@nvidia.com"
 
-RUN apt-get update && apt-get -y install supervisor python3 python3-pip rsyslog mc wget vim libcap2 curl sudo
+RUN apt-get update && apt upgrade -y && apt-get -y install supervisor python3 python3-pip rsyslog mc wget vim libcap2 curl sudo
 
 RUN python3 -m pip install flask flask_restful requests pandas twisted apscheduler "tzlocal<3.0"
 
