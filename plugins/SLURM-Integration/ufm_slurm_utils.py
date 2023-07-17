@@ -45,6 +45,7 @@ class Constants:
     CONF_DEBUG_MODE = 'debug_mode'
     BASIC_AUTH = "basic_auth"
     TOKEN_AUTH = "token_auth"
+    CONF_FAIL_SLURM_JOB_UPON_FAILURE_PARAM = "fail_slurm_job_upon_failure"
     LS_JOB_NAME = 'slurm_job_'
     DEF_LOG_FILE = 'ufm_slurm.log'
     UFM_VER_URL = "/ufmRest/app/ufm_version"
