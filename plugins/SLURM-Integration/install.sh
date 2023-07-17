@@ -28,55 +28,26 @@ WORK_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 # Get the current PATH
 current_path="$PATH"
-
-# Possible locations where python3 can be found
-python3_locations=(
-    "/usr/bin"
-    "/usr/local/bin"
-    "/opt/local/bin"
-)
+export PATH=$PATH:/usr/bin:/usr/local/bin:/opt/local/bin
 
 errorlog() {
     echo "ERROR: $1"
 }
-
-function add_python3_path_to_global_variable_env_path()
-# This function is used to check if the python3 is installed on any of the predefined python3_locations list, if found
-# add this path to the Global ENV variable PATH.
+function is_root_user()
 {
-    # Flag to check if python3 is found
-    local python3_found=false
-    # Loop through each location and check if python3 exists
-    for location in "${python3_locations[@]}"; do
-        if command -v python3 >/dev/null 2>&1; then
-            # Check if the location is already in PATH
-            if [[ ":$current_path:" != *":$location:"* ]]; then
-                # Add the location to PATH if it's not already present
-                current_path="$location:$current_path"
-                python3_found=true
-            fi
-        fi
-    done
-
-    # Check if python3 was found
-    if [ "$python3_found" = true ]; then
-        # Set the modified PATH variable
-        export PATH="$current_path"
-    else
-        echo "Error: Failed to find python3 path, please make sure that python3 is installed and configured for the root user."
+    if [ ! "$(id -u)" = "0" ]; then
+        echo "Please run the installation script as root."
         exit 2
     fi
-
-    # Print the updated PATH variable
-    echo "Updated PATH: $PATH"
 }
 
 function get_python3_path()
 # This function is used to get current python3 path using type -p python3 command.
 {
+    echo "Searching through $PATH for python3 binary..."
     python3_path=$(type -p python3)
     if [[ $? -ne 0 ]];then
-        echo "Failed to run (type -p python3) command to get python3 path, please make sure that python3 is installed and configured appropriately, prior to running the UFM-Slurm integration."
+        echo "Error: unable to find python3 in PATH=$PATH, please update PATH variable with correct location and rerun"
         exit 2
     fi
     python3_path=$(echo "$python3_path" | cut -d ' ' -f 3)
@@ -86,9 +57,10 @@ function get_python3_path()
 function get_pip3_path()
 # This function is used to get current pip3 path using type -p pip3 command.
 {
+    echo "Searching through $PATH for pip3 binary..."
     pip3_path=$(type -p pip3)
     if [[ $? -ne 0 ]];then
-        echo "Failed to run (type -p pip3) command to get pip3 path, please make sure that pip3 is installed and configured appropriately, prior to running the UFM-Slurm integration."
+        echo "Error: unable to find pip3 in PATH=$PATH, please update PATH variable with correct location and rerun"
         exit 2
     fi
     pip3_path=$(echo "$pip3_path" | cut -d ' ' -f 3)
@@ -130,15 +102,15 @@ function update_slurm_conf()
 }
 
 function set_python3_path()
-{   local full_python3_path=$1
-    local file_name=$2
+{
+    local file_name=$1
 
     if [[ ! -w "$SLURM_DIR/$file_name" ]]; then
         echo "File $SLURM_DIR/$file_name is not writable or does not exist."
     fi
 
     if grep -wq "python3_path" "$SLURM_DIR/$file_name"; then
-        sed -i -e "s#python3_path#$full_python3_path#g" $SLURM_DIR/$file_name
+        sed -i -e "s#python3_path#$python3_path#g" $SLURM_DIR/$file_name
         if [[ $? -ne 0 ]];then
             echo "Failed to replace 'python3_path' keyword with actual python3 path inside $SLURM_DIR/$file_name file using sed command, prior to running the UFM-Slurm integration."
             exit 2
@@ -150,8 +122,8 @@ function update_python_path_for_ufm_prolog_epilog()
 # This function is used to get the full path of python3 and replace it with keyword python3_path
 # In both ufm-prolog and ufm-epilog files
 {
-    set_python3_path $python3_path $UFM_PROLOG_FILE
-    set_python3_path $python3_path $UFM_EPILOG_FILE
+    set_python3_path $UFM_PROLOG_FILE
+    set_python3_path $UFM_EPILOG_FILE
 }
 
 function validate_requirements()
@@ -298,7 +270,7 @@ CheckPythonPackages() {
         export pr=0
         depended_packages=(${python_packages_for_pip[@]})
         for pkg_name in ${depended_packages[@]}; do
-            $pip3_path list | grep ${pkg_name} &> /dev/null
+            $pip3_path list | grep ${pkg_name} 2>/dev/null
             if [ $? -ne 0 ]; then
                 errorlog "required ${pkg_name} is not installed"
                 errmsg="${errmsg}  '${pkg_name}' \n"
@@ -324,7 +296,7 @@ CheckPythonPackages() {
 #============================================
 echo $INSTALLING_PLUGIN
 distro=`get_distro`
-add_python3_path_to_global_variable_env_path
+is_root_user
 get_python3_path
 get_pip3_path
 validate_requirements
