@@ -420,12 +420,23 @@ class Delete(UFMResource):
                 if status_code != self.success:
                     error_status_code = status_code
                     error_response.append(response)
-
+                # delete reports related to that NDT
+                response, status_code = self.delete_ndt_reports(ndt)
+                if status_code != self.success:
+                    error_status_code = status_code
+                    error_response.append(response)
             if error_status_code == self.success:
                 return self.report_success()
             else:
                 return self.report_error(error_status_code, error_response)
 
+    def delete_ndt_reports(self, ndt:str):
+        '''
+        Delete reports related to NDT file
+        in this class this function is not implemented - return default values
+        :param ndt: name of NDT file
+        '''
+        return [], self.success
 
 class Compare(UFMResource):
     def __init__(self, scheduler):
@@ -455,13 +466,14 @@ class Compare(UFMResource):
                 next_report_number = self.reports_to_save
         return next_report_number
 
-    def update_reports_list(self, scope):
+    def update_reports_list(self, scope, ndt_file_name):
         with open(self.reports_list_file, "r", encoding="utf-8") as reports_list_file:
             # unhandled exception in case reports file was changed manually
             data = json.load(reports_list_file)
             self.report_number = len(data) + 1
             entry = {"report_id": self.report_number,
                      "report_scope": scope,
+                     "NDT_file": ndt_file_name,
                      "timestamp": self.timestamp}
             if self.report_number > self.reports_to_save:
                 oldest_report = self.get_report_path("report_1.json")
@@ -498,7 +510,9 @@ class Compare(UFMResource):
         :param report_content:
         :param completed: If status of the report will be running or completed
         '''
-        response, status_code = self.update_reports_list(scope, completed)
+        ndt_file_name = report_content.get("NDT_file", None)
+        response, status_code = self.update_reports_list(scope, completed,
+                                                                ndt_file_name)
         if status_code != self.success:
             return response, status_code
         response, status_code = self.save_report(report_content)

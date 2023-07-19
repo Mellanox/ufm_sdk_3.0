@@ -336,7 +336,7 @@ class MergerVerifyNDT(Compare):
             next_report_number = len(data) + 1
         return next_report_number
 
-    def update_reports_list(self, scope, completed):
+    def update_reports_list(self, scope, completed, ndt_file_name):
         if completed:
             # no need to update report list
             return self.report_success()
@@ -346,6 +346,7 @@ class MergerVerifyNDT(Compare):
             self.report_number = len(data) + 1
             entry = {"report_id": self.report_number,
                      "report_scope": scope,
+                     "NDT_file": ndt_file_name,
                      "timestamp": self.timestamp}
             data.append(entry)
         with open(self.reports_list_file, "w") as reports_list_file:
@@ -380,6 +381,32 @@ class MergerDeleteNDT(Delete):
         self.reports_list_file = self.reports_merger_list_file
         self.ndts_dir = self.ndts_merger_dir
         self.reports_dir = self.reports_merger_dir
+
+    def delete_ndt_reports(self, ndt:str):
+        '''
+        Delete reports related to NDT file
+        :param ndt: name of NDT file
+        '''
+        # find reports related to NDT file name and remove them.
+        # Update reports.json file
+        try:
+            with open(self.reports_list_file, "r", encoding="utf-8") as reports_list_file:
+                # unhandled exception in case reports file was changed manually
+                data = json.load(reports_list_file)
+                data_to_proceed = data.copy()
+                for report_data in data_to_proceed:
+                    if os.path.basename(report_data.get("NDT_file", "")) == ndt:
+                        report_name = "report_{}.json".format(report_data["report_id"])
+                        report_path = self.get_report_path(report_name)
+                        if check_file_exist(report_path):
+                            os.remove(report_path)
+                        data.remove(report_data)
+            with open(self.reports_list_file, "w") as reports_list_file:
+                json.dump(data, reports_list_file)
+        except Exception as e:
+            return self.report_error(400, "Failed to delete reports for NDT file %s: %s" % (ndt, e))
+        return [], self.success
+
 
 class MergerDeployNDTConfig(UFMResource):
     '''
