@@ -93,6 +93,7 @@ ib_port_state = {
     IB_PORT_PHYS_STATE_POLLING: BOUNDARY_PORT_STATE_DISABLED, # for old switches if disabled physical state could be polling (???)
     IB_PORT_PHYS_STATE_LINKUP: BOUNDARY_PORT_STATE_NO_DISCOVER,
     }
+PORT_GUID_MAX_LENGHT = 18
 
 def get_timestamp_str():
     return str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
@@ -172,12 +173,12 @@ def run_ibdiagnet_verification_command():
 
 def normalize_port_guid_length(port_guid):
     '''
-    Normalize port guid len - in need add prefix 0
+    Normalize port guid len - if need add prefix 0
     :param port_guid:
     '''
     port_guid_len = len(port_guid)
-    if port_guid_len < 18: # in case and we have guid that is short - need to add zero
-        port_guid = "".join(["0x", "%s"%("0"*(18-port_guid_len)), port_guid[2:]])
+    if port_guid_len < PORT_GUID_MAX_LENGHT: # in case and we have guid that is short - need to add zero
+        port_guid = "".join(["0x", "%s"%("0"*(PORT_GUID_MAX_LENGHT-port_guid_len)), port_guid[2:]])
     return port_guid
 
 def get_switch_port_label2port_num_map():
@@ -538,7 +539,7 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
             if not start_device in device_to_guid_map:
                 device_to_guid_map[start_device] = port_guid
             if not start_port.isnumeric():
-                # port guid in this case could have wrong lenght, as some reason
+                # port guid in this case could have wrong lenght, for some reason
                 # the guid in net_dump file does not have prefix 0, but in db_csv - has
                 # so need to normalize
                 key_port_guid = normalize_port_guid_length(port_guid)
