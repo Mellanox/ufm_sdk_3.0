@@ -9,20 +9,20 @@ send -- "enable\r"
 expect "# "
 send -- "config terminal\r"
 expect "/(config/) # "
+send -- "ufm start\r"
+sleep 59
+expect "/(config/) # "
+send -- "ufm ha takeover\r"
+sleep 60
+expect "/(config/) # "
 send -- "ufm plugin ndt add tag latest\r"
 expect "/(config/) # "
 send -- "ufm plugin ndt enable\r"
 expect "/(config/) # "
 send -- "show ufm plugin\r"
 expect "/(config/) # "
-send -- "no ufm start\r"
-expect "/(config/) # "
-send -- "ufm mode mgmt"
-expect "/(config/) # "
-send -- "ufm mode mon\r"
-expect "/(config/) # "
-send -- "ufm start\r"
-expect "/(config/) # "
 send -- "show ufm status\r"
 sleep 10
+expect "/(config/) # "
+exit 0
 EOF
