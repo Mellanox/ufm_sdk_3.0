@@ -34,7 +34,7 @@ errorlog() {
 }
 function is_root_user()
 {
-    if [ ! "$(id -u)" = "0" ]; then
+    if [ "$EUID" -ne 0 ]; then
         echo "Please run the installation script as root."
         exit 2
     fi
@@ -46,7 +46,7 @@ function get_python3_path()
     echo "Searching through $PATH for python3 binary..."
     python3_path=$(type -p python3)
     if [[ $? -ne 0 ]];then
-        echo "Error: unable to find python3 in PATH=$PATH, please update PATH variabe with the valid path of Python3 and rerun"
+        echo "Error: unable to find python3 in PATH=$PATH, please update PATH variable with the valid path of Python3 and rerun"
         exit 2
     fi
     python3_path=$(echo "$python3_path" | cut -d ' ' -f 3)
