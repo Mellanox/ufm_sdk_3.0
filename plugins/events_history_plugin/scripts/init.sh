@@ -9,8 +9,8 @@
 #
 # This software product is governed by the End User License Agreement
 # provided with the software product.
-# @author: Anan Al-Aghbar
-# @date:   Jan 29, 2023
+# @author: Abeer Moghrabi
+# @date:   Aug 14, 2023
 #
 # ================================================================
 # This script prepares and checks events_history docker container Environment

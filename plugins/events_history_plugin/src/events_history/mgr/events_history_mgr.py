@@ -42,10 +42,18 @@ class EventsHistoryMgr(Singleton):
         @param mode: a string indicating how the file is to be opened.
         @return: a reference to the opened file
         """
-        if fname.endswith(".gz"):
-            return gzip.open(fname, mode, encoding='utf8')
-        else:
-            return open(fname, mode)
+        try:
+            if fname.endswith(".gz"):
+                return gzip.open(fname, mode, encoding='utf8')
+            else:
+                return open(fname, mode)
+        except FileNotFoundError:
+            Logger.log_message(f"File {fname} not found.",
+                               LOG_LEVELS.ERROR)
+
+        except Exception as ex:
+            Logger.log_message(f"An error occurred while parsing {fname}:" + str(ex),
+                               LOG_LEVELS.ERROR)
 
     def parse_event_log_files(self):
         """
@@ -59,9 +67,10 @@ class EventsHistoryMgr(Singleton):
                 fname = os.path.join(EventsConstants.EVENT_LOGS_DIRECTORY, file)
                 if os.path.exists(fname):
                     f = self.openEventFile(fname, 'rt')
-                    for line in f:
-                        self.create_event(line)
-                    f.close()
+                    if f:
+                        for line in f:
+                            self.create_event(line)
+                        f.close()
         except Exception as e:
             Logger.log_message("Error occurred while parsing events logs files: " + str(e),
                                LOG_LEVELS.ERROR)
@@ -89,7 +98,6 @@ class EventsHistoryMgr(Singleton):
                               category=category, object_name=object_name, object_path=object_path,
                               description=description, name="N/A")
                 self.events.add(event)
-            print(log_line.strip())
         except Exception as ex:
             Logger.log_message(f"Error occurred while parsing event log line {log_line}: {str(ex)}",
                                LOG_LEVELS.ERROR)
