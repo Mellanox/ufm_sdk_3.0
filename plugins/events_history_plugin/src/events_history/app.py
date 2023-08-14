@@ -23,7 +23,7 @@ from utils.logger import Logger, LOG_LEVELS
 from api.ui_files_api import EventsHistoryPluginUIFilesAPI
 from api.conf_api import EventsHistoryPluginConfigurationsAPI
 from mgr.events_history_configurations_mgr import EventsHistoryConfigParser
-
+from api.events_history_api import EventsHistoryApi
 
 def _init_logs(config_parser):
     # init logs configs
@@ -53,6 +53,7 @@ if __name__ == '__main__':
         routes = {
             "/conf": EventsHistoryPluginConfigurationsAPI().application,
             "/files": EventsHistoryPluginUIFilesAPI().application,
+            "/events-history": EventsHistoryApi().application,
         }
 
         app = BaseFlaskAPIApp(routes)
