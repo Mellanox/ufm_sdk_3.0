@@ -24,6 +24,8 @@ from api.ui_files_api import EventsHistoryPluginUIFilesAPI
 from api.conf_api import EventsHistoryPluginConfigurationsAPI
 from mgr.events_history_configurations_mgr import EventsHistoryConfigParser
 from api.events_history_api import EventsHistoryApi
+from mgr.events_history_files_watcher import EventsHistoryFilesWatcher, EventsHistoryListener
+from constants.events_constants import EventsConstants
 
 def _init_logs(config_parser):
     # init logs configs
@@ -32,6 +34,15 @@ def _init_logs(config_parser):
     max_log_file_size = config_parser.get_log_file_max_size()
     log_file_backup_count = config_parser.get_log_file_backup_count()
     Logger.init_logs_config(logs_file_name, logs_level, max_log_file_size, log_file_backup_count)
+
+
+def _run_event_logs_watcher():
+    event_log_files = [os.path.join(EventsConstants.EVENT_LOGS_DIRECTORY, EventsConstants.EVENT_LOG)]
+    # Create watcher and listener.
+    e_listener = EventsHistoryListener()
+    r_critical_watcher = EventsHistoryFilesWatcher. \
+        getInstance(event_log_files)
+    r_critical_watcher.addListener(e_listener)
 
 
 if __name__ == '__main__':
@@ -55,6 +66,8 @@ if __name__ == '__main__':
             "/files": EventsHistoryPluginUIFilesAPI().application,
             "/events-history": EventsHistoryApi().application,
         }
+
+        _run_event_logs_watcher()
 
         app = BaseFlaskAPIApp(routes)
         run_api(app=app, port_number=int(plugin_port))
