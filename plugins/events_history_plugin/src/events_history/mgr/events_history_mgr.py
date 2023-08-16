@@ -19,7 +19,7 @@ import os
 import gzip
 from utils.logger import Logger, LOG_LEVELS
 from model.event import Event
-from constants.events_constants import EventsConstants
+from constants.events_constants import EventsConstants, EventTypeEnum
 import re
 
 
@@ -30,10 +30,19 @@ class EventsHistoryMgr(Singleton):
 
     def __init__(self):
 
-        self._events = EventsCollection(Event)
+        self.events_collections = self._init_events_collections()
         self.parse_event_log_files()
 
-    events = property(lambda self: self._events)
+    def _init_events_collections(self):
+        """
+        This function is designed to initialize an event collections map. Each supported event will have a corresponding
+        collection. This will increase filtering performance.
+        :return:
+        """
+        events_collections = {}
+        for supported_event in EventTypeEnum:
+            events_collections[supported_event.value] = EventsCollection(Event)
+        return events_collections
 
     def openEventFile(self, fname, mode):
         """
@@ -65,12 +74,14 @@ class EventsHistoryMgr(Singleton):
             files.append(EventsConstants.EVENT_LOG)
             for file in files:
                 fname = os.path.join(EventsConstants.EVENT_LOGS_DIRECTORY, file)
+                Logger.log_message(f"Parsing file {fname}", LOG_LEVELS.INFO)
                 if os.path.exists(fname):
                     f = self.openEventFile(fname, 'rt')
                     if f:
                         for line in f:
                             self.create_event(line)
                         f.close()
+                        Logger.log_message(f"Parsing file {fname} completed successfully", LOG_LEVELS.INFO)
         except Exception as e:
             Logger.log_message("Error occurred while parsing events logs files: " + str(e),
                                LOG_LEVELS.ERROR)
@@ -89,15 +100,22 @@ class EventsHistoryMgr(Singleton):
                 id = match.group(EventsConstants.ID)
                 event_type = match.group(EventsConstants.EVENT_TYPE)
                 severity = match.group(EventsConstants.SEVERITY)
-                category = match.group(EventsConstants.CATEGORY)
-                object_name = match.group(EventsConstants.OBJECT_NAME)
+                category = match.group(EventsConstants.CATEGORY).replace('_', ' ')
+                type = match.group(EventsConstants.TYPE)
                 object_path = match.group(EventsConstants.OBJECT_PATH)
                 description = match.group(EventsConstants.DESCRIPTION)
-                #TODO extract event name, and add only the topology change events
-                event = Event(timestamp=time, id=id, event_type=event_type, severity=severity,
-                              category=category, object_name=object_name, object_path=object_path,
-                              description=description, name="N/A")
-                self.events.add(event)
+                # object_name not always exists
+                if match.group(EventsConstants.OBJECT_NAME):
+                    object_name = match.group(EventsConstants.OBJECT_NAME)
+                else:
+                    object_name =  "N/A"
+                if event_type in [s_event.value for s_event in EventTypeEnum]:
+                    event_name = EventsConstants.EVENTS_INFO[event_type]["name"]
+                    event = Event(timestamp=time, id=id, event_type=event_type, severity=severity,
+                                  category=category, object_name=object_name, object_path=object_path,
+                                  description=description, name=event_name, type=type)
+                    Logger.log_message(f"Event {event_name} with id={id} was created successfully", LOG_LEVELS.INFO)
+                    self.events_collections[event_type].add(event)
         except Exception as ex:
             Logger.log_message(f"Error occurred while parsing event log line {log_line}: {str(ex)}",
                                LOG_LEVELS.ERROR)

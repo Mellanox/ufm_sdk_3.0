@@ -1,7 +1,7 @@
 class Event:
 
-    def __init__(self, id, name, event_type, severity, timestamp, category, description, object_name,
-                 object_path, write_to_syslog=False, type="N/A", counter="N/A"):
+    def __init__(self, id, name, event_type, severity, timestamp, category, description, type,
+                 object_path, write_to_syslog=False, object_name="N/A", counter="N/A"):
         self.id = id
         self.name = name
         self.type = type
