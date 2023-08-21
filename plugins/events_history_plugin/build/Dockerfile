@@ -2,7 +2,7 @@ FROM ubuntu:20.04
 
 LABEL maintainer="abeerm@nvidia.com"
 
-ARG PLUGIN_NAME
+ARG PLUGIN_NAME=events_history
 ARG DEBIAN_FRONTEND=noninteractive
 ARG BASE_PATH=/opt/ufm/ufm_plugin_${PLUGIN_NAME}
 ARG SRC_BASE_DIR=${PLUGIN_NAME}_plugin
