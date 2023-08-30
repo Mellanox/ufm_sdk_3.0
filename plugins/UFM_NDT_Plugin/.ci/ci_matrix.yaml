@@ -56,7 +56,7 @@ steps:
     run: |
       cd plugins/UFM_NDT_Plugin/build
       bash -x ./docker_build.sh
-      cp /ufm-plugin-ndt* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
+      cp ufm-plugin-ndt* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
     parallel: false
 
 
@@ -89,6 +89,15 @@ steps:
     parallel: false
 
 
+  - name: configure a simulated fabric
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: | 
+      cd /auto/UFM/tmp/ufm_verification/tests/test_with_sim/performance
+      IP_SERVER=$(ping $SERVER_HOST -c 1 -s 16 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+      python run_simulator.py -s $IP_SERVER --topology_path ibnetdiscover_director.txt
+    parallel: false
+
+
   - name: run client tests
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
@@ -112,6 +121,26 @@ steps:
   - name: remove plugin end
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: plugins/UFM_NDT_Plugin/.ci/do_remove_plugin.sh
+    parallel: false
+
+  - name: back to real fabric
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: | 
+      plugins/UFM_NDT_Plugin/.ci/real_fabric.sh
+      opensm_pid=$(pgrep -x opensm)
+      kill -9 $opensm_pid
+      ps -ef | grep -i sm
+    parallel: false
+
+  - name: draft
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: |
+      plugins/UFM_NDT_Plugin/.ci/draft.sh
+      /etc/init.d/ufmd stop
+      ps -ef | grep -i sm
+      opensm_id=$(cat /var/run/opensm_sim.pid)
+      kill -9 $opensm_id
+      plugins/UFM_NDT_Plugin/.ci/draft.sh
     parallel: false
 
 pipeline_start:

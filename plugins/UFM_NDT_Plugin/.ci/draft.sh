@@ -9,9 +9,8 @@ send -- "enable\r"
 expect "# "
 send -- "config terminal\r"
 expect "/(config/) # "
-send -- "no ufm start\r"
+send -- "show ufm status\r"
 expect "/(config/) # "
-sleep 20
 send -- "_shell\r"
 exit 0
 EOF

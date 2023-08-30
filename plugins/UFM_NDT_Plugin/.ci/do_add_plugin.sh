@@ -10,7 +10,7 @@ expect "# "
 send -- "config terminal\r"
 expect "/(config/) # "
 send -- "ufm start\r"
-sleep 59
+sleep 60
 expect "/(config/) # "
 send -- "ufm ha takeover\r"
 sleep 60
