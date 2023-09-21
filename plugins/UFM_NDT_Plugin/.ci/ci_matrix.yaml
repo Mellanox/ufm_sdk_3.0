@@ -96,7 +96,7 @@ steps:
       sleep 30
       export SERVER_HOST=$SERVER_HOST
       cd plugins/UFM_NDT_Plugin/tests
-      python3 ndt_plugin_test.py --host $SERVER_HOST || true
+      python3 ndt_plugin_test.py --host $SERVER_HOST
     parallel: false
 
 
@@ -104,14 +104,14 @@ steps:
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
       mkdir $WORKSPACE/logs/
-      plugins/UFM_NDT_Plugin/.ci/do_get_logs.sh || true
+      plugins/UFM_NDT_Plugin/.ci/do_get_logs.sh
     archiveArtifacts: 'logs/ndt.log'
     parallel: false
 
 
   - name: remove plugin end
     agentSelector: "{nodeLabel: 'UFM-POC'}"
-    run: plugins/UFM_NDT_Plugin/.ci/do_remove_plugin.sh || true
+    run: plugins/UFM_NDT_Plugin/.ci/do_remove_plugin.sh
     parallel: false
 
 pipeline_start:
