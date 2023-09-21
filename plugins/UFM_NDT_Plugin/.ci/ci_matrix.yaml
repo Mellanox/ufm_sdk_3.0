@@ -120,7 +120,7 @@ pipeline_start:
 
 pipeline_stop:
   run: |
-    sudo rm -rf /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
+    echo All done
 
 # Fail job if one of the steps fails or continue
 failFast: false
