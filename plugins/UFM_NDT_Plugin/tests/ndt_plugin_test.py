@@ -37,13 +37,13 @@ DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 FAILED_TESTS_COUNT = 0
 
 
-def remove_timestamp(response):
+def remove_section(response, section):
     if response:
         if isinstance(response, dict):
-            del response["timestamp"]
+            del response[section]
             return response
         elif isinstance(response, list):
-            return [{i: entry[i] for i in entry if i != "timestamp"} for entry in response]
+            return [{i: entry[i] for i in entry if i != section} for entry in response]
         else:
             return response
     else:
@@ -132,8 +132,7 @@ def upload_metadata(ndts_folder):
             ndts_list_response.append({"file": ndt,
                                        "sha-1": get_hash(data),
                                        "file_type": file_type,
-                                       'file_status': file_status,
-                                       'file_capabilities': ''})
+                                       'file_status': file_status})
 
     test_name = "not allowed"
     response, request_string = make_request(GET, UPLOAD, payload=upload_request)
@@ -170,7 +169,10 @@ def upload_metadata(ndts_folder):
 
     response, request_string = make_request(GET, NDTS)
     assert_equal(request_string, get_code(response), 200, test_name)
-    assert_equal(request_string, remove_timestamp(get_response(response)), [ndts_list_response[1]], test_name)
+    response = get_response(response)
+    response = remove_section(response, "timestamp")
+    response = remove_section(response, "file_capabilities")
+    assert_equal(request_string, response, [ndts_list_response[1]], test_name)
 
     test_name = "update ndts"
     upload_request[0]["sha-1"] = good_sha
@@ -180,7 +182,10 @@ def upload_metadata(ndts_folder):
 
     response, request_string = make_request(GET, NDTS, )
     assert_equal(request_string, get_code(response), 200, test_name)
-    assert_equal(request_string, remove_timestamp(get_response(response)), ndts_list_response[::-1], test_name)
+    response = get_response(response)
+    response = remove_section(response, "timestamp")
+    response = remove_section(response, "file_capabilities")
+    assert_equal(request_string, response, ndts_list_response[::-1], test_name)
 
     test_name = "incorrect request"
     upload_request = {"asd": "asd"}
