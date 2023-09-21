@@ -124,13 +124,16 @@ def upload_metadata(ndts_folder):
                 file_type = switch_to_host_type
             elif switch_to_switch_type in ndt:
                 file_type = switch_to_switch_type
+            file_status = "New"
             upload_request.append({"file_name": ndt,
                                    "file": data,
                                    "file_type": file_type,
                                    "sha-1": get_hash(data)})
             ndts_list_response.append({"file": ndt,
                                        "sha-1": get_hash(data),
-                                       "file_type": file_type})
+                                       "file_type": file_type,
+                                       'file_status': file_status,
+                                       'file_capabilities': ''})
 
     test_name = "not allowed"
     response, request_string = make_request(GET, UPLOAD, payload=upload_request)
