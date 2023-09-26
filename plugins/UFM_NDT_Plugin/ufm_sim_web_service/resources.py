@@ -455,7 +455,7 @@ class Compare(UFMResource):
                 next_report_number = self.reports_to_save
         return next_report_number
 
-    def update_reports_list(self, scope):
+    def update_reports_list(self, scope, completed=True):
         with open(self.reports_list_file, "r", encoding="utf-8") as reports_list_file:
             # unhandled exception in case reports file was changed manually
             data = json.load(reports_list_file)

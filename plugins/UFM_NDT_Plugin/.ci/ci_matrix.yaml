@@ -89,7 +89,7 @@ steps:
     parallel: false
 
 
-  - name: configure a simulated fabric
+  - name: start simulation
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: | 
       cd /auto/UFM/tmp/ufm_verification/tests/test_with_sim/performance
@@ -123,25 +123,12 @@ steps:
     run: plugins/UFM_NDT_Plugin/.ci/do_remove_plugin.sh
     parallel: false
 
-  - name: back to real fabric
+  - name: finish simulation
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: | 
-      plugins/UFM_NDT_Plugin/.ci/real_fabric.sh
-      opensm_pid=$(pgrep -x opensm)
-      kill -9 $opensm_pid
-      ps -ef | grep -i sm
+      plugins/UFM_NDT_Plugin/.ci/finish_simulation.sh
     parallel: false
 
-  - name: draft
-    agentSelector: "{nodeLabel: 'UFM-POC'}"
-    run: |
-      plugins/UFM_NDT_Plugin/.ci/draft.sh
-      /etc/init.d/ufmd stop
-      ps -ef | grep -i sm
-      opensm_id=$(cat /var/run/opensm_sim.pid)
-      kill -9 $opensm_id
-      plugins/UFM_NDT_Plugin/.ci/draft.sh
-    parallel: false
 
 pipeline_start:
   run: |
@@ -149,7 +136,7 @@ pipeline_start:
 
 pipeline_stop:
   run: |
-    sudo rm -rf /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
+    echo All done
 
 # Fail job if one of the steps fails or continue
 failFast: false
