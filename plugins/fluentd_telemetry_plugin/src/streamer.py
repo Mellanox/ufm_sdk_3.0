@@ -64,6 +64,10 @@ class UFMTelemetryConstants:
             "name": '--enable_streaming',
             "help": "If true, the streaming will be started once the required configurations have been set"
         },{
+            "name": '--include_meta_data',
+            "help": "If true, the streaming message will include some meta data fields, "
+                    "like the streaming timestamp and message type"
+        },{
             "name": '--stream_only_new_samples',
             "help": "If True, the data will be streamed only in case new samples were pulled from the telemetry"
         },{
@@ -105,6 +109,7 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
     STREAMING_SECTION_BULK_STREAMING = "bulk_streaming"
     STREAMING_SECTION_STREAM_ONLY_NEW_SAMPLES = "stream_only_new_samples"
     STREAMING_SECTION_ENABLED = "enabled"
+    STREAMING_SECTION_INCLUDE_META_DATA = "include_meta_data"
 
     META_FIELDS_SECTION = "meta-fields"
 
@@ -158,6 +163,12 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
                                   self.STREAMING_SECTION,
                                   self.STREAMING_SECTION_ENABLED,
                                   False)
+
+    def get_include_meta_data_flag(self):
+        return self.safe_get_bool(self.args.include_meta_data,
+                                  self.STREAMING_SECTION,
+                                  self.STREAMING_SECTION_INCLUDE_META_DATA,
+                                  True)
 
     def get_fluentd_host(self):
         return self.get_config_value(self.args.fluentd_host,
@@ -430,7 +441,7 @@ class UFMTelemetryStreaming(Singleton):
                 "timestamp": datetime.datetime.fromtimestamp(int(time.time())).strftime('%Y-%m-%d %H:%M:%S'),
                 "type": "full",
                 "values": data_to_stream
-            }
+            } if self.config_parser.get_include_meta_data_flag() else data_to_stream
 
             if self.compressed_streaming_flag:
                 compressed = gzip.compress(json.dumps(fluentd_message).encode('utf-8'))
