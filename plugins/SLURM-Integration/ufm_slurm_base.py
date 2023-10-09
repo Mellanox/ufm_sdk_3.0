@@ -114,29 +114,38 @@ class UfmSlurmBase():
             try:
                 logging.info(f"Attempting to delete sharp reservation with app_id: {job_id}")
                 response = self.ufm._delete_sharp_allocation(self.server, self.session, self.auth_type, job_id)
+                # In case the sharp reservation was deleted successfully, need to break the while loop.
+                if response.status_code == http.client.NO_CONTENT:
+                    logging.info(f"Deleting sharp reservation with app_id: {job_id} completed successfully.")
+                    break
+                # In case the sharp reservation was not found, need to break the while loop as well.
                 if response.status_code == http.client.NOT_FOUND:
                     logging.warning(f"Deleting sharp reservation failed, sharp reservation with app_id: "
                                     f"{job_id} is not found!")
                     break
-                if response.status_code == http.client.NO_CONTENT:
-                    logging.info(f"Deleting sharp reservation with app_id: {job_id} completed successfully.")
-                    break
+                # In case the deletion of sharp reservation failed.
                 else:
                     logging.error(f"Deleting sharp reservation with app_id: {job_id} failed! "
                                   f"status_code: {response.status_code}, response: {response.text}")
+                    # handle the scenario where num_of_retries in ufm_slurm.conf file is set to 0,
+                    # indicating that I need to retry the deletion indefinitely.
                     if self.num_of_retries == 0:
                         logging.info(f"Retrying to delete sharp reservation with app_id: {job_id} in "
                                      f"{self.retry_interval} seconds...")
                         time.sleep(self.retry_interval)
+                    # handle the scenario where num_of_retries in ufm_slurm.conf file is set to Non-zero value,
+                    # indicating that I need to retry the deletion equal to num_of_retries.
                     elif left_retries > 0:
                         logging.info(f"Retrying in {self.retry_interval} seconds... (Retries left: {left_retries})")
                         left_retries -= 1
                         time.sleep(self.retry_interval)
+                    # In case number of left_retries finished without succeeding to delete the sharp reservation, needs
+                    # to exit the while loop after adding an appropriate error message to log file.
                     else:
                         logging.error(f"No more retries. Giving up after {self.num_of_retries} retries to delete "
                                       f"sharp reservation with app_id: {job_id}")
                         break
-            except Exception as exc:
+            except Exception as exc: # In case of getting any unexpected error, need to write it to log file.
                 logging.error(f"Deleting sharp reservation with app_id {job_id} Failed! got exception ==> {exc}")
 
     def add_hosts_to_pkey(self, job_nodes):
