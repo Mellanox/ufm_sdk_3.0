@@ -15,7 +15,7 @@
 # Author: Ibrahimbar
 # Author: Anas Badaha
 
-import sys
+import sys, time, http
 import argparse
 import logging
 from ufm_slurm_utils import UFM, GeneralUtils, Integration, Constants
@@ -53,6 +53,8 @@ class UfmSlurmBase():
             self.app_resources_limit = -1
         else:
             self.app_resources_limit = -1
+        self.num_of_retries = int(self.general_utils.get_conf_parameter_value(Constants.CONF_NUM_OF_RETRIES))
+        self.retry_interval = int(self.general_utils.get_conf_parameter_value(Constants.CONF_RETRY_INTERVAL))
         self.is_in_debug_mode = self.general_utils.is_debug_mode()
 
     def parse_args(self):
@@ -107,12 +109,35 @@ class UfmSlurmBase():
             logging.error("Failed to allocate job's node %s to pkey::: Error==> %s" % (job_nodes, exc))
 
     def delete_sharp_allocation(self, job_id):
-        try:
-            logging.info("Delete SHArP allocation with app_id: %s" % job_id)
-            response = self.ufm._delete_sharp_allocation(self.server, self.session, self.auth_type, job_id)
-            logging.info("Request Response: %s" % str(response))
-        except Exception as exc:
-            logging.error("Failed to Delete SHArP allocation with app_id %s ::: Error==> %s" % (job_id, exc))
+        left_retries = self.num_of_retries
+        while True:
+            try:
+                logging.info(f"Attempting to delete sharp reservation with app_id: {job_id}")
+                response = self.ufm._delete_sharp_allocation(self.server, self.session, self.auth_type, job_id)
+                if response.status_code == http.client.NOT_FOUND:
+                    logging.warning(f"Deleting sharp reservation failed, sharp reservation with app_id: "
+                                    f"{job_id} is not found!")
+                    break
+                if response.status_code == http.client.NO_CONTENT:
+                    logging.info(f"Deleting sharp reservation with app_id: {job_id} completed successfully.")
+                    break
+                else:
+                    logging.error(f"Deleting sharp reservation with app_id: {job_id} failed! "
+                                  f"status_code: {response.status_code}, response: {response.text}")
+                    if self.num_of_retries == 0:
+                        logging.info(f"Retrying to delete sharp reservation with app_id: {job_id} in "
+                                     f"{self.retry_interval} seconds...")
+                        time.sleep(self.retry_interval)
+                    elif left_retries > 0:
+                        logging.info(f"Retrying in {self.retry_interval} seconds... (Retries left: {left_retries})")
+                        left_retries -= 1
+                        time.sleep(self.retry_interval)
+                    else:
+                        logging.error(f"No more retries. Giving up after {self.num_of_retries} retries to delete "
+                                      f"sharp reservation with app_id: {job_id}")
+                        break
+            except Exception as exc:
+                logging.error(f"Deleting sharp reservation with app_id {job_id} Failed! got exception ==> {exc}")
 
     def add_hosts_to_pkey(self, job_nodes):
         if not job_nodes or not self.pkey:
