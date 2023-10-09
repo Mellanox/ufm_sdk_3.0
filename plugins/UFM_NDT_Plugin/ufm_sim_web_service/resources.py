@@ -466,7 +466,7 @@ class Compare(UFMResource):
                 next_report_number = self.reports_to_save
         return next_report_number
 
-    def update_reports_list(self, scope, ndt_file_name):
+    def update_reports_list(self, scope, ndt_file_name, completed=True):
         with open(self.reports_list_file, "r", encoding="utf-8") as reports_list_file:
             # unhandled exception in case reports file was changed manually
             data = json.load(reports_list_file)
@@ -511,8 +511,7 @@ class Compare(UFMResource):
         :param completed: If status of the report will be running or completed
         '''
         ndt_file_name = report_content.get("NDT_file", None)
-        response, status_code = self.update_reports_list(scope, completed,
-                                                                ndt_file_name)
+        response, status_code = self.update_reports_list(scope, ndt_file_name, completed)
         if status_code != self.success:
             return response, status_code
         response, status_code = self.save_report(report_content)

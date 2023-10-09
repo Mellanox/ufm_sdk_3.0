@@ -56,7 +56,7 @@ steps:
     run: |
       cd plugins/UFM_NDT_Plugin/build
       bash -x ./docker_build.sh
-      cp /ufm-plugin-ndt* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
+      cp ufm-plugin-ndt* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
     parallel: false
 
 
@@ -89,6 +89,15 @@ steps:
     parallel: false
 
 
+  - name: start simulation
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: | 
+      cd /auto/UFM/tmp/ufm_verification/tests/test_with_sim/performance
+      IP_SERVER=$(ping $SERVER_HOST -c 1 -s 16 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+      python run_simulator.py -s $IP_SERVER --topology_path ibnetdiscover_director.txt
+    parallel: false
+
+
   - name: run client tests
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
@@ -96,7 +105,7 @@ steps:
       sleep 30
       export SERVER_HOST=$SERVER_HOST
       cd plugins/UFM_NDT_Plugin/tests
-      python3 ndt_plugin_test.py --host $SERVER_HOST || true
+      python3 ndt_plugin_test.py --host $SERVER_HOST
     parallel: false
 
 
@@ -104,15 +113,22 @@ steps:
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
       mkdir $WORKSPACE/logs/
-      plugins/UFM_NDT_Plugin/.ci/do_get_logs.sh || true
+      plugins/UFM_NDT_Plugin/.ci/do_get_logs.sh
     archiveArtifacts: 'logs/ndt.log'
     parallel: false
 
 
   - name: remove plugin end
     agentSelector: "{nodeLabel: 'UFM-POC'}"
-    run: plugins/UFM_NDT_Plugin/.ci/do_remove_plugin.sh || true
+    run: plugins/UFM_NDT_Plugin/.ci/do_remove_plugin.sh
     parallel: false
+
+  - name: finish simulation
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: | 
+      plugins/UFM_NDT_Plugin/.ci/finish_simulation.sh
+    parallel: false
+
 
 pipeline_start:
   run: |
@@ -120,7 +136,7 @@ pipeline_start:
 
 pipeline_stop:
   run: |
-    sudo rm -rf /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
+    echo All done
 
 # Fail job if one of the steps fails or continue
 failFast: false

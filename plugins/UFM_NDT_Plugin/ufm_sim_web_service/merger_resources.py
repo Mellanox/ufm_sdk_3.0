@@ -336,7 +336,7 @@ class MergerVerifyNDT(Compare):
             next_report_number = len(data) + 1
         return next_report_number
 
-    def update_reports_list(self, scope, completed, ndt_file_name):
+    def update_reports_list(self, scope, ndt_file_name, completed):
         if completed:
             # no need to update report list
             return self.report_success()
