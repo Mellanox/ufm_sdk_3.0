@@ -37,7 +37,8 @@ from topo_diff.ndt_infra import MERGER_OPEN_SM_CONFIG_FILE,\
     NDT_FILE_STATE_UPDATED_NO_DISCOVER,NDT_FILE_STATE_UPDATED_DISABLED,\
     LAST_DEPLOYED_NDT_FILE_INFO, NDT_FILE_STATE_VERIFY_FILED, NDT_FILE_STATUS_VERIFICATION_FAILED
 from resources import ReportId
-from topo_diff.topo_diff import upload_topoconfig_file, SUCCESS_CODE, ACCEPTED_CODE
+from topo_diff.topo_diff import upload_topoconfig_file, get_cable_validation_report, \
+                                SUCCESS_CODE, ACCEPTED_CODE
 from topo_diff.ndt_infra import get_topoconfig_file_name
 
 # merge specific API
@@ -620,6 +621,62 @@ class MergerUpdateNDTConfig(UFMResource):
         else:
             return self.report_error(400, "Action parameters not received")
 
+class MergerCableValidationReport(UFMResource):
+    '''
+    proceed cable validation request - send request to cable validation plugin
+    and send respond back
+    '''
+    def __init__(self):
+        super().__init__()
+        self.cabel_validation_server_ip = True
+
+    def get(self):
+        '''
+        Get rest 
+        '''
+        if not self.cable_validation_server_addr:
+            error_status_code = 400
+            error_response = "Failure: Cable validation server address not defined in config file."
+            logging.error(error_response)
+            return self.report_error(error_status_code, error_response)
+        result, status_code = get_cable_validation_report(self.cable_validation_server_addr,
+                                           self.cable_validation_request_port,
+                                           self.cable_validation_username,
+                                           self.cable_validation_password)
+        if result:
+            return self.report_success(result)
+        else:
+            return self.report_error(status_code, "No cable validation report data retrieved")
+
+    def post(self):
+        '''
+        Post rest 
+        '''
+        return self.report_error(405, "Method is not allowed")
+
+
+class MergerCableValidationEnabled(UFMResource):
+    '''
+    If cable validation server address set
+    and send respond back
+    '''
+    def __init__(self):
+        super().__init__()
+
+    def get(self):
+        '''
+        Get rest 
+        '''
+        if self.cable_validation_server_addr:
+            return self.report_success()
+        else:
+            return self.report_error(400, "Cable validation not enabled.")
+
+    def post(self):
+        '''
+        Post rest 
+        '''
+        return self.report_error(405, "Method is not allowed")
 
 class MergerDeployConfig(UFMResource):
     def __init__(self):
