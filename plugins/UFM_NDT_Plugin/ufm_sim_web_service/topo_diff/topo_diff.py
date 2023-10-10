@@ -4,14 +4,21 @@ import csv
 import logging
 import json
 import re
+import pickle
 from enum import Enum
 
 # ATB
 from pprint import pprint
 
 SUCCESS_CODE = 200
+ERROR_CODE = 401
 ACCEPTED_CODE = 202
+REST_TIMEOUT = 300
 
+CABLE_VALIDATION_LOGIN_URL = "cablevalidation/login"
+CABLE_VALIDATION_REPORT_URL = "cablevalidation/report/validation"
+CABLE_VALIDATION_PROTOCOL = "https"
+COOKIE_FILE_PATH = "/tmp/cabel_validation_cookie"
 
 class PortType(Enum):
     SOURCE = 1
@@ -283,6 +290,58 @@ def get_request(host_ip, protocol, resource, headers):
     logging.info("UFM API Request Status: {}, URL: {}".format(response.status_code, request))
     return response
 
+
+def save_cable_validation_cookies(requests_cookiejar, cookie_filename):
+    '''
+    Save cookies to file
+    :param requests_cookiejar:
+    :param cookie_filename:
+    '''
+    with open(cookie_filename, 'wb') as f:
+        pickle.dump(requests_cookiejar, f)
+
+def load_cable_validation_cookies(cookie_filename):
+    '''
+    Load cookie from file
+    :param cookie_filename:
+    '''
+    with open(cookie_filename, 'rb') as f:
+        return pickle.load(f)
+
+def post_request_with_cookies(host_addr, port_num, username, password):
+    '''
+    Create cookie file and then use it for get request
+    :param host_addr:
+    :param port_num:
+    :param username:
+    :param password:
+    :param url:
+    '''
+    send_url = f"{CABLE_VALIDATION_PROTOCOL}://{host_addr}:{port_num}/{CABLE_VALIDATION_LOGIN_URL}"
+    send_payload = {'httpd_username': username, 'httpd_password': password}
+    try:
+        session = requests.Session()
+        rest_respond = session.post(send_url,data=send_payload,verify=False,
+                                            timeout=REST_TIMEOUT)
+        if rest_respond.status_code != SUCCESS_CODE:
+            logging.error(f"Cable validation login request failed: {send_url} return code {rest_respond.status_code}")
+            return None
+        save_cable_validation_cookies(session.cookies, COOKIE_FILE_PATH)
+    except Exception as e:
+        logging.error(f"Cable validation login request failed: {send_url} error: {e}")
+        return None
+    # send request for cable validation report
+    cv_report_url = f"{CABLE_VALIDATION_PROTOCOL}://{host_addr}:{port_num}/{CABLE_VALIDATION_REPORT_URL}"
+    try:
+        session = requests.Session()
+        cv_rest_respond = session.get(cv_report_url,
+                        cookies=load_cable_validation_cookies(COOKIE_FILE_PATH),
+                        verify=False,
+                        timeout=REST_TIMEOUT)
+    except Exception as e:
+        print(e)
+    return cv_rest_respond
+
 def post_request(host_ip, ufm_protocol, resource, headers, send_payload):
     '''
     Send put request to UFM
@@ -324,6 +383,28 @@ def upload_topoconfig_file(ufm_port, payload):
         return "Failed to upload topoconfig file to UFM", response.status_code
     else:
         return response.json, SUCCESS_CODE
+
+def get_cable_validation_report(cable_validation_server_address,
+                                cable_validation_request_port,
+                                cable_validation_username,
+                                cable_validation_password):
+    '''
+    Send request for cable validation report
+    :param cable_validation_server_address:
+    :param cable_validation_request_port:
+    :param cable_validation_username:
+    :param cable_validation_password:
+    '''
+    # 1 create cookies file 
+    # 2. using cookies file get cable validation report
+    response = post_request_with_cookies(cable_validation_server_address,
+                                cable_validation_request_port,
+                                cable_validation_username,
+                                cable_validation_password)
+    if not response:
+        return {}, ERROR_CODE
+    else:
+        return json.loads(response.text), SUCCESS_CODE
 
 def parse_ufm_port(link, port_type):
     if port_type == PortType.SOURCE:

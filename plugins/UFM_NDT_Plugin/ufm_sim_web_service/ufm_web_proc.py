@@ -33,7 +33,8 @@ from resources import UIFilesResources ,UFMResource, Compare, Ndts, Reports, Rep
 from merger_resources import MergerUploadNDT, MergerVerifyNDT, MergerDummyTest, \
     MergerVerifyNDTReports, MergerVerifyNDTReportId, MergerDeployNDTConfig, \
     MergerNdts, MergerDeleteNDT, MergerUpdateNDTConfig, MergerLatestDeployedNDT, \
-    MergerCreateNDTTopoconfig, MergerUpdDeployNDTConfig, MergerNdtsFile
+    MergerCreateNDTTopoconfig, MergerUpdDeployNDTConfig, MergerNdtsFile, \
+    MergerCableValidationReport, MergerCableValidationEnabled
 
 
 class UFMNDTWebServer:
@@ -74,6 +75,8 @@ class UFMNDTWebServer:
             MergerDeleteNDT: "/merger_delete_ndt",
             MergerLatestDeployedNDT: "/merger_deployed_ndt",
             MergerCreateNDTTopoconfig: "/merger_create_topoconfig",
+            MergerCableValidationReport: "/cable_valigation_report",
+            MergerCableValidationEnabled: "/cable_valigation_enabled",
             MergerDummyTest: "/merger_dymmy_test",
             # common
             Version: "/version",

@@ -91,6 +91,16 @@ class UFMResource(Resource):
                         "Merger", "port_validation_sleep_interval", fallback=5)
             self.port_validation_number_of_attempts = ndt_config.getint(
                         "Merger", "port_validation_number_of_attempts", fallback=5)
+            self.cable_validation_server_addr = ndt_config.get(
+                        "Merger", "cable_validation_server_addr", fallback=None)
+            self.cable_validation_request_port = ndt_config.getint(
+                        "Merger", "cable_validation_request_port", fallback=8633)
+            # username to connect cable validation server
+            self.cable_validation_username = ndt_config.get(
+                        "Merger", "cable_validation_username", fallback="admin")
+            # password to connect cable validation server
+            self.cable_validation_password = ndt_config.get(
+                        "Merger", "cable_validation_password", fallback="123456")
             if self.validation_enabled:
                 switch_patterns_str = ndt_config.get("Validation", "switch_patterns")
                 self.switch_patterns = switch_patterns_str.split(',')
