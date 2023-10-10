@@ -27,8 +27,8 @@ steps:
     containerSelector: "{name: 'plugin_worker'}"
     run: |
       cd plugins/
-      tar -zcvf SLURM-Integration_1_0_0_{BUILD_ID}.tgz SLURM-Integration
-      cp SLURM-Integration_1_0_0_{BUILD_ID}.tgz /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
+      tar -zcvf SLURM-Integration_1_0_0_${BUILD_ID}.tgz SLURM-Integration
+      cp SLURM-Integration_1_0_0_${BUILD_ID}.tgz /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
     parallel: true
 
 pipeline_start:
