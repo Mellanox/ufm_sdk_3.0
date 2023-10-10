@@ -11,15 +11,16 @@
 # This software product is governed by the End User License Agreement
 # provided with the software product.
 #
-import os
+import csv
+from datetime import datetime
+import json
 import logging
+import os
+import re
 import subprocess
 import time
-import json
-from datetime import datetime
-import csv
+
 import pandas as pd
-import re
 from topo_diff.topo_diff import parse_ndt_port, PortType, parse_ibdiagnet_dump
 
 
@@ -92,6 +93,7 @@ ib_port_state = {
     IB_PORT_PHYS_STATE_POLLING: BOUNDARY_PORT_STATE_DISABLED, # for old switches if disabled physical state could be polling (???)
     IB_PORT_PHYS_STATE_LINKUP: BOUNDARY_PORT_STATE_NO_DISCOVER,
     }
+PORT_GUID_MAX_LENGHT = 18
 
 def get_timestamp_str():
     return str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
@@ -168,6 +170,16 @@ def run_ibdiagnet_verification_command():
     '''
     status, cmd_output = execute_generic_command(IBDIAGNET_PORT_VERIFICATION_COMMAND)
     return status
+
+def normalize_port_guid_length(port_guid):
+    '''
+    Normalize port guid len - if need add prefix 0
+    :param port_guid:
+    '''
+    port_guid_len = len(port_guid)
+    if port_guid_len < PORT_GUID_MAX_LENGHT: # in case and we have guid that is short - need to add zero
+        port_guid = "".join(["0x", "%s"%("0"*(PORT_GUID_MAX_LENGHT-port_guid_len)), port_guid[2:]])
+    return port_guid
 
 def get_switch_port_label2port_num_map():
     '''
@@ -527,7 +539,11 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
             if not start_device in device_to_guid_map:
                 device_to_guid_map[start_device] = port_guid
             if not start_port.isnumeric():
-                port_key = "%s___%s" % (port_guid, start_port)
+                # port guid in this case could have wrong lenght, for some reason
+                # the guid in net_dump file does not have prefix 0, but in db_csv - has
+                # so need to normalize
+                key_port_guid = normalize_port_guid_length(port_guid)
+                port_key = "%s___%s" % (key_port_guid, start_port)
                 start_port_num = node_guid_lable2port_num.get(port_key, None)
                 if start_port_num:
                     start_port = str(start_port_num)
@@ -553,7 +569,8 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
                     continue
                 # in case peer port is not a number - get number from mapping
                 if not peer_port.isnumeric():
-                    port_key = "%s___%s" % (peer_port_guid, peer_port)
+                    key_port_guid = normalize_port_guid_length(peer_port_guid)
+                    port_key = "%s___%s" % (key_port_guid, peer_port)
                     peer_port_num = node_guid_lable2port_num.get(port_key, None)
                     if peer_port_num:
                         peer_port = str(peer_port_num)
