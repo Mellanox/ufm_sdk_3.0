@@ -52,6 +52,7 @@ class ConfigParser(object):
         if not args:
             args = ArgsParser.parse_args("UFM SDK", [])
         self.sdk_config = configparser.RawConfigParser()
+        self.sdk_config.optionxform = lambda option: option # this will preserve the case of the fields names
         if read_sdk_config:
             self.sdk_config.read(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),SDK_CONFIG_FILE))
         self.args = args
