@@ -211,10 +211,11 @@ class UFMTelemetryStreaming(Singleton):
         self.config_parser = config_parser
 
         self.last_streamed_data_sample_timestamp = None
-        self.port_id_keys = ['node_guid', 'port_guid', 'port_num', 'Port']
+        self.port_id_keys = ['node_guid', 'Node_GUID', 'port_guid', 'port_num', 'Port_Number', 'Port']
         self.port_constants_keys = {
             'timestamp': 'timestamp', 'source_id': 'source_id', 'tag': 'tag', 'node_guid': 'node_guid', 'port_guid': 'port_guid',
-            'port_num': 'port_num', 'node_description': 'node_description','m_label': 'm_label', 'status_message': 'status_message',
+            'port_num': 'port_num', 'node_description': 'node_description','m_label': 'm_label', 'port_label': 'port_label', 'status_message': 'status_message',
+            'Port_Number': 'Port_Number', 'Node_GUID': 'Node_GUID', 'Device_ID': 'Device_ID', 'device_id': 'Device_ID',
             'mvcr_sensor_name': 'mvcr_sensor_name', 'mtmp_sensor_name': 'mtmp_sensor_name',
             'switch_serial_number': 'switch_serial_number', 'switch_part_number': 'switch_part_number'
         }
