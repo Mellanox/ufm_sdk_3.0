@@ -123,7 +123,8 @@ class UfmSlurmBase():
                     logging.warning(f"Deleting sharp reservation failed, sharp reservation with app_id: "
                                     f"{job_id} is not found!")
                     break
-                # In case the deletion of sharp reservation failed.
+                # In case the deletion of sharp reservation failed. (
+                # for example: in case of timeout and any other bad request)
                 else:
                     logging.error(f"Deleting sharp reservation with app_id: {job_id} failed! "
                                   f"status_code: {response.status_code}, response: {response.text}")
@@ -142,10 +143,10 @@ class UfmSlurmBase():
                     # In case number of left_retries finished without succeeding to delete the sharp reservation, needs
                     # to exit the while loop after adding an appropriate error message to log file.
                     else:
-                        logging.error(f"No more retries. Giving up after {self.num_of_retries} retries to delete "
-                                      f"sharp reservation with app_id: {job_id}")
+                        logging.error(f"No more retries. Failed to delete sharp reservation {job_id} "
+                                      f"after {self.num_of_retries} attempts.")
                         break
-            except Exception as exc: # In case of getting any unexpected error, need to write it to log file.
+            except Exception as exc:  # In case of getting any unexpected error, need to write it to log file.
                 logging.error(f"Deleting sharp reservation with app_id {job_id} Failed! got exception ==> {exc}")
 
     def add_hosts_to_pkey(self, job_nodes):
