@@ -18,7 +18,7 @@ REST_TIMEOUT = 300
 CABLE_VALIDATION_LOGIN_URL = "cablevalidation/login"
 CABLE_VALIDATION_REPORT_URL = "cablevalidation/report/validation"
 CABLE_VALIDATION_PROTOCOL = "https"
-COOKIE_FILE_PATH = "/tmp/cabel_validation_cookie"
+COOKIE_FILE_PATH = "/tmp/cable_validation_cookie"
 
 class PortType(Enum):
     SOURCE = 1

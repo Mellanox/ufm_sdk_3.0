@@ -655,7 +655,6 @@ class MergerCableValidationReport(UFMResource):
     '''
     def __init__(self):
         super().__init__()
-        self.cabel_validation_server_ip = True
 
     def get(self):
         '''
@@ -673,7 +672,7 @@ class MergerCableValidationReport(UFMResource):
         if result:
             return self.report_success(result)
         else:
-            return self.report_error(status_code, "No cable validation report data retrieved")
+            return self.report_error(status_code, "No cable validation report data was retrieved")
 
     def post(self):
         '''
@@ -697,7 +696,7 @@ class MergerCableValidationEnabled(UFMResource):
         if self.cable_validation_server_addr:
             return self.report_success()
         else:
-            return self.report_error(400, "Cable validation not enabled.")
+            return self.report_error(400, "Cable validation is not enabled.")
 
     def post(self):
         '''

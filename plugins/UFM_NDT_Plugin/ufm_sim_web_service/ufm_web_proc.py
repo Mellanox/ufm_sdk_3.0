@@ -75,9 +75,9 @@ class UFMNDTWebServer:
             MergerDeleteNDT: "/merger_delete_ndt",
             MergerLatestDeployedNDT: "/merger_deployed_ndt",
             MergerCreateNDTTopoconfig: "/merger_create_topoconfig",
-            MergerCableValidationReport: "/cable_valigation_report",
-            MergerCableValidationEnabled: "/cable_valigation_enabled",
-            MergerDummyTest: "/merger_dymmy_test",
+            MergerCableValidationReport: "/cable_validation_report",
+            MergerCableValidationEnabled: "/cable_validation_enabled",
+            MergerDummyTest: "/merger_dummy_test",
             # common
             Version: "/version",
             Help: "/help",
