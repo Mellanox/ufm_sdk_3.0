@@ -108,12 +108,12 @@ class GeneralUtils:
         :return None: in case the parameter name was not found in ufm_slurm.conf file.
         """
         conf_file_path = self.getSlurmConfFile()
-        regex_pattern = r'^(?!#).*\b{}\b.*=.*$'.format(re.escape(conf_param_name))
+        regex_pattern = re.compile(f'^(?!#)\s*{conf_param_name}\s*=\s*(\S+)')
         with open(conf_file_path, 'r') as file:
             for line in file:
                 matched = re.match(regex_pattern, line)
                 if matched:
-                    conf_param_value = (line.split("="))[1].strip()
+                    conf_param_value = matched.group(1)
                     return conf_param_value
         return None
 
