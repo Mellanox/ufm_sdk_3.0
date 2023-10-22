@@ -15,6 +15,9 @@ import {NdtFilesViewComponent} from './components/ndt-files-view/ndt-files-view.
 import {TooltipModule} from "ngx-bootstrap/tooltip";
 import { NewMergerWizardComponent } from './components/new-merger-wizard/new-merger-wizard.component';
 import { ValidationReportsComponent } from './components/validation-reports/validation-reports.component';
+import {
+    CablesValidationReportModalModule
+} from "./components/cables-validation-report-modal/cables-validation-report-modal.module";
 
 
 @NgModule({
@@ -27,14 +30,15 @@ import { ValidationReportsComponent } from './components/validation-reports/vali
     NewMergerWizardComponent,
     ValidationReportsComponent
   ],
-  imports: [
-    CommonModule,
-    XWizardModule,
-    FileUploaderModule,
-    SmsPluginBaseComponentModule,
-    XCoreAgGridModule,
-    TooltipModule.forRoot()
-  ]
+    imports: [
+        CommonModule,
+        XWizardModule,
+        FileUploaderModule,
+        SmsPluginBaseComponentModule,
+        XCoreAgGridModule,
+        TooltipModule.forRoot(),
+        CablesValidationReportModalModule
+    ]
 })
 export class SubnetMergerViewModule {
 }

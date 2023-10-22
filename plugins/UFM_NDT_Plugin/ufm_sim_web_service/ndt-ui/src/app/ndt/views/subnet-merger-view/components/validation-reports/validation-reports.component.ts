@@ -24,6 +24,13 @@ export interface IValidationReport {
 export class ValidationReportsComponent implements OnInit, OnDestroy {
 
   /**
+   * @CHILDREN
+   */
+
+  @ViewChild('rightControlTemplate', {static: true}) rightControlTemplate;
+
+
+  /**
    * @OUTPUTS
    */
 
@@ -72,8 +79,10 @@ export class ValidationReportsComponent implements OnInit, OnDestroy {
       });
 
     Object.assign(this.tableOptions.extraOptions, {
-      [XCoreAgGridConstants.suppressColumnsFiltering]: true
-    });
+      [XCoreAgGridConstants.suppressColumnsFiltering]: true,
+      [XCoreAgGridConstants.rightAdditionalControlsTemplate]: this.rightControlTemplate
+    })
+    ;
 
   }
 
