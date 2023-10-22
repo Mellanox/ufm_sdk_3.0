@@ -1,0 +1,15 @@
+.expand-category-btn{
+  &:hover{
+    cursor: pointer;
+  }
+  i{
+    padding: 8px;
+  }
+}
+.no-issues-label {
+  color: var(--nvidia-background-color);
+}
+.center {
+  display: flex;
+  justify-content: center;
+}

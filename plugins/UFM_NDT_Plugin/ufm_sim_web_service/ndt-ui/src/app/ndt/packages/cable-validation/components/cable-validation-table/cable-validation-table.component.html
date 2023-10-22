@@ -1,0 +1,57 @@
+<app-x-core-ag-grid
+  #issuesTable
+  *ngIf="report && report.issues?.length; else noAvailableReportsTemplate"
+  [options]="tableOptions"
+  [rowData]="report?.issues || []">
+</app-x-core-ag-grid>
+
+<ng-template #noAvailableReportsTemplate>
+  <ng-container *ngIf="!isLoading; else spinner">
+    <div class="center">
+      <ng-container *ngIf="report && !report.issues?.length else noReportsLabel">
+        <span class="no-issues-label">
+          Validation report completed successfully, no issues were found.
+          <ng-template [ngTemplateOutlet]="inlineRefresh"></ng-template>
+        </span>
+      </ng-container>
+      <ng-template #noReportsLabel>
+        No Available Reports.
+        <ng-template [ngTemplateOutlet]="inlineRefresh"></ng-template>
+      </ng-template>
+      <ng-template #inlineRefresh>
+        <a style="text-decoration: underline;"
+           (click)="loadData()">
+          Click
+        </a> to refresh.
+      </ng-template>
+    </div>
+  </ng-container>
+  <ng-template #spinner>
+    <i class="fa fa-spinner center"></i>
+  </ng-template>
+</ng-template>
+
+<ng-template let-data #nodeDescTemplate>
+  <div *ngIf="data.col?.length"
+       class="expand-category-btn"
+       (click)="expandCollapseRow(data.node)">
+    <i class="fa" [ngClass]="{'fa-angle-right': data.row.isCollapsed, 'fa-angle-down': !data.row.isCollapsed}"
+       aria-hidden="true"></i>
+    <span>{{data.col}}</span>
+  </div>
+</ng-template>
+
+<ng-template #issueTemplate let-data>
+
+  <span [ngStyle]="{color: issuesColor[data.col]}">
+    {{data.col}}
+  </span>
+
+</ng-template>
+
+<ng-template #rightControlButtonsTmp>
+  <button class="pull-right btn btn-primary"
+          (click)="loadData(true)">
+    <i class="fa fa-sync" [class.fa-spin]="isLoading"></i>
+  </button>
+</ng-template>

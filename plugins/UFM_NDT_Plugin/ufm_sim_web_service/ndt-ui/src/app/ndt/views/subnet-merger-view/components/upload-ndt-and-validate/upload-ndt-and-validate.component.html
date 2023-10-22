@@ -6,13 +6,20 @@
   </div>
 
   <div class="col-sm-6">
-    <button class="btn btn-primary validation-button"
-            (click)="onValidateClick()"
-            [disabled]="!validateAvailable">
-      <i *ngIf="validationIsRunning" class="fa fa fa-spinner"></i>
-      Validate
-    </button>
+    <div class="validation-button-wrapper">
+      <button class="btn btn-primary validation-button"
+              (click)="onValidateClick()"
+              [disabled]="!validateAvailable">
+        <i *ngIf="validationIsRunning" class="fa fa fa-spinner"></i>
+        Validate
+      </button>
+    </div>
+
+    <div class="validation-button-wrapper">
+      <app-cables-validation-report-modal></app-cables-validation-report-modal>
+    </div>
   </div>
+
 
   <div class="col-sm-12" style="margin-top: 12px">
     <app-validation-result

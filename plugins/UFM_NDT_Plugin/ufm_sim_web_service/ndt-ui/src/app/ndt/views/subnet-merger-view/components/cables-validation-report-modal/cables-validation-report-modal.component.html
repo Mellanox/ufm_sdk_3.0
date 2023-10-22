@@ -1,0 +1,23 @@
+<button
+  [disabled]="!isCableValidationReportAvailable"
+  class="btn btn-primary"
+  [tooltip]="isCableValidationReportAvailable ? '' : 'Cables Validation Report is not available'"
+  (click)="openModal(template)">
+  Cables Validation Report
+</button>
+
+<ng-template #template>
+  <div class="modal-header">
+    <div class="pull-left">
+      <h4 class="modal-title pull-left">
+        Cables Validation Report
+      </h4>
+    </div>
+    <button type="button" class="btn-close close pull-right" aria-label="Close" (click)="modalRef?.hide()">
+      <span aria-hidden="true" class="visually-hidden">&times;</span>
+    </button>
+  </div>
+  <div class="modal-body">
+    <app-cable-validation-table #cvTableComponent></app-cable-validation-table>
+  </div>
+</ng-template>
