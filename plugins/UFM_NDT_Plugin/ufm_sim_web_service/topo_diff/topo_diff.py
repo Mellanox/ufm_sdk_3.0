@@ -18,6 +18,7 @@ REST_TIMEOUT = 300
 CABLE_VALIDATION_LOGIN_URL = "cablevalidation/login"
 CABLE_VALIDATION_REPORT_URL = "cablevalidation/report/validation"
 CABLE_VALIDATION_PROTOCOL = "https"
+CABLE_VALIDATION_LOCAL_PORT_NUMBER = 8633 #
 COOKIE_FILE_PATH = "/tmp/cable_validation_cookie"
 
 class PortType(Enum):
@@ -383,6 +384,21 @@ def upload_topoconfig_file(ufm_port, payload):
         return "Failed to upload topoconfig file to UFM", response.status_code
     else:
         return response.json, SUCCESS_CODE
+
+def get_local_cable_validation_report(ufm_port):
+    '''
+    Send request for cable validation report locally
+    '''
+    ufm_host = "127.0.0.1:{}".format(ufm_port)
+    ufm_protocol = "http"
+    resource = "/plugin/cablevalidation/cablevalidation/report/validation"
+    headers = {"X-Remote-User": "ufmsystem"}
+    response = get_request(ufm_host, ufm_protocol, resource, headers)
+    if not response:
+        return {}, ERROR_CODE
+    else:
+        return json.loads(response.text), SUCCESS_CODE
+
 
 def get_cable_validation_report(cable_validation_server_address,
                                 cable_validation_request_port,

@@ -34,7 +34,8 @@ from merger_resources import MergerUploadNDT, MergerVerifyNDT, MergerDummyTest, 
     MergerVerifyNDTReports, MergerVerifyNDTReportId, MergerDeployNDTConfig, \
     MergerNdts, MergerDeleteNDT, MergerUpdateNDTConfig, MergerLatestDeployedNDT, \
     MergerCreateNDTTopoconfig, MergerUpdDeployNDTConfig, MergerNdtsFile, \
-    MergerCableValidationReport, MergerCableValidationEnabled
+    MergerCableValidationReport, MergerCableValidationEnabled, \
+    MergerCableValidationUpdCred, MergerCableValidationGetStatus
 
 
 class UFMNDTWebServer:
@@ -77,6 +78,8 @@ class UFMNDTWebServer:
             MergerCreateNDTTopoconfig: "/merger_create_topoconfig",
             MergerCableValidationReport: "/cable_validation_report",
             MergerCableValidationEnabled: "/cable_validation_enabled",
+            MergerCableValidationUpdCred: "/cable_validation_update_cred",
+            MergerCableValidationGetStatus: "/cable_validation_get_status",
             MergerDummyTest: "/merger_dummy_test",
             # common
             Version: "/version",

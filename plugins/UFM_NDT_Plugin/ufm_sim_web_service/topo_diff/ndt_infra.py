@@ -19,6 +19,7 @@ import os
 import re
 import subprocess
 import time
+import pyDes
 
 import pandas as pd
 from topo_diff.topo_diff import parse_ndt_port, PortType, parse_ibdiagnet_dump
@@ -94,6 +95,47 @@ ib_port_state = {
     IB_PORT_PHYS_STATE_LINKUP: BOUNDARY_PORT_STATE_NO_DISCOVER,
     }
 PORT_GUID_MAX_LENGHT = 18
+
+UPDATE_CONFIG_CMD = "sed -i -e 's/^%s\s*=\s*.*/%s=%s/' %s"
+LOCAL_HOST_VALUES = ["localhost", "127.0.0.1"]
+
+# definition of DES algorithm key.
+tree_list = [
+0x3c,
+0x53,
+0x74,
+0x61,
+0x72,
+0x74,
+0x50,
+0x79,
+0x63,
+0x72,
+0x79,
+0x70,
+0x74,
+0x6f,
+0x4b,
+0x65, ]
+
+# definition of encryption/decrytpion class
+des = pyDes.triple_des("".join([chr(ch) for ch in tree_list]))
+
+def encrypt(val):
+    """
+    Encrypt value using DES-EDE3 algorithm.
+    @param val  string value to encrypt
+    @return    encrypted value
+    """
+    return des.encrypt(val, padmode=pyDes.PAD_PKCS5)
+
+def decrypt(val):
+    """
+    Decrypt value using DES-EDE3 algorithm.
+    @param val    encrypted value
+    @return    decrypted value
+    """
+    return des.decrypt(val, padmode=pyDes.PAD_PKCS5)
 
 def get_timestamp_str():
     return str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
@@ -701,4 +743,93 @@ def verify_fix_json_list_file(json_file_to_check):
                 # did not help ....
                 logging.error("Failed to fix json file %s (]] issue)." % json_file_to_check)
                 return False
+    return True
+
+def update_cv_credentials(cred_file_path, cv_address, cv_username, cv_password):
+    '''
+    Save credentials encrypted
+    :param cred_file_path
+    :param cv_username:
+    :param cv_password:
+    '''
+    enc_cv_username = encrypt(cv_username)
+    enc_cv_password = encrypt(cv_password)
+    # write decrypted values to the file
+    store_credentials = False
+    try:
+        f=open(cred_file_path,'wb')
+        f.write(enc_cv_username)
+        f.write(b'\n')
+        f.write(enc_cv_password)
+        f.write(b'\n')
+        store_credentials = True
+    except Exception as e:
+        logging.error("Failed to save encrypted credentials to file %s: $s." % (cred_file_path, e))
+    finally:
+        f.close()
+    return store_credentials
+
+def read_cv_credentials(cred_file_path):
+    '''
+    Save credentials encrypted
+    :param cv_username:
+    :param cv_password:
+    '''
+    # read values from file
+    cv_username = None
+    cv_password = None
+    try:
+        f=open(cred_file_path,'rb')
+        credentials = f.readlines()
+        # should be two lines - username and passsword
+        if len(credentials) != 2:
+            logging.error("Failed to read credentials from file %s." % cred_file_path)
+        else:
+            enc_cv_username = credentials[0].strip()
+            enc_cv_password = credentials[1].strip()
+            # decrypt values
+            cv_username = (decrypt(enc_cv_username)).decode('utf-8')
+            cv_password = (decrypt(enc_cv_password)).decode('utf-8')
+    except Exception as e:
+        logging.error("Failed to read credentials from file %s: %s." % (cred_file_path, e))
+    finally:
+        f.close()
+    return cv_username, cv_password
+
+def update_cv_host_in_config_file(config_file_name, cv_address, cv_port):
+    '''
+    Update config file with cv server addres and port (if need port) - if port
+    different from localhost or 127.0.0.1
+    :param config_file_name
+    :param cv_address:
+    :param cv_port:
+    '''
+    # use bash command to update config file - not to use config user
+    # sed -i -e 's/^cable_validation_server_addr\s*=\s*.*/cable_validation_server_addr=127.0.0.1/' /config/ndt.conf
+    # sed -i -e 's/^cable_validation_request_port\s*=\s*.*/cable_validation_request_port=8633/' /config/ndt.conf
+    if not os.path.isfile(config_file_name):
+        logging.error("Config file %s not exist. Failed to update with CV host name and port." % config_file_name)
+        return False
+    if cv_address:
+        upd_cmd = UPDATE_CONFIG_CMD % ("cable_validation_server_addr",
+                                       "cable_validation_server_addr",
+                                       cv_address,config_file_name )
+    else:
+        logging.error("CV server address not defined. Failed to update configuration with CV host name and port.")
+        return False
+    status, err_msg = execute_generic_command(upd_cmd)
+    if not status:
+        logging.error("Failed to update %s file with value for CV host name: %s" % err_msg)
+        return False
+    # port need to update only if received
+    if cv_port and cv_port.isdigit():
+        upd_cmd = UPDATE_CONFIG_CMD % ("cable_validation_request_port",
+                                       "cable_validation_request_port",
+                                       cv_port, config_file_name)
+        status, err_msg = execute_generic_command(upd_cmd)
+        if not status:
+            logging.error("Failed to update %s file with value for CV port number: %s" % err_msg)
+            return False
+    else:
+        logging.error("CV port number not updated. Will be used default port number")
     return True

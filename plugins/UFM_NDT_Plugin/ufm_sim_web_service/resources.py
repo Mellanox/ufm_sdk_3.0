@@ -57,6 +57,7 @@ class UFMResource(Resource):
         self.ndts_list_file = os.path.join(self.ndts_dir, "ndts_list.json")
         self.reports_merger_list_file = os.path.join(self.reports_merger_dir, "merger_reports_list.json")
         self.ndts_merger_list_file = os.path.join(self.ndts_merger_dir, "ndts_list.json")
+        self.cv_credentials_path = "/config/cv_credentials"
         self.success = 200
         self.reports_to_save = 10
         self.port_validation_sleep_interval = 5
@@ -95,12 +96,6 @@ class UFMResource(Resource):
                         "Merger", "cable_validation_server_addr", fallback=None)
             self.cable_validation_request_port = ndt_config.getint(
                         "Merger", "cable_validation_request_port", fallback=8633)
-            # username to connect cable validation server
-            self.cable_validation_username = ndt_config.get(
-                        "Merger", "cable_validation_username", fallback="admin")
-            # password to connect cable validation server
-            self.cable_validation_password = ndt_config.get(
-                        "Merger", "cable_validation_password", fallback="123456")
             if self.validation_enabled:
                 switch_patterns_str = ndt_config.get("Validation", "switch_patterns")
                 self.switch_patterns = switch_patterns_str.split(',')
