@@ -31,13 +31,15 @@ from topo_diff.topo_diff import parse_ibdiagnet_dump,\
 from topo_diff.ndt_infra import MERGER_OPEN_SM_CONFIG_FILE,\
     create_topoconfig_file, update_boundary_port_state_in_topoconfig_file,\
     update_last_deployed_ndt, check_duplicated_guids, create_raw_topoconfig_file, \
-    BOUNDARY_PORTS_STATES, IBDIAGNET_OUT_DIRECTORY,\
+    update_cv_credentials, read_cv_credentials, update_cv_host_in_config_file, \
+    BOUNDARY_PORTS_STATES, IBDIAGNET_OUT_DIRECTORY, \
     IBDIAGNET_LOG_FILE, NDT_FILE_STATE_VERIFIED, NDT_FILE_STATE_DEPLOYED,\
     NDT_FILE_STATE_UPDATED, BOUNDARY_PORT_STATE_DISABLED, BOUNDARY_PORT_STATE_NO_DISCOVER,\
-    NDT_FILE_STATE_UPDATED_NO_DISCOVER,NDT_FILE_STATE_UPDATED_DISABLED,\
+    NDT_FILE_STATE_UPDATED_NO_DISCOVER,NDT_FILE_STATE_UPDATED_DISABLED,LOCAL_HOST_VALUES, \
     LAST_DEPLOYED_NDT_FILE_INFO, NDT_FILE_STATE_VERIFY_FILED, NDT_FILE_STATUS_VERIFICATION_FAILED
 from resources import ReportId
 from topo_diff.topo_diff import upload_topoconfig_file, get_cable_validation_report, \
+                                get_local_cable_validation_report, \
                                 SUCCESS_CODE, ACCEPTED_CODE
 from topo_diff.ndt_infra import get_topoconfig_file_name
 
@@ -658,17 +660,25 @@ class MergerCableValidationReport(UFMResource):
 
     def get(self):
         '''
-        Get rest 
+        Get cable validation report
         '''
         if not self.cable_validation_server_addr:
             error_status_code = 400
             error_response = "Failure: Cable validation server address not defined in config file."
             logging.error(error_response)
             return self.report_error(error_status_code, error_response)
-        result, status_code = get_cable_validation_report(self.cable_validation_server_addr,
+        # check if local request or remote and read credentials from config if need...
+        if self.cable_validation_server_addr in LOCAL_HOST_VALUES:
+            # local request - no need credentials
+            result, status_code = get_local_cable_validation_report(self.ufm_port)
+        else:
+            cv_username, cv_password = read_cv_credentials(self.cv_credentials_path)
+            if cv_username and cv_password:
+                result, status_code = get_cable_validation_report(self.cable_validation_server_addr,
                                            self.cable_validation_request_port,
-                                           self.cable_validation_username,
-                                           self.cable_validation_password)
+                                           cv_username, cv_password)
+            else:
+                return self.report_error(status_code, "Failed to read CV credentials.")
         if result:
             return self.report_success(result)
         else:
@@ -702,6 +712,128 @@ class MergerCableValidationEnabled(UFMResource):
         '''
         Post rest 
         '''
+        return self.report_error(405, "Method is not allowed")
+
+class MergerCableValidationUpdCred(UFMResource):
+    '''
+    request to update credentials for cable validation connectivity
+    '''
+    def __init__(self):
+        super().__init__()
+
+    def get(self):
+        return self.report_error(405, "Method is not allowed")
+
+    def parse_request(self, json_data):
+        logging.debug("Parsing JSON request: {}".format(json_data))
+        try:
+            self.expected_keys = ["address", "port","username","password"]
+            response, status_code = self.check_request_keys(json_data)
+            if status_code != self.success:
+                return self.report_error(status_code, response)
+        except TypeError:
+            return self.report_error(400, "Failed to verify connectivity parameters")
+        return self.report_success()
+
+    def post(self):
+        '''
+        Post rest - receive connectivity parameters and update in backend
+        {
+          "address": '<IP | Hostname>',
+          "port": '8633',
+          "username": "username",
+          "password": "password"
+        }
+        '''
+        if request.json:
+            json_data = request.get_json(force=True)
+            response, status_code = self.parse_request(json_data)
+            if status_code != self.success:
+                return response, status_code
+            cv_address = json_data["address"]
+            cv_port = json_data["port"]
+            cv_username = json_data["username"]
+            cv_password = json_data["password"]
+            if cv_address in LOCAL_HOST_VALUES: # localhost - cv plugin is running on localhost
+                # no need username, password and port
+                cv_port = None
+                cv_username = None
+                cv_password = None
+                # No need to update credentials
+            else:
+                if not update_cv_credentials(self.cv_credentials_path, cv_address,
+                                                      cv_username, cv_password):
+                    return self.report_error(400, "Failed to update credentials file")
+            try:
+                update_cv_host_in_config_file(UFMResource.config_file_name,
+                                                            cv_address, cv_port)
+            except Exception as e:
+                logging.error("Failed to update config file with cv host name %s: %s" % (cv_address, e))
+                return self.report_error(400, "Failed to update config file with cv host name")
+            return self.report_success()
+        else:
+            return self.report_error(400, "Action parameters not received")
+
+class MergerCableValidationGetStatus(UFMResource):
+    '''
+    Return cable validation status:
+    if it is running locally or on remote server and
+    if on remote ser5ver - if it has credentials and other stuff for connection
+    establishment
+    '''
+    def __init__(self):
+        super().__init__()
+
+    def get(self):
+        '''
+        Send respond with connectivity parameters
+        {
+        "mode": 'remote',
+        "status": 'connected'  OR 'disconnected: with suitable error'
+        "address": '<IP | Hostname>',
+        "port": '8633',
+        "username": "username",
+        "password": "password"
+        }
+        :param ndt_file_name:
+        '''
+        logging.info("GET /plugin/ndt/cable_validation_get_status")
+        # read credentials and info from credential file
+        # read credentials
+        # check config
+        responce_dict = {}
+        if not self.cable_validation_server_addr: # no cv server defined
+            responce_dict["mode"] = "NA"
+            responce_dict["status"] = "disconnected"
+            responce_dict["address"] = "NA"
+            responce_dict["port"] = "NA"
+            responce_dict["username"] = "NA"
+            responce_dict["password"] = "NA"
+        elif self.cable_validation_server_addr in LOCAL_HOST_VALUES:
+            responce_dict["mode"] = "local"
+            responce_dict["status"] = "connected"
+            responce_dict["address"] = "NA"
+            responce_dict["port"] = "NA"
+            responce_dict["username"] = "NA"
+            responce_dict["password"] = "NA"
+            return self.report_success(responce_dict)
+        else:
+            responce_dict["mode"] = "remote"
+            responce_dict["status"] = "connected"
+            responce_dict["address"] = self.cable_validation_server_addr
+            responce_dict["port"] = self.cable_validation_request_port
+            cv_username, cv_password = read_cv_credentials(self.cv_credentials_path)
+            if cv_username and cv_password:
+                responce_dict["username"] = cv_username
+                responce_dict["password"] = cv_password
+            else:
+                # failed to read 
+                error_message = "Failed to read credentials from file %s" % self.cv_credentials_path
+                logging.error(error_message)
+                return self.report_error(400, {error_message})
+        return self.report_success(responce_dict)
+
+    def post(self):
         return self.report_error(405, "Method is not allowed")
 
 class MergerDeployConfig(UFMResource):
