@@ -1,13 +1,13 @@
 import sys
-from utils.logger import Logger
+from utils.logger import Logger, LOG_LEVELS
 
 class ExceptionHandlerConstants:
     Supported_In_Config_File = 'you can add them to config file'
 
 class ExceptionHandler(object):
     @staticmethod
-    def handel_exception(exception_msg , exist=True):
-        Logger.log_message(exception_msg)
+    def handel_exception(exception_msg , exist=True, log_level = LOG_LEVELS.ERROR):
+        Logger.log_message(exception_msg, log_level=log_level)
         if exist:
             sys.exit(1)
 
