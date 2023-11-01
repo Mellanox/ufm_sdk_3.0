@@ -31,11 +31,11 @@ class WrongUFMProtocol(Exception):
     pass
 
 class ApiErrorMessages(object):
-    Missing_UFM_Credentials = "Missing UFM Authentication token or username/password"
-    Missing_UFM_Host = "Missing ufm host"
-    Wrong_UFM_Protocol = "Invalid protocol, please enter a valid value http or https"
-    Invalid_UFM_Host = "Connection Error, please enter a valid ufm_host"
-    Invalid_UFM_Authentication = "Authentication Error, wrong credentials token or username/password"
+    Missing_UFM_Credentials = "Missing UFM Authentication token or username/password for host %s"
+    Missing_UFM_Host = "Missing ufm host: %s"
+    Wrong_UFM_Protocol = "Invalid protocol, please enter a valid value http or https for host %s"
+    Invalid_UFM_Host = "Connection Error, please enter a valid ufm_host: %s"
+    Invalid_UFM_Authentication = "Authentication Error, wrong credentials token or username/password for host %s"
     UFM_Forbidden = "you don't have permission to access %s"
 
 
@@ -45,6 +45,7 @@ class UfmRestConstants(object):
     # TODO:: remove .get("data") after removing the pagination and fix the bug
     UFM_API_LINKS = 'resources/links?page_number=1&rpp=1000000000'
     UFM_API_PORTS = 'resources/ports'
+    UFM_API_TOKEN = 'app/tokens'
 
 
 class HTTPMethods(Enum):
@@ -87,7 +88,8 @@ class UfmRestClient(object):
         url = self.ws_protocol + "://" + self.host + "/" + self.api_prefix + "/" + api_url
         return url, headers, auth
 
-    def send_request(self,url,method=HTTPMethods.GET,payload={}, files={}):
+    def send_request(self,url,method=HTTPMethods.GET,payload={}, files={}, exit_on_failure=True):
+        response = None
         try:
             url, headers, auth = self._get_ufm_request_conf(url)
             logging.info(f'Send UFM API Request, Method: {method} ,URL: {url}')
@@ -100,22 +102,25 @@ class UfmRestClient(object):
             elif method == HTTPMethods.DELETE:
                 response = requests.delete(url, json=payload, verify=False, headers=headers, auth=auth)
             logging.info("UFM API Request Status [" + str(response.status_code) + "], URL " + url)
-            if response.raise_for_status():
-                Logger.log_message(response.raise_for_status())
+            response.raise_for_status()
             return response
         except MissingUFMCredentials as M:
-            ExceptionHandler.handel_exception(ApiErrorMessages.Missing_UFM_Credentials)
+            ExceptionHandler.handel_exception(ApiErrorMessages.Missing_UFM_Credentials % self.host, exist=exit_on_failure)
         except WrongUFMProtocol as W:
-            ExceptionHandler.handel_exception(ApiErrorMessages.Wrong_UFM_Protocol)
+            ExceptionHandler.handel_exception(ApiErrorMessages.Wrong_UFM_Protocol % self.host, exist=exit_on_failure)
         except ConnectionError as e:
-            ExceptionHandler.handel_exception(ApiErrorMessages.Invalid_UFM_Host)
+            ExceptionHandler.handel_exception(ApiErrorMessages.Invalid_UFM_Host % self.host, exist=exit_on_failure)
         except Exception as e:
             if response.status_code == HTTPStatus.UNAUTHORIZED:
-                ExceptionHandler.handel_exception(ApiErrorMessages.Invalid_UFM_Authentication)
+                ExceptionHandler.handel_exception(ApiErrorMessages.Invalid_UFM_Authentication % self.host, exist=exit_on_failure)
             if response.status_code == HTTPStatus.FORBIDDEN:
                 ExceptionHandler.handel_exception(ApiErrorMessages.UFM_Forbidden % url)
             else:
-                ExceptionHandler.handel_exception(f"{e}\n{response.text}")
+                err = f'{e}'
+                if response:
+                    err += f'\n{response.text}'
+                ExceptionHandler.handel_exception(err, exist=exit_on_failure)
+
     def get_systems(self):
         response = self.send_request(UfmRestConstants.UFM_API_SYSTEMS)
         return response.json()
@@ -130,3 +135,10 @@ class UfmRestClient(object):
         response = self.send_request(UfmRestConstants.UFM_API_PORTS)
         return response.json()
 
+    def generate_token(self):
+        response = self.send_request(UfmRestConstants.UFM_API_TOKEN,
+                                     HTTPMethods.POST,
+                                     exit_on_failure=False)
+        if response:
+            return response.json().get("access_token")
+        return None
