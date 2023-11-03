@@ -1,0 +1,126 @@
+#
+# Topology file: generated on Sun Feb 21 16:30:17 2021
+#
+# Initiated from node 0c42a103008b40d0 port 0c42a103008b40d0
+
+vendid=0x2c9
+devid=0xd2f0
+sysimgguid=0xb8599f0300fc6de4
+switchguid=0xb8599f0300fc6de4(b8599f0300fc6de4)
+Switch	41 "S-b8599f0300fc6de4"		# "MF0;r-ufm-sw95:MQM8700/U1" enhanced port 0 lid 13 lmc 0
+[3]	"S-0002c903007b78b0"[1]		# "MF0;r-ufm-sw226:SX6036/U1" lid 19 4xFDR
+[23]	"H-ec0d9a03007d7d0a"[1](ec0d9a03007d7d0a) 		# "r-dcs96 HCA-1" lid 9 4xEDR
+[24]	"H-ec0d9a03007d7d0b"[1](ec0d9a03007d7d0b) 		# "r-dcs96 HCA-2" lid 28 4xEDR
+[41]	"H-b8599f0300fc6dec"[1](b8599f0300fc6dec) 		# "Mellanox Technologies Aggregation Node" lid 14 4xHDR
+
+vendid=0x2c9
+devid=0xc738
+sysimgguid=0x2c903007b78b0
+switchguid=0x2c903007b78b0(2c903007b78b0)
+Switch	36 "S-0002c903007b78b0"		# "MF0;r-ufm-sw226:SX6036/U1" enhanced port 0 lid 19 lmc 0
+[1]	"S-b8599f0300fc6de4"[3]		# "MF0;r-ufm-sw95:MQM8700/U1" lid 13 4xFDR
+[3]	"H-e41d2d03005cf34c"[1](e41d2d03005cf34c) 		# "r-dmz-ufm128 HCA-1" lid 3 4xFDR
+[5]	"H-e41d2d03005cf34d"[1](e41d2d03005cf34d) 		# "r-dmz-ufm128 HCA-2" lid 4 4xFDR
+[8]	"H-0c42a103008b40d0"[1](c42a103008b40d0) 		# "r-dmz-ufm134 HCA-1" lid 101 4xFDR
+[9]	"H-0c42a103008b40d1"[1](c42a103008b40d1) 		# "r-dmz-ufm134 HCA-2" lid 5 4xFDR
+[19]	"H-b8599f03000a77d0"[1](b8599f03000a77d0) 		# "r-dcs96 HCA-3" lid 26 4xFDR
+[20]	"H-b8599f03000a77d1"[1](b8599f03000a77d1) 		# "r-dcs96 HCA-4" lid 29 4xFDR
+[25]	"S-0002c903007b78b0"[26]		# "MF0;r-ufm-sw226:SX6036/U1" lid 19 4xFDR10
+[26]	"S-0002c903007b78b0"[25]		# "MF0;r-ufm-sw226:SX6036/U1" lid 19 4xFDR10
+[28]	"S-0002c903007b78b0"[29]		# "MF0;r-ufm-sw226:SX6036/U1" lid 19 4xFDR
+[29]	"S-0002c903007b78b0"[28]		# "MF0;r-ufm-sw226:SX6036/U1" lid 19 4xFDR
+[30]	"H-248a0703002e61db"[1](248a0703002e61db) 		# "r-dmz-ufm137 HCA-2" lid 12 4xFDR
+[31]	"H-248a0703002e61da"[1](248a0703002e61da) 		# "r-dmz-ufm137 HCA-1" lid 11 4xFDR
+[33]	"H-0c42a103008b3bd0"[1](c42a103008b3bd0) 		# "r-dmz-ufm131 HCA-1" lid 1 4xFDR
+[34]	"H-0c42a103008b3bd1"[1](c42a103008b3bd1) 		# "r-dmz-ufm131 HCA-2" lid 2 4xFDR
+
+vendid=0x2c9
+devid=0x1017
+sysimgguid=0xec0d9a03007d7d0a
+caguid=0xec0d9a03007d7d0b
+Ca	1 "H-ec0d9a03007d7d0b"		# "r-dcs96 HCA-2"
+[1](ec0d9a03007d7d0b) 	"S-b8599f0300fc6de4"[24]		# lid 28 lmc 0 "MF0;r-ufm-sw95:MQM8700/U1" lid 13 4xEDR
+
+vendid=0x2c9
+devid=0xcf09
+sysimgguid=0xb8599f0300fc6de4
+caguid=0xb8599f0300fc6dec
+Ca	1 "H-b8599f0300fc6dec"		# "Mellanox Technologies Aggregation Node"
+[1](b8599f0300fc6dec) 	"S-b8599f0300fc6de4"[41]		# lid 14 lmc 0 "MF0;r-ufm-sw95:MQM8700/U1" lid 13 4xHDR
+
+vendid=0x2c9
+devid=0x1017
+sysimgguid=0xec0d9a03007d7d0a
+caguid=0xec0d9a03007d7d0a
+Ca	1 "H-ec0d9a03007d7d0a"		# "r-dcs96 HCA-1"
+[1](ec0d9a03007d7d0a) 	"S-b8599f0300fc6de4"[23]		# lid 9 lmc 0 "MF0;r-ufm-sw95:MQM8700/U1" lid 13 4xEDR
+
+vendid=0x2c9
+devid=0x101b
+sysimgguid=0xc42a103008b3bd0
+caguid=0xc42a103008b3bd1
+Ca	1 "H-0c42a103008b3bd1"		# "r-dmz-ufm131 HCA-2"
+[1](c42a103008b3bd1) 	"S-0002c903007b78b0"[34]		# lid 2 lmc 0 "MF0;r-ufm-sw226:SX6036/U1" lid 19 4xFDR
+
+vendid=0x2c9
+devid=0x101b
+sysimgguid=0xc42a103008b3bd0
+caguid=0xc42a103008b3bd0
+Ca	1 "H-0c42a103008b3bd0"		# "r-dmz-ufm131 HCA-1"
+[1](c42a103008b3bd0) 	"S-0002c903007b78b0"[33]		# lid 1 lmc 0 "MF0;r-ufm-sw226:SX6036/U1" lid 19 4xFDR
+
+vendid=0x2c9
+devid=0x1013
+sysimgguid=0x248a0703002e61da
+caguid=0x248a0703002e61da
+Ca	1 "H-248a0703002e61da"		# "r-dmz-ufm137 HCA-1"
+[1](248a0703002e61da) 	"S-0002c903007b78b0"[31]		# lid 11 lmc 0 "MF0;r-ufm-sw226:SX6036/U1" lid 19 4xFDR
+
+vendid=0x2c9
+devid=0x1013
+sysimgguid=0x248a0703002e61da
+caguid=0x248a0703002e61db
+Ca	1 "H-248a0703002e61db"		# "r-dmz-ufm137 HCA-2"
+[1](248a0703002e61db) 	"S-0002c903007b78b0"[30]		# lid 12 lmc 0 "MF0;r-ufm-sw226:SX6036/U1" lid 19 4xFDR
+
+vendid=0x2c9
+devid=0x1017
+sysimgguid=0xb8599f03000a77d0
+caguid=0xb8599f03000a77d1
+Ca	1 "H-b8599f03000a77d1"		# "r-dcs96 HCA-4"
+[1](b8599f03000a77d1) 	"S-0002c903007b78b0"[20]		# lid 29 lmc 0 "MF0;r-ufm-sw226:SX6036/U1" lid 19 4xFDR
+
+vendid=0x2c9
+devid=0x1017
+sysimgguid=0xb8599f03000a77d0
+caguid=0xb8599f03000a77d0
+Ca	1 "H-b8599f03000a77d0"		# "r-dcs96 HCA-3"
+[1](b8599f03000a77d0) 	"S-0002c903007b78b0"[19]		# lid 26 lmc 0 "MF0;r-ufm-sw226:SX6036/U1" lid 19 4xFDR
+
+vendid=0x2c9
+devid=0x101b
+sysimgguid=0xc42a103008b40d0
+caguid=0xc42a103008b40d1
+Ca	1 "H-0c42a103008b40d1"		# "r-dmz-ufm134 HCA-2"
+[1](c42a103008b40d1) 	"S-0002c903007b78b0"[9]		# lid 5 lmc 0 "MF0;r-ufm-sw226:SX6036/U1" lid 19 4xFDR
+
+vendid=0x2c9
+devid=0x1013
+sysimgguid=0xe41d2d03005cf34c
+caguid=0xe41d2d03005cf34d
+Ca	1 "H-e41d2d03005cf34d"		# "r-dmz-ufm128 HCA-2"
+[1](e41d2d03005cf34d) 	"S-0002c903007b78b0"[5]		# lid 4 lmc 0 "MF0;r-ufm-sw226:SX6036/U1" lid 19 4xFDR
+
+vendid=0x2c9
+devid=0x1013
+sysimgguid=0xe41d2d03005cf34c
+caguid=0xe41d2d03005cf34c
+Ca	1 "H-e41d2d03005cf34c"		# "r-dmz-ufm128 HCA-1"
+[1](e41d2d03005cf34c) 	"S-0002c903007b78b0"[3]		# lid 3 lmc 0 "MF0;r-ufm-sw226:SX6036/U1" lid 19 4xFDR
+
+vendid=0x2c9
+devid=0x101b
+sysimgguid=0xc42a103008b40d0
+caguid=0xc42a103008b40d0
+Ca	1 "H-0c42a103008b40d0"		# "r-dmz-ufm134 HCA-1"
+[1](c42a103008b40d0) 	"S-0002c903007b78b0"[8]		# lid 101 lmc 0 "MF0;r-ufm-sw226:SX6036/U1" lid 19 4xFDR
