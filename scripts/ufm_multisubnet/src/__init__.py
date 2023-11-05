@@ -57,7 +57,7 @@ class MultisubnetConstants:
         {
             "name": f'--{CONF_AUTO_TOKEN_GENERATION}',
             "help": "If true, a token will be generated in the UFM provider via the provider's credentials"
-                    "and use it by the consumer with the communication with this provider"
+                    " and use it by the consumer with the communication with this provider"
         },
         {
             "name": f'--{CONF_UFM_PROVIDER_USERNAME}',
