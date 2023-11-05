@@ -792,10 +792,8 @@ class MergerCableValidationGetStatus(UFMResource):
         "status": 'connected'  OR 'disconnected: with suitable error'
         "address": '<IP | Hostname>',
         "port": '8633',
-        "username": "username",
-        "password": "password"
+        "username": "username"
         }
-        :param ndt_file_name:
         '''
         logging.info("GET /plugin/ndt/cable_validation_get_status")
         # read credentials and info from credential file
@@ -803,19 +801,17 @@ class MergerCableValidationGetStatus(UFMResource):
         # check config
         responce_dict = {}
         if not self.cable_validation_server_addr: # no cv server defined
-            responce_dict["mode"] = "NA"
+            responce_dict["mode"] = ""
             responce_dict["status"] = "disconnected"
-            responce_dict["address"] = "NA"
-            responce_dict["port"] = "NA"
-            responce_dict["username"] = "NA"
-            responce_dict["password"] = "NA"
+            responce_dict["address"] = ""
+            responce_dict["port"] = ""
+            responce_dict["username"] = ""
         elif self.cable_validation_server_addr in LOCAL_HOST_VALUES:
             responce_dict["mode"] = "local"
             responce_dict["status"] = "connected"
-            responce_dict["address"] = "NA"
-            responce_dict["port"] = "NA"
-            responce_dict["username"] = "NA"
-            responce_dict["password"] = "NA"
+            responce_dict["address"] = ""
+            responce_dict["port"] = ""
+            responce_dict["username"] = ""
             return self.report_success(responce_dict)
         else:
             responce_dict["mode"] = "remote"
@@ -825,7 +821,6 @@ class MergerCableValidationGetStatus(UFMResource):
             cv_username, cv_password = read_cv_credentials(self.cv_credentials_path)
             if cv_username and cv_password:
                 responce_dict["username"] = cv_username
-                responce_dict["password"] = cv_password
             else:
                 # failed to read 
                 error_message = "Failed to read credentials from file %s" % self.cv_credentials_path
