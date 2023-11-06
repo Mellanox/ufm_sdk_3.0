@@ -675,12 +675,14 @@ class MergerCableValidationReport(UFMResource):
         else:
             cv_username, cv_password = read_cv_credentials(self.cv_credentials_path)
             if cv_username and cv_password:
+                logging.info(f"Getting cable validation report from server {self.cable_validation_server_addr}")
                 result, status_code = get_cable_validation_report(self.cable_validation_server_addr,
                                            self.cable_validation_request_port,
                                            cv_username, cv_password)
             else:
                 return self.report_error(status_code, "Failed to read CV credentials.")
         if result:
+            logging.info("Dispatch requested Cable Validation Report to user.")
             return self.report_success(result)
         else:
             return self.report_error(status_code, "No cable validation report data was retrieved")
