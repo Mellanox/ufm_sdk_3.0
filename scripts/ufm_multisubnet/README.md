@@ -12,7 +12,7 @@ To install all prerequisites, please run :
 
     pip install -r requirements.txt
 
-To exported your repository to PYTHONPATH, please run :
+To export your repository to PYTHONPATH, please run :
 
    export PYTHONPATH="${PYTHONPATH}:<your ufm_sdk_cookbook path>"
 
