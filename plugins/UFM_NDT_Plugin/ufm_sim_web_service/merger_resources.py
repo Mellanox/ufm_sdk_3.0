@@ -36,7 +36,8 @@ from topo_diff.ndt_infra import MERGER_OPEN_SM_CONFIG_FILE,\
     IBDIAGNET_LOG_FILE, NDT_FILE_STATE_VERIFIED, NDT_FILE_STATE_DEPLOYED,\
     NDT_FILE_STATE_UPDATED, BOUNDARY_PORT_STATE_DISABLED, BOUNDARY_PORT_STATE_NO_DISCOVER,\
     NDT_FILE_STATE_UPDATED_NO_DISCOVER,NDT_FILE_STATE_UPDATED_DISABLED,LOCAL_HOST_VALUES, \
-    LAST_DEPLOYED_NDT_FILE_INFO, NDT_FILE_STATE_VERIFY_FILED, NDT_FILE_STATUS_VERIFICATION_FAILED
+    LAST_DEPLOYED_NDT_FILE_INFO, NDT_FILE_STATE_VERIFY_FILED, \
+    NDT_FILE_STATUS_VERIFICATION_FAILED, CABLE_VALIDATION_REQUEST_PORT
 from resources import ReportId
 from topo_diff.topo_diff import upload_topoconfig_file, get_cable_validation_report, \
                                 get_local_cable_validation_report, \
@@ -714,67 +715,8 @@ class MergerCableValidationEnabled(UFMResource):
         '''
         return self.report_error(405, "Method is not allowed")
 
-class MergerCableValidationUpdCred(UFMResource):
-    '''
-    request to update credentials for cable validation connectivity
-    '''
-    def __init__(self):
-        super().__init__()
 
-    def get(self):
-        return self.report_error(405, "Method is not allowed")
-
-    def parse_request(self, json_data):
-        logging.debug("Parsing JSON request: {}".format(json_data))
-        try:
-            self.expected_keys = ["address", "port","username","password"]
-            response, status_code = self.check_request_keys(json_data)
-            if status_code != self.success:
-                return self.report_error(status_code, response)
-        except TypeError:
-            return self.report_error(400, "Failed to verify connectivity parameters")
-        return self.report_success()
-
-    def post(self):
-        '''
-        Post rest - receive connectivity parameters and update in backend
-        {
-          "address": '<IP | Hostname>',
-          "port": '8633',
-          "username": "username",
-          "password": "password"
-        }
-        '''
-        if request.json:
-            json_data = request.get_json(force=True)
-            response, status_code = self.parse_request(json_data)
-            if status_code != self.success:
-                return response, status_code
-            cv_address = json_data["address"]
-            cv_port = json_data["port"]
-            cv_username = json_data["username"]
-            cv_password = json_data["password"]
-            if cv_address in LOCAL_HOST_VALUES: # localhost - cv plugin is running on localhost
-                # no need username, password and port
-                cv_port = None
-                cv_username = None
-                cv_password = None
-                # No need to update credentials
-            else:
-                if not update_cv_credentials(self.cv_credentials_path, cv_address,
-                                                      cv_username, cv_password):
-                    return self.report_error(400, "Failed to update credentials file")
-            try:
-                update_cv_host_in_config_file(UFMResource.config_file_name,
-                                                            cv_address, cv_port)
-            except Exception as e:
-                logging.error("Failed to update config file with cv host name %s: %s" % (cv_address, e))
-                return self.report_error(400, "Failed to update config file with cv host name")
-            return self.report_success()
-        else:
-            return self.report_error(400, "Action parameters not received")
-
-class MergerCableValidationGetStatus(UFMResource):
+class MergerCableValidationConnectionCfg(UFMResource):
     '''
     Return cable validation status:
     if it is running locally or on remote server and
@@ -787,31 +729,17 @@ class MergerCableValidationGetStatus(UFMResource):
     def get(self):
         '''
         Send respond with connectivity parameters
-        {
-        "mode": 'remote',
-        "status": 'connected'  OR 'disconnected: with suitable error'
-        "address": '<IP | Hostname>',
-        "port": '8633',
-        "username": "username"
-        }
         '''
-        logging.info("GET /plugin/ndt/cable_validation_get_status")
+        logging.info("GET /plugin/ndt/cable_validation_connection_configuration")
         # read credentials and info from credential file
         # read credentials
         # check config
         responce_dict = {}
         if not self.cable_validation_server_addr: # no cv server defined
-            responce_dict["mode"] = ""
             responce_dict["status"] = "disconnected"
-            responce_dict["address"] = ""
-            responce_dict["port"] = ""
-            responce_dict["username"] = ""
         elif self.cable_validation_server_addr in LOCAL_HOST_VALUES:
             responce_dict["mode"] = "local"
             responce_dict["status"] = "connected"
-            responce_dict["address"] = ""
-            responce_dict["port"] = ""
-            responce_dict["username"] = ""
             return self.report_success(responce_dict)
         else:
             responce_dict["mode"] = "remote"
@@ -828,8 +756,46 @@ class MergerCableValidationGetStatus(UFMResource):
                 return self.report_error(400, {error_message})
         return self.report_success(responce_dict)
 
+    def parse_request(self, json_data):
+        logging.debug("Parsing JSON request: {}".format(json_data))
+        try:
+            if ("address" in json_data.keys() and
+                            json_data.get("address") not in LOCAL_HOST_VALUES):
+                self.expected_keys = ["address", "port", "username", "password"]
+                response, status_code = self.check_request_keys(json_data)
+                if status_code != self.success:
+                    return self.report_error(status_code, response)
+        except TypeError:
+            return self.report_error(400, "Failed to verify connectivity parameters")
+        return self.report_success()
+
     def post(self):
-        return self.report_error(405, "Method is not allowed")
+        '''
+        Post rest - receive connectivity parameters and update in backend
+        '''
+        if request.json:
+            json_data = request.get_json(force=True)
+            response, status_code = self.parse_request(json_data)
+            if status_code != self.success:
+                return response, status_code
+            cv_address = json_data.get("address")
+            cv_port = json_data.get("port", CABLE_VALIDATION_REQUEST_PORT)
+            cv_username = json_data.get("username")
+            cv_password = json_data.get("password")
+            if cv_address not in LOCAL_HOST_VALUES: # localhost - cv plugin is running on localhost
+                if not update_cv_credentials(self.cv_credentials_path, cv_address,
+                                                      cv_username, cv_password):
+                    return self.report_error(400, "Failed to update credentials file")
+            try:
+                update_cv_host_in_config_file(UFMResource.config_file_name,
+                                                            cv_address, cv_port)
+            except Exception as e:
+                logging.error("Failed to update config file with cv host name %s: %s" % (cv_address, e))
+                return self.report_error(400, "Failed to update config file with cv host name")
+            return self.report_success()
+        else:
+            return self.report_error(400, "Action parameters not received")
+
 
 class MergerDeployConfig(UFMResource):
     def __init__(self):

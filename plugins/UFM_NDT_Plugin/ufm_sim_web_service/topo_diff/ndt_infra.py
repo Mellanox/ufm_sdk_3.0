@@ -98,6 +98,7 @@ PORT_GUID_MAX_LENGHT = 18
 
 UPDATE_CONFIG_CMD = "sed -i -e 's/^%s\s*=\s*.*/%s=%s/' %s"
 LOCAL_HOST_VALUES = ["localhost", "127.0.0.1"]
+CABLE_VALIDATION_REQUEST_PORT = 8633
 
 # definition of DES algorithm key.
 tree_list = [
@@ -752,10 +753,13 @@ def update_cv_credentials(cred_file_path, cv_address, cv_username, cv_password):
     :param cv_username:
     :param cv_password:
     '''
+    store_credentials = False
+    if not cv_username or not cv_password:
+        logging.error("Failed to save CV server credentials. Username and password do not have values.")
+        return store_credentials
     enc_cv_username = encrypt(cv_username)
     enc_cv_password = encrypt(cv_password)
     # write decrypted values to the file
-    store_credentials = False
     try:
         f=open(cred_file_path,'wb')
         f.write(enc_cv_username)
@@ -822,7 +826,7 @@ def update_cv_host_in_config_file(config_file_name, cv_address, cv_port):
         logging.error("Failed to update %s file with value for CV host name: %s" % err_msg)
         return False
     # port need to update only if received
-    if cv_port and cv_port.isdigit():
+    if cv_port and (type(cv_port) == int or cv_port.isdigit()):
         upd_cmd = UPDATE_CONFIG_CMD % ("cable_validation_request_port",
                                        "cable_validation_request_port",
                                        cv_port, config_file_name)
