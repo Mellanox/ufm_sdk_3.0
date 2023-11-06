@@ -14,6 +14,7 @@
 @author: anan AlAghbar
 @date:   Oct 23, 2023
 """
+import os
 from utils.config_parser import ConfigParser
 from scripts.ufm_multisubnet.src import MultisubnetConstants
 
@@ -24,7 +25,9 @@ class MultisubnetConfigParser(ConfigParser):
     def __init__(self, args):
         super(MultisubnetConfigParser, self).__init__(args, read_sdk_config=False)
         self.args_dict = self.args.__dict__
-        self.sdk_config.read(self.config_file)
+        abs_conf_path = os.path.normpath(os.path.join(os.path.dirname(__file__), self.config_file))
+        self.sdk_config.read(abs_conf_path)
+
 
     def get_ufm_consumer_ip(self):
         return self.get_config_value(self.args_dict.get(MultisubnetConstants.CONF_UFM_CONSUMER_IP),
