@@ -114,7 +114,7 @@ class UfmRestClient(object):
             if response.status_code == HTTPStatus.UNAUTHORIZED:
                 ExceptionHandler.handel_exception(ApiErrorMessages.Invalid_UFM_Authentication % self.host, exist=exit_on_failure)
             if response.status_code == HTTPStatus.FORBIDDEN:
-                ExceptionHandler.handel_exception(ApiErrorMessages.UFM_Forbidden % url)
+                ExceptionHandler.handel_exception(ApiErrorMessages.UFM_Forbidden % url, exist=exit_on_failure)
             else:
                 err = f'{e}'
                 if response:
