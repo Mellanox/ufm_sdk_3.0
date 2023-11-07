@@ -1,0 +1,74 @@
+.connection-status-label {
+  label.connected {
+    color: var(--controller-background-color);
+  }
+
+  label.disconnected {
+    color: red;
+  }
+}
+
+
+.checkbox-label {
+  transform: translate(2px, -2px);
+}
+
+.form-group-container {
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+
+.colon {
+  width: 1%;
+  padding: 0;
+  font-weight: 700;
+  font-size: 21px;
+}
+
+.checkboxes-wrapper {
+  margin-top: 2px;
+}
+
+
+.btn-group {
+  .btn {
+    min-width: 95px;
+  }
+}
+
+.streaming-radios {
+  padding-left: 30px;
+
+  .form-check-label {
+    padding-left: 25px;
+    padding-top: 5px;
+  }
+}
+
+.streaming-radio {
+  position: relative;
+}
+
+input[type="radio"] {
+  position: absolute;
+  -webkit-appearance: none; /* Remove default radio button appearance */
+  appearance: none;
+  border: 2px solid var(--controller-background-color); /* Add a border to the radio button */
+  border-radius: 50%; /* Make the border circular */
+  width: 20px; /* Set the width and height of the radio button */
+  height: 20px;
+  outline: none; /* Remove the outline */
+}
+
+input[type="radio"]:checked:before {
+  content: ""; /* Remove the bullet point */
+  position: absolute; /* Set the position to absolute */
+  top: 50%; /* Position the checkmark in the center vertically */
+  left: 50%; /* Position the checkmark in the center horizontally */
+  transform: translate(-50%, -50%); /* Center the checkmark precisely */
+  width: 10px; /* Set the width and height of the checkmark */
+  height: 10px;
+  border-radius: 50%; /* Make the checkmark circular */
+  background-color: var(--controller-background-color); /* Set the color of the checkmark */
+}

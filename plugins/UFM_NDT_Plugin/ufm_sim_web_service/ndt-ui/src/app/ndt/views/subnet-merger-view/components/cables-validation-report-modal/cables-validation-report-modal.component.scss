@@ -1,0 +1,11 @@
+button.cv-report-btn {
+  position: relative;
+
+  .unavailable-popover {
+    left: 0;
+    top: 0;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+  }
+}

@@ -57,7 +57,7 @@
 </ng-template>
 
 <ng-template #rightControlTemplates>
-  <button class="btn btn-primary">
+  <button class="btn btn-primary" style="margin-right: 12px;">
     <i class="fa fa-sync" [class.fa-spin]="loading" (click)="loadNDTFiles()"></i>
   </button>
   <ng-container *ngIf="activeNDTFile">

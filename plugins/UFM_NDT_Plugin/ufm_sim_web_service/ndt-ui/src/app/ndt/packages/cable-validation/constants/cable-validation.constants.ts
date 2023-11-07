@@ -22,8 +22,18 @@ export class CableValidationConstants {
   }
 
   public static API_URLs = {
-    isCVEnabled: `${SubnetMergerConstants.baseApiUrl}/cable_validation_enabled`,
+    cableValidationSettings: `${SubnetMergerConstants.baseApiUrl}/cable_validation_connection_configuration`,
     cableValidationReport: `${SubnetMergerConstants.baseApiUrl}/cable_validation_report`
+  }
+
+  public static API_SERVER_KEYS = {
+    'mode': 'mode',
+    'status': 'status',
+    'address': 'address',
+    'port': 'port',
+    'username': 'username',
+    'password': 'password',
+    'isEnabled': 'is_enabled'
   }
 
 }
