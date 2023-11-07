@@ -322,25 +322,29 @@ def post_request_with_cookies(host_addr, port_num, username, password):
     send_payload = {'httpd_username': username, 'httpd_password': password}
     try:
         session = requests.Session()
+        logging.info("Send cable validation login request.")
         rest_respond = session.post(send_url,data=send_payload,verify=False,
                                             timeout=REST_TIMEOUT)
         if rest_respond.status_code != SUCCESS_CODE:
             logging.error(f"Cable validation login request failed: {send_url} return code {rest_respond.status_code}")
             return None
+        logging.info("Save cable validation request cookies.")
         save_cable_validation_cookies(session.cookies, COOKIE_FILE_PATH)
     except Exception as e:
         logging.error(f"Cable validation login request failed: {send_url} error: {e}")
         return None
     # send request for cable validation report
     cv_report_url = f"{CABLE_VALIDATION_PROTOCOL}://{host_addr}:{port_num}/{CABLE_VALIDATION_REPORT_URL}"
+    cv_rest_respond = None
     try:
         session = requests.Session()
+        logging.info(f"Send request for cable validation report using cookies: {cv_report_url}")
         cv_rest_respond = session.get(cv_report_url,
                         cookies=load_cable_validation_cookies(COOKIE_FILE_PATH),
                         verify=False,
                         timeout=REST_TIMEOUT)
     except Exception as e:
-        print(e)
+        logging.error(f"Request for Cable Validation report failed: {cv_report_url} error: {e}")
     return cv_rest_respond
 
 def post_request(host_ip, ufm_protocol, resource, headers, send_payload):
@@ -395,6 +399,7 @@ def get_local_cable_validation_report(ufm_port):
     headers = {"X-Remote-User": "ufmsystem"}
     response = get_request(ufm_host, ufm_protocol, resource, headers)
     if not response:
+        logging.error("Failed to get respond for cable validation report request from localhost.")
         return {}, ERROR_CODE
     else:
         return json.loads(response.text), SUCCESS_CODE
@@ -418,6 +423,7 @@ def get_cable_validation_report(cable_validation_server_address,
                                 cable_validation_username,
                                 cable_validation_password)
     if not response:
+        logging.error(f"Failed to get respond for cable validation report request from {cable_validation_server_address}.")
         return {}, ERROR_CODE
     else:
         return json.loads(response.text), SUCCESS_CODE

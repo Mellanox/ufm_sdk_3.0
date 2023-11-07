@@ -626,7 +626,7 @@ class MergerUpdateNDTConfig(UFMResource):
 
 class MergerCableValidationReport(UFMResource):
     '''
-    proceed cable validation request - send request to cable validation plugin
+    Handle cable validation request - send request to cable validation plugin
     and send respond back
     '''
     def __init__(self):
@@ -644,6 +644,7 @@ class MergerCableValidationReport(UFMResource):
         # check if local request or remote and read credentials from config if need...
         if self.cable_validation_server_addr in LOCAL_HOST_VALUES:
             # local request - no need credentials
+            logging.info(f"Getting cable validation report from localhost")
             result, status_code = get_local_cable_validation_report(self.ufm_port)
         else:
             cv_username, cv_password = read_cv_credentials(self.cv_credentials_path)
@@ -653,7 +654,7 @@ class MergerCableValidationReport(UFMResource):
                                            self.cable_validation_request_port,
                                            cv_username, cv_password)
             else:
-                return self.report_error(status_code, "Failed to read CV credentials.")
+                return self.report_error(status_code, "Failed to read cable validation credentials.")
         if result:
             logging.info("Dispatch requested Cable Validation Report to user.")
             return self.report_success(result)
@@ -693,10 +694,7 @@ class MergerCableValidationEnabled(UFMResource):
 
 class MergerCableValidationConnectionCfg(UFMResource):
     '''
-    Return cable validation status:
-    if it is running locally or on remote server and
-    if on remote ser5ver - if it has credentials and other stuff for connection
-    establishment
+    Class to manage connectivity configuration to cable validation plugin.
     '''
     def __init__(self):
         super().__init__()
@@ -711,14 +709,14 @@ class MergerCableValidationConnectionCfg(UFMResource):
         # check config
         responce_dict = {}
         if not self.cable_validation_server_addr: # no cv server defined
-            responce_dict["status"] = "disconnected"
+            responce_dict["is_enabled"] = False
         elif self.cable_validation_server_addr in LOCAL_HOST_VALUES:
             responce_dict["mode"] = "local"
-            responce_dict["status"] = "connected"
+            responce_dict["is_enabled"] = True
             return self.report_success(responce_dict)
         else:
             responce_dict["mode"] = "remote"
-            responce_dict["status"] = "connected"
+            responce_dict["is_enabled"] = True
             responce_dict["address"] = self.cable_validation_server_addr
             responce_dict["port"] = self.cable_validation_request_port
             cv_username, cv_password = read_cv_credentials(self.cv_credentials_path)
@@ -732,6 +730,10 @@ class MergerCableValidationConnectionCfg(UFMResource):
         return self.report_success(responce_dict)
 
     def parse_request(self, json_data):
+        '''
+        Validate received request parameters
+        :param json_data:
+        '''
         logging.debug("Parsing JSON request: {}".format(json_data))
         try:
             if ("address" in json_data.keys() and
@@ -765,8 +767,8 @@ class MergerCableValidationConnectionCfg(UFMResource):
                 update_cv_host_in_config_file(UFMResource.config_file_name,
                                                             cv_address, cv_port)
             except Exception as e:
-                logging.error("Failed to update config file with cv host name %s: %s" % (cv_address, e))
-                return self.report_error(400, "Failed to update config file with cv host name")
+                logging.error("Failed to update config file with cable validation host name %s: %s" % (cv_address, e))
+                return self.report_error(400, "Failed to update config file with cable validation host name")
             return self.report_success()
         else:
             return self.report_error(400, "Action parameters not received")

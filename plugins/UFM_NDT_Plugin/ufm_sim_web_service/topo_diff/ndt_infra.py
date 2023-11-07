@@ -812,18 +812,18 @@ def update_cv_host_in_config_file(config_file_name, cv_address, cv_port):
     # sed -i -e 's/^cable_validation_server_addr\s*=\s*.*/cable_validation_server_addr=127.0.0.1/' /config/ndt.conf
     # sed -i -e 's/^cable_validation_request_port\s*=\s*.*/cable_validation_request_port=8633/' /config/ndt.conf
     if not os.path.isfile(config_file_name):
-        logging.error("Config file %s not exist. Failed to update with CV host name and port." % config_file_name)
+        logging.error("Configuration file %s not exist. Failed to update with cable validation host name and port." % config_file_name)
         return False
     if cv_address:
         upd_cmd = UPDATE_CONFIG_CMD % ("cable_validation_server_addr",
                                        "cable_validation_server_addr",
                                        cv_address,config_file_name )
     else:
-        logging.error("CV server address not defined. Failed to update configuration with CV host name and port.")
+        logging.error("Cable validation server address not defined. Failed to update configuration with cable validation host name and port.")
         return False
     status, err_msg = execute_generic_command(upd_cmd)
     if not status:
-        logging.error("Failed to update %s file with value for CV host name: %s" % err_msg)
+        logging.error("Failed to update %s file with value for cable validation host name: %s" % err_msg)
         return False
     # port need to update only if received
     if cv_port and (type(cv_port) == int or cv_port.isdigit()):
@@ -832,8 +832,8 @@ def update_cv_host_in_config_file(config_file_name, cv_address, cv_port):
                                        cv_port, config_file_name)
         status, err_msg = execute_generic_command(upd_cmd)
         if not status:
-            logging.error("Failed to update %s file with value for CV port number: %s" % err_msg)
+            logging.error("Failed to update %s file with value for cable validation port number: %s" % err_msg)
             return False
     else:
-        logging.error("CV port number not updated. Will be used default port number")
+        logging.error("Cable validation port number not updated. Will be used default port number")
     return True
