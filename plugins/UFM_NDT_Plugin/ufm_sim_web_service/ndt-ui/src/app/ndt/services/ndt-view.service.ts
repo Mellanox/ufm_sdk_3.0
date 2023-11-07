@@ -22,6 +22,12 @@ export class NdtViewService {
         key: `${routePrefix}/subnet-merger`,
         route: `${routePrefix}/subnet-merger`,
         icon: 'fa fa-object-ungroup'
+      },
+      {
+        label: 'Subnet Merger Settings',
+        key: `${routePrefix}/settings`,
+        route: `${routePrefix}/settings`,
+        icon: 'fa fa-cog'
       }
     ]
   }
@@ -29,7 +35,20 @@ export class NdtViewService {
   public getSideMenuItemsForUFM(routerPrefix): Observable<any> {
     routerPrefix = `${routerPrefix}/ndt`;
     return new Observable<any>((obs) => {
-      obs.next(this.getSideBarMenuItems(routerPrefix));
+      const subItems = this.getSideBarMenuItems(routerPrefix).map((_item) => {
+        _item['parentKey'] = 'subnet-merger';
+        return _item;
+      });
+      const items = [
+        {
+          label: 'Subnet Merger',
+          key: 'subnet-merger',
+          route: subItems[0].route,
+          icon: 'fa fa-bezier-curve',
+          subMenu: subItems
+        }
+      ];
+      obs.next(items);
       obs.complete();
     })
   }

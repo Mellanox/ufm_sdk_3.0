@@ -1,0 +1,129 @@
+<sms-plugin-base-component>
+    <div style="display: flex;">
+      <div class="card card-default col-xs-12 col-md-4" style="padding:0; margin-top: 12px;">
+        <div class="card-header">
+          Cables Validation Configurations
+        </div>
+        <div class="card-body clearfix" style="padding: 10px;">
+          <ng-container *ngIf="isLoading; else cardBodyTmp">
+            <i class="fa fa-spinner center"></i>
+          </ng-container>
+          <ng-template #cardBodyTmp>
+            <ng-container *ngIf="savedSettings; else settingsUnavailable">
+              <div class="row">
+
+                <div class="col-sm-12">
+                  <form [formGroup]="cvSettingsForm">
+                    <div class="row form-group-container">
+                      <div class="col-sm-12">
+                        <label>Mode</label>
+                      </div>
+                      <div class="col-sm-12 form-group">
+                        <div class="btn-group"
+                             [formControlName]="CVConstants.API_SERVER_KEYS.mode"
+                             (ngModelChange)="onModeChange()"
+                             btnRadioGroup>
+                          <label [btnRadio]="CVModeEnum.LOCAL" class="btn btn-primary">Local</label>
+                          <label [btnRadio]="CVModeEnum.REMOTE" class="btn btn-primary">Remote</label>
+                        </div>
+
+                      </div>
+                    </div>
+                    <div class="row form-group-container clearfix">
+                      <div class="col-sm-12"><label>Address</label></div>
+                      <div class=" col-sm-12 row form-group">
+                        <div class="col-sm-5">
+                          <input class="form-control"
+                                 [name]="CVConstants.API_SERVER_KEYS.address"
+                                 [formControlName]="CVConstants.API_SERVER_KEYS.address"
+                                 placeholder="IPv6/IPv4/Hostname "></div>
+                        <ng-container *ngIf="!settingsViewService.isCVLocal(mode.value)">
+                          <div class="col-sm-1 colon">:</div>
+                          <div class="col-sm-2">
+                            <input class="form-control"
+                                   [name]="CVConstants.API_SERVER_KEYS.port"
+                                   [formControlName]="CVConstants.API_SERVER_KEYS.port"
+                                   placeholder="Port"></div>
+                        </ng-container>
+                      </div>
+                      <div class="col-sm-5"
+                           *ngIf="(address.dirty || address.touched) && !address.disabled && address.errors">
+                        <p class="help-block"
+                           *ngIf="address.errors.required">
+                          This field is required</p>
+                        <p class="help-block"
+                           *ngIf="address.errors.address && !address.errors.required">
+                          {{address.errors.address.message}}</p>
+                      </div>
+
+                      <div class="col-sm-7"
+                           *ngIf="(port.dirty || port.touched) && !port.disabled && port.errors">
+                        <p class="help-block"
+                           *ngIf="port.errors.required">
+                          This field is required</p>
+                        <p class="help-block"
+                           *ngIf="port.errors.port && !port.errors.required">
+                          {{port.errors.port.message}}</p>
+                      </div>
+                    </div>
+                    <ng-container *ngIf="!settingsViewService.isCVLocal(mode.value)">
+                      <div class="row form-group-container clearfix">
+                        <div class="col-sm-12"><label>Username</label></div>
+                        <div class=" col-sm-12 row form-group">
+                          <div class="col-sm-5">
+                            <input class="form-control"
+                                   [name]="CVConstants.API_SERVER_KEYS.username"
+                                   [formControlName]="CVConstants.API_SERVER_KEYS.username"
+                                   placeholder="Username "></div>
+                        </div>
+                        <div class="col-sm-5"
+                             *ngIf="(username.dirty || username.touched) && !username.disabled && username.errors">
+                          <p class="help-block"
+                             *ngIf="username.errors.required">
+                            This field is required</p>
+                        </div>
+
+                      </div>
+
+                      <div class="row form-group-container clearfix">
+                        <div class="col-sm-12"><label>Password</label></div>
+                        <div class=" col-sm-12 row form-group">
+                          <div class="col-sm-5">
+                            <input class="form-control"
+                                   [name]="CVConstants.API_SERVER_KEYS.password"
+                                   [formControlName]="CVConstants.API_SERVER_KEYS.password"
+                                   type="password"
+                                   placeholder="Password"></div>
+                        </div>
+                        <div class="col-sm-5"
+                             *ngIf="(password.dirty || password.touched) && !password.disabled && password.errors">
+                          <p class="help-block"
+                             *ngIf="password.errors.required">
+                            This field is required</p>
+                        </div>
+                      </div>
+                    </ng-container>
+
+                    <div class="pull-right">
+                      <button
+                        (click)="onSubmit()"
+                        [disabled]="(cvSettingsForm.pristine || !cvSettingsForm.valid) && savedSettings.is_enabled"
+                        class="btn btn-primary"
+                        type="submit">
+                        Save
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </ng-container>
+          </ng-template>
+        </div>
+
+      </div>
+
+    </div>
+  <ng-template #settingsUnavailable>
+    The Cables Validation Settings not available.
+  </ng-template>
+</sms-plugin-base-component>

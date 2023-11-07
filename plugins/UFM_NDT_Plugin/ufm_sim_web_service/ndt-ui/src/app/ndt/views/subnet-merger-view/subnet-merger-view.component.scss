@@ -17,16 +17,3 @@ a {
   cursor: pointer;
 }
 
-:host ::ng-deep {
-  .card {
-    height: 100%;
-  }
-
-  .center {
-    margin-left: calc(50% - 45px);
-  }
-
-  .capitalize {
-    text-transform: capitalize;
-  }
-}

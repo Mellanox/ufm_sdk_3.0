@@ -1,9 +1,16 @@
 <button
   [disabled]="!isCableValidationReportAvailable"
-  class="btn btn-primary"
-  [tooltip]="isCableValidationReportAvailable ? '' : 'Cables Validation Report is not available'"
+  class="btn btn-primary cv-report-btn"
   (click)="openModal(template)">
   Cables Validation Report
+  <i
+    *ngIf="!isCableValidationReportAvailable"
+    class="unavailable-popover"
+    [popover]="cableValidationNotAvailablePopoverTemplate"
+    container="body"
+    #popover="bs-popover"
+    (mouseleave)="leavePopover(popover)"
+    (mouseenter)="popover.show();enterPopover(popover)"></i>
 </button>
 
 <ng-template #template>
@@ -20,4 +27,12 @@
   <div class="modal-body">
     <app-cable-validation-table #cvTableComponent></app-cable-validation-table>
   </div>
+</ng-template>
+
+
+<ng-template #cableValidationNotAvailablePopoverTemplate>
+  Cables Validation Report is unavailable,
+  Ensure that the cable validation
+  <a (click)="navigateToSettings()" style="cursor: pointer;">configurations</a>
+  are set correctly.
 </ng-template>
