@@ -1,6 +1,6 @@
 button.cv-report-btn {
   position: relative;
-
+  pointer-events: unset !important;
   .unavailable-popover {
     left: 0;
     top: 0;
