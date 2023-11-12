@@ -57,25 +57,23 @@ export class SettingsViewService {
 
   public initUsernameFormControl(value, mode: CV_MODE_ENUM): FormControl {
     const isLocal = this.isCVLocal(mode);
-    const validators = isLocal ? [] : [Validators.required]
     return new FormControl(
       {
         value: value,
         disabled: isLocal
       },
-      validators
+      [Validators.required]
     );
   }
 
   public initPasswordFormControl(value, mode: CV_MODE_ENUM): FormControl {
     const isLocal = this.isCVLocal(mode);
-    const validators = isLocal ? [] : [Validators.required]
     return new FormControl(
       {
         value: value,
         disabled: isLocal
       },
-      validators
+      [Validators.required]
     );
   }
 
