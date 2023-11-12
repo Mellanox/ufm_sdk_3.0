@@ -68,7 +68,7 @@ export function isValidIpv6Address(message?:string):ValidatorFn {
 export function isValidIpv4Address(message?:string):ValidatorFn {
   return (control:AbstractControl):{[key:string]:any} | null => {
 
-    var ipRegEx = new RegExp("^" + IP_V4_REGEX + "$");
+    const ipRegEx = new RegExp("^" + IP_V4_REGEX + "$");
 
     if (!ipRegEx.test(control.value)) {
       return {
@@ -93,7 +93,7 @@ export function isValidIpv4Address(message?:string):ValidatorFn {
 export function isValidPort(message?:string):ValidatorFn {
   return (control:AbstractControl):{[key:string]:any} | null => {
 
-    var ipRegEx = new RegExp("^" + PORT_REGEX + "$");
+    const ipRegEx = new RegExp("^" + PORT_REGEX + "$");
 
     if (!ipRegEx.test(control.value)) {
       return {
