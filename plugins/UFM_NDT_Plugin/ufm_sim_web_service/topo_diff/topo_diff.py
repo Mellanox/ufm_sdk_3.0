@@ -11,7 +11,7 @@ from enum import Enum
 from pprint import pprint
 
 SUCCESS_CODE = 200
-ERROR_CODE = 401
+ERROR_CODE = 400
 ACCEPTED_CODE = 202
 REST_TIMEOUT = 300
 
