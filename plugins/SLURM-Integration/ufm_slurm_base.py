@@ -119,7 +119,7 @@ class UfmSlurmBase():
                     logging.info(f"Deleting sharp reservation with app_id: {job_id} completed successfully.")
                     break
                 # In case the sharp reservation was not found, need to break the while loop as well.
-                if response.status_code == http.client.NOT_FOUND:
+                if response.status_code == http.client.BAD_REQUEST and "not found" in response.text:
                     logging.warning(f"Deleting sharp reservation failed, sharp reservation with app_id: "
                                     f"{job_id} is not found!")
                     break
