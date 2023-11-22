@@ -1,0 +1,32 @@
+<div class="top-controls-wrapper">
+  <div class="pull-left filterable-columns-wrapper" *ngIf="histogramData.filterable_columns?.length">
+    <div class="flex">
+      <div class="bins-label">Columns</div>
+      <div class="dropdown-wrapper">
+        <sms-dropdown-select [dropDownItems]="filterableColumns"
+                             [multiple]="true"
+                             bindLabel="name"
+                             [selectedItems]="filteredColumns"
+                             (selectedItemsChange)="onFilteredColumnChanged($event)"
+                             [hideLoadedMessage]="true"
+        ></sms-dropdown-select>
+      </div>
+    </div>
+  </div>
+  <div class="pull-right">
+    <div class="flex">
+      <div class="bins-label">Bins</div>
+      <input class="form-control bins-input" type="number"  min="0" max="99"
+             (change)="binsCountChanged($event)"
+             (beforeinput)="numberOnly($event)" [(ngModel)]="binsCount" />
+    </div>
+  </div>
+</div>
+<div class="row clearfix">
+  <div class="col-sm-12 chart-wrapper">
+    <ag-charts-angular
+      style="height: 100%"
+      [options]="chartOptions"
+    ></ag-charts-angular>
+  </div>
+</div>
