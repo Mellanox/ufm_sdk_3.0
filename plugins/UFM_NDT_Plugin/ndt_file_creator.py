@@ -15,11 +15,14 @@ from pprint import pprint
 import re
 import subprocess
 import os
+import argparse
 
 IBDIAGNET_OUT_DIR = "/tmp/ibdiagnet_out"
+NETDUMP_FILE_NAME = "ibdiagnet2.net_dump"
 IBDIAGNET_COMMAND = "ibdiagnet -o %s --discovery_only --enable_output net_dump" % IBDIAGNET_OUT_DIR
-IBDIAGNET_NET_DUMP_FILE = "%s/ibdiagnet2.net_dump" % IBDIAGNET_OUT_DIR
+IBDIAGNET_NET_DUMP_FILE = "%s/%s" % (IBDIAGNET_OUT_DIR, NETDUMP_FILE_NAME)
 OUTPUT_NDT_FILE_NAME = "%s/generated_ndt.csv" % IBDIAGNET_OUT_DIR
+REQUEST_ARGS = ["input_path", "include_down_ports"]
 
 class Link:
     def __init__(self, start_dev, start_port, end_dev, end_port):
@@ -38,6 +41,36 @@ class Link:
 
     def __hash__(self):
         return self.unique_key.__hash__()
+
+def create_base_parser():
+    """
+    Create an argument parser
+    """
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawTextHelpFormatter)
+    return parser
+
+def allocate_request_args(parser, release_version="1.0"):
+    """
+    Definition of arguments
+    :param parser:
+    """
+    request = parser.add_argument_group('request')
+    request.add_argument("-i", "--input_path", action="store",
+                         required=None, default=None, choices=None,
+                         help="Path to directory with ibdiagnet output. If not set - script will run ibdiagnet utility.")
+    request.add_argument("-d", "--include_down_ports", action="store",
+                         required=None, default="no",
+                         choices=["no", "yes"],
+                         help="Flag if to include in NDT file currently disconnected Switch ports. Default - no")
+    request.add_argument("-v", "--version", action="version", version = release_version)
+
+def extract_request_args(arguments):
+    """
+    Extracting the connection arguments from the parsed arguments.
+    """
+    return dict([(arg, arguments.pop(arg))
+                 for arg in REQUEST_ARGS])
 
 def run_command_line_cmd(command):
     cmd = command.split()
@@ -104,7 +137,7 @@ def get_reverse_link_info(link_info_dict):
     reverce_link_info_dict["peer_node_port_number"] = link_info_dict["node_port_number"]
     return reverce_link_info_dict
 
-def parse_ibdiagnet_dump(net_dump_file_path):
+def parse_ibdiagnet_dump(net_dump_file_path, include_down_ports=False):
     """
     create a structure based on ibdiagnet2.net_dump file - links information
     
@@ -139,6 +172,8 @@ def parse_ibdiagnet_dump(net_dump_file_path):
     ibdiagnet_links = set()
     ibdiagnet_links_reverse = set()
     links_list_reversed = []
+#    For ports that are currently down
+    links_list_disconnected = []
     with open(net_dump_file_path, 'r') as f:
         lines = f.readlines()
         for line in lines:
@@ -153,64 +188,78 @@ def parse_ibdiagnet_dump(net_dump_file_path):
             else:
                 # lines of switch
                 link_info_list = line.split(":")
-                if link_info_list and link_info_list[2].strip().lower() == "down":
+                if not link_info_list:
+                    # empty string or failed to split infu using ":"
+                    continue
+                link_state = link_info_list[2].strip().lower()
+                if (link_state == "down" and not include_down_ports):
+                    # skip switch downed ports
                     continue
                 link_info_dict = {}
                 link_info_dict["node_name"] = switch_info[0].strip('"')
                 link_info_dict["node_guid"] = switch_info[2].strip()
                 link_info_dict["node_port_number"] = link_info_list[0].strip()
+                if link_state == "down":
+                    links_list_disconnected.append(link_info_dict)
+                    continue
                 link_info_dict["peer_node_name"] = link_info_list[12].strip().strip('"')
                 link_info_dict["peer_node_guid"] = link_info_list[9].strip()
                 link_info_dict["peer_node_port_number"] = link_info_list[10].strip()
                 if "Aggregation Node" in link_info_dict["peer_node_name"]:
                     # sharp node - probably will not be a part of NDT file - skip
                     continue
-                link_key_1 = "%s___%s" % (link_info_dict["node_name"],
-                                      link_info_dict["node_port_number"])
-                links_info_dict[link_key_1] = link_info_dict["node_guid"]
-                link_key_2 = "%s___%s" % (link_info_dict["peer_node_name"],
-                                      link_info_dict["peer_node_port_number"])
-                links_info_dict[link_key_2] = link_info_dict["peer_node_guid"]
-                links_list.append(link_info_dict)
                 # "on the fly" create temporary file with opensm information
                 ibdiagnet_links.add(Link(link_info_dict["node_name"],
                                          link_info_dict["node_port_number"],
                                          link_info_dict["peer_node_name"],
                                          link_info_dict["peer_node_port_number"]))
-                # reverse linking?
-                reverse_link_info_dict = get_reverse_link_info(link_info_dict)
-                links_list_reversed.append(reverse_link_info_dict)
-                # pprint(reverse_link_info_dict)
-                ibdiagnet_links_reverse.add(Link(reverse_link_info_dict["peer_node_name"],
-                                        reverse_link_info_dict["peer_node_port_number"],
-                                        reverse_link_info_dict["node_name"],
-                                        reverse_link_info_dict["node_port_number"]))
-    return ibdiagnet_links, ibdiagnet_links_reverse, links_info_dict, []
+
+    return ibdiagnet_links, links_list_disconnected
 
 
+def main():
+    '''
+    Main script function
+    '''
+        # arguments parser
+    parser = create_base_parser()
+    allocate_request_args(parser)
+    arguments = vars(parser.parse_args())
+    request_arguments = extract_request_args(arguments)
+    input_path = request_arguments['input_path']
 
-# run ibdiagnet command to create output
-if not run_ibdiagnet():
-    print("Filed to run ibdiagnet command: %s" % IBDIAGNET_COMMAND)
-    exit(1)
-if not check_file_exist(IBDIAGNET_NET_DUMP_FILE):
-    print("ibdiagnet output file %s not exist" % IBDIAGNET_NET_DUMP_FILE)
-    exit(1)
+    if not input_path:
+        # run ibdiagnet command to create output
+        ibdiag_net_dump_file = IBDIAGNET_NET_DUMP_FILE
+        if not run_ibdiagnet():
+            print("Filed to run ibdiagnet command: %s" % IBDIAGNET_COMMAND)
+            exit(1)
+    else:
+        # use ibdiagnet dump
+        ibdiag_net_dump_file = os.path.join(input_path, NETDUMP_FILE_NAME)
+    # check if net dump file exist
+    if not check_file_exist(ibdiag_net_dump_file):
+        print("ibdiagnet output file %s not exist" % ibdiag_net_dump_file)
+        exit(1)
+    include_down_ports = (request_arguments['include_down_ports'] == "yes")
+    ibdiagnet_links, links_list_disconnected = parse_ibdiagnet_dump( ibdiag_net_dump_file,
+                                                             include_down_ports)
+    #rack #,U height,#Fields:StartDevice,StartPort,StartDeviceLocation,EndDevice,EndPort,EndDeviceLocation,U height_1,LinkType,Speed,_2,Cable Length,_3,_4,_5,_6,_7,State,Domain
+    #,,SwitchX -  Mellanox Technologies,Port 26,,r-ufm64 mlx5_0,Port 1,,,,,,,,,,,,Active,In-Scope
+    header="rack #,U height,#Fields:StartDevice,StartPort,StartDeviceLocation,EndDevice,EndPort,EndDeviceLocation,U height_1,LinkType,Speed,_2,Cable Length,_3,_4,_5,_6,_7,State,Domain\n"
+    with open(OUTPUT_NDT_FILE_NAME, 'w') as topoconfig_file:
+        topoconfig_file.write(header)
+        for link in ibdiagnet_links:
+            line = ",,%s,Port %s,,%s,Port %s,,,,,,,,,,,,Active,In-Scope\n" % (
+                   link.start_dev, link.start_port, link.end_dev, link.end_port)
+            topoconfig_file.write(line)
+        for disconnected_port in links_list_disconnected:
+            line = ",,%s,Port %s,,,,,,,,,,,,,,,Disabled,Disconnected\n" % (
+                                        disconnected_port.get("node_name", ""),
+                                        disconnected_port.get("node_port_number", ""))
+            topoconfig_file.write(line)
 
-ibdiagnet_links, ibdiagnet_links_reverse, links_info_dict , kaka = parse_ibdiagnet_dump(IBDIAGNET_NET_DUMP_FILE)
-#{'end_dev': 'AJNA-LEAF-01',
-# 'end_port': '40',
-# 'start_dev': 'AJNA-ROOT-01',
-# 'start_port': '40',
-# 'unique_key': 'AJNA-ROOT-0140AJNA-LEAF-0140'}
-#rack #,U height,#Fields:StartDevice,StartPort,StartDeviceLocation,EndDevice,EndPort,EndDeviceLocation,U height_1,LinkType,Speed,_2,Cable Length,_3,_4,_5,_6,_7,State,Domain
-#,,SwitchX -  Mellanox Technologies,Port 26,,r-ufm64 mlx5_0,Port 1,,,,,,,,,,,,Active,In-Scope
-header="rack #,U height,#Fields:StartDevice,StartPort,StartDeviceLocation,EndDevice,EndPort,EndDeviceLocation,U height_1,LinkType,Speed,_2,Cable Length,_3,_4,_5,_6,_7,State,Domain\n"
-with open(OUTPUT_NDT_FILE_NAME, 'w') as topoconfig_file:
-    topoconfig_file.write(header)
-    for link in ibdiagnet_links:
-        line = ",,%s,Port %s,,%s,Port %s,,,,,,,,,,,,Active,In-Scope\n" % (link.start_dev, link.start_port, link.end_dev, link.end_port)
-        topoconfig_file.write(line)
+    print("NDT file generation completed. Could be found at %s" % OUTPUT_NDT_FILE_NAME)
 
-print("NDT file generation completed. Could be found at %s" % OUTPUT_NDT_FILE_NAME)
-
+if __name__ == '__main__':
+    main()
