@@ -122,20 +122,6 @@ def run_ibdiagnet():
     '''
     status , cmd_output = execute_generic_command(IBDIAGNET_COMMAND)
     return status
-    
-def get_reverse_link_info(link_info_dict):
-    '''
-    return reversive link information
-    :param link_info_dict: 
-    '''
-    reverce_link_info_dict = {}
-    reverce_link_info_dict["node_name"] = link_info_dict["peer_node_name"]
-    reverce_link_info_dict["node_guid"] = link_info_dict["peer_node_guid"]
-    reverce_link_info_dict["node_port_number"] = link_info_dict["peer_node_port_number"]
-    reverce_link_info_dict["peer_node_name"] = link_info_dict["node_name"]
-    reverce_link_info_dict["peer_node_guid"] = link_info_dict["node_guid"]
-    reverce_link_info_dict["peer_node_port_number"] = link_info_dict["node_port_number"]
-    return reverce_link_info_dict
 
 def parse_ibdiagnet_dump(net_dump_file_path, include_down_ports=False):
     """
@@ -167,11 +153,7 @@ def parse_ibdiagnet_dump(net_dump_file_path, include_down_ports=False):
       8          : 8   : ACT  : LINK UP    : 5   : 4x      : 50      : MLNX_RS_271_257_PLR : NO-RTR : 0xc42a10300fcad46  : 40         : 23194 : "MF0;dsm09-0101-0604-03ib0:MQM8700/U1"
     
     """
-    links_list = []
-    links_info_dict = dict()
     ibdiagnet_links = set()
-    ibdiagnet_links_reverse = set()
-    links_list_reversed = []
 #    For ports that are currently down
     links_list_disconnected = []
     with open(net_dump_file_path, 'r') as f:
