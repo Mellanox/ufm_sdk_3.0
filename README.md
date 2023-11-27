@@ -28,15 +28,6 @@ A new open-source SDK project for NVIDIA UFM ([Unified Fabric Manager](https://w
 
 
 
-## Installation
-
-Install my-project with npm
-
-```bash
-  TBD
-  
-```
-
 ## Relase Job:
 Please use the following in order to build:
 http://hpc-master.lab.mtl.com:8080/job/UFM_PLUGINS_RELEASE/
