@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright © 2022 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright (C) 2013-2023 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -10,8 +10,6 @@
 # This software product is governed by the End User License Agreement
 # provided with the software product.
 #
-
-from pprint import pprint
 import re
 import subprocess
 import os
@@ -171,7 +169,7 @@ def parse_ibdiagnet_dump(net_dump_file_path, include_down_ports=False):
                 # lines of switch
                 link_info_list = line.split(":")
                 if not link_info_list:
-                    # empty string or failed to split infu using ":"
+                    # empty string or failed to split info using ":"
                     continue
                 link_state = link_info_list[2].strip().lower()
                 if (link_state == "down" and not include_down_ports):
@@ -190,7 +188,6 @@ def parse_ibdiagnet_dump(net_dump_file_path, include_down_ports=False):
                 if "Aggregation Node" in link_info_dict["peer_node_name"]:
                     # sharp node - probably will not be a part of NDT file - skip
                     continue
-                # "on the fly" create temporary file with opensm information
                 ibdiagnet_links.add(Link(link_info_dict["node_name"],
                                          link_info_dict["node_port_number"],
                                          link_info_dict["peer_node_name"],
@@ -229,19 +226,19 @@ def main():
     #rack #,U height,#Fields:StartDevice,StartPort,StartDeviceLocation,EndDevice,EndPort,EndDeviceLocation,U height_1,LinkType,Speed,_2,Cable Length,_3,_4,_5,_6,_7,State,Domain
     #,,SwitchX -  Mellanox Technologies,Port 26,,r-ufm64 mlx5_0,Port 1,,,,,,,,,,,,Active,In-Scope
     header="rack #,U height,#Fields:StartDevice,StartPort,StartDeviceLocation,EndDevice,EndPort,EndDeviceLocation,U height_1,LinkType,Speed,_2,Cable Length,_3,_4,_5,_6,_7,State,Domain\n"
-    with open(OUTPUT_NDT_FILE_NAME, 'w') as topoconfig_file:
-        topoconfig_file.write(header)
+    with open(OUTPUT_NDT_FILE_NAME, 'w') as ndt_file:
+        ndt_file.write(header)
         for link in ibdiagnet_links:
             line = ",,%s,Port %s,,%s,Port %s,,,,,,,,,,,,Active,In-Scope\n" % (
                    link.start_dev, link.start_port, link.end_dev, link.end_port)
-            topoconfig_file.write(line)
+            ndt_file.write(line)
         for disconnected_port in links_list_disconnected:
             line = ",,%s,Port %s,,,,,,,,,,,,,,,Disabled,Disconnected\n" % (
                                         disconnected_port.get("node_name", ""),
                                         disconnected_port.get("node_port_number", ""))
-            topoconfig_file.write(line)
+            ndt_file.write(line)
 
-    print("NDT file generation completed. Could be found at %s" % OUTPUT_NDT_FILE_NAME)
+    print("NDT file generation completed. Generate file can be found at %s" % OUTPUT_NDT_FILE_NAME)
 
 if __name__ == '__main__':
     main()
