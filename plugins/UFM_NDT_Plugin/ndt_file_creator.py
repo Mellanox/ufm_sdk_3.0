@@ -238,7 +238,7 @@ def main():
                                         disconnected_port.get("node_port_number", ""))
             ndt_file.write(line)
 
-    print("NDT file generation completed. Generate file can be found at %s" % OUTPUT_NDT_FILE_NAME)
+    print("NDT file generation completed. Generated file can be found at %s" % OUTPUT_NDT_FILE_NAME)
 
 if __name__ == '__main__':
     main()
