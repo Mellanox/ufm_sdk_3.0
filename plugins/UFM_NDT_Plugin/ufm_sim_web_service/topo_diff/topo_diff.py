@@ -60,6 +60,24 @@ class Link:
     def __hash__(self):
         return self.unique_key.__hash__()
 
+def check_valid_peer_port_param(parameter_val):
+    '''
+    peer parameter value should not be none or empty string
+    :param parameter_val:
+    '''
+    if not parameter_val or parameter_val.isspace():
+        return False
+    return True
+
+def check_not_empty_valid_params(parameters_vals_list):
+    '''
+    peer parameters values should not be none or empty string
+    :param parameters_vals_list:
+    '''
+    for parameter_val in parameters_vals_list:
+        if not parameter_val or parameter_val.isspace():
+            return False
+    return True
 
 def parse_ndt_port(file, row, index, port_type, patterns, merger=False):
     if port_type == PortType.SOURCE:
@@ -204,9 +222,14 @@ def parse_ibdiagnet_dump(net_dump_file_path):
                 # lines of switch
                 # split by "\"" to get destination device name
                 link_destination_host_info = line.split("\"")
+                # linc description
+                # 8:8:ACT:LINK UP:5:4x:50:MLNX_RS_271_257_PLR:NO-RTR:0xc42a10300fcad46:40:23194:"MF0;dsm09-0101-0604-03ib0:MQM8700/U1"
+                # if split by " will not give 3 entries in the result list  -it
+                # means that it is no valid peer node device name and line should be skipped.
                 if not link_destination_host_info or len(link_destination_host_info) != 3:
                     continue
                 link_info_list = link_destination_host_info[0].split(":")
+                # down links should not be proceeded
                 if link_info_list and link_info_list[2].strip().lower() == "down":
                     continue
                 link_info_dict = {}
@@ -216,9 +239,8 @@ def parse_ibdiagnet_dump(net_dump_file_path):
                 peer_node_name = link_destination_host_info[-2].strip().strip('"')
                 peer_node_guid = link_info_list[9].strip()
                 peer_node_port_number = link_info_list[10].strip()
-                if (not peer_node_name or peer_node_name.isspace() or
-                     not peer_node_guid or peer_node_guid.isspace() or
-                     not peer_node_port_number or peer_node_port_number.isspace()):
+                if not check_not_empty_valid_params([peer_node_name, peer_node_guid,
+                                                     peer_node_port_number]):
                     # one of peer node parameters was incorrect - skip link
                     continue
                 link_info_dict["peer_node_name"] = peer_node_name
