@@ -177,10 +177,8 @@ def parse_ibdiagnet_dump(net_dump_file_path, include_down_ports=False,
                 # lines of switch
                 # split by "\"" to get destination device name
                 link_destination_host_info = line.split("\"")
-                if not link_destination_host_info:
-                    continue
                 link_info_list = link_destination_host_info[0].split(":")
-                if not link_info_list:
+                if not link_info_list or len(link_info_list) == 1:
                     # empty string or failed to split info using ":"
                     continue
                 link_state = link_info_list[2].strip().lower()
