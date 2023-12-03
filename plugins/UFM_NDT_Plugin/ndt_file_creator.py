@@ -20,7 +20,7 @@ NETDUMP_FILE_NAME = "ibdiagnet2.net_dump"
 IBDIAGNET_COMMAND = "ibdiagnet -o %s --discovery_only --enable_output net_dump" % IBDIAGNET_OUT_DIR
 IBDIAGNET_NET_DUMP_FILE = "%s/%s" % (IBDIAGNET_OUT_DIR, NETDUMP_FILE_NAME)
 OUTPUT_NDT_FILE_NAME = "%s/generated_ndt.csv" % IBDIAGNET_OUT_DIR
-REQUEST_ARGS = ["input_path", "include_down_ports"]
+REQUEST_ARGS = ["input_path", "include_down_ports", "include_error_ports"]
 
 class Link:
     def __init__(self, start_dev, start_port, end_dev, end_port):
@@ -61,6 +61,11 @@ def allocate_request_args(parser, release_version="1.0"):
                          required=None, default="no",
                          choices=["no", "yes"],
                          help="Flag if to include in NDT file currently disconnected Switch ports. Default - no")
+    request.add_argument("-e", "--include_error_ports", action="store",
+                         required=None, default="no",
+                         choices=["no", "yes"],
+                         help="Flag if to include in NDT file Active Switch ports with link error. Default - no")
+
     request.add_argument("-v", "--version", action="version", version = release_version)
 
 def extract_request_args(arguments):
@@ -121,7 +126,8 @@ def run_ibdiagnet():
     status , cmd_output = execute_generic_command(IBDIAGNET_COMMAND)
     return status
 
-def parse_ibdiagnet_dump(net_dump_file_path, include_down_ports=False):
+def parse_ibdiagnet_dump(net_dump_file_path, include_down_ports=False,
+                                                include_error_ports=False):
     """
     create a structure based on ibdiagnet2.net_dump file - links information
     
@@ -154,6 +160,8 @@ def parse_ibdiagnet_dump(net_dump_file_path, include_down_ports=False):
     ibdiagnet_links = set()
 #    For ports that are currently down
     links_list_disconnected = []
+#    For ports that are Active but have problem with link - no destination defined
+    links_list_errored = []
     with open(net_dump_file_path, 'r') as f:
         lines = f.readlines()
         for line in lines:
@@ -167,24 +175,46 @@ def parse_ibdiagnet_dump(net_dump_file_path, include_down_ports=False):
                 continue
             else:
                 # lines of switch
-                link_info_list = line.split(":")
+                # split by "\"" to get destination device name
+                link_destination_host_info = line.split("\"")
+                if not link_destination_host_info:
+                    continue
+                link_info_list = link_destination_host_info[0].split(":")
                 if not link_info_list:
                     # empty string or failed to split info using ":"
                     continue
                 link_state = link_info_list[2].strip().lower()
-                if (link_state == "down" and not include_down_ports):
-                    # skip switch downed ports
-                    continue
                 link_info_dict = {}
                 link_info_dict["node_name"] = switch_info[0].strip('"')
                 link_info_dict["node_guid"] = switch_info[2].strip()
                 link_info_dict["node_port_number"] = link_info_list[0].strip()
+                # ports that are down - include if received flag to do so
                 if link_state == "down":
-                    links_list_disconnected.append(link_info_dict)
+                    if include_down_ports:
+                        links_list_disconnected.append(link_info_dict)
                     continue
-                link_info_dict["peer_node_name"] = link_info_list[12].strip().strip('"')
-                link_info_dict["peer_node_guid"] = link_info_list[9].strip()
-                link_info_dict["peer_node_port_number"] = link_info_list[10].strip()
+                # handle error when switch port is Active but does not have valid link
+                # switch sisw007.s020.pci3 Port 1/16/1
+                #  1/16/1:31:INI:LINK UP:5:4x:100:MLNX_RS_271_257_PLR:NO-RTR::::
+                if len(link_destination_host_info) == 1:
+                    if include_error_ports:
+                        links_list_errored.append(link_info_dict)
+                    continue
+                peer_node_name = link_destination_host_info[-2].strip().strip('"')
+                peer_node_guid = link_info_list[9].strip()
+                peer_node_port_number = link_info_list[10].strip()
+                valid_peer_params = True
+                for parameter in (peer_node_name, peer_node_guid, peer_node_port_number):
+                    if not parameter or parameter.isspace():
+                        valid_peer_params = False
+                        break
+                #skip the line with problematic link
+                if include_error_ports and not valid_peer_params:
+                    links_list_errored.append(link_info_dict)
+                    continue
+                link_info_dict["peer_node_name"] = peer_node_name
+                link_info_dict["peer_node_guid"] = peer_node_guid
+                link_info_dict["peer_node_port_number"] = peer_node_port_number
                 if "Aggregation Node" in link_info_dict["peer_node_name"]:
                     # sharp node - probably will not be a part of NDT file - skip
                     continue
@@ -193,7 +223,7 @@ def parse_ibdiagnet_dump(net_dump_file_path, include_down_ports=False):
                                          link_info_dict["peer_node_name"],
                                          link_info_dict["peer_node_port_number"]))
 
-    return ibdiagnet_links, links_list_disconnected
+    return ibdiagnet_links, links_list_disconnected, links_list_errored
 
 
 def main():
@@ -221,8 +251,11 @@ def main():
         print("ibdiagnet output file %s not exist" % ibdiag_net_dump_file)
         exit(1)
     include_down_ports = (request_arguments['include_down_ports'] == "yes")
-    ibdiagnet_links, links_list_disconnected = parse_ibdiagnet_dump( ibdiag_net_dump_file,
-                                                             include_down_ports)
+    include_error_ports = (request_arguments['include_error_ports'] == "yes")
+    ibdiagnet_links, links_list_disconnected , links_list_errored = \
+                                    parse_ibdiagnet_dump( ibdiag_net_dump_file,
+                                                             include_down_ports,
+                                                             include_error_ports)
     #rack #,U height,#Fields:StartDevice,StartPort,StartDeviceLocation,EndDevice,EndPort,EndDeviceLocation,U height_1,LinkType,Speed,_2,Cable Length,_3,_4,_5,_6,_7,State,Domain
     #,,SwitchX -  Mellanox Technologies,Port 26,,r-ufm64 mlx5_0,Port 1,,,,,,,,,,,,Active,In-Scope
     header="rack #,U height,#Fields:StartDevice,StartPort,StartDeviceLocation,EndDevice,EndPort,EndDeviceLocation,U height_1,LinkType,Speed,_2,Cable Length,_3,_4,_5,_6,_7,State,Domain\n"
@@ -237,6 +270,12 @@ def main():
                                         disconnected_port.get("node_name", ""),
                                         disconnected_port.get("node_port_number", ""))
             ndt_file.write(line)
+        for disconnected_port in links_list_errored:
+            line = ",,%s,Port %s,,,,,,,,,,,,,,,Disabled,Error\n" % (
+                                        disconnected_port.get("node_name", ""),
+                                        disconnected_port.get("node_port_number", ""))
+            ndt_file.write(line)
+
 
     print("NDT file generation completed. Generated file can be found at %s" % OUTPUT_NDT_FILE_NAME)
 
