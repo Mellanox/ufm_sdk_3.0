@@ -202,16 +202,29 @@ def parse_ibdiagnet_dump(net_dump_file_path):
                 continue
             else:
                 # lines of switch
-                link_info_list = line.split(":")
+                # split by "\"" to get destination device name
+                link_destination_host_info = line.split("\"")
+                if not link_destination_host_info or len(link_destination_host_info) != 3:
+                    continue
+                link_info_list = link_destination_host_info[0].split(":")
                 if link_info_list and link_info_list[2].strip().lower() == "down":
                     continue
                 link_info_dict = {}
                 link_info_dict["node_name"] = switch_info[0].strip('"')
                 link_info_dict["node_guid"] = switch_info[2].strip()
                 link_info_dict["node_port_number"] = link_info_list[0].strip()
-                link_info_dict["peer_node_name"] = link_info_list[12].strip().strip('"')
-                link_info_dict["peer_node_guid"] = link_info_list[9].strip()
-                link_info_dict["peer_node_port_number"] = link_info_list[10].strip()
+                peer_node_name = link_destination_host_info[-2].strip().strip('"')
+                peer_node_guid = link_info_list[9].strip()
+                peer_node_port_number = link_info_list[10].strip()
+                if (not peer_node_name or peer_node_name.isspace() or
+                     not peer_node_guid or peer_node_guid.isspace() or
+                     not peer_node_port_number or peer_node_port_number.isspace()):
+                    # one of peer node parameters was incorrect - skip link
+                    continue
+                link_info_dict["peer_node_name"] = peer_node_name
+                link_info_dict["peer_node_guid"] = peer_node_guid
+                link_info_dict["peer_node_port_number"] = peer_node_port_number
+
                 if "Aggregation Node" in link_info_dict["peer_node_name"]:
                     # sharp node - probably will not be a part of NDT file - skip
                     continue
