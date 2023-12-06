@@ -292,6 +292,9 @@ class MergerVerifyNDT(Compare):
         except ValueError as e:
             if "error" not in report_content:
                 report_content["error"] = e.args[0]
+        except Exception as e:
+            if "error" not in report_content:
+                report_content["error"] = "Unhandeled error %s" % e
         response, status_code = self.create_report(scope, report_content)
         if status_code != self.success:
             logging.error("Failed to create verification report: %s" % response)

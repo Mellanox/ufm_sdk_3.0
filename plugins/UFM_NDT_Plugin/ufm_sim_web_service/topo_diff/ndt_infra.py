@@ -494,11 +494,16 @@ def create_raw_topoconfig_file(ndt_file_path, boundary_port_state, patterns):
                                          boundary_port_state, creation_timestamp)
         #this is the structure that contains names of the nodes and ports and GUIDs
         # on base of this struct should be created topconfig file
-        create_status, error_message, failed_ports = create_topoconfig_file(links_info, ndt_file_path, patterns,
-                                                      boundary_port_state,
-                                                      output_file_name)
+        create_status, error_message, failed_labels, failed_guids = create_topoconfig_file(
+                                        links_info, ndt_file_path, patterns,
+                                        boundary_port_state, output_file_name)
         if not create_status:
             logging.error(error_message)
+            # print problematic issues found during topoconfig creation if was
+            for problem_label in failed_labels:
+                logging.debug("Failed to resolve port label %s" % problem_label)
+            for problem_guid in failed_guids:
+                logging.debug("Failed to resolve port GUID %s" % problem_guid)
             return False, error_message
         else:
             return True, "Topoconfig file %s based on %s created" % (output_file_name, ndt_file_name)
@@ -536,6 +541,7 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
     # OPEN ISSUE
     device_to_guid_map = dict()
     failed_lable_conversion = []
+    failed_guid_conversion = []
     ndt_file = open(ndt_file_path, "r", encoding="utf-8")
     dictreader = csv.DictReader(ndt_file)
     host_type = "Any"
@@ -579,6 +585,14 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
             port_guid = links_info_dict.get(link_key)
             if not port_guid:
                 port_guid = switch_name2switch_guid.get(start_device)
+            if not port_guid:
+                error_message = "Failed to get GUID of start port {}".format(link_key)
+                report_error_message = "Topoconfig file creation failure: failed to get GUID for source port"
+                logging.error(error_message)
+                # TODO: AT what is the correct behavior in such case
+                file_creation_failed = True
+                failed_guid_conversion.append(link_key.replace("___", " Port:"))
+                continue
             if not start_device in device_to_guid_map:
                 device_to_guid_map[start_device] = port_guid
             if not start_port.isnumeric():
@@ -608,7 +622,7 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
                     error_message = "Failed to detect peer port GUID. Skip link in topoconfig file: peer device: {} peer port: {}".format(peer_device, peer_port)
                     logging.error(error_message)
                     file_creation_failed = True
-                    failed_lable_conversion.append(link_key_peer.replace("___", " Port:"))
+                    failed_guid_conversion.append(link_key_peer.replace("___", " Port:"))
                     continue
                 # in case peer port is not a number - get number from mapping
                 if not peer_port.isnumeric():
@@ -635,7 +649,7 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns,
                             peer_port_guid, peer_port,host_type,port_state))
     ndt_file.close()
     msg = "Failed to resolve port label to port number. Check log file." if failed_lable_conversion else ""
-    return True, msg, failed_lable_conversion
+    return True, msg, failed_lable_conversion, failed_guid_conversion
 
 
 def update_boundary_port_state_in_topoconfig_file(boundary_port_state,
