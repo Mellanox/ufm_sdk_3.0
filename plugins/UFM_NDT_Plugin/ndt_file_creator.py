@@ -57,14 +57,10 @@ def allocate_request_args(parser, release_version="1.0"):
     request.add_argument("-i", "--input_path", action="store",
                          required=None, default=None, choices=None,
                          help="Path to directory with ibdiagnet output. If not set - script will run ibdiagnet utility.")
-    request.add_argument("-d", "--include_down_ports", action="store",
-                         required=None, default="no",
-                         choices=["no", "yes"],
-                         help="Flag if to include in NDT file currently disconnected Switch ports. Default - no")
-    request.add_argument("-e", "--include_error_ports", action="store",
-                         required=None, default="no",
-                         choices=["no", "yes"],
-                         help="Flag if to include in NDT file Active Switch ports with link error. Default - no")
+    request.add_argument("-d", "--include_down_ports", default=False, action="store_true",
+                         help="Flag if to include in NDT file currently disconnected Switch ports")
+    request.add_argument("-e", "--include_error_ports", default=False, action="store_true",
+                         help="Flag if to include in NDT file Active Switch ports with link error")
 
     request.add_argument("-v", "--version", action="version", version = release_version)
 
@@ -248,8 +244,8 @@ def main():
     if not check_file_exist(ibdiag_net_dump_file):
         print("ibdiagnet output file %s not exist" % ibdiag_net_dump_file)
         exit(1)
-    include_down_ports = (request_arguments['include_down_ports'] == "yes")
-    include_error_ports = (request_arguments['include_error_ports'] == "yes")
+    include_down_ports = request_arguments['include_down_ports']
+    include_error_ports = request_arguments['include_error_ports']
     ibdiagnet_links, links_list_disconnected , links_list_errored = \
                                     parse_ibdiagnet_dump( ibdiag_net_dump_file,
                                                              include_down_ports,
