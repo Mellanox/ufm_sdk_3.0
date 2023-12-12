@@ -37,6 +37,7 @@ IBDIAGNET_PORT_VERIFICATION_COMMAND = "ibdiagnet -o %s --discovery_only" % IBDIA
 CHECK_DUPLICATED_GUIDS_COMMAND = "cat %s | grep \"Node GUID = .* is duplicated at\"" % (IBDIAGNET_LOG_FILE)
 IBDIAGNET_OUT_NET_DUMP_FILE_PATH = "%s/ibdiagnet2.net_dump" % IBDIAGNET_OUT_DIRECTORY
 IBDIAGNET_OUT_DB_CSV_FILE_PATH = "%s/ibdiagnet2.db_csv" % IBDIAGNET_OUT_DIRECTORY
+CHECK_DUPLICATED_ND_COMMAND = "cat %s | grep \"is configured with duplicated node description\"" % (IBDIAGNET_OUT_DB_CSV_FILE_PATH)
 EMPTY_RESPOND_MESSAGE = "Empty respond message"
 IBDIAGNET_COMPLETION_MESSAGE = "ibdiagnet execution completed"
 IBDIAGNET_EXCEED_NUMBER_OF_TASKS = "Maximum number of task exceeded, please remove a task before adding a new one"
@@ -364,7 +365,14 @@ def check_duplicated_guids():
     '''
     Check ibdiagnet log file for duplicated guids error messages
     '''
-    status , cmd_output = execute_generic_command(CHECK_DUPLICATED_GUIDS_COMMAND)
+    status, cmd_output = execute_generic_command(CHECK_DUPLICATED_GUIDS_COMMAND)
+    return status, cmd_output
+
+def check_duplicated_node_descriptions():
+    '''
+    Check ibdiagnet log file for duplicated node descriptions error messages
+    '''
+    status, cmd_output = execute_generic_command(CHECK_DUPLICATED_ND_COMMAND)
     return status, cmd_output
 
 def check_boundary_port_state(sleep_interval=5, number_of_attempts=5,

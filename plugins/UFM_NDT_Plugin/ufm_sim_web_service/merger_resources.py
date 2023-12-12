@@ -32,6 +32,7 @@ from topo_diff.ndt_infra import MERGER_OPEN_SM_CONFIG_FILE,\
     create_topoconfig_file, update_boundary_port_state_in_topoconfig_file,\
     update_last_deployed_ndt, check_duplicated_guids, create_raw_topoconfig_file, \
     update_cv_credentials, read_cv_credentials, update_cv_host_in_config_file, \
+    check_duplicated_node_descriptions, \
     BOUNDARY_PORTS_STATES, IBDIAGNET_OUT_DIRECTORY, \
     IBDIAGNET_LOG_FILE, NDT_FILE_STATE_VERIFIED, NDT_FILE_STATE_DEPLOYED,\
     NDT_FILE_STATE_UPDATED, BOUNDARY_PORT_STATE_DISABLED, BOUNDARY_PORT_STATE_NO_DISCOVER,\
@@ -211,6 +212,8 @@ class MergerVerifyNDT(Compare):
         ndt_status = NDT_FILE_STATE_VERIFIED
         try:
             report_content = dict()
+            # place holder for duplicated node description to be included in final report
+            duplicated_nd_list = []
             # basic report in case of failure
             report_content["timestamp"] = self.timestamp,
             report_content["report"] = {}
@@ -250,6 +253,14 @@ class MergerVerifyNDT(Compare):
                     report_content["error"] = "Report creation failed for %s: Filed to check duplicated GUIDs. File %s not exists" % (ndt_file_name, IBDIAGNET_LOG_FILE)
                     report_content["status"] = NDT_FILE_STATUS_VERIFICATION_FAILED
                     raise ValueError(report_content["error"])
+            if self.include_duplicated_nd:
+                # check for duplicated node descriptions
+                status, duplicated_nd = check_duplicated_node_descriptions()
+                if status and duplicated_nd:
+                    # in case of duplicated ND - include records in final report
+                    # (notification only - no report failure)
+                    duplication_nd_string = duplicated_nd.decode("utf-8")
+                    duplicated_nd_list = duplication_nd_string.split("\n")
             # get configuration from ibdiagnet
             ibdiagnet_links, ibdiagnet_links_reverse, links_info, error_message = \
                                            parse_ibdiagnet_dump(ibdiagnet_file_path)
@@ -277,6 +288,13 @@ class MergerVerifyNDT(Compare):
                                                               ibdiagnet_links_reverse,
                                                               ndt_links,
                                                               ndt_links_reversed)
+            # Add to report entries with duplicated node description
+            if duplicated_nd_list and "report" not in report_content:
+                report_content["report"] = []
+            for duplicated_nd_entry in duplicated_nd_list:
+                report_item = {"category": "duplicated node description",
+                           "description": duplicated_nd_entry.split(",")[-1].strip("\"")}
+                report_content["report"].append(report_item)
             report_content["NDT_file"] = os.path.basename(ndt_file_name)
             topoconfig_creation_status, message, failed_ports = create_topoconfig_file(links_info,
                       ndt_file_name, self.switch_patterns + self.host_patterns)
