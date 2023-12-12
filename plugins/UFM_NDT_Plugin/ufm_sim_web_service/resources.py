@@ -88,6 +88,9 @@ class UFMResource(Resource):
             self.reports_to_save = ndt_config.getint("Common", "reports_to_save", fallback=10)
             self.ufm_port = ndt_config.getint("Common", "ufm_port", fallback=8000)
             self.validation_enabled = ndt_config.getboolean("Validation", "enabled", fallback=True)
+            self.include_duplicated_nd = ndt_config.getboolean("Merger",
+                                            "check_duplicated_node_description",
+                                             fallback=False)
             self.port_validation_sleep_interval = ndt_config.getint(
                         "Merger", "port_validation_sleep_interval", fallback=5)
             self.port_validation_number_of_attempts = ndt_config.getint(
