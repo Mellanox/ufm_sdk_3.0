@@ -14,9 +14,7 @@ import logging
 
 class PDRConstants(object):
 
-    CONF_FILE = "/config/pdr_deterministic.conf"
-    BER_MATRIX = "/config/Field_BER_Thresholds.csv"
-    FEC_LOOKUP = "/config/fec_mode_lookup.json"
+    CONF_FILE = "/config/pdr_deterministic.conf"   
     LOG_FILE = '/log/pdr_deterministic_plugin.log'
     log_level = logging.INFO
     log_file_backup_count = 5
@@ -35,6 +33,10 @@ class PDRConstants(object):
     AUTOMATIC_DEISOLATE = "AUTOMATIC_DEISOLATE"
     DO_DEISOLATION = "DO_DEISOLATION"
     TIMESTAMP = "timestamp"
+    LAST_TIMESTAMP = "last_timestamp"
+    CONFIGURED_TEMP_CHECK = "CONFIGURED_TEMP_CHECK"
+    NO_DOWN_COUNT = "NO_DOWN_COUNT"
+    ACCESS_ISOLATION = "ACCESS_ISOLATION"
     
     GET_SESSION_DATA_REST = "/monitoring/session/0/data"
     POST_EVENT_REST = "/app/events/external_event"
@@ -62,47 +64,41 @@ class PDRConstants(object):
     RCV_PACKETS_COUNTER = "PortRcvPktsExtended"
     RCV_ERRORS_COUNTER = "PortRcvErrorsExtended"
     RCV_REMOTE_PHY_ERROR_COUNTER = "PortRcvRemotePhysicalErrorsExtended"
+    LNK_DOWNED_COUNTER = "LinkDownedCounterExtended"
     
     PHY_RAW_ERROR_LANE0 = "phy_raw_errors_lane0"
     PHY_RAW_ERROR_LANE1 = "phy_raw_errors_lane1"
     PHY_RAW_ERROR_LANE2 = "phy_raw_errors_lane2"
     PHY_RAW_ERROR_LANE3 = "phy_raw_errors_lane3"
-    PHY_EFF_ERROR = "phy_effective_errors"
     PHY_SYMBOL_ERROR = "phy_symbol_errors"
     
     SYMBOL_BER = "symbol_ber"
-    EFF_BER = "eff_ber"
-    RAW_BER = "raw_ber"
     ACTIVE_SPEED = "active_speed"
-    ASIC = "asic"
-    HW_TECHNOLOGY = "hw_technology"
     WIDTH = "active_width"
-    FEC_MODE = "fec_mode_active"
     PORT_NAME = "name"
     DESCRIPTION = "description"
     EXTERNAL_NUMBER = "external_number"
     GUID = "guid"
     SYSTEM_ID = "systemID"
     PORT_NUM = "port_num"
-    
+    PEER = "peer"
+    NODE_TYPE = "node_type"
+    NODE_TYPE_COMPUTER = "computer"
+    NODE_TYPE_OTHER = "other"
+    BER_TELEMETRY = "ber_telemetry"
+
     ISSUE_PDR = "pdr"
     ISSUE_BER = "ber"
     ISSUE_PDR_BER = "pdr&ber"
     ISSUE_OONOC = "oonoc"
     ISSUE_INIT = "init"
+    ISSUE_LINK_DOWN = "link_down"
 
     STATE_NORMAL = "normal"
     STATE_ISOLATED = "isolated"
     STATE_TREATED = "treated"
 
-    CSV_FEC_OPCODE = "FEC OPCODE"
-    CSV_ASIC = "ASIC"
-    CSV_SPEED = "Speed"
-    CSV_RAW_BER_ISOLATE = "Pre-FEC BER Error"
-    CSV_EFF_BER_ISOLATE = "Post-FEC BER Error"
-    CSV_SYMBOL_BER_ISOLATE = "Symbol BER Error"
-    CSV_RAW_BER_DEISOLATE = "Pre-FEC BER Normal"
-    CSV_EFF_BER_DEISOLATE = "Post-FEC BER Normal"
-    CSV_SYMBOL_BER_DEISOLATE = "Symbol BER Normal"
-
     PDR_DYNAMIC_NAME = "pdr_dynamic"
+    # intervals in seconds for testing ber values and corresponding thresholds
+    BER_THRESHOLDS_INTERVALS = [(125 * 60, 3), (12 * 60, 2.88)]
+    BER_THRESHOLDS_INTERVALS = [(30,3), (90, 3)]

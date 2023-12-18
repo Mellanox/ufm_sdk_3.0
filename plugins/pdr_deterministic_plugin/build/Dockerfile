@@ -29,8 +29,6 @@ COPY config/supervisord.conf /etc/supervisor/conf.d/
 COPY config/init.sh config/deinit.sh /
 COPY config/pdr_deterministic.conf ${CONF_PATH}/
 COPY config/pdr_deterministic_shared_volumes.conf ${CONF_PATH}/
-COPY config/Field_BER_Thresholds.csv ${CONF_PATH}/
-COPY config/fec_mode_lookup.json ${CONF_PATH}/
 COPY scripts/init_pdr_conf.sh ${SCRIPTS_PATH}/
 COPY utils/ ${BASE_PATH}/utils/
 
