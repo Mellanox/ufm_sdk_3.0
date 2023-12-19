@@ -101,4 +101,3 @@ class PDRConstants(object):
     PDR_DYNAMIC_NAME = "pdr_dynamic"
     # intervals in seconds for testing ber values and corresponding thresholds
     BER_THRESHOLDS_INTERVALS = [(125 * 60, 3), (12 * 60, 2.88)]
-    BER_THRESHOLDS_INTERVALS = [(30,3), (90, 3)]

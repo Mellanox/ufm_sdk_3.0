@@ -81,15 +81,8 @@ def calc_symbol_ber_val(row):
     error_lane_2 = get_counter(Constants.PHY_RAW_ERROR_LANE2, row, default=None)
     error_lane_3 = get_counter(Constants.PHY_RAW_ERROR_LANE3, row, default=None)
     if error_lane_0 and error_lane_1 and error_lane_2 and error_lane_3:
-        symbol_ber_val = sum([
-            get_counter(Constants.PHY_RAW_ERROR_LANE0, row),
-            get_counter(Constants.PHY_RAW_ERROR_LANE1, row),
-            get_counter(Constants.PHY_RAW_ERROR_LANE2, row),
-            get_counter(Constants.PHY_RAW_ERROR_LANE3, row),
-            ])
-    else:
-        symbol_ber_val = None
-    return symbol_ber_val
+        return sum([error_lane_0, error_lane_1, error_lane_2, error_lane_3])
+    return None
 
 class IsolationMgr:
     
@@ -166,6 +159,7 @@ class IsolationMgr:
     def is_out_of_operating_conf(self, port_name):
         port_obj = self.ports_data.get(port_name)
         if not port_obj:
+            self.logger.warning(f"Port {port_name} not found in ports data in calculation of oonoc port")
             return
         temp = port_obj.counters_values.get(Constants.TEMP_COUNTER)
         if temp and temp > self.tmax:
@@ -242,30 +236,24 @@ class IsolationMgr:
         self.ports_states.pop(port_name)
         self.logger.warning(f"Deisolated port: {port_name}. dry_run: {self.dry_run}")
                 
-    def get_rate_and_update(self, port_name, counter_name, new_val, timestamp):
-        port_obj = self.ports_data.get(port_name)
-        if port_obj:
-            if timestamp - port_obj.last_timestamp < 1:
-                return port_obj.counters_values.get(counter_name + "_rate", 0)
-            old_val = port_obj.counters_values.get(counter_name)
-            if old_val and new_val > old_val:
-                counter_delta = (new_val - old_val) / (timestamp - port_obj.last_timestamp)
-            else:
-                counter_delta = 0
+    def get_rate_and_update(self, port_obj, counter_name, new_val, timestamp):
+
+        if timestamp - port_obj.last_timestamp < 1:
+            return port_obj.counters_values.get(counter_name + "_rate", 0)
+        old_val = port_obj.counters_values.get(counter_name)
+        if old_val and new_val > old_val:
+            counter_delta = (new_val - old_val) / (timestamp - port_obj.last_timestamp)
         else:
-            self.ports_data[port_name] = {}
             counter_delta = 0
-            port_obj = self.ports_data[port_name]
         port_obj.counters_values[counter_name] = new_val
         port_obj.counters_values[counter_name + "_rate"] = counter_delta
         port_obj.counters_values[Constants.LAST_TIMESTAMP] = timestamp
         return counter_delta
    
     def check_link_down_condition(self, port_obj, port_name, ports_counters):
-        peer_port_name = port_obj.peer
-        if not peer_port_name or peer_port_name == 'N/A':
+        if not port_obj.peer or port_obj.peer == 'N/A':
             return None
-        peer_guid, peer_num = peer_port_name.split('_')
+        peer_guid, peer_num = port_obj.peer.split('_')
         #TODO check for a way to save peer row in data structure for performance
         peer_row = ports_counters.loc[(ports_counters['port_guid'] == peer_guid) & (ports_counters['port_num'] == int(peer_num))]
         if peer_row.empty:
@@ -273,7 +261,10 @@ class IsolationMgr:
             return None
         peer_row_timestamp = peer_row.get(Constants.TIMESTAMP)
         peer_link_downed = get_counter(Constants.LNK_DOWNED_COUNTER, peer_row)
-        peer_link_downed_rate = self.get_rate_and_update(peer_port_name, Constants.LNK_DOWNED_COUNTER, peer_link_downed, peer_row_timestamp)
+        peer_obj = self.ports_data.get(peer_port_name)
+        if not peer_obj:
+            return None
+        peer_link_downed_rate = self.get_rate_and_update(peer_obj, Constants.LNK_DOWNED_COUNTER, peer_link_downed, peer_row_timestamp)
         if peer_link_downed_rate > 0:
             return Issue(port_name, Constants.ISSUE_LINK_DOWN)
         return None
@@ -286,21 +277,21 @@ class IsolationMgr:
             self.logger.error("Couldn't retrieve telemetry data")
             return issues
         for index, row in ports_counters.iterrows():
-            timestamp = row.get(Constants.TIMESTAMP) / 1000
             port_name = f"{row.get('port_guid', '').split('x')[-1]}_{row.get('port_num', '')}"
             port_obj = self.ports_data.get(port_name)
             if not port_obj:
                 self.logger.warning("Port {0} not found in ports data".format(port_name))
                 continue
+            timestamp = row.get(Constants.TIMESTAMP) / 1000
             rcv_error = get_counter(Constants.RCV_ERRORS_COUNTER, row)
             rcv_remote_phy_error = get_counter(Constants.RCV_REMOTE_PHY_ERROR_COUNTER, row)
             errors = rcv_error + rcv_remote_phy_error
-            error_rate = self.get_rate_and_update(port_name, Constants.ERRORS_COUNTER, errors, timestamp)
+            error_rate = self.get_rate_and_update(port_obj, Constants.ERRORS_COUNTER, errors, timestamp)
             rcv_pkts = get_counter(Constants.RCV_PACKETS_COUNTER, row)
-            rcv_pkt_rate = self.get_rate_and_update(port_name, Constants.RCV_PACKETS_COUNTER, rcv_pkts, timestamp)
+            rcv_pkt_rate = self.get_rate_and_update(port_obj, Constants.RCV_PACKETS_COUNTER, rcv_pkts, timestamp)
             cable_temp = get_counter(Constants.TEMP_COUNTER, row, default=None)
             link_downed = get_counter(Constants.LNK_DOWNED_COUNTER, row)
-            link_downed_rate = self.get_rate_and_update(port_name, Constants.LNK_DOWNED_COUNTER, link_downed, timestamp)
+            link_downed_rate = self.get_rate_and_update(port_obj, Constants.LNK_DOWNED_COUNTER, link_downed, timestamp)
             port_obj.last_timestamp = timestamp
             if cable_temp is not None and not numpy.isnan(cable_temp):
                 if cable_temp == "NA" or cable_temp == "N/A" or cable_temp == "" or cable_temp == "0C":
