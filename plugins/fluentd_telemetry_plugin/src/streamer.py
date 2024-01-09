@@ -302,6 +302,15 @@ class UFMTelemetryStreaming(Singleton):
         try:
             response = requests.get(url)
             response.raise_for_status()
+            logging.info(f'UFM Telemetry Endpoint Response Received Successfully, '
+                         f'Response Time: {response.elapsed.total_seconds()} seconds')
+            expected_content_size = int(response.headers.get('Content-Length'))
+            actual_content_size = len(response.content)
+            if expected_content_size > actual_content_size:
+                logging.warning(f'The Received UFM Telemetry Endpoint Response Size: {actual_content_size} Bytes'
+                                f' Less Than The Expected Size: {expected_content_size} Bytes')
+            else:
+                logging.info(f'The Received UFM Telemetry Endpoint Response Size: {actual_content_size} Bytes')
             return response.text
         except Exception as e:
             logging.error(e)
@@ -426,6 +435,7 @@ class UFMTelemetryStreaming(Singleton):
 
     def _stream_data_to_fluentd(self, data_to_stream, fluentd_msg_tag=''):
         logging.info(f'Streaming to Fluentd IP: {self.fluentd_host} port: {self.fluentd_port} timeout: {self.fluentd_timeout}')
+        st = time.time()
         try:
             fluentd_message = {
                 "timestamp": datetime.datetime.fromtimestamp(int(time.time())).strftime('%Y-%m-%d %H:%M:%S'),
@@ -447,7 +457,9 @@ class UFMTelemetryStreaming(Singleton):
                                                     self.fluentd_port, timeout=self.fluentd_timeout)
                 fluent_sender.emit(fluentd_msg_tag, fluentd_message)
                 fluent_sender.close()
+            et = time.time()
             logging.info(f'Finished Streaming to Fluentd Host: {self.fluentd_host} port: {self.fluentd_port}')
+            logging.info(f'Total Streaming Time: {et-st} Seconds')
         except ConnectionError as e:
             logging.error(f'Failed to connect to stream destination due to the error :{str(e)}')
         except Exception as e:
@@ -465,10 +477,16 @@ class UFMTelemetryStreaming(Singleton):
             try:
                 msg_tag = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME)
                 ufm_telemetry_is_prometheus_format = self._check_data_prometheus_format(telemetry_data)
+                logging.info('Start Processing The Received UFM Telemetry Endpoint Response')
+                st = time.time()
                 data_to_stream, new_data_timestamp = self._parse_telemetry_prometheus_metrics_to_json(telemetry_data) \
                     if ufm_telemetry_is_prometheus_format else \
                     self._parse_telemetry_csv_metrics_to_json(telemetry_data)
-                if len(data_to_stream) > 0 and \
+                et = time.time()
+                data_len = len(data_to_stream)
+                logging.info(f'Total Processing Time of The Received UFM Telemetry Endpoint Response: {(et - st)} Seconds,'
+                             f'({data_len}) Ports Were Handled')
+                if data_len > 0 and \
                         (not self.stream_only_new_samples or
                          (self.stream_only_new_samples and new_data_timestamp != self.last_streamed_data_sample_timestamp)):
                     if self.bulk_streaming_flag:
