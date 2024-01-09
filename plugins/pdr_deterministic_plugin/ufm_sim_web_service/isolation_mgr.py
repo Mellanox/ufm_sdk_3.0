@@ -25,9 +25,20 @@ from ufm_communication_mgr import UFMCommunicator
 
 
 class PortData(object):
-    def __init__(self):
+    def __init__(self, port_name=None, port_num=None, peer=None, node_type=None, active_speed=None, port_width=None, port_guid=None):
         self.counters_values = {}
-        self.change_time = datetime.now()
+        self.node_type = node_type
+        self.peer = peer
+        self.port_name = port_name
+        self.port_num = None
+        self.last_timestamp = 0
+        self.active_speed = active_speed
+        self.port_width = port_width
+        self.port_guid = None
+        self.ber_tele_data = pd.DataFrame(columns=[Constants.TIMESTAMP, Constants.SYMBOL_BER])
+        self.last_symbol_ber_timestamp = None
+        self.last_symbol_ber_val = None
+
 
 
 class PortState(object):
@@ -64,6 +75,15 @@ def get_counter(counter_name, row, default=0):
         return default
     return val
 
+def calc_symbol_ber_val(row):
+    error_lane_0 = get_counter(Constants.PHY_RAW_ERROR_LANE0, row, default=None)
+    error_lane_1 = get_counter(Constants.PHY_RAW_ERROR_LANE1, row, default=None)
+    error_lane_2 = get_counter(Constants.PHY_RAW_ERROR_LANE2, row, default=None)
+    error_lane_3 = get_counter(Constants.PHY_RAW_ERROR_LANE3, row, default=None)
+    if error_lane_0 and error_lane_1 and error_lane_2 and error_lane_3:
+        return sum([error_lane_0, error_lane_1, error_lane_2, error_lane_3])
+    return None
+
 class IsolationMgr:
     
     def __init__(self, ufm_client: UFMCommunicator, logger):
@@ -89,17 +109,19 @@ class IsolationMgr:
         self.deisolate_consider_time = pdr_config.getint(Constants.CONF_COMMON,Constants.DEISOLATE_CONSIDER_TIME)
         self.automatic_deisolate = pdr_config.getboolean(Constants.CONF_COMMON,Constants.AUTOMATIC_DEISOLATE)
         self.dynamic_wait_time = pdr_config.getint(Constants.CONF_COMMON,"DYNAMIC_WAIT_TIME")
+        self.temp_check = pdr_config.getboolean(Constants.CONF_COMMON,Constants.CONFIGURED_TEMP_CHECK)
+        self.no_down_count = pdr_config.getboolean(Constants.CONF_COMMON,Constants.NO_DOWN_COUNT)
+        self.access_isolation = pdr_config.getboolean(Constants.CONF_COMMON,Constants.ACCESS_ISOLATION)
         # Take from Conf
         self.logger = logger
-        self.isolation_matrix = pd.read_csv(Constants.BER_MATRIX)
-        min_threshold = self.isolation_matrix[[
-            Constants.CSV_RAW_BER_ISOLATE, Constants.CSV_RAW_BER_DEISOLATE,
-            Constants.CSV_EFF_BER_ISOLATE, Constants.CSV_EFF_BER_DEISOLATE, 
-            Constants.CSV_SYMBOL_BER_ISOLATE, Constants.CSV_SYMBOL_BER_DEISOLATE]].min().min()
-        self.ber_wait_time = self.calc_max_ber_wait_time(min_threshold)
+        intervals = [x[0] for x in Constants.BER_THRESHOLDS_INTERVALS]
+        self.min_ber_wait_time = min(intervals)
+        self.max_ber_wait_time = max(intervals)
+        self.max_ber_threshold = max([x[1] for x in Constants.BER_THRESHOLDS_INTERVALS])
+        
         self.start_time = time.time()
         self.max_time = self.start_time
-        self.ber_tele_data = pd.DataFrame(columns=[Constants.TIMESTAMP, Constants.RAW_BER, Constants.EFF_BER, Constants.SYMBOL_BER, Constants.PORT_NAME])
+        self.ber_tele_data = pd.DataFrame(columns=[Constants.TIMESTAMP, Constants.SYMBOL_BER, Constants.PORT_NAME])
         self.speed_types = {
             "FDR": 14,
             "EDR": 25,
@@ -111,13 +133,12 @@ class IsolationMgr:
             Constants.PHY_RAW_ERROR_LANE1,
             Constants.PHY_RAW_ERROR_LANE2,
             Constants.PHY_RAW_ERROR_LANE3,
-            Constants.PHY_EFF_ERROR,
             Constants.PHY_SYMBOL_ERROR,
             Constants.RCV_PACKETS_COUNTER,
             Constants.RCV_ERRORS_COUNTER,
             Constants.RCV_REMOTE_PHY_ERROR_COUNTER,
             Constants.TEMP_COUNTER,
-            Constants.FEC_MODE
+            Constants.LNK_DOWNED_COUNTER,
         ]
                 
         # DEBUG
@@ -134,11 +155,13 @@ class IsolationMgr:
         min_bits = float(format(float(min_threshold), '.0e').replace('-', ''))
         min_sec_to_wait = min_bits / min_port_rate
         return min_sec_to_wait
+
     def is_out_of_operating_conf(self, port_name):
-        port_telemetry = self.ports_data.get(port_name)
-        if not port_telemetry:
+        port_obj = self.ports_data.get(port_name)
+        if not port_obj:
+            self.logger.warning(f"Port {port_name} not found in ports data in calculation of oonoc port")
             return
-        temp = port_telemetry.get(Constants.TEMP_COUNTER)
+        temp = port_obj.counters_values.get(Constants.TEMP_COUNTER)
         if temp and temp > self.tmax:
             return True
         return False
@@ -148,9 +171,15 @@ class IsolationMgr:
         if port_name in self.ufm_latest_isolation_state:
             self.logger.info("Port is already isolated. skipping...")
             return
-
+        port_obj = self.ports_data.get(port_name)
+        if not port_obj:
+            self.logger.warning("Port {0} not found in ports data".format(port_name))
+            return
+        if port_obj.node_type == Constants.NODE_TYPE_COMPUTER and not self.access_isolation:
+            self.logger.info("Port {0} is a computer port. skipping...".format(port_name))
+            return
         # if out of operating conditions we ignore the cause
-        if self.is_out_of_operating_conf(port_name):
+        if self.temp_check and self.is_out_of_operating_conf(port_name):
             cause = Constants.ISSUE_OONOC
         
         if not self.dry_run:
@@ -166,7 +195,7 @@ class IsolationMgr:
         self.logger.warning(f"Isolated port: {port_name} cause: {cause}. dry_run: {self.dry_run}")
 
     def eval_deisolate(self, port_name):
-        if not port_name in self.ufm_latest_isolation_state:
+        if not port_name in self.ufm_latest_isolation_state and not self.dry_run:
             if self.ports_states.get(port_name):
                 self.ports_states.pop(port_name)
             return
@@ -179,16 +208,14 @@ class IsolationMgr:
 
         # we need some time after the change in state
         elif datetime.now() >= self.ports_states[port_name].get_change_time() + timedelta(minutes=self.deisolate_consider_time):
-            port_data = self.ports_data.get(port_name)
-            port_speed = port_data.get(Constants.ACTIVE_SPEED)
-            port_asic = port_data.get(Constants.ASIC)
-            port_width = port_data.get(Constants.WIDTH)
-            fec_mode = port_data.get(Constants.FEC_MODE)
-            raw_ber_rate, eff_ber_rate, symbol_ber_rate = self.calc_ber_rates(port_name, port_speed, port_width)
-            if self.check_ber_threshold(port_name, port_speed, port_asic, fec_mode, raw_ber_rate, eff_ber_rate, symbol_ber_rate, isolation=False):
-                cause = Constants.ISSUE_BER
-                self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
-                return
+            port_obj = self.ports_data.get(port_name)
+            if port_state.cause == Constants.ISSUE_BER:
+                # check if we are still above the threshold
+                symbol_ber_rate = self.calc_ber_rates(port_name, port_obj.active_speed, port_obj.port_width, self.max_ber_wait_time + 1)
+                if symbol_ber_rate and symbol_ber_rate > self.max_ber_threshold:
+                    cause = Constants.ISSUE_BER
+                    self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
+                    return                
         else:
             # too close to state change
             return
@@ -209,20 +236,39 @@ class IsolationMgr:
         self.ports_states.pop(port_name)
         self.logger.warning(f"Deisolated port: {port_name}. dry_run: {self.dry_run}")
                 
-    def get_rate_and_update(self, port_name, counter_name, new_val):
-        port_data = self.ports_data.get(port_name)
-        if port_data:
-            old_val = port_data.get(counter_name)
-            if old_val and new_val > old_val:
-                counter_delta = (new_val - old_val) / self.t_isolate
-            else:
-                counter_delta = 0
-        else:
-            self.ports_data[port_name] = {}
-            counter_delta = 0
-        self.ports_data.get(port_name)[counter_name] = new_val
-        return counter_delta
+    def get_rate_and_update(self, port_obj, counter_name, new_val, timestamp):
 
+        if timestamp - port_obj.last_timestamp < 1:
+            return port_obj.counters_values.get(counter_name + "_rate", 0)
+        old_val = port_obj.counters_values.get(counter_name)
+        if old_val and new_val > old_val:
+            counter_delta = (new_val - old_val) / (timestamp - port_obj.last_timestamp)
+        else:
+            counter_delta = 0
+        port_obj.counters_values[counter_name] = new_val
+        port_obj.counters_values[counter_name + "_rate"] = counter_delta
+        port_obj.counters_values[Constants.LAST_TIMESTAMP] = timestamp
+        return counter_delta
+   
+    def check_link_down_condition(self, port_obj, port_name, ports_counters):
+        if not port_obj.peer or port_obj.peer == 'N/A':
+            return None
+        peer_guid, peer_num = port_obj.peer.split('_')
+        #TODO check for a way to save peer row in data structure for performance
+        peer_row = ports_counters.loc[(ports_counters['port_guid'] == peer_guid) & (ports_counters['port_num'] == int(peer_num))]
+        if peer_row.empty:
+            self.logger.warning("Peer port {0} not found in ports data".format(peer_port_name))
+            return None
+        peer_row_timestamp = peer_row.get(Constants.TIMESTAMP)
+        peer_link_downed = get_counter(Constants.LNK_DOWNED_COUNTER, peer_row)
+        peer_obj = self.ports_data.get(peer_port_name)
+        if not peer_obj:
+            return None
+        peer_link_downed_rate = self.get_rate_and_update(peer_obj, Constants.LNK_DOWNED_COUNTER, peer_link_downed, peer_row_timestamp)
+        if peer_link_downed_rate > 0:
+            return Issue(port_name, Constants.ISSUE_LINK_DOWN)
+        return None
+    
     def read_next_set_of_high_ber_or_pdr_ports(self, endpoint_port):
         issues = {}
         ports_counters = self.ufm_client.get_telemetry(endpoint_port, Constants.PDR_DYNAMIC_NAME)
@@ -232,148 +278,94 @@ class IsolationMgr:
             return issues
         for index, row in ports_counters.iterrows():
             port_name = f"{row.get('port_guid', '').split('x')[-1]}_{row.get('port_num', '')}"
+            port_obj = self.ports_data.get(port_name)
+            if not port_obj:
+                self.logger.warning("Port {0} not found in ports data".format(port_name))
+                continue
+            timestamp = row.get(Constants.TIMESTAMP) / 1000
             rcv_error = get_counter(Constants.RCV_ERRORS_COUNTER, row)
             rcv_remote_phy_error = get_counter(Constants.RCV_REMOTE_PHY_ERROR_COUNTER, row)
             errors = rcv_error + rcv_remote_phy_error
-            error_rate = self.get_rate_and_update(port_name, Constants.ERRORS_COUNTER, errors)
+            error_rate = self.get_rate_and_update(port_obj, Constants.ERRORS_COUNTER, errors, timestamp)
             rcv_pkts = get_counter(Constants.RCV_PACKETS_COUNTER, row)
-            rcv_pkt_rate = self.get_rate_and_update(port_name, Constants.RCV_PACKETS_COUNTER, rcv_pkts)
+            rcv_pkt_rate = self.get_rate_and_update(port_obj, Constants.RCV_PACKETS_COUNTER, rcv_pkts, timestamp)
             cable_temp = get_counter(Constants.TEMP_COUNTER, row, default=None)
-            # DEBUG
-            # if port_name == "e41d2d0300062380_3":
-            #     self.iteration += 1
-            #     if self.iteration < 3:
-            #         cable_temp = 90
-            #     else:
-            #         cable_temp = 30
+            link_downed = get_counter(Constants.LNK_DOWNED_COUNTER, row)
+            link_downed_rate = self.get_rate_and_update(port_obj, Constants.LNK_DOWNED_COUNTER, link_downed, timestamp)
+            port_obj.last_timestamp = timestamp
             if cable_temp is not None and not numpy.isnan(cable_temp):
                 if cable_temp == "NA" or cable_temp == "N/A" or cable_temp == "" or cable_temp == "0C":
                     continue
                 cable_temp = int(cable_temp.split("C")[0]) if type(cable_temp) == str else cable_temp
-                dT = abs(self.ports_data[port_name].get(Constants.TEMP_COUNTER, 0) - cable_temp)
-                self.ports_data[port_name][Constants.TEMP_COUNTER] = cable_temp
+                dT = abs(port_obj.counters_values.get(Constants.TEMP_COUNTER, 0) - cable_temp)
+                port_obj.counters_values[Constants.TEMP_COUNTER] = cable_temp
             if rcv_pkt_rate and error_rate / rcv_pkt_rate > self.max_pdr:
                 issues[port_name] = Issue(port_name, Constants.ISSUE_PDR)
-            elif cable_temp and (cable_temp > self.tmax or dT > self.d_tmax):
+            elif self.temp_check and cable_temp and (cable_temp > self.tmax or dT > self.d_tmax):
                 issues[port_name] = Issue(port_name, Constants.ISSUE_OONOC)
+            elif self.no_down_count and link_downed_rate > 0:
+                link_downed_issue = self.check_link_down_condition(port_obj, port_name, ports_counters)
+                if link_downed_issue:
+                    issues[port_name] = link_downed_issue
             if self.configured_ber_check:
-                error_lane_0 = get_counter(Constants.PHY_RAW_ERROR_LANE0, row, default=None)
-                error_lane_1 = get_counter(Constants.PHY_RAW_ERROR_LANE1, row, default=None)
-                error_lane_2 = get_counter(Constants.PHY_RAW_ERROR_LANE2, row, default=None)
-                error_lane_3 = get_counter(Constants.PHY_RAW_ERROR_LANE3, row, default=None)
-                if error_lane_0 and error_lane_1 and error_lane_2 and error_lane_3:
-                    symbol_ber_val = sum([
-                        get_counter(Constants.PHY_RAW_ERROR_LANE0, row),
-                        get_counter(Constants.PHY_RAW_ERROR_LANE1, row),
-                        get_counter(Constants.PHY_RAW_ERROR_LANE2, row),
-                        get_counter(Constants.PHY_RAW_ERROR_LANE3, row),
-                        ])
-                else:
-                    symbol_ber_val = None
-                eff_ber_val = get_counter(Constants.PHY_EFF_ERROR, row, default=None)
-                raw_ber_val = get_counter(Constants.RAW_BER, row, default=None)
-                #DEBUG
-                # if self.iteration < 2:
-                #     symbol_ber_val = 10
-                # else:
-                #     symbol_ber_val = 40000
-                #DEBUG
-                if symbol_ber_val is not None or eff_ber_val is not None or raw_ber_val is not None:
-                    curr_timestamp = int(time.time())
+                symbol_ber_val = calc_symbol_ber_val(row)
+                if symbol_ber_val is not None:
                     ber_data = {
-                        Constants.TIMESTAMP : curr_timestamp,
-                        Constants.RAW_BER : raw_ber_val,
-                        Constants.EFF_BER : eff_ber_val,
+                        Constants.TIMESTAMP : timestamp,
                         Constants.SYMBOL_BER : symbol_ber_val, 
-                        Constants.PORT_NAME: port_name
                     }
-                    self.ber_tele_data.loc[len(self.ber_tele_data)] = ber_data
-                    # self.ber_tele_data = self.ber_tele_data[self.ber_tele_data[Constants.TIMESTAMP] > self.start_time - self.ber_wait_time + self.t_isolate * 10]
-                    port_data = self.ports_data.get(port_name)
-                    fec_mode = get_counter(Constants.FEC_MODE, row, default=None)
-                    #DEBUG
-                    # fec_mode=14
-                    # port_data[Constants.ASIC] = "7nm"
-                    # self.ber_wait_time = 0
-                    # port_data[Constants.ACTIVE_SPEED] = "NDR"
-                    #DEBUG
-                    port_data[Constants.FEC_MODE] = fec_mode
-                    if fec_mode is None:
-                        continue
-                    port_speed = port_data.get(Constants.ACTIVE_SPEED)
-                    port_asic = port_data.get(Constants.ASIC)
-                    port_width = port_data.get(Constants.WIDTH)
-                    if not port_speed or port_asic is None or not port_width:
-                        port_speed, port_asic, port_width = self.get_port_metadata(port_name)
-                        port_data[Constants.ACTIVE_SPEED] = port_speed
-                        port_data[Constants.ASIC] = port_asic
-                        port_data[Constants.WIDTH] = port_width
-                    if not port_asic:
-                        self.logger.debug(f"Couldn't retrieve HW technology for port {port_name}, can't verify it's BER values")
-                        continue
-                    if not port_width:
+                    port_obj.ber_tele_data.loc[len(port_obj.ber_tele_data)] = ber_data
+                    port_obj.last_symbol_ber_timestamp = timestamp
+                    port_obj.last_symbol_ber_val = symbol_ber_val
+                    if not port_obj.active_speed or not port_obj.port_width:
+                        port_obj.active_speed, port_obj.port_width = self.get_port_metadata(port_name)
+                    if not port_obj.port_width:
                         self.logger.debug(f"port width for port {port_name} is None, can't verify it's BER values")
                         continue
-
-                    raw_ber_rate, eff_ber_rate, symbol_ber_rate = self.calc_ber_rates(port_name, port_speed, port_width)
-                    if (raw_ber_rate or eff_ber_rate or symbol_ber_rate) and self.check_ber_threshold(port_name, port_speed, port_asic, fec_mode, raw_ber_rate, eff_ber_rate, symbol_ber_rate, isolation=True):
-                        issued_port = issues.get(port_name)
-                        if issued_port:
-                            issued_port.cause = Constants.ISSUE_PDR_BER
-                        else:
-                            issues[port_name] = Issue(port_name, Constants.ISSUE_BER)                    
+                    for (interval, threshold) in Constants.BER_THRESHOLDS_INTERVALS:
+                        symbol_ber_rate = self.calc_ber_rates(port_name, port_obj.active_speed, port_obj.port_width, interval)
+                        if symbol_ber_rate and symbol_ber_rate > threshold:
+                            issued_port = issues.get(port_name)
+                            if issued_port:
+                                issued_port.cause = Constants.ISSUE_PDR_BER
+                            else:
+                                issues[port_name] = Issue(port_name, Constants.ISSUE_BER)                    
+                            break                        
         return issues
 
-    def calc_single_rate(self, port_name, port_speed, port_width, col_name):
+    def calc_single_rate(self, port_name, port_speed, port_width, col_name, time_delta):
         try:
-            min_timestamp = self.ber_tele_data.loc[self.ber_tele_data[Constants.PORT_NAME] == port_name, Constants.TIMESTAMP].min()
-            max_timestamp = self.ber_tele_data.loc[self.ber_tele_data[Constants.PORT_NAME] == port_name, Constants.TIMESTAMP].max()
-            self.ber_tele_data[Constants.TIMESTAMP].min()
-            if max_timestamp == min_timestamp or max_timestamp - min_timestamp < self.ber_wait_time:
+            if port_speed != "NDR":
+                # BER calculations is only relevant for NDR
                 return 0
-            min_value = self.ber_tele_data.loc[(self.ber_tele_data[Constants.TIMESTAMP] == min_timestamp) & (self.ber_tele_data[Constants.PORT_NAME] == port_name), col_name].values[0]
-            max_value = self.ber_tele_data.loc[(self.ber_tele_data[Constants.TIMESTAMP] == max_timestamp) & (self.ber_tele_data[Constants.PORT_NAME] == port_name), col_name].values[0]
-            if not min_value or not max_value:
+            port_obj  = self.ports_data.get(port_name)
+            ber_data = port_obj.ber_tele_data
+            if not port_obj.last_symbol_ber_val or ber_data.empty:
                 return 0
+            # Calculate the adjusted time delta, rounded up to the nearest sample interval
+            adjusted_time_delta = numpy.ceil(time_delta / self.t_isolate) * self.t_isolate
+            
+            compare_timestamp = port_obj.last_symbol_ber_timestamp - adjusted_time_delta
+            # Find the sample closest to, but not less than, the calculated compare_timestamp
+            comparison_df = ber_data[ber_data[Constants.TIMESTAMP] <= compare_timestamp]
+            if comparison_df.empty:
+                return 0
+
+            comparison_idx = comparison_df[Constants.TIMESTAMP].idxmax()
+            comparison_sample = comparison_df.loc[comparison_idx]
+
+            # Calculate the delta of 'symbol_ber'
+            delta = port_obj.last_symbol_ber_val - comparison_sample[Constants.SYMBOL_BER]
             actual_speed = self.speed_types.get(port_speed, 100000)
-            return (max_value - min_value) / ((max_timestamp - min_timestamp) * actual_speed * port_width * 1024 * 1024 * 1024)
+            return delta / ((port_obj.last_symbol_ber_timestamp - comparison_df.loc[comparison_idx][Constants.TIMESTAMP]) * actual_speed * port_width * 1024 * 1024 * 1024)
+            
         except Exception as e:
             self.logger.error(f"Error calculating {col_name}, error: {e}")
             return 0
     
-    def calc_ber_rates(self, port_name, port_speed, port_width):
-        raw_rate = self.calc_single_rate(port_name, port_speed, port_width, Constants.RAW_BER)
-        eff_rate = self.calc_single_rate(port_name, port_speed, port_width, Constants.EFF_BER)
-        symbol_rate = self.calc_single_rate(port_name, port_speed, port_width, Constants.SYMBOL_BER)
-        return raw_rate, eff_rate, symbol_rate
-        
-        
-
-    def check_ber_threshold(self, port_name, port_speed, asic, fec_mode, raw_ber_val, eff_ber_val, symbol_ber_val, isolation=True):
-        if not asic:
-            self.logger.debug(f"{port_name} doesn't support asic retrieval. skipping BER check")
-            return False
-        if isolation:
-            raw_ber_string = Constants.CSV_RAW_BER_ISOLATE
-            eff_ber_string = Constants.CSV_EFF_BER_ISOLATE
-            symbol_ber_string = Constants.CSV_SYMBOL_BER_ISOLATE
-        else:
-            raw_ber_string = Constants.CSV_RAW_BER_DEISOLATE
-            eff_ber_string = Constants.CSV_EFF_BER_DEISOLATE
-            symbol_ber_string = Constants.CSV_SYMBOL_BER_DEISOLATE
-
-        rows = self.isolation_matrix[(self.isolation_matrix[Constants.CSV_SPEED] == port_speed) &
-         (self.isolation_matrix[Constants.CSV_FEC_OPCODE] == fec_mode) &
-         (self.isolation_matrix[Constants.CSV_ASIC] == asic) &
-         ((raw_ber_val > self.isolation_matrix[raw_ber_string]) |
-          (eff_ber_val > self.isolation_matrix[eff_ber_string]) |
-          (symbol_ber_val > self.isolation_matrix[symbol_ber_string]))]
-        # Check if any rows were returned
-        if rows.empty:
-            return False
-        else:
-            self.logger.warning(f"port {port_name} BER counter crossed the threshold. fec={fec_mode}, port_speed={port_speed}, asic={asic}, raw={raw_ber_val}, eff={eff_ber_val}, symbol={symbol_ber_val}")
-            return True
+    def calc_ber_rates(self, port_name, port_speed, port_width, time_delta):
+        symbol_rate = self.calc_single_rate(port_name, port_speed, port_width, Constants.SYMBOL_BER, time_delta)
+        return symbol_rate
 
     def get_ports_metadata(self):
         meta_data = self.ufm_client.get_ports_metadata()
@@ -381,21 +373,25 @@ class IsolationMgr:
             for port in meta_data:
                 port_name = port.get(Constants.PORT_NAME)
                 if not self.ports_data.get(port_name):
-                    self.ports_data[port_name] = {}
+                    self.ports_data[port_name] = PortData(port_name)
                 self.update_port_metadata(port_name, port)
         
     def update_port_metadata(self, port_name, port):
-        self.ports_data[port_name][Constants.ACTIVE_SPEED] = port.get(Constants.ACTIVE_SPEED)
-        self.ports_data[port_name][Constants.ASIC] = port.get(Constants.HW_TECHNOLOGY)
-        self.ports_data[port_name][Constants.GUID] = port.get(Constants.SYSTEM_ID)
+        port_obj = self.ports_data[port_name]
+        port_obj.active_speed = port.get(Constants.ACTIVE_SPEED)
+        port_obj.port_guid = port.get(Constants.SYSTEM_ID)
+        port_obj.peer = port.get(Constants.PEER)
+        port_obj.ber_tele_data = pd.DataFrame(columns=[Constants.TIMESTAMP, Constants.SYMBOL_BER])
         if "Computer IB Port" in port.get(Constants.DESCRIPTION):
-            self.ports_data[port_name][Constants.PORT_NUM] = 1
+            port_obj.port_num = 1
+            port_obj.node_type = Constants.NODE_TYPE_COMPUTER
         else:
-            self.ports_data[port_name][Constants.PORT_NUM] = port.get(Constants.EXTERNAL_NUMBER)
+            port_obj.port_num = port.get(Constants.EXTERNAL_NUMBER)
+            port_obj.node_type = Constants.NODE_TYPE_OTHER
         port_width = port.get(Constants.WIDTH)
         if port_width:
             port_width = int(port_width.strip('x'))    
-        self.ports_data[port_name][Constants.WIDTH] = port_width
+        port_obj.port_width = port_width
 
 
     def update_ports_data(self):
@@ -415,11 +411,10 @@ class IsolationMgr:
         if meta_data and len(meta_data) > 0:
             port_data = meta_data[0]
             port_speed = port_data.get(Constants.ACTIVE_SPEED)
-            port_asic = port_data.get(Constants.HW_TECHNOLOGY)
             port_width = port_data.get(Constants.WIDTH)
             if port_width:
                 port_width = int(port_width.strip('x'))
-            return port_speed, port_asic, port_width
+            return port_speed, port_width
 
 
     def set_ports_as_treated(self, ports_dict):
@@ -460,11 +455,11 @@ class IsolationMgr:
     def get_requested_guids(self):
         guids = {}
         for port in self.ports_data.values():
-            sys_guid = port.get(Constants.GUID)
+            sys_guid = port.port_guid
             if sys_guid in guids:
-                guids[sys_guid].append(port.get(Constants.PORT_NUM))
+                guids[sys_guid].append(port.port_num)
             else:
-                guids[sys_guid] = [port.get(Constants.PORT_NUM)]
+                guids[sys_guid] = [port.port_num]
         requested_guids = [{"guid": sys_guid, "ports": ports} for sys_guid, ports in guids.items()]
         return requested_guids
 
@@ -526,14 +521,8 @@ class IsolationMgr:
                 self.logger.warning(e)
                 traceback_err = traceback.format_exc()
                 self.logger.warning(traceback_err)
-                t_end = time.time()
-            #DEBUG
-            # self.iteration += 1
-            # DEBUG                
+                t_end = time.time()      
             time.sleep(max(1, self.t_isolate - (t_end - t_begin)))
-            # DEBUG
-            #time.sleep(15)
-        
 
 # this is a callback for API exposed by this code - second phase
 # def work_reportingd(port):

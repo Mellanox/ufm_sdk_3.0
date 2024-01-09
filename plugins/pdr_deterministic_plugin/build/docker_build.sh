@@ -12,9 +12,7 @@ SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 IMAGE_VERSION=$1
 IMAGE_NAME=ufm-plugin-pdr_deterministic
 OUT_DIR=$2
-RANDOM_HASH=$3
 
-echo "RANDOM_HASH  : [${RANDOM_HASH}]"
 echo "SCRIPT_DIR   : [${SCRIPT_DIR}]"
 echo " "
 echo "IMAGE_VERSION: [${IMAGE_VERSION}]"
@@ -41,22 +39,20 @@ function build_docker_image()
     build_dir=$1
     image_name=$2
     image_version=$3
-    random_hash=$4
-    out_dir=$5
-    keep_image=$6
+    out_dir=$4
+    keep_image=$5
     prefix="mellanox"
 
     echo "build_docker_image"
     echo "  build_dir     : [${build_dir}]"
     echo "  image_name    : [${image_name}]"
     echo "  image_version : [${image_version}]"
-    echo "  random_hash   : [${random_hash}]"
     echo "  out_dir       : [${out_dir}]"
     echo "  keep_image    : [${keep_image}]"
     echo "  prefix        : [${prefix}]"
     echo " "
     if [ "${IMAGE_VERSION}" == "0.0.00-0" ]; then
-        full_image_version="${image_name}_${image_version}-${random_hash}"
+        full_image_version="${image_name}_${image_version}"
     else
         full_image_version="${image_name}_${image_version}"
     fi
@@ -107,7 +103,7 @@ cp -r ../../../utils ${BUILD_DIR}
 
 echo "BUILD_DIR    : [${BUILD_DIR}]"
 
-build_docker_image $BUILD_DIR $IMAGE_NAME $IMAGE_VERSION ${RANDOM_HASH} $OUT_DIR "Y"
+build_docker_image $BUILD_DIR $IMAGE_NAME $IMAGE_VERSION $OUT_DIR "Y"
 exit_code=$?
 rm -rf ${BUILD_DIR}
 popd
