@@ -48,6 +48,7 @@ if __name__ == '__main__':
 
     _init_logs(config_parser)
 
+    streamer = None
     try:
         streamer = UFMTelemetryStreaming.getInstance(config_parser)
         if config_parser.get_enable_streaming_flag():
@@ -58,13 +59,16 @@ if __name__ == '__main__':
             logging.warning("Streaming was not started, need to enable the streaming & set the required configurations")
 
     except ValueError as ex:
-        logging.warning("Streaming was not started, need to enable the streaming & set the required configurations")
+        logging.warning("Streaming was not started, need to enable the streaming & set the required configurations. "+ str(ex))
     except Exception as ex:
         logging.error(f'Streaming was not started due to the following error: {str(ex)}')
 
-    try:
-        app = UFMTelemetryFluentdStreamingAPI(config_parser)
-        port = Utils.get_plugin_port('/config/tfs_httpd_proxy.conf', 8981)
-        run_api(app=app, port_number=int(port))
-    except Exception as ex:
-        logging.error(f'Streaming server was not started due to the following error: {str(ex)}')
+    if streamer:
+        try:
+            app = UFMTelemetryFluentdStreamingAPI(config_parser)
+            port = Utils.get_plugin_port('/config/tfs_httpd_proxy.conf', 8981)
+            run_api(app=app, port_number=int(port))
+        except Exception as ex:
+            logging.error(f'Streaming server was not started due to the following error: {str(ex)}')
+    else:
+        logging.error(f'Streaming server was not started.')
