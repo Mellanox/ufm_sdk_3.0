@@ -18,6 +18,7 @@
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 from api.conf_api import StreamingConfigurationsAPI
+from api.streaming_monitoring_stats_api import StreamingMonitoringStatsAPI
 from api.base_api import BaseAPIApplication
 
 
@@ -27,8 +28,10 @@ class UFMTelemetryFluentdStreamingAPI(DispatcherMiddleware):
 
         frontend = BaseAPIApplication()
         self.streaming_conf = StreamingConfigurationsAPI(config_parser)
+        self.streaming_stats = StreamingMonitoringStatsAPI()
         super(UFMTelemetryFluentdStreamingAPI, self).__init__(
             frontend.application, {
-                "/conf": self.streaming_conf.application
+                "/conf": self.streaming_conf.application,
+                "/streaming_stats": self.streaming_stats.application
             }
         )
