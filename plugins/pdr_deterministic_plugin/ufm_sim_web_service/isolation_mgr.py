@@ -370,6 +370,7 @@ class IsolationMgr:
     def get_ports_metadata(self):
         meta_data = self.ufm_client.get_ports_metadata()
         if meta_data and len(meta_data) > 0:
+            self.max_num_isolate = int(max(self.max_num_isolate, 0.05 * len(meta_data)))
             for port in meta_data:
                 port_name = port.get(Constants.PORT_NAME)
                 if not self.ports_data.get(port_name):
