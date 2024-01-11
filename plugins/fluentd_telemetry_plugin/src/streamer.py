@@ -315,20 +315,21 @@ class UFMTelemetryStreaming(Singleton):
             expected_content_size = int(response.headers.get('Content-Length'))
             actual_content_size = len(response.content)
             if expected_content_size > actual_content_size:
-                log_msg = (f'Telemetry Response Received Partially, The Expected Size is {expected_content_size} Bytes'
+                log_msg = (f'Telemetry Response Received Partially from {msg_tag}, The Expected Size is {expected_content_size} Bytes'
                            f' While The Received Size is {actual_content_size} Bytes')
                 log_level = LOG_LEVELS.WARNING
             else:
-                log_msg = (f'Telemetry Response Received Successfully, '
+                log_msg = (f'Telemetry Response Received Successfully from {msg_tag},'
                            f'The Received Size is {actual_content_size} Bytes')
                 log_level = LOG_LEVELS.INFO
             log_msg += f', Response Time: {response.elapsed.total_seconds()} seconds'
             Logger.log_message(log_msg, log_level)
             if msg_tag:
                 endpoint_stats = self.streaming_monitoring_stats.get(msg_tag)
-                endpoint_stats[self.LAST_RESP_TIME_KEY] = response.elapsed.total_seconds()
-                endpoint_stats[self.LAST_EXPECTED_RESP_SIZE_KEY] = expected_content_size
-                endpoint_stats[self.LAST_RCV_RESP_SIZE_KEY] = actual_content_size
+                if endpoint_stats is not None:
+                    endpoint_stats[self.LAST_RESP_TIME_KEY] = response.elapsed.total_seconds()
+                    endpoint_stats[self.LAST_EXPECTED_RESP_SIZE_KEY] = expected_content_size
+                    endpoint_stats[self.LAST_RCV_RESP_SIZE_KEY] = actual_content_size
             return response.text
         except Exception as e:
             logging.error(e)
@@ -503,7 +504,7 @@ class UFMTelemetryStreaming(Singleton):
         if telemetry_data:
             try:
                 ufm_telemetry_is_prometheus_format = self._check_data_prometheus_format(telemetry_data)
-                logging.info('Start Processing The Received Response')
+                logging.info(f'Start Processing The Received Response From {msg_tag}')
                 st = time.time()
                 data_to_stream, new_data_timestamp, num_of_counters = self._parse_telemetry_prometheus_metrics_to_json(telemetry_data) \
                     if ufm_telemetry_is_prometheus_format else \
@@ -517,7 +518,7 @@ class UFMTelemetryStreaming(Singleton):
                     endpoint_stats[self.LAST_NUMBER_OF_PROCESSED_PORTS_KEY] = data_len
                     endpoint_stats[self.LAST_NUMBER_OF_PROCESSED_COUNTERS_KEY] = num_of_counters
                     logging.info(
-                        f'Processing Completed In: '
+                        f'Processing of endpoint {msg_tag} Completed In: '
                         f'{endpoint_stats[self.LAST_RESP_PROCESS_TIME_KEY]} Seconds. '
                         f'({data_len}) Ports, '
                         f'({endpoint_stats[self.LAST_NUMBER_OF_PROCESSED_COUNTERS_KEY]}) Counters Were Handled')
@@ -528,7 +529,7 @@ class UFMTelemetryStreaming(Singleton):
                             self._stream_data_to_fluentd(row, msg_tag)
                     self.last_streamed_data_sample_timestamp = new_data_timestamp
                 elif self.stream_only_new_samples:
-                    logging.info("No new samples, nothing to stream")
+                    logging.info(f"No new samples in endpoint {msg_tag}, nothing to stream")
 
             except Exception as e:
                 logging.error("Exception occurred during parsing telemetry data: "+ str(e))
@@ -552,7 +553,8 @@ class UFMTelemetryStreaming(Singleton):
             _host = endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_HOST)
             _port = endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_PORT)
             _url = endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_URL)
-            telemetry_data = self._get_metrics(_host, _port, _url)
+            _msg_tag = endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME)
+            telemetry_data = self._get_metrics(_host, _port, _url, _msg_tag)
             if telemetry_data:
                 ufm_telemetry_is_prometheus_format = self._check_data_prometheus_format(telemetry_data)
                 if not ufm_telemetry_is_prometheus_format:
