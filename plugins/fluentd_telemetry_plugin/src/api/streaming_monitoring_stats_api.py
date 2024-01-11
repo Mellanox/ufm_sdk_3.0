@@ -19,7 +19,6 @@ from flask import make_response
 class StreamingMonitoringStatsAPI(BaseAPIApplication):
     def __init__(self):
         super(StreamingMonitoringStatsAPI, self).__init__()
-        self.last_telemetry_request_response_time = None
         self.streamer = UFMTelemetryStreaming.getInstance()
 
     def _get_routes(self):
