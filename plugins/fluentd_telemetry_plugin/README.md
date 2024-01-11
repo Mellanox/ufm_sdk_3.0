@@ -303,7 +303,7 @@ The output record after adding these meta-fields will be:
 }
 ```
 
-### 3. Update the streaming attributes configurations by the following API:
+### 4. Update the streaming attributes configurations by the following API:
 
    METHOD: _POST_
    
@@ -338,3 +338,44 @@ The output record after adding these meta-fields will be:
 |  attribute.name   |   True   |   The name of the **attribute** in the streamed json data    |
 
 *Updating the streaming attributes configurations will be reflected automatically and applied on the next streaming period. 
+
+### 5. Get the streaming performance statistics by the following API:
+
+   METHOD: _GET_
+   
+   URL: _https://[HOST-IP]/ufmRest/plugin/tfs/streaming_stats
+   
+   Response: JSON contains performance statistics for the last streaming interval:
+   
+```json lines
+{
+    "10.209.36.68:9001/metrics": {
+        "num_of_processed_counters_in_last_msg": 96,
+        "num_of_streamed_ports_in_last_msg": 6,
+        "streaming_time[seconds]": 0.022078,
+        "telemetry_expected_response_size[bytes]": 163997,
+        "telemetry_received_response_size[bytes]": 163997,
+        "telemetry_response_process_time[seconds]": 0.978245,
+        "telemetry_response_time[seconds]": 0.044216
+    },
+    "10.209.36.68:9002/csv/xcset/ib_basic_debug": {
+        "num_of_processed_counters_in_last_msg": 176,
+        "num_of_streamed_ports_in_last_msg": 7,
+        "streaming_time[seconds]": 0.130796,
+        "telemetry_expected_response_size[bytes]": 6662,
+        "telemetry_received_response_size[bytes]": 6662,
+        "telemetry_response_process_time[seconds]": 0.446522,
+        "telemetry_response_time[seconds]": 0.067491
+    }
+}
+```
+
+|                Attribute                 |                            Description                             |
+|:----------------------------------------:|:------------------------------------------------------------------:|
+|    num_of_streamed_ports_in_last_msg     |        # of processed ports in the last streaming interval         |
+|  num_of_processed_counters_in_last_msg   | # of processed counters/attributes in the last streaming interval  |
+|         streaming_time[seconds]          |          Time period for last streamed message in seconds          |
+| telemetry_expected_response_size[bytes]  |   Expected size of the last recivied telemetry response in bytes   |
+| telemetry_received_response_size[bytes]  |    Actual size of the last recivied telemetry response in bytes    |
+|     telemetry_response_time[seconds]     |       Response time of the last telemetry request in seconds       |
+| telemetry_response_process_time[seconds] | Processing time of the last recivied telemetry response in seconds |
