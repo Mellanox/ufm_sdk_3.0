@@ -97,6 +97,8 @@ function build_docker_image()
     return 0
 }
 
+git config --global --add safe.directory /home/jenkins/agent/workspace/ufm_sdk_3.0
+
 echo "Updating git submodules..."
 pushd ${SCRIPT_DIR}
 cd ../../../ # back to the root dir
