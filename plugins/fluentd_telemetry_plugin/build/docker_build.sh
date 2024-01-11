@@ -99,15 +99,6 @@ function build_docker_image()
 
 git config --global --add safe.directory /home/jenkins/agent/workspace/ufm_sdk_3.0
 
-echo "Updating git submodules..."
-pushd ${SCRIPT_DIR}
-cd ../../../ # back to the root dir
-git submodule update --init --remote
-if [ $? -ne 0 ];then
-    echo "Failed to update git submodules"
-    exit $?
-fi
-popd
 pushd ${SCRIPT_DIR}
 
 BUILD_DIR=$(create_out_dir)
