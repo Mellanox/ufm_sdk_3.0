@@ -1,4 +1,4 @@
-FROM ubuntu:20.04 AS bright_plugin_base_ubuntu20
+FROM ubuntu:22.04 AS bright_plugin_base_ubuntu22
 
 LABEL maintainer="anana@nvidia.com"
 
