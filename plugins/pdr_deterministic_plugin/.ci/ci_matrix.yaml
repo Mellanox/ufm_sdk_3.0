@@ -29,6 +29,7 @@ steps:
       cd plugins/$plugin_dir/build
       bash -x ./docker_build.sh latest /
       ls -l /
+      ifconfig
       cp /ufm-plugin* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
     parallel: true
 
