@@ -225,6 +225,58 @@ Payload example with multiple UFM Telemetry endpoints:
     }
    ```
 
+   - Sharding in UFM Telemetry :
+
+The sharding functionality that is built into UFM telemetry, 
+allows for efficient data polling from multiple telemetry metrics endpoints. 
+This feature is particularly useful when dealing with large amounts of data or when operating in a network with limited bandwidth.
+
+How To Use Sharding:
+
+To use the sharding functionality, you need to add specific parameters to the URL of the configured telemetry endpoint.
+These parameters include **num_shards**, **shard**, and **sharding_field**.
+
+Here is an example of how to use these parameters with the TFS configurations payload:
+
+   ```json
+{
+        "ufm-telemetry-endpoint": [{
+            "host": "127.0.0.1",
+            "url": "csv/xcset/ib_basic_debug?num_shards=3&shard=0&sharding_field=port_guid",
+            "port": 9002,
+            "interval": 120
+        },{
+            "host": "127.0.0.1",
+            "url": "csv/xcset/ib_basic_debug?num_shards=3&shard=1&sharding_field=port_guid",
+            "port": 9002,
+            "interval": 120
+        },{
+            "host": "127.0.0.1",
+            "url": "csv/xcset/ib_basic_debug?num_shards=3&shard=2&sharding_field=port_guid",
+            "port": 9002,
+            "interval": 120
+        }],
+        "fluentd-endpoint": {
+            "host": "10.209.36.68",
+            "port": 24226
+        }
+    }
+   ```
+
+In this example, the telemetry data is divided into three shards (`num_shards=3`), 
+and each endpoint with a different shard (`shard=0`, `shard=1`, `shard=2`). 
+The `sharding_field` parameter is used to specify the field on which the data is to be sharded.
+In the provided example, `sharding_field` is set to `port_guid`. 
+This means that the data is divided into shards based on the `port_guid` field. 
+This field was chosen because it provides a convenient way to divide the data into distinct, non-overlapping shards.
+
+Tuning the Sharding:
+
+For optimal performance, it is recommended to tune the sharding so that a single shard transfers in about 10-15 seconds. This leaves plenty of overhead to avoid timeout issues. 
+You may need to experiment with the number of shards to achieve this. For instance, if your network is slow, you might need to increase the number of shards.
+
+
+
    - Records ٌMeta-fields:
    
    Meta fields are user-defined additional fields of each streamed record with two types: Aliases and new constant fields.
