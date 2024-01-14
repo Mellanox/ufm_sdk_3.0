@@ -1,4 +1,4 @@
-FROM ubuntu:20.04 AS grafana-dashboard_base_ubuntu20
+FROM ubuntu:22.04 AS grafana-dashboard_base_ubuntu20
 
 LABEL maintainer="anana@nvidia.com"
 
