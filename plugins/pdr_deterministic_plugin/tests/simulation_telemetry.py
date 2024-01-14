@@ -183,7 +183,7 @@ def initialize_simulated_counters(endpoint_obj: dict):
 
 def check_logs(config):
     lines=[]
-    with open(location,'r') as log_file:
+    with open("/opt/ufm/files/logs/plugins/pdr_determisic.log",'r') as log_file:
         lines=log_file.readlines()
     # if a you want to add more tests, please add more guids and test on other indeces.
     ports_should_be_isoloated_indeces = [2,3,4,6,8]
