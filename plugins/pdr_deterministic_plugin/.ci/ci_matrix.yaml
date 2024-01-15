@@ -27,7 +27,6 @@ steps:
     containerSelector: "{name: 'plugin_worker'}"
     run: |
       cd plugins/$plugin_dir/build
-      hostname
       bash -x ./docker_build.sh latest /
       ls -l /
       cp /ufm-plugin* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
@@ -36,7 +35,10 @@ steps:
 
   - name: remove plugin if exists on the location
     agentSelector: "{nodeLabel: 'UFM-POC'}"
-    run: plugins/pdr_deterministic_plugin/.ci/do_remove_plugin.sh
+    run: |
+      cwd
+      hostname
+      plugins/pdr_deterministic_plugin/.ci/do_remove_plugin.sh
     parallel: false
     
 
