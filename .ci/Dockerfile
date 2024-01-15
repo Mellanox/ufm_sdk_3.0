@@ -23,7 +23,10 @@ RUN apt clean && \
     $(lsb_release -cs) \
     stable" && \
     apt-get update && \
-    apt-get install -y docker-ce-cli
+    apt-get install -y docker-ce-cli &&\
+    env && \
+    which ssh && \
+    which expect 
 
 
 RUN echo "${_LOGIN} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
