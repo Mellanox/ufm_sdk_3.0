@@ -36,7 +36,7 @@ steps:
   - name: remove plugin if exists on the location
     containerSelector: "{name: 'plugin_worker'}"
     run: |
-      cwd
+      /user/bin/cwd
       hostname
       plugins/pdr_deterministic_plugin/.ci/do_remove_plugin.sh
     parallel: false
