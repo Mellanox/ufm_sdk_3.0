@@ -34,7 +34,7 @@ steps:
 
 
   - name: remove plugin if exists on the location
-    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    agentSelector: "{nodeLabel: 'plugin_worker'}"
     run: |
       cwd
       hostname
@@ -43,7 +43,7 @@ steps:
     
 
   - name: Install the new plugin on Server
-    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    agentSelector: "{nodeLabel: 'plugin_worker'}"
     credentialsId: '2c8fd3fe-df05-4f6f-9d1f-f1896d611434'
     run: |
       export PASSWORD=$PASSWORD
@@ -51,19 +51,19 @@ steps:
     parallel: false
   
   - name: load plugin
-    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    agentSelector: "{nodeLabel: 'plugin_worker'}"
     run: |
       service opensmd start
       plugins/pdr_deterministic_plugin/.ci/do_load_plugin.sh
     parallel: false
 
   - name: add plugin
-    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    agentSelector: "{nodeLabel: 'plugin_worker'}"
     run: plugins/pdr_deterministic_plugin/.ci/do_add_plugin.sh 
     parallel: false
 
   - name: run client tests
-    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    agentSelector: "{nodeLabel: 'plugin_worker'}"
     run: |
       service rsyslog restart
       sleep 30
@@ -72,7 +72,7 @@ steps:
     parallel: false
 
   - name: remove plugin end
-    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    agentSelector: "{nodeLabel: 'plugin_worker'}"
     run: plugins/pdr_deterministic_plugin/.ci/do_remove_plugin.sh
     parallel: false
     
