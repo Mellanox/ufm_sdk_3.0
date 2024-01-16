@@ -14,7 +14,8 @@ COPY ${SRC_BASE_DIR}/scripts/init.sh ${SRC_BASE_DIR}/scripts/deinit.sh /
 
 RUN apt-get update && apt-get -y install supervisor python3 python3-pip vim curl sudo systemctl apache2
 
-RUN apt-get update && apt-get upgrade -y linux-libc-dev
+#RUN apt-get update && apt-get upgrade -y linux-libc-dev
+RUN apt-get remove -y linux-libc-dev
 
 RUN python3 -m pip install -r ${BASE_PATH}/${SRC_BASE_DIR}/requirements.txt
 
