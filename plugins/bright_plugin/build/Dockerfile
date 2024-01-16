@@ -16,6 +16,9 @@ RUN apt-get update && apt-get -y install supervisor python3.9 python3-pip vim cu
 
 RUN python3.9 -m pip install -r ${BASE_PATH}/${SRC_BASE_DIR}/src/bright/requirements.txt
 
+# remove an unused library that caused a high CVE vulnerability issue https://redmine.mellanox.com/issues/3621850
+RUN apt-get remove -y linux-libc-dev
+
 RUN ${BASE_PATH}/${SRC_BASE_DIR}/scripts/install_pythoncm.sh
 
 RUN ${BASE_PATH}/${SRC_BASE_DIR}/scripts/ui_build.sh
