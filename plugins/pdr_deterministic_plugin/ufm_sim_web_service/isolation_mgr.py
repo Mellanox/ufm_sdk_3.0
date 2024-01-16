@@ -115,10 +115,13 @@ class IsolationMgr:
         self.test_mode = pdr_config.getboolean(Constants.CONF_COMMON,Constants.TEST_MODE)
         # Take from Conf
         self.logger = logger
-        intervals = [x[0] for x in Constants.BER_THRESHOLDS_INTERVALS]
+        self.ber_intervals = Constants.BER_THRESHOLDS_INTERVALS
+        if self.test_mode:
+            self.ber_intervals = [[0.5 * 60, 3]]
+        intervals = [x[0] for x in self.ber_intervals]
         self.min_ber_wait_time = min(intervals)
         self.max_ber_wait_time = max(intervals)
-        self.max_ber_threshold = max([x[1] for x in Constants.BER_THRESHOLDS_INTERVALS])
+        self.max_ber_threshold = max([x[1] for x in self.ber_intervals])
         
         self.start_time = time.time()
         self.max_time = self.start_time
@@ -288,7 +291,8 @@ class IsolationMgr:
             if not port_obj:
                 self.logger.warning("Port {0} not found in ports data".format(port_name))
                 continue
-            timestamp = row.get(Constants.TIMESTAMP) / 1000
+            # from micro seconds to seconds.
+            timestamp = row.get(Constants.TIMESTAMP) / 1000 / 1000
             rcv_error = get_counter(Constants.RCV_ERRORS_COUNTER, row)
             rcv_remote_phy_error = get_counter(Constants.RCV_REMOTE_PHY_ERROR_COUNTER, row)
             errors = rcv_error + rcv_remote_phy_error
@@ -328,7 +332,7 @@ class IsolationMgr:
                     if not port_obj.port_width:
                         self.logger.debug(f"port width for port {port_name} is None, can't verify it's BER values")
                         continue
-                    for (interval, threshold) in Constants.BER_THRESHOLDS_INTERVALS:
+                    for (interval, threshold) in self.ber_intervals:
                         symbol_ber_rate = self.calc_ber_rates(port_name, port_obj.active_speed, port_obj.port_width, interval)
                         if symbol_ber_rate and symbol_ber_rate > threshold:
                             issued_port = issues.get(port_name)

@@ -45,7 +45,7 @@ class CsvEndpointHandler(BaseHTTPRequestHandler):
 
 DIFFERENT_DEFAULT_VALUES = {
     # because the plugin reads the meta data to know the first temperature and we cannot stream the metadata.
-    TEMP_COUNTER:"5", 
+    TEMP_COUNTER:"5",
     RCV_PACKETS_COUNTER:"10000000",
 }
 
@@ -67,16 +67,23 @@ ALL_DATA_TEST = {
     (5,8,RCV_REMOTE_PHY_ERROR_COUNTER):500,
     
     # testing ber calculation
-    (6,2,PHY_RAW_ERROR_LANE0):0.001,
-    (6,2,PHY_RAW_ERROR_LANE1):0.001,
-    (6,2,PHY_RAW_ERROR_LANE2):0.001,
-    (6,2,PHY_RAW_ERROR_LANE3):0.001,
+    (3,2,PHY_RAW_ERROR_LANE0):0.001,
+    (3,2,PHY_RAW_ERROR_LANE1):0.001,
+    (3,2,PHY_RAW_ERROR_LANE2):0.001,
+    (3,2,PHY_RAW_ERROR_LANE3):0.001,
 
     # testing ber calculation rate it is so high because we try to do it instead of 25 minutes, now.
-    (7,2,PHY_RAW_ERROR_LANE0):1024**5,
-    (7,2,PHY_RAW_ERROR_LANE1):1024**6,
-    (7,2,PHY_RAW_ERROR_LANE2):1024**5,
-    (7,2,PHY_RAW_ERROR_LANE3):1024**5,
+    (4,2,PHY_RAW_ERROR_LANE0):1024**5,
+    (4,2,PHY_RAW_ERROR_LANE1):1024**6,
+    (4,2,PHY_RAW_ERROR_LANE2):1024**5,
+    (4,2,PHY_RAW_ERROR_LANE3):1024**5,
+    
+    # should not work now, only after 30 (3 iterations) seconds, which is 5 more iterations
+    
+    (6,2,PHY_RAW_ERROR_LANE0):1024**5,
+    (6,2,PHY_RAW_ERROR_LANE1):1024**6,
+    (6,2,PHY_RAW_ERROR_LANE2):1024**5,
+    (6,2,PHY_RAW_ERROR_LANE3):1024**5,
 
     # negative tests
     # testing ber calculation ( should not pass as not all are not equal to 0)
@@ -183,7 +190,7 @@ def initialize_simulated_counters(endpoint_obj: dict):
 
 def check_logs(config):
     lines=[]
-    with open("/opt/ufm/files/logs/plugins/pdr_determisic.log",'r') as log_file:
+    with open("/log/pdr_deterministic_plugin.log",'r') as log_file:
         lines=log_file.readlines()
     # if a you want to add more tests, please add more guids and test on other indeces.
     ports_should_be_isoloated_indeces = [2,3,4,6,8]
@@ -194,13 +201,13 @@ def check_logs(config):
     isolated_message="WARNING: Isolated port: "
     for p in ports_should_be_isoloated_indeces:
         for line in lines:
-            if isolated_message + config["Port_names"][p] in line:
+            if isolated_message + config["Ports_names"][p] in line:
                 number_of_tests_approved -= 1 # it was found
                 break
 
     for p in ports_shouldnt_be_isolated_indeces:
         for line in lines:
-            if isolated_message + config["Port_names"][p] in line:
+            if isolated_message + config["Ports_names"][p] in line:
                 number_of_negative_tests -= 1 # it was found, but it shouldnt
                 break
     
