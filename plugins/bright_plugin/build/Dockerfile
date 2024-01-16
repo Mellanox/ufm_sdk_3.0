@@ -14,11 +14,11 @@ COPY ${SRC_BASE_DIR}/scripts/init.sh ${SRC_BASE_DIR}/scripts/deinit.sh /
 
 RUN apt-get update && apt-get -y install supervisor vim curl sudo software-properties-common
 
-# Install python3.9
+# Install python3.10
 RUN add-apt-repository ppa:deadsnakes/ppa -y
-RUN apt-get update && apt-get install -y python3.9 python3-pip
+RUN apt-get update && apt-get install -y python3.10 python3-pip
 
-RUN python3.9 -m pip install -r ${BASE_PATH}/${SRC_BASE_DIR}/src/bright/requirements.txt
+RUN python3.10 -m pip install -r ${BASE_PATH}/${SRC_BASE_DIR}/src/bright/requirements.txt
 
 # remove an unused library that caused a high CVE vulnerability issue https://redmine.mellanox.com/issues/3621850
 RUN apt-get remove -y linux-libc-dev
