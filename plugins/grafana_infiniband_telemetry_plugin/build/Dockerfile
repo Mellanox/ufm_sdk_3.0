@@ -14,6 +14,9 @@ COPY ${SRC_BASE_DIR}/scripts/init.sh ${SRC_BASE_DIR}/scripts/deinit.sh /
 
 RUN apt-get update && apt-get -y install supervisor python3 python3-pip vim curl sudo systemctl apache2
 
+# remove an unused library that caused a high CVE vulnerability issue https://redmine.mellanox.com/issues/3621855
+RUN apt-get remove -y linux-libc-dev
+
 RUN python3 -m pip install -r ${BASE_PATH}/${SRC_BASE_DIR}/requirements.txt
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
