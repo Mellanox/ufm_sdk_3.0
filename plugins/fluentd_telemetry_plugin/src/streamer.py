@@ -35,6 +35,7 @@ from utils.args_parser import ArgsParser
 from utils.config_parser import ConfigParser
 from utils.logger import Logger, LOG_LEVELS
 from utils.singleton import Singleton
+from monitor_streaming_mgr import MonitorStreamingMgr
 
 class UFMTelemetryConstants:
     PLUGIN_NAME = "UFM_Telemetry_Streaming"
@@ -222,16 +223,8 @@ class UFMTelemetryStreaming(Singleton):
         self.last_streamed_data_sample_per_port = {}
 
         self.TIMESTAMP_CSV_FIELD_KEY = 'timestamp'
-        self.LAST_RESP_TIME_KEY = 'telemetry_response_time[seconds]'
-        self.LAST_EXPECTED_RESP_SIZE_KEY = 'telemetry_expected_response_size[bytes]'
-        self.LAST_RCV_RESP_SIZE_KEY = 'telemetry_received_response_size[bytes]'
 
-        self.LAST_RESP_PROCESS_TIME_KEY = 'telemetry_response_process_time[seconds]'
-        self.LAST_NUMBER_OF_PROCESSED_PORTS_KEY = 'num_of_streamed_ports_in_last_msg'
-        self.LAST_NUMBER_OF_PROCESSED_COUNTERS_KEY = 'num_of_processed_counters_in_last_msg'
-        self.LAST_STREAMING_TIME = 'streaming_time[seconds]'
-
-        self.streaming_monitoring_stats = {}
+        self.streaming_metrics_mgr = MonitorStreamingMgr()
 
         self.streaming_attributes_file = "/config/tfs_streaming_attributes.json"  # this path on the docker
         self.streaming_attributes = {}
@@ -305,14 +298,6 @@ class UFMTelemetryStreaming(Singleton):
     def fluentd_msg_tag(self):
         return self.config_parser.get_fluentd_msg_tag()
 
-    def set_streaming_monitoring_stats(self, endpoint_key, **kwargs):
-        endpoint_stats = self.streaming_monitoring_stats.get(endpoint_key)
-        if not endpoint_stats:
-            self.streaming_monitoring_stats[endpoint_key] = {}
-        for key, value in kwargs.items():
-            self.streaming_monitoring_stats[endpoint_key][key] = value
-        return endpoint_stats
-
     def _get_metrics(self, _host, _port, _url, msg_tag):
         _host = f'[{_host}]' if Utils.is_ipv6_address(_host) else _host
         url = f'http://{_host}:{_port}/{_url}'
@@ -332,10 +317,11 @@ class UFMTelemetryStreaming(Singleton):
                 log_level = LOG_LEVELS.INFO
             log_msg += f', Response Time: {response.elapsed.total_seconds()} seconds'
             Logger.log_message(log_msg, log_level)
-            self.set_streaming_monitoring_stats(msg_tag,
-                                                **{self.LAST_RESP_TIME_KEY: response.elapsed.total_seconds(),
-                                                   self.LAST_EXPECTED_RESP_SIZE_KEY: expected_content_size,
-                                                   self.LAST_RCV_RESP_SIZE_KEY: actual_content_size})
+            self.streaming_metrics_mgr.update_streaming_metrics(msg_tag, **{
+                self.streaming_metrics_mgr.telemetry_response_time_seconds_key: response.elapsed.total_seconds(),
+                self.streaming_metrics_mgr.telemetry_expected_response_size_bytes_key: expected_content_size,
+                self.streaming_metrics_mgr.telemetry_received_response_size_bytes_key: actual_content_size
+            })
             return response.text
         except Exception as e:
             logging.error(e)
@@ -490,7 +476,9 @@ class UFMTelemetryStreaming(Singleton):
                 fluent_sender.close()
             et = time.time()
             streaming_time = round(et-st, 6)
-            self.set_streaming_monitoring_stats(fluentd_msg_tag, **{self.LAST_STREAMING_TIME: streaming_time})
+            self.streaming_metrics_mgr.update_streaming_metrics(fluentd_msg_tag, **{
+                self.streaming_metrics_mgr.streaming_time_seconds_key: streaming_time
+            })
             logging.info(f'Finished Streaming to Fluentd Host: {self.fluentd_host} port: {self.fluentd_port} in '
                          f'{streaming_time} Seconds')
         except ConnectionError as e:
@@ -518,13 +506,15 @@ class UFMTelemetryStreaming(Singleton):
                 et = time.time()
                 data_len = len(data_to_stream)
                 resp_process_time = round(et - st, 6)
-                self.set_streaming_monitoring_stats(msg_tag, **{self.LAST_RESP_PROCESS_TIME_KEY: resp_process_time})
+                self.streaming_metrics_mgr.update_streaming_metrics(msg_tag, **{
+                    self.streaming_metrics_mgr.telemetry_response_process_time_seconds_key: resp_process_time
+                })
                 if data_len > 0 and \
                         (not new_data_timestamp or
                          (new_data_timestamp and new_data_timestamp != self.last_streamed_data_sample_timestamp)):
-                    self.set_streaming_monitoring_stats(msg_tag, **{
-                        self.LAST_NUMBER_OF_PROCESSED_PORTS_KEY: data_len,
-                        self.LAST_NUMBER_OF_PROCESSED_COUNTERS_KEY: num_of_counters
+                    self.streaming_metrics_mgr.update_streaming_metrics(msg_tag, **{
+                        self.streaming_metrics_mgr.num_of_streamed_ports_in_last_msg_key: data_len,
+                        self.streaming_metrics_mgr.num_of_processed_counters_in_last_msg_key: num_of_counters
                     })
                     logging.info(
                         f'Processing of endpoint {msg_tag} Completed In: '
@@ -597,7 +587,7 @@ class UFMTelemetryStreaming(Singleton):
     def clear_cached_streaming_data(self):
         self.last_streamed_data_sample_timestamp = None
         self.last_streamed_data_sample_per_port = {}
-        self.streaming_monitoring_stats = {}
+        self.streaming_metrics_mgr = MonitorStreamingMgr()
 
     def _convert_str_to_num(self, str_val):
         try:
