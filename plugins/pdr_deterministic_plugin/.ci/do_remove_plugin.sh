@@ -2,7 +2,8 @@
 env
 export SERVER_HOST=$SERVER_HOST
 expect << EOF
-/usr/bin/ssh admin@${SERVER_HOST}
+env
+sudo ssh admin@${SERVER_HOST}
 expect "Password:*"
 send -- "admin\r"
 expect "> "
