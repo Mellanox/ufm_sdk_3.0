@@ -395,39 +395,48 @@ The output record after adding these meta-fields will be:
 
    METHOD: _GET_
    
-   URL: _https://[HOST-IP]/ufmRest/plugin/tfs/streaming_stats
+   URL: _https://[HOST-IP]/ufmRest/plugin/tfs/metrics
    
-   Response: JSON contains performance statistics for the last streaming interval:
+   Response: Text contains performance metrics for the last streaming interval in Prometheus format:
    
-```json lines
-{
-    "10.209.36.68:9001/metrics": {
-        "num_of_processed_counters_in_last_msg": 96,
-        "num_of_streamed_ports_in_last_msg": 6,
-        "streaming_time[seconds]": 0.022078,
-        "telemetry_expected_response_size[bytes]": 163997,
-        "telemetry_received_response_size[bytes]": 163997,
-        "telemetry_response_process_time[seconds]": 0.978245,
-        "telemetry_response_time[seconds]": 0.044216
-    },
-    "10.209.36.68:9002/csv/xcset/ib_basic_debug": {
-        "num_of_processed_counters_in_last_msg": 176,
-        "num_of_streamed_ports_in_last_msg": 7,
-        "streaming_time[seconds]": 0.130796,
-        "telemetry_expected_response_size[bytes]": 6662,
-        "telemetry_received_response_size[bytes]": 6662,
-        "telemetry_response_process_time[seconds]": 0.446522,
-        "telemetry_response_time[seconds]": 0.067491
-    }
-}
+```text lines
+# HELP num_of_processed_counters_in_last_msg Number of processed counters/attributes in the last streaming interval
+# TYPE num_of_processed_counters_in_last_msg gauge
+num_of_processed_counters_in_last_msg{endpoint="10.209.36.68:9001/csv/xcset/ib_basic_debug"} 176.0
+num_of_processed_counters_in_last_msg{endpoint="10.209.36.67:9001/csv/xcset/ib_basic_debug"} 189.0
+# HELP num_of_streamed_ports_in_last_msg Number of processed ports in the last streaming interval
+# TYPE num_of_streamed_ports_in_last_msg gauge
+num_of_streamed_ports_in_last_msg{endpoint="10.209.36.68:9001/csv/xcset/ib_basic_debug"} 6.0
+num_of_streamed_ports_in_last_msg{endpoint="10.209.36.67:9001/csv/xcset/ib_basic_debug"} 4.0
+# HELP streaming_time_seconds Time period for last streamed message in seconds
+# TYPE streaming_time_seconds gauge
+streaming_time_seconds{endpoint="10.209.36.68:9001/csv/xcset/ib_basic_debug"} 0.064626
+streaming_time_seconds{endpoint="10.209.36.67:9001/csv/xcset/ib_basic_debug"} 0.025279
+# HELP telemetry_expected_response_size_bytes Expected size of the last received telemetry response in bytes
+# TYPE telemetry_expected_response_size_bytes gauge
+telemetry_expected_response_size_bytes{endpoint="10.209.36.68:9001/csv/xcset/ib_basic_debug"} 5156.0
+telemetry_expected_response_size_bytes{endpoint="10.209.36.67:9001/csv/xcset/ib_basic_debug"} 4726.0
+# HELP telemetry_received_response_size_bytes Actual size of the last received telemetry response in bytes
+# TYPE telemetry_received_response_size_bytes gauge
+telemetry_received_response_size_bytes{endpoint="10.209.36.68:9001/csv/xcset/ib_basic_debug"} 5156.0
+telemetry_received_response_size_bytes{endpoint="10.209.36.67:9001/csv/xcset/ib_basic_debug"} 4726.0
+# HELP telemetry_response_time_seconds Response time of the last telemetry request in seconds
+# TYPE telemetry_response_time_seconds gauge
+telemetry_response_time_seconds{endpoint="10.209.36.68:9001/csv/xcset/ib_basic_debug"} 0.028893
+telemetry_response_time_seconds{endpoint="10.209.36.67:9001/csv/xcset/ib_basic_debug"} 0.07777
+# HELP telemetry_response_process_time_seconds Processing time of the last received telemetry response in seconds
+# TYPE telemetry_response_process_time_seconds gauge
+telemetry_response_process_time_seconds{endpoint="10.209.36.68:9001/csv/xcset/ib_basic_debug"} 0.00455
+telemetry_response_process_time_seconds{endpoint="10.209.36.67:9001/csv/xcset/ib_basic_debug"} 0.003142
+
 ```
 
-|                Attribute                 |                            Description                             |
-|:----------------------------------------:|:------------------------------------------------------------------:|
-|    num_of_streamed_ports_in_last_msg     |        # of processed ports in the last streaming interval         |
-|  num_of_processed_counters_in_last_msg   | # of processed counters/attributes in the last streaming interval  |
-|         streaming_time[seconds]          |          Time period for last streamed message in seconds          |
-| telemetry_expected_response_size[bytes]  |   Expected size of the last recivied telemetry response in bytes   |
-| telemetry_received_response_size[bytes]  |    Actual size of the last recivied telemetry response in bytes    |
-|     telemetry_response_time[seconds]     |       Response time of the last telemetry request in seconds       |
-| telemetry_response_process_time[seconds] | Processing time of the last recivied telemetry response in seconds |
+|                Attribute                |                            Description                             |
+|:---------------------------------------:|:------------------------------------------------------------------:|
+|    num_of_streamed_ports_in_last_msg    |        # of processed ports in the last streaming interval         |
+|  num_of_processed_counters_in_last_msg  | # of processed counters/attributes in the last streaming interval  |
+|         streaming_time_seconds          |          Time period for last streamed message in seconds          |
+| telemetry_expected_response_size_bytes  |   Expected size of the last recivied telemetry response in bytes   |
+| telemetry_received_response_size_bytes  |    Actual size of the last recivied telemetry response in bytes    |
+|     telemetry_response_time_seconds     |       Response time of the last telemetry request in seconds       |
+| telemetry_response_process_time_seconds | Processing time of the last recivied telemetry response in seconds |
