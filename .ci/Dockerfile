@@ -25,6 +25,7 @@ RUN apt clean && \
     apt-get update && \
     apt-get install -y docker-ce-cli
 
+RUN echo "ufm-appliance04,10.209.36.63 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDP+RwBY3YDKRmcpZR8pSenGusCSKRZ3SDfq9ert7JWhP1dHpr3/2xzZwCcNBZ1Cl5VyKxzDAsXE62TU7r9DXRFRq0BrSo6qoPWvRVQTxI8RkOSeb8k5uBPckNo/FwTq/4EKR23msxcpNxoyswqAD91VPWScu9TtXlCiG2hqgAye+9j0f0Agp/eOfGPJcfzJqR0Q5ou2gcD5xo8/LevXhd4Mio7QJXo1RVUZUKNmDG0/MS1XFJdE6+NyCSs4Os+wMTB0UtW8TEzgFS2xpfvS0aueOTBvmJ90RQqkbLWhd+EfFdtQ03f8xZcqL1OjxWZ81c0Fd07ieKJpGgDZuOpqsGUgFb5diagpDaF/+xQ4Ciudw/IfxzolgI5ureYlA8IMb4NQe2DdNoXj4wk0cxTnmwl7rFviCDf++avicQmQdOrRwpRK2vYonw+ediDOCX473gupux0c2WoEv6Pv1vK8LYPCxt7t/GUxNtxx/bsOZc7tQf63eUdqvUv6+qcZxPPClM=" >> ~/.ssh/known_hosts
 
 RUN echo "${_LOGIN} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 RUN echo "root ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
