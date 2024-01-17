@@ -1,6 +1,7 @@
 #!/bin/bash -x
 env
 export SERVER_HOST=$SERVER_HOST
+which expect
 expect << EOF
 env
 sudo ssh admin@${SERVER_HOST}
