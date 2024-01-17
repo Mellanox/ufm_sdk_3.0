@@ -20,6 +20,9 @@ steps:
   - name: Build Plugin
     agentSelector: "{nodeLabel: 'SWX-CI-DOCKER'}"
     run: |
+      if [ -e "/auto/mswg/release/ufm/plugins/${Plugin_name}/ufm-plugin-${Plugin_name}_${PLUGIN_VERSION}*" ];then 
+        exit 1
+      fi
       printenv
       pwd
       ls
@@ -27,12 +30,9 @@ steps:
       mkdir -p /auto/mswg/release/ufm/plugins/${Plugin_name}
       cd plugins/${Plugin_name}/build
       bash -x ./docker_build.sh ${PLUGIN_VERSION} /auto/mswg/release/ufm/plugins/${Plugin_name} 
-      if [ $? -ne 0 ]; then
-        echo -e "docker_build - ${PLUGIN_NAME}/${PLUGIN_VERSION} failed"
-      else
-        echo -e "docker_build - ${PLUGIN_NAME}/${PLUGIN_VERSION} succeeded"
-      fi
+      BUILD_EXIT_CODE=$?
       ls /auto/mswg/release/ufm/plugins/${Plugin_name}
+      exit $?
 
     parallel: false
 
