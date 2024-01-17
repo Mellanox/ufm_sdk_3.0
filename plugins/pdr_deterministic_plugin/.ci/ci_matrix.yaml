@@ -40,8 +40,7 @@ steps:
       ls
       hostname
       ifconfig
-      sleep 9999
-      ls                  # trying to trigger the ci again (bot:retest doesnt work)
+      # sleep 9999
       bash -x plugins/pdr_deterministic_plugin/.ci/do_remove_plugin.sh
     parallel: false
     
