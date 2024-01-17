@@ -13,7 +13,8 @@
 #
 from api.base_api import BaseAPIApplication
 from streamer import UFMTelemetryStreaming
-from flask import make_response
+from flask import Response
+from prometheus_client import CONTENT_TYPE_LATEST
 
 
 class StreamingMonitoringStatsAPI(BaseAPIApplication):
@@ -27,6 +28,7 @@ class StreamingMonitoringStatsAPI(BaseAPIApplication):
         }
 
     def get(self):
-        return make_response(self.streamer.streaming_monitoring_stats)
-
-
+        return Response(
+            self.streamer.streaming_metrics_mgr.get_streaming_metrics_text(),
+            mimetype=CONTENT_TYPE_LATEST
+        )

@@ -32,6 +32,6 @@ class UFMTelemetryFluentdStreamingAPI(DispatcherMiddleware):
         super(UFMTelemetryFluentdStreamingAPI, self).__init__(
             frontend.application, {
                 "/conf": self.streaming_conf.application,
-                "/streaming_stats": self.streaming_stats.application
+                "/metrics": self.streaming_stats.application
             }
         )
