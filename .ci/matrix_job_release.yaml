@@ -21,6 +21,7 @@ steps:
     agentSelector: "{nodeLabel: 'SWX-CI-DOCKER'}"
     run: |
       if [ -e "/auto/mswg/release/ufm/plugins/${Plugin_name}/ufm-plugin-${Plugin_name}_${PLUGIN_VERSION}*" ];then 
+        echo -e "A path and plugin with this version already exist."
         exit 1
       fi
       printenv
