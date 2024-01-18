@@ -32,7 +32,7 @@ steps:
       bash -x ./docker_build.sh ${PLUGIN_VERSION} /auto/mswg/release/ufm/plugins/${Plugin_name} 
       BUILD_EXIT_CODE=$?
       ls /auto/mswg/release/ufm/plugins/${Plugin_name}
-      exit $?
+      exit ${BUILD_EXIT_CODE}
 
     parallel: false
 
