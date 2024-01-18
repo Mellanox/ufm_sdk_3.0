@@ -28,7 +28,6 @@ RUN apt clean && \
     which ssh && \
     which expect 
 
-RUN scp /auto/UFM/.ssh/known_hosts ~/.ssh/known_hosts
 
 RUN echo "${_LOGIN} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 RUN echo "root ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
