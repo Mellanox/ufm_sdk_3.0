@@ -20,14 +20,24 @@ steps:
   - name: Build Plugin
     agentSelector: "{nodeLabel: 'SWX-CI-DOCKER'}"
     run: |
+      if [ -e "/auto/mswg/release/ufm/plugins/${Plugin_name}/ufm-plugin-${Plugin_name}_${PLUGIN_VERSION}*" ];then 
+        echo -e "A path and plugin with this version already exist."
+        echo -e "Path: /auto/mswg/release/ufm/plugins/${Plugin_name}/ufm-plugin-${Plugin_name}_${PLUGIN_VERSION}*"
+        exit 1
+      fi
       printenv
       pwd
       ls
       whoami
-      mkdir -p /auto/mswg/release/ufm/ufm_sdk_3.0/${Plugin_name}
+      mkdir -p /auto/mswg/release/ufm/plugins/${Plugin_name}
       cd plugins/${Plugin_name}/build
-      bash -x ./docker_build.sh ${PLUGIN_VERSION} /auto/mswg/release/ufm/ufm_sdk_3.0/${Plugin_name}
-      ls /auto/mswg/release/ufm/ufm_sdk_3.0/${Plugin_name}
+      bash -x ./docker_build.sh ${PLUGIN_VERSION} /auto/mswg/release/ufm/plugins/${Plugin_name} 
+      BUILD_EXIT_CODE=$?
+      ls /auto/mswg/release/ufm/plugins/${Plugin_name}
+      if [ $BUILD_EXIT_CODE -eq 1 ];then 
+        echo -e "Error: Docker build failed in ./docker_build.sh"
+      fi
+      exit ${BUILD_EXIT_CODE}
 
     parallel: false
 
