@@ -81,7 +81,6 @@ steps:
 pipeline_start:
   run: |
     mkdir -p /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
-    cat /auto/UFM/.ssh/known_hosts >> ~/.ssh/known_hosts
 
 
 pipeline_stop:
