@@ -1,7 +1,7 @@
 #!/bin/bash -x
 export SERVER_HOST=$SERVER_HOST
 expect << EOF
-spawn ssh -o PasswordAuthentication=yes -o PreferredAuthentications=keyboard-interactive,password -o PubkeyAuthentication=no admin@${SERVER_HOST}
+spawn ssh -o PasswordAuthentication=yes -o PreferredAuthentications=keyboard-interactive,password -o PubkeyAuthentication=no -o KexAlgorithms=+diffie-hellman-group14-sha1 admin@${SERVER_HOST}
 expect "Password:*"
 send -- "admin\r"
 expect "> "
