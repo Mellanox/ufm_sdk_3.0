@@ -70,7 +70,7 @@ class Issue(object):
 
 def get_counter(counter_name, row, default=0):
     try:
-        val = row.get(counter_name) if (row.get(counter_name) and not numpy.isnan(row.get(counter_name))) else default
+        val = row.get(counter_name) if (row.get(counter_name) is not None and not numpy.isnan(row.get(counter_name))) else default
     except Exception as e:
         return default
     return val
@@ -112,12 +112,16 @@ class IsolationMgr:
         self.temp_check = pdr_config.getboolean(Constants.CONF_COMMON,Constants.CONFIGURED_TEMP_CHECK)
         self.no_down_count = pdr_config.getboolean(Constants.CONF_COMMON,Constants.NO_DOWN_COUNT)
         self.access_isolation = pdr_config.getboolean(Constants.CONF_COMMON,Constants.ACCESS_ISOLATION)
+        self.test_mode = pdr_config.getboolean(Constants.CONF_COMMON,Constants.TEST_MODE)
         # Take from Conf
         self.logger = logger
-        intervals = [x[0] for x in Constants.BER_THRESHOLDS_INTERVALS]
+        self.ber_intervals = Constants.BER_THRESHOLDS_INTERVALS
+        if self.test_mode:
+            self.ber_intervals = [[0.5 * 60, 3]]
+        intervals = [x[0] for x in self.ber_intervals]
         self.min_ber_wait_time = min(intervals)
         self.max_ber_wait_time = max(intervals)
-        self.max_ber_threshold = max([x[1] for x in Constants.BER_THRESHOLDS_INTERVALS])
+        self.max_ber_threshold = max([x[1] for x in self.ber_intervals])
         
         self.start_time = time.time()
         self.max_time = self.start_time
@@ -209,6 +213,7 @@ class IsolationMgr:
         # we need some time after the change in state
         elif datetime.now() >= self.ports_states[port_name].get_change_time() + timedelta(minutes=self.deisolate_consider_time):
             port_obj = self.ports_data.get(port_name)
+            port_state = self.ports_states.get(port_name)
             if port_state.cause == Constants.ISSUE_BER:
                 # check if we are still above the threshold
                 symbol_ber_rate = self.calc_ber_rates(port_name, port_obj.active_speed, port_obj.port_width, self.max_ber_wait_time + 1)
@@ -257,11 +262,11 @@ class IsolationMgr:
         #TODO check for a way to save peer row in data structure for performance
         peer_row = ports_counters.loc[(ports_counters['port_guid'] == peer_guid) & (ports_counters['port_num'] == int(peer_num))]
         if peer_row.empty:
-            self.logger.warning("Peer port {0} not found in ports data".format(peer_port_name))
+            self.logger.warning("Peer port {0} not found in ports data".format(port_obj.peer))
             return None
         peer_row_timestamp = peer_row.get(Constants.TIMESTAMP)
         peer_link_downed = get_counter(Constants.LNK_DOWNED_COUNTER, peer_row)
-        peer_obj = self.ports_data.get(peer_port_name)
+        peer_obj = self.ports_data.get(port_obj.peer)
         if not peer_obj:
             return None
         peer_link_downed_rate = self.get_rate_and_update(peer_obj, Constants.LNK_DOWNED_COUNTER, peer_link_downed, peer_row_timestamp)
@@ -271,18 +276,23 @@ class IsolationMgr:
     
     def read_next_set_of_high_ber_or_pdr_ports(self, endpoint_port):
         issues = {}
-        ports_counters = self.ufm_client.get_telemetry(endpoint_port, Constants.PDR_DYNAMIC_NAME)
+        ports_counters = self.ufm_client.get_telemetry(endpoint_port, Constants.PDR_DYNAMIC_NAME,self.test_mode)
         if ports_counters is None:
             # implement health check for the telemetry instance
             self.logger.error("Couldn't retrieve telemetry data")
             return issues
         for index, row in ports_counters.iterrows():
             port_name = f"{row.get('port_guid', '').split('x')[-1]}_{row.get('port_num', '')}"
+            if self.test_mode:
+                # I want to add them once we get our first telemetry.
+                if not self.ports_data.get(port_name):
+                    self.ports_data[port_name] = PortData(port_name)
             port_obj = self.ports_data.get(port_name)
             if not port_obj:
                 self.logger.warning("Port {0} not found in ports data".format(port_name))
                 continue
-            timestamp = row.get(Constants.TIMESTAMP) / 1000
+            # from micro seconds to seconds.
+            timestamp = row.get(Constants.TIMESTAMP) / 1000 / 1000
             rcv_error = get_counter(Constants.RCV_ERRORS_COUNTER, row)
             rcv_remote_phy_error = get_counter(Constants.RCV_REMOTE_PHY_ERROR_COUNTER, row)
             errors = rcv_error + rcv_remote_phy_error
@@ -322,7 +332,7 @@ class IsolationMgr:
                     if not port_obj.port_width:
                         self.logger.debug(f"port width for port {port_name} is None, can't verify it's BER values")
                         continue
-                    for (interval, threshold) in Constants.BER_THRESHOLDS_INTERVALS:
+                    for (interval, threshold) in self.ber_intervals:
                         symbol_ber_rate = self.calc_ber_rates(port_name, port_obj.active_speed, port_obj.port_width, interval)
                         if symbol_ber_rate and symbol_ber_rate > threshold:
                             issued_port = issues.get(port_name)
@@ -367,10 +377,13 @@ class IsolationMgr:
         symbol_rate = self.calc_single_rate(port_name, port_speed, port_width, Constants.SYMBOL_BER, time_delta)
         return symbol_rate
 
+    # called first time to get all the metadata of the telemetry.
     def get_ports_metadata(self):
+        if self.test_mode:
+            # we need to skip this check and put the data on the telemetry side.
+            return
         meta_data = self.ufm_client.get_ports_metadata()
         if meta_data and len(meta_data) > 0:
-            self.max_num_isolate = int(max(self.max_num_isolate, 0.05 * len(meta_data)))
             for port in meta_data:
                 port_name = port.get(Constants.PORT_NAME)
                 if not self.ports_data.get(port_name):
@@ -396,6 +409,8 @@ class IsolationMgr:
 
 
     def update_ports_data(self):
+        if self.test_mode:
+            return False
         meta_data = self.ufm_client.get_ports_metadata()
         ports_updated = False
         if meta_data and len(meta_data) > 0:
@@ -408,6 +423,9 @@ class IsolationMgr:
         return ports_updated
 
     def get_port_metadata(self, port_name):
+        if self.test_mode:
+            # all the switches have the same data for the testing
+            return "NDR",4
         meta_data = self.ufm_client.get_port_metadata(port_name)
         if meta_data and len(meta_data) > 0:
             port_data = meta_data[0]
@@ -425,6 +443,9 @@ class IsolationMgr:
                 port_state.state = state
     
     def get_isolation_state(self):
+        if self.test_mode:
+            # I don't want to get to the isolated ports because we simulating everything..
+            return
         ports = self.ufm_client.get_isolated_ports()
         if not ports:
             self.ufm_latest_isolation_state = []
@@ -465,6 +486,7 @@ class IsolationMgr:
         return requested_guids
 
     def run_telemetry_get_port(self):
+        if self.test_mode: return 9003
         try:
             while not self.ufm_client.running_dynamic_session(Constants.PDR_DYNAMIC_NAME):
                 self.logger.info("Waiting for dynamic session to start")
