@@ -100,6 +100,22 @@ ALL_DATA_TEST = {
 # getting the max tests we test plus 2
 MAX_ITERATIONS = max([x[0] for x in ALL_DATA_TEST]) + 2
 
+# return randomize value base on the counter name
+def randomizeValues(counter_name:str,iteration:int):
+    if counter_name == RCV_PACKETS_COUNTER:
+        return 1000000 + iteration * 10
+    if counter_name == TEMP_COUNTER:
+        return round(5 + random.triangular(0,10) + \
+            (random.randrange(50) == 0) * 50) ## have high temeprature
+    if counter_name == PHY_RAW_ERROR_LANE0 or counter_name == PHY_RAW_ERROR_LANE1 or\
+        counter_name == PHY_RAW_ERROR_LANE2 or counter_name == PHY_RAW_ERROR_LANE3:
+        return random.random()*1000
+    if counter_name == PHY_EFF_ERROR or counter_name == PHY_SYMBOL_ERROR or\
+        counter_name == RCV_ERRORS_COUNTER or counter_name == RCV_REMOTE_PHY_ERROR_COUNTER:
+        return random.triangular(0,50)
+    if counter_name == FEC_MODE:
+        return 0
+
 # return value if found on our testing telemetry simulation, else return default value for that telemetry.
 def findValue(row_index:int, counter_name:str, iteration:int):
     if counter_name == RCV_PACKETS_COUNTER:
@@ -108,7 +124,7 @@ def findValue(row_index:int, counter_name:str, iteration:int):
                              DIFFERENT_DEFAULT_VALUES.get(counter_name,0))
         
 
-def start_server(port:str,changes_intervals:int):
+def start_server(port:str,changes_intervals:int, run_forever:bool):
     server_address = ('', int(port))
     httpd = HTTPServer(server_address, CsvEndpointHandler)
     handler_instance = httpd.RequestHandlerClass
@@ -140,14 +156,17 @@ def start_server(port:str,changes_intervals:int):
             for i,counter in enumerate(counters_objs):
                 last_val = counter['last_val']
                 ## here we set the value for the counters
-                counter['last_val'] = findValue(index,counters_names[i],ENDPOINT_CONFIG["ITERATION_TIME"])
+                if ENDPOINT_CONFIG["ITERATION_TIME"] < MAX_ITERATIONS:
+                    counter['last_val'] = findValue(index,counters_names[i],ENDPOINT_CONFIG["ITERATION_TIME"])
+                else:
+                    counter['last_val'] = randomizeValues(counters_names[i],ENDPOINT_CONFIG["ITERATION_TIME"])
                 row_data.append(str(last_val))
             data.append(row_data)
 
         output = [header] + data
         csv_data = '\n'.join([','.join(row) for row in output]) + '\n'
         endpoint['data'] = csv_data        
-        if ENDPOINT_CONFIG["ITERATION_TIME"] > MAX_ITERATIONS:
+        if not run_forever and ENDPOINT_CONFIG["ITERATION_TIME"] > MAX_ITERATIONS:
             # after all the tests are done, we need to stop the simulator and check the logs
             return
         time.sleep(changes_intervals)
@@ -223,6 +242,7 @@ def main():
     parser.add_argument('--endpoint_port', type=str, default=9003, help="")
     parser.add_argument('--changes_intervals', type=float, default=0.5,
                          help="interval time that the server to sleep. in seconds")
+    parser.add_argument('--run_forever', action='store_true')
 
     args = parser.parse_args()
 
@@ -255,9 +275,9 @@ def main():
     port = args.endpoint_port
     url = f'http://0.0.0.0:{port}{args.url_suffix}'
     print(f'---Starting endpoint {url}')
-    start_server(port,args.changes_intervals)
-
-    return check_logs(config)
+    start_server(port,args.changes_intervals,args.run_forever)
+    if not args.run_forever:
+        return check_logs(config)
 
 if __name__ == '__main__':
     main()
