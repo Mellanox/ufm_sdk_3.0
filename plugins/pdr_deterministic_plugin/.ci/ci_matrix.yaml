@@ -47,6 +47,7 @@ steps:
 
   - name: Install the new plugin on Server
     containerSelector: "{name: 'plugin_worker'}"
+    credentialsId: '2c8fd3fe-df05-4f6f-9d1f-f1896d611434'
     run: |
       env
       pwd
