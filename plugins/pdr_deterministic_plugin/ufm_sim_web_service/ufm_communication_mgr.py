@@ -50,8 +50,11 @@ class UFMCommunicator:
         logging.info("UFM API Request Status: {}, URL: {}".format(response.status_code, request))
         return response
 
-    def get_telemetry(self, port, instance_name):
-        url = f"http://127.0.0.1:{port}/csv/xcset/{instance_name}"
+    def get_telemetry(self, port, instance_name,test_mode):
+        if test_mode:
+            url = f"http://127.0.0.1:9003/csv/xcset/simulated_telemetry"
+        else:
+            url = f"http://127.0.0.1:{port}/csv/xcset/{instance_name}"
         try:
             telemetry_data = pd.read_csv(url)
         except Exception as e:
