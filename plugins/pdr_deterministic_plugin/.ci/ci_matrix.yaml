@@ -21,6 +21,8 @@ volumes:
 runs_on_dockers:
    - {file: '.ci/Dockerfile', arch: 'x86_64', name: 'plugin_worker', tag: 'latest'}
 
+credentials:
+  - {credentialsId: '2c8fd3fe-df05-4f6f-9d1f-f1896d611434', usernameVariable: 'REST_USER', passwordVariable: 'PASSWORD'}
 
 steps:
   - name: Build Plugin
@@ -45,7 +47,6 @@ steps:
 
   - name: Install the new plugin on Server
     containerSelector: "{name: 'plugin_worker'}"
-    credentialsId: '2c8fd3fe-df05-4f6f-9d1f-f1896d611434'
     run: |
       env
       pwd
