@@ -1,4 +1,5 @@
 #!/bin/bash -x
+git config --global safe.directory "$WORKSPACE"
 cd .ci
 # You can print specific environment variables here if required
 

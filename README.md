@@ -8,9 +8,29 @@ A new open-source SDK project for NVIDIA UFM ([Unified Fabric Manager](https://w
 
 ## Main Features 
 
-- scripts - list of python scripts as examples how to collect data and operate devices via UFM REST API
-- plugins - list of evalable 3rd party plugins for UFM REST API. for example: Zabbix, Slurm, FluentD, etc..  
-- utils   - tools for general usage over UFM REST API. some of them already in use in the available 3rd party plugins
+- **Scripts:**
+  - list of python scripts as examples how to collect data and operate devices via UFM REST API
+
+- **Plugins:**
+  - [SLURM Integration Plugin](plugins/SLURM-Integration/README.md):Utilize UFM with SLURM to monitor network bandwidth, congestion, errors, and resource utilization of SLURM job compute nodes.
+    
+  - [UFM NDT Plugin](plugins/UFM_NDT_Plugin/README.md): Compare topologies, manage opensm input file creation, and merge topologies for enhanced UFM functionality.
+  - [Advanced Hello World Plugin](plugins/advanced_hello_world_plugin/README.md): An advanced example demonstrating the construction of plugins for both backend and GUI.
+  - [Bright Plugin](plugins/bright_plugin/README.md): Augment UFM's network perspective with data from Bright Cluster Manager, improving network-centered root cause analysis (RCA) tasks.
+  - [Fluentd Telemetry Plugin](plugins/fluentd_telemetry_plugin/README.md): Extract UFM telemetry counters via Prometheus metrics and stream them using the Fluentd protocol to the telemetry console.
+  - [Fluentd Topology Plugin](plugins/fluentd_topology_plugin/README.md): Extract topology via UFM API and stream it using the Fluentd protocol to the telemetry console.
+  - [Grafana InfiniBand Telemetry Plugin](plugins/grafana_infiniband_telemetry_plugin/README.md): Provides a new UFM telemetry Prometheus endpoint with human-readable labels for monitoring using Grafana.
+  - [Grafana Telemetry Plugin](plugins/grafana_telemetry_plugin/README.md): Grafana dashboard to monitor UFM telemetry metrics collected by Prometheus Server.
+  - [gRPC Streamer Plugin](plugins/grpc_streamer_plugin/README.md): Provides gRPC streaming of UFM REST API for enhanced communication.
+  - [Hello World Plugin](plugins/hello_world_plugin/README.md): Basic example of a backend plugin with minimal requirements.
+  - [PDR Deterministic Plugin](plugins/pdr_deterministic_plugin/README.md): Handles UFM Packet Drop Rate (PDR) Deterministic Plugin for port isolation.
+  - [SNMP Receiver Plugin](plugins/snmp_receiver_plugin/README.md): Listens to SNMP traps from managed switches in the fabric and redirects them as events to UFM.
+  - [Sysinfo Plugin](plugins/sysinfo_plugin/README.md): Queries commands to switches using AIOHttps communication.
+  - [UFM Syslog Streaming Plugin](plugins/ufm_syslog_streaming_plugin/README.md): Extracts UFM events from UFM syslog and streams them to a remote Fluentd destination, with an option to duplicate syslog messages to a remote syslog destination.
+  - [Zabbix Telemetry Plugin](plugins/zabbix_telemetry_plugin/README.md): Explains how to stream UFM events to Zabbix for monitoring.
+
+- **Utils:**
+   - tools for general usage over UFM REST API. some of them already in use in the available 3rd party plugins
 
 
 

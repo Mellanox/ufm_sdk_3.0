@@ -35,6 +35,7 @@ from utils.args_parser import ArgsParser
 from utils.config_parser import ConfigParser
 from utils.logger import Logger, LOG_LEVELS
 from utils.singleton import Singleton
+from monitor_streaming_mgr import MonitorStreamingMgr
 
 class UFMTelemetryConstants:
     PLUGIN_NAME = "UFM_Telemetry_Streaming"
@@ -223,6 +224,8 @@ class UFMTelemetryStreaming(Singleton):
 
         self.TIMESTAMP_CSV_FIELD_KEY = 'timestamp'
 
+        self.streaming_metrics_mgr = MonitorStreamingMgr()
+
         self.streaming_attributes_file = "/config/tfs_streaming_attributes.json"  # this path on the docker
         self.streaming_attributes = {}
         self.init_streaming_attributes()
@@ -295,13 +298,30 @@ class UFMTelemetryStreaming(Singleton):
     def fluentd_msg_tag(self):
         return self.config_parser.get_fluentd_msg_tag()
 
-    def _get_metrics(self, _host, _port, _url):
+    def _get_metrics(self, _host, _port, _url, msg_tag):
         _host = f'[{_host}]' if Utils.is_ipv6_address(_host) else _host
         url = f'http://{_host}:{_port}/{_url}'
         logging.info(f'Send UFM Telemetry Endpoint Request, Method: GET, URL: {url}')
         try:
             response = requests.get(url)
             response.raise_for_status()
+            expected_content_size = int(response.headers.get('Content-Length'))
+            actual_content_size = len(response.content)
+            if expected_content_size > actual_content_size:
+                log_msg = (f'Telemetry Response Received Partially from {msg_tag}, The Expected Size is {expected_content_size} Bytes'
+                           f' While The Received Size is {actual_content_size} Bytes')
+                log_level = LOG_LEVELS.WARNING
+            else:
+                log_msg = (f'Telemetry Response Received Successfully from {msg_tag},'
+                           f'The Received Size is {actual_content_size} Bytes')
+                log_level = LOG_LEVELS.INFO
+            log_msg += f', Response Time: {response.elapsed.total_seconds()} seconds'
+            Logger.log_message(log_msg, log_level)
+            self.streaming_metrics_mgr.update_streaming_metrics(msg_tag, **{
+                self.streaming_metrics_mgr.telemetry_response_time_seconds_key: response.elapsed.total_seconds(),
+                self.streaming_metrics_mgr.telemetry_expected_response_size_bytes_key: expected_content_size,
+                self.streaming_metrics_mgr.telemetry_received_response_size_bytes_key: actual_content_size
+            })
             return response.text
         except Exception as e:
             logging.error(e)
@@ -336,51 +356,54 @@ class UFMTelemetryStreaming(Singleton):
         keys = rows[0].split(attrs_separator)
         keys_length = len(keys)
         output = []
-        sample_timestamp = rows[1].split(attrs_separator)[keys.index(self.TIMESTAMP_CSV_FIELD_KEY)]
+        stream_only_new_samples = self.stream_only_new_samples
         port_id_keys_indices = None
-        if self.stream_only_new_samples:
+        if stream_only_new_samples:
             port_id_keys_indices = []
             for pIDKey in self.port_id_keys:
                 port_id_keys_indices += [i for i, x in enumerate(keys) if x == pIDKey]
 
-        for row in rows[1:]:
-            if len(row) > 0:
-                values = row.split(attrs_separator)
-                port_key = current_port_values = None
-                if self.stream_only_new_samples:
-                    port_key = ":".join([values[index] for index in port_id_keys_indices])
-                    current_port_values = self.last_streamed_data_sample_per_port.get(port_key, {})
-                dic = {}
-                #######
-                is_data_changed = False
-                for i in range(keys_length):
-                    value = self._convert_str_to_num(values[i])
-                    key = keys[i]
-                    is_constant_value = self.port_constants_keys.get(key)
-                    attr_obj = self.streaming_attributes.get(key, None)
-                    if attr_obj and attr_obj.get('enabled', False) and len(str(value)):
-                        # if the attribute/counter is enabled and
-                        # also the value of this counter not empty
-                        if is_constant_value is None and \
-                                self.stream_only_new_samples and value != current_port_values.get(key):
-                            # and the value was changed -> stream it
-                            dic[attr_obj.get("name", key)] = value
-                            current_port_values[key] = value
-                            is_data_changed = True
-                        elif not self.stream_only_new_samples or is_constant_value:
-                            dic[attr_obj.get("name", key)] = value
-                            is_data_changed = not self.stream_only_new_samples
-                ########
-                if self.stream_only_new_samples:
-                    self.last_streamed_data_sample_per_port[port_key] = current_port_values
-                if is_data_changed:
-                    dic = self._append_meta_fields_to_dict(dic)
-                    output.append(dic)
-        return output, sample_timestamp
+        for row in rows[1:-1]:
+            # skip the first row since it contains the headers
+            # skip the last row since its empty row
+            values = row.split(attrs_separator)
+            port_key = current_port_values = None
+            if stream_only_new_samples:
+                port_key = ":".join([values[index] for index in port_id_keys_indices])
+                current_port_values = self.last_streamed_data_sample_per_port.get(port_key, {})
+            #######
+            is_data_changed = False
+            dic = {}
+            for i in range(keys_length):
+                value = values[i]
+                key = keys[i]
+                is_constant_value = self.port_constants_keys.get(key)
+                attr_obj = self.streaming_attributes.get(key, None)
+                if attr_obj and attr_obj.get('enabled', False) and len(value):
+                    value = self._convert_str_to_num(value)
+                    # if the attribute/counter is enabled and
+                    # also the value of this counter not empty
+                    if (is_constant_value is None and
+                            stream_only_new_samples and value != current_port_values.get(key)):
+                        # and the value was changed -> stream it
+                        dic[attr_obj.get("name", key)] = value
+                        current_port_values[key] = value
+                        is_data_changed = True
+                    elif not stream_only_new_samples or is_constant_value:
+                        dic[attr_obj.get("name", key)] = value
+                        is_data_changed = not stream_only_new_samples
+            ########
+            if stream_only_new_samples:
+                self.last_streamed_data_sample_per_port[port_key] = current_port_values
+            if is_data_changed:
+                dic = self._append_meta_fields_to_dict(dic)
+                output.append(dic)
+        return output, None, keys_length
 
     def _parse_telemetry_prometheus_metrics_to_json(self, data):
         elements_dict = {}
         timestamp = current_port_values = None
+        num_of_counters = 0
         for family in text_string_to_metric_families(data):
             if len(family.samples):
                 timestamp = family.samples[0].timestamp
@@ -416,16 +439,20 @@ class UFMTelemetryStreaming(Singleton):
                         attr_obj = self.streaming_attributes.get(key, None)
                         if attr_obj and attr_obj.get('enabled', False) and len(value):
                             current_row[attr_obj.get("name", key)] = value
+                    current_num_of_counters = len(current_row)
+                    if current_num_of_counters > num_of_counters:
+                        num_of_counters = current_num_of_counters
                     current_row = self._append_meta_fields_to_dict(current_row)
                     elements_dict[id] = current_row
                 ####
                 if self.stream_only_new_samples:
                     self.last_streamed_data_sample_per_port[port_key] = current_port_values
 
-        return list(elements_dict.values()), timestamp
+        return list(elements_dict.values()), timestamp, num_of_counters
 
     def _stream_data_to_fluentd(self, data_to_stream, fluentd_msg_tag=''):
         logging.info(f'Streaming to Fluentd IP: {self.fluentd_host} port: {self.fluentd_port} timeout: {self.fluentd_timeout}')
+        st = time.time()
         try:
             fluentd_message = {
                 "timestamp": datetime.datetime.fromtimestamp(int(time.time())).strftime('%Y-%m-%d %H:%M:%S'),
@@ -447,7 +474,13 @@ class UFMTelemetryStreaming(Singleton):
                                                     self.fluentd_port, timeout=self.fluentd_timeout)
                 fluent_sender.emit(fluentd_msg_tag, fluentd_message)
                 fluent_sender.close()
-            logging.info(f'Finished Streaming to Fluentd Host: {self.fluentd_host} port: {self.fluentd_port}')
+            et = time.time()
+            streaming_time = round(et-st, 6)
+            self.streaming_metrics_mgr.update_streaming_metrics(fluentd_msg_tag, **{
+                self.streaming_metrics_mgr.streaming_time_seconds_key: streaming_time
+            })
+            logging.info(f'Finished Streaming to Fluentd Host: {self.fluentd_host} port: {self.fluentd_port} in '
+                         f'{streaming_time} Seconds')
         except ConnectionError as e:
             logging.error(f'Failed to connect to stream destination due to the error :{str(e)}')
         except Exception as e:
@@ -460,17 +493,34 @@ class UFMTelemetryStreaming(Singleton):
         _host = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_HOST)
         _port = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_PORT)
         _url = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_URL)
-        telemetry_data = self._get_metrics(_host, _port, _url)
+        msg_tag = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME)
+        telemetry_data = self._get_metrics(_host, _port, _url, msg_tag)
         if telemetry_data:
             try:
-                msg_tag = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME)
                 ufm_telemetry_is_prometheus_format = self._check_data_prometheus_format(telemetry_data)
-                data_to_stream, new_data_timestamp = self._parse_telemetry_prometheus_metrics_to_json(telemetry_data) \
+                logging.info(f'Start Processing The Received Response From {msg_tag}')
+                st = time.time()
+                data_to_stream, new_data_timestamp, num_of_counters = self._parse_telemetry_prometheus_metrics_to_json(telemetry_data) \
                     if ufm_telemetry_is_prometheus_format else \
                     self._parse_telemetry_csv_metrics_to_json(telemetry_data)
-                if len(data_to_stream) > 0 and \
-                        (not self.stream_only_new_samples or
-                         (self.stream_only_new_samples and new_data_timestamp != self.last_streamed_data_sample_timestamp)):
+                et = time.time()
+                data_len = len(data_to_stream)
+                resp_process_time = round(et - st, 6)
+                self.streaming_metrics_mgr.update_streaming_metrics(msg_tag, **{
+                    self.streaming_metrics_mgr.telemetry_response_process_time_seconds_key: resp_process_time
+                })
+                if data_len > 0 and \
+                        (not new_data_timestamp or
+                         (new_data_timestamp and new_data_timestamp != self.last_streamed_data_sample_timestamp)):
+                    self.streaming_metrics_mgr.update_streaming_metrics(msg_tag, **{
+                        self.streaming_metrics_mgr.num_of_streamed_ports_in_last_msg_key: data_len,
+                        self.streaming_metrics_mgr.num_of_processed_counters_in_last_msg_key: num_of_counters
+                    })
+                    logging.info(
+                        f'Processing of endpoint {msg_tag} Completed In: '
+                        f'{resp_process_time} Seconds. '
+                        f'({data_len}) Ports, '
+                        f'({num_of_counters}) Counters Were Handled')
                     if self.bulk_streaming_flag:
                         self._stream_data_to_fluentd(data_to_stream, msg_tag)
                     else:
@@ -478,7 +528,7 @@ class UFMTelemetryStreaming(Singleton):
                             self._stream_data_to_fluentd(row, msg_tag)
                     self.last_streamed_data_sample_timestamp = new_data_timestamp
                 elif self.stream_only_new_samples:
-                    logging.info("No new samples, nothing to stream")
+                    logging.info(f"No new samples in endpoint {msg_tag}, nothing to stream")
 
             except Exception as e:
                 logging.error("Exception occurred during parsing telemetry data: "+ str(e))
@@ -498,32 +548,38 @@ class UFMTelemetryStreaming(Singleton):
         # load the saved attributes
         self.streaming_attributes = self._get_saved_streaming_attributes()
         telemetry_endpoints = self.ufm_telemetry_endpoints
+        processed_endpoints = {}
         for endpoint in telemetry_endpoints:
             _host = endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_HOST)
             _port = endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_PORT)
             _url = endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_URL)
-            telemetry_data = self._get_metrics(_host, _port, _url)
-            if telemetry_data:
-                ufm_telemetry_is_prometheus_format = self._check_data_prometheus_format(telemetry_data)
-                if not ufm_telemetry_is_prometheus_format:
-                    # CSV format
-                    rows = telemetry_data.split("\n")
-                    if len(rows):
-                        headers = rows[0].split(",")
-                        for attribute in headers:
-                            self._add_streaming_attribute(attribute)
-                else:
-                    # prometheus format
-                    for family in text_string_to_metric_families(telemetry_data):
-                        # add the counter attribute
-                        self._add_streaming_attribute(family.name)
-                        for sample in family.samples:
-                            # add the labels/metadata attributes
-                            for attribute in list(sample.labels.keys()):
-                                attribute = attribute if attribute != 'source' else 'source_id'
+            _msg_tag = endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME)
+            endpoint_id = f'{_host}:{_port}:{_url.split("?")[0]}' # the ID of the endpoint is the full URL without filters like the shading,etc...
+            is_processed = processed_endpoints.get(endpoint_id)
+            if not is_processed:
+                telemetry_data = self._get_metrics(_host, _port, _url, _msg_tag)
+                if telemetry_data:
+                    ufm_telemetry_is_prometheus_format = self._check_data_prometheus_format(telemetry_data)
+                    if not ufm_telemetry_is_prometheus_format:
+                        # CSV format
+                        rows = telemetry_data.split("\n")
+                        if len(rows):
+                            headers = rows[0].split(",")
+                            for attribute in headers:
                                 self._add_streaming_attribute(attribute)
-                    # custom attribute won't be found in the prometheus format, should be added manually
-                    self._add_streaming_attribute('timestamp')
+                    else:
+                        # prometheus format
+                        for family in text_string_to_metric_families(telemetry_data):
+                            # add the counter attribute
+                            self._add_streaming_attribute(family.name)
+                            for sample in family.samples:
+                                # add the labels/metadata attributes
+                                for attribute in list(sample.labels.keys()):
+                                    attribute = attribute if attribute != 'source' else 'source_id'
+                                    self._add_streaming_attribute(attribute)
+                        # custom attribute won't be found in the prometheus format, should be added manually
+                        self._add_streaming_attribute('timestamp')
+                processed_endpoints[endpoint_id] = True
         # update the streaming attributes files
         self.update_saved_streaming_attributes(self.streaming_attributes)
         Logger.log_message('The streaming attributes were updated successfully')
@@ -531,6 +587,7 @@ class UFMTelemetryStreaming(Singleton):
     def clear_cached_streaming_data(self):
         self.last_streamed_data_sample_timestamp = None
         self.last_streamed_data_sample_per_port = {}
+        self.streaming_metrics_mgr = MonitorStreamingMgr()
 
     def _convert_str_to_num(self, str_val):
         try:

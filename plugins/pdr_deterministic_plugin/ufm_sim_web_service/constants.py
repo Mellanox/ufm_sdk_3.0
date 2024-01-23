@@ -38,6 +38,7 @@ class PDRConstants(object):
     NO_DOWN_COUNT = "NO_DOWN_COUNT"
     ACCESS_ISOLATION = "ACCESS_ISOLATION"
     TEST_MODE = "TEST_MODE"
+    TEST_MODE_PORT = 9003
     
     GET_SESSION_DATA_REST = "/monitoring/session/0/data"
     POST_EVENT_REST = "/app/events/external_event"

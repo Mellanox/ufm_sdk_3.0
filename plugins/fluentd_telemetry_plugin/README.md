@@ -225,6 +225,58 @@ Payload example with multiple UFM Telemetry endpoints:
     }
    ```
 
+   - Sharding in UFM Telemetry :
+
+The sharding functionality that is built into UFM telemetry, 
+allows for efficient data polling from multiple telemetry metrics endpoints. 
+This feature is particularly useful when dealing with large amounts of data or when operating in a network with limited bandwidth.
+
+How To Use Sharding:
+
+To use the sharding functionality, you need to add specific parameters to the URL of the configured telemetry endpoint.
+These parameters include **num_shards**, **shard**, and **sharding_field**.
+
+Here is an example of how to use these parameters with the TFS configurations payload:
+
+   ```json
+{
+        "ufm-telemetry-endpoint": [{
+            "host": "127.0.0.1",
+            "url": "csv/xcset/ib_basic_debug?num_shards=3&shard=0&sharding_field=port_guid",
+            "port": 9002,
+            "interval": 120
+        },{
+            "host": "127.0.0.1",
+            "url": "csv/xcset/ib_basic_debug?num_shards=3&shard=1&sharding_field=port_guid",
+            "port": 9002,
+            "interval": 120
+        },{
+            "host": "127.0.0.1",
+            "url": "csv/xcset/ib_basic_debug?num_shards=3&shard=2&sharding_field=port_guid",
+            "port": 9002,
+            "interval": 120
+        }],
+        "fluentd-endpoint": {
+            "host": "10.209.36.68",
+            "port": 24226
+        }
+    }
+   ```
+
+In this example, the telemetry data is divided into three shards (`num_shards=3`), 
+and each endpoint with a different shard (`shard=0`, `shard=1`, `shard=2`). 
+The `sharding_field` parameter is used to specify the field on which the data is to be sharded.
+In the provided example, `sharding_field` is set to `port_guid`. 
+This means that the data is divided into shards based on the `port_guid` field. 
+This field was chosen because it provides a convenient way to divide the data into distinct, non-overlapping shards.
+
+Tuning the Sharding:
+
+For optimal performance, it is recommended to tune the sharding so that a single shard transfers in about 10-15 seconds. This leaves plenty of overhead to avoid timeout issues. 
+You may need to experiment with the number of shards to achieve this. For instance, if your network is slow, you might need to increase the number of shards.
+
+
+
    - Records ٌMeta-fields:
    
    Meta fields are user-defined additional fields of each streamed record with two types: Aliases and new constant fields.
@@ -303,7 +355,7 @@ The output record after adding these meta-fields will be:
 }
 ```
 
-### 3. Update the streaming attributes configurations by the following API:
+### 4. Update the streaming attributes configurations by the following API:
 
    METHOD: _POST_
    
@@ -338,3 +390,53 @@ The output record after adding these meta-fields will be:
 |  attribute.name   |   True   |   The name of the **attribute** in the streamed json data    |
 
 *Updating the streaming attributes configurations will be reflected automatically and applied on the next streaming period. 
+
+### 5. Get the streaming performance statistics by the following API:
+
+   METHOD: _GET_
+   
+   URL: _https://[HOST-IP]/ufmRest/plugin/tfs/metrics
+   
+   Response: Text contains performance metrics for the last streaming interval in Prometheus format:
+   
+```text lines
+# HELP num_of_processed_counters_in_last_msg Number of processed counters/attributes in the last streaming interval
+# TYPE num_of_processed_counters_in_last_msg gauge
+num_of_processed_counters_in_last_msg{endpoint="10.209.36.68:9001/csv/xcset/ib_basic_debug"} 176.0
+num_of_processed_counters_in_last_msg{endpoint="10.209.36.67:9001/csv/xcset/ib_basic_debug"} 189.0
+# HELP num_of_streamed_ports_in_last_msg Number of processed ports in the last streaming interval
+# TYPE num_of_streamed_ports_in_last_msg gauge
+num_of_streamed_ports_in_last_msg{endpoint="10.209.36.68:9001/csv/xcset/ib_basic_debug"} 6.0
+num_of_streamed_ports_in_last_msg{endpoint="10.209.36.67:9001/csv/xcset/ib_basic_debug"} 4.0
+# HELP streaming_time_seconds Time period for last streamed message in seconds
+# TYPE streaming_time_seconds gauge
+streaming_time_seconds{endpoint="10.209.36.68:9001/csv/xcset/ib_basic_debug"} 0.064626
+streaming_time_seconds{endpoint="10.209.36.67:9001/csv/xcset/ib_basic_debug"} 0.025279
+# HELP telemetry_expected_response_size_bytes Expected size of the last received telemetry response in bytes
+# TYPE telemetry_expected_response_size_bytes gauge
+telemetry_expected_response_size_bytes{endpoint="10.209.36.68:9001/csv/xcset/ib_basic_debug"} 5156.0
+telemetry_expected_response_size_bytes{endpoint="10.209.36.67:9001/csv/xcset/ib_basic_debug"} 4726.0
+# HELP telemetry_received_response_size_bytes Actual size of the last received telemetry response in bytes
+# TYPE telemetry_received_response_size_bytes gauge
+telemetry_received_response_size_bytes{endpoint="10.209.36.68:9001/csv/xcset/ib_basic_debug"} 5156.0
+telemetry_received_response_size_bytes{endpoint="10.209.36.67:9001/csv/xcset/ib_basic_debug"} 4726.0
+# HELP telemetry_response_time_seconds Response time of the last telemetry request in seconds
+# TYPE telemetry_response_time_seconds gauge
+telemetry_response_time_seconds{endpoint="10.209.36.68:9001/csv/xcset/ib_basic_debug"} 0.028893
+telemetry_response_time_seconds{endpoint="10.209.36.67:9001/csv/xcset/ib_basic_debug"} 0.07777
+# HELP telemetry_response_process_time_seconds Processing time of the last received telemetry response in seconds
+# TYPE telemetry_response_process_time_seconds gauge
+telemetry_response_process_time_seconds{endpoint="10.209.36.68:9001/csv/xcset/ib_basic_debug"} 0.00455
+telemetry_response_process_time_seconds{endpoint="10.209.36.67:9001/csv/xcset/ib_basic_debug"} 0.003142
+
+```
+
+|                Attribute                |                            Description                             |
+|:---------------------------------------:|:------------------------------------------------------------------:|
+|    num_of_streamed_ports_in_last_msg    |        # of processed ports in the last streaming interval         |
+|  num_of_processed_counters_in_last_msg  | # of processed counters/attributes in the last streaming interval  |
+|         streaming_time_seconds          |          Time period for last streamed message in seconds          |
+| telemetry_expected_response_size_bytes  |   Expected size of the last recivied telemetry response in bytes   |
+| telemetry_received_response_size_bytes  |    Actual size of the last recivied telemetry response in bytes    |
+|     telemetry_response_time_seconds     |       Response time of the last telemetry request in seconds       |
+| telemetry_response_process_time_seconds | Processing time of the last recivied telemetry response in seconds |

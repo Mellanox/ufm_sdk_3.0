@@ -115,9 +115,7 @@ class IsolationMgr:
         self.test_mode = pdr_config.getboolean(Constants.CONF_COMMON,Constants.TEST_MODE)
         # Take from Conf
         self.logger = logger
-        self.ber_intervals = Constants.BER_THRESHOLDS_INTERVALS
-        if self.test_mode:
-            self.ber_intervals = [[0.5 * 60, 3]]
+        self.ber_intervals = Constants.BER_THRESHOLDS_INTERVALS if not self.test_mode else [[0.5 * 60, 3]]
         intervals = [x[0] for x in self.ber_intervals]
         self.min_ber_wait_time = min(intervals)
         self.max_ber_wait_time = max(intervals)
@@ -485,8 +483,10 @@ class IsolationMgr:
         requested_guids = [{"guid": sys_guid, "ports": ports} for sys_guid, ports in guids.items()]
         return requested_guids
 
+    # this function create dynamic telemetry and returns the port of this telemetry
     def run_telemetry_get_port(self):
-        if self.test_mode: return 9003
+        # if we are on test_mode, there is no dynamic telemetry and it will auto go to http://127.0.0.1:9003/csv/xcset/simulated_telemetry (the port is 9003)
+        if self.test_mode: return Constants.TEST_MODE_PORT
         try:
             while not self.ufm_client.running_dynamic_session(Constants.PDR_DYNAMIC_NAME):
                 self.logger.info("Waiting for dynamic session to start")
