@@ -1,5 +1,6 @@
 #!/bin/bash -x
-namehost="blue-force031"
+#namehost="blue-force031"
+namehost=$(echo $HOSTNAME)
 export SERVER_HOST=$SERVER_HOST
 export PASSWORD=$PASSWORD
 expect << EOF
