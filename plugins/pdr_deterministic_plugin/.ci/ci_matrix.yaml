@@ -73,10 +73,9 @@ steps:
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
       service rsyslog restart
-      sleep 30
       export SERVER_HOST=$SERVER_HOST
       scp $WORKSPACE/plugins/pdr_deterministic_plugin/tests/simulation_telemetry.py root@ufm-appliance04:/tmp
-      bash -x plugins/pdr_deterministic_plugin/.ci/do_run_test.sh 
+      bash -x plugins/pdr_deterministic_plugin/.ci/do_run_test.sh
     parallel: false
 
   - name: remove plugin end
