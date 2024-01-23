@@ -12,5 +12,5 @@ expect "/(config/) # "
 send -- "docker load ufm-plugin-pdr_deterministic_latest-docker.img.gz\r"
 expect "/(config/) # "
 send -- "show docker images\r"
-sleep 60
+sleep 90
 EOF
