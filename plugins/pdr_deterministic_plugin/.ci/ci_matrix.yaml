@@ -16,10 +16,6 @@ kubernetes:
 volumes:
   - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
   - {mountPath: /auto/UFM, hostPath: /auto/UFM }
-
-
-runs_on_dockers:
-  - {file: '.ci/Dockerfile', arch: 'x86_64', name: 'plugin_worker', tag: 'latest'}
    
 runs_on_agents:
   - nodeLabel: 'UFM-POC'
@@ -31,7 +27,6 @@ credentials:
 steps:
   - name: Build Plugin
     agentSelector: "{nodeLabel: 'UFM-POC'}"
-    #containerSelector: "{name: 'plugin_worker'}"
     run: |
       cd plugins/$plugin_dir/build
       bash -x ./docker_build.sh latest /
@@ -42,7 +37,6 @@ steps:
 
   - name: remove plugin if exists on the location
     agentSelector: "{nodeLabel: 'UFM-POC'}"
-    #containerSelector: "{name: 'plugin_worker'}"
     run: |
       ls
       hostname
@@ -53,7 +47,6 @@ steps:
 
   - name: Install the new plugin on Server
     agentSelector: "{nodeLabel: 'UFM-POC'}"
-    #containerSelector: "{name: 'plugin_worker'}"
     credentialsId: '2c8fd3fe-df05-4f6f-9d1f-f1896d611434'
     run: |
       env
@@ -65,7 +58,6 @@ steps:
   
   - name: load plugin
     agentSelector: "{nodeLabel: 'UFM-POC'}"
-    #containerSelector: "{name: 'plugin_worker'}"
     run: |
       service opensmd start
       bash -x plugins/pdr_deterministic_plugin/.ci/do_load_plugin.sh
@@ -73,14 +65,12 @@ steps:
 
   - name: add plugin
     agentSelector: "{nodeLabel: 'UFM-POC'}"
-    #containerSelector: "{name: 'plugin_worker'}"
     run: |
       bash -x plugins/pdr_deterministic_plugin/.ci/do_add_plugin.sh 
     parallel: false
 
   - name: run client tests
     agentSelector: "{nodeLabel: 'UFM-POC'}"
-    #containerSelector: "{name: 'plugin_worker'}"
     run: |
       service rsyslog restart
       sleep 30
@@ -90,7 +80,6 @@ steps:
 
   - name: remove plugin end
     agentSelector: "{nodeLabel: 'UFM-POC'}"
-    #containerSelector: "{name: 'plugin_worker'}"
     run: |
       bash -x plugins/pdr_deterministic_plugin/.ci/do_remove_plugin.sh
     parallel: false
