@@ -18,8 +18,8 @@ volumes:
   - {mountPath: /auto/UFM, hostPath: /auto/UFM }
 
 
-#runs_on_dockers:
-#   - {file: '.ci/Dockerfile', arch: 'x86_64', name: 'plugin_worker', tag: 'latest'}
+runs_on_dockers:
+  - {file: '.ci/Dockerfile', arch: 'x86_64', name: 'plugin_worker', tag: 'latest'}
    
 runs_on_agents:
   - nodeLabel: 'UFM-POC'
@@ -30,8 +30,7 @@ credentials:
 
 steps:
   - name: Build Plugin
-    #containerSelector: "{name: 'plugin_worker'}"
-    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    containerSelector: "{name: 'plugin_worker'}"
     run: |
       cd plugins/$plugin_dir/build
       bash -x ./docker_build.sh latest /
@@ -41,8 +40,7 @@ steps:
 
 
   - name: remove plugin if exists on the location
-    #containerSelector: "{name: 'plugin_worker'}"
-    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    containerSelector: "{name: 'plugin_worker'}"
     run: |
       ls
       hostname
@@ -52,8 +50,7 @@ steps:
     
 
   - name: Install the new plugin on Server
-    #containerSelector: "{name: 'plugin_worker'}"
-    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    containerSelector: "{name: 'plugin_worker'}"
     credentialsId: '2c8fd3fe-df05-4f6f-9d1f-f1896d611434'
     run: |
       env
@@ -64,23 +61,20 @@ steps:
 
   
   - name: load plugin
-    #containerSelector: "{name: 'plugin_worker'}"
-    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    containerSelector: "{name: 'plugin_worker'}"
     run: |
       service opensmd start
       bash -x plugins/pdr_deterministic_plugin/.ci/do_load_plugin.sh
     parallel: false
 
   - name: add plugin
-    #containerSelector: "{name: 'plugin_worker'}"
-    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    containerSelector: "{name: 'plugin_worker'}"
     run: |
       bash -x plugins/pdr_deterministic_plugin/.ci/do_add_plugin.sh 
     parallel: false
 
   - name: run client tests
     #containerSelector: "{name: 'plugin_worker'}"
-    agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
       service rsyslog restart
       sleep 30
@@ -89,8 +83,7 @@ steps:
     parallel: false
 
   - name: remove plugin end
-    #containerSelector: "{name: 'plugin_worker'}"
-    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    containerSelector: "{name: 'plugin_worker'}"
     run: |
       bash -x plugins/pdr_deterministic_plugin/.ci/do_remove_plugin.sh
     parallel: false
