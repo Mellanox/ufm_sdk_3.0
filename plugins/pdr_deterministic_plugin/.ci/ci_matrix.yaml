@@ -18,8 +18,8 @@ volumes:
   - {mountPath: /auto/UFM, hostPath: /auto/UFM }
 
 
-runs_on_dockers:
-   - {file: '.ci/Dockerfile', arch: 'x86_64', name: 'plugin_worker', tag: 'latest'}
+#runs_on_dockers:
+#   - {file: '.ci/Dockerfile', arch: 'x86_64', name: 'plugin_worker', tag: 'latest'}
    
 runs_on_agents:
   - nodeLabel: 'UFM-POC'
