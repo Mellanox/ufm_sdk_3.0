@@ -1,17 +1,13 @@
 #!/bin/bash -x
 export SERVER_HOST=$SERVER_HOST
 expect << EOF
-spawn ssh admin@${SERVER_HOST}
+spawn ssh root@${SERVER_HOST}
 expect "Password:*"
 send -- "admin\r"
-expect "> "
-send -- "enable\r"
 expect "# "
-send -- "config terminal\r"
-expect "/(config/) # "
-send -- "ufm plugin pdr_deterministic enable\r"
-expect "/(config/) # "
-send -- "_shell"
+send -- "sed -i -e 's/TEST_MODE=False/TEST_MODE=True/g' /opt/ufm/files/conf/plugins/pdr_deterministic/pdr_deterministic.conf \r"
+expect "# "
+send -- "/opt/ufm/scripts/manage_ufm_plugins.sh enable -p pdr_deterministic\r"
 expect "# "
 send -- "python3 /tmp/simulation_telemetry.py\r"
 expect "# "
