@@ -106,12 +106,14 @@ class UFMCommunicator:
     def get_port_metadata(self, port_name):
         return self.get_request("%s/%s" % (Constants.GET_PORTS_REST, port_name))
 
-    def start_dynamic_session(self, instance_name, counters, sample_rate, guids):
+    def start_dynamic_session(self, instance_name, counters, sample_rate, guids, extra_configuration=None):
         data = {
             "counters": counters,
             "sample_rate": sample_rate,
-            "requested_guids": guids
+            "requested_guids": guids,            
             }
+        if extra_configuration:
+            data["configuration"] = extra_configuration
         return self.send_request(Constants.DYNAMIC_SESSION_REST % instance_name, data, method=Constants.POST_METHOD)
 
     def update_dynamic_session(self, instance_name, sample_rate, guids):
