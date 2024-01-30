@@ -129,14 +129,14 @@ class IsolationMgr:
             Constants.TEMP_COUNTER,
             Constants.LNK_DOWNED_COUNTER,
         ]
-                
-        # DEBUG
-        # self.iteration = 0
-        # self.t_isolate = 1
-        # self.deisolate_consider_time = 0
-        # self.dry_run = True
-        # self.d_tmax = 9000
-        
+
+        # bring telemetry data on disabled ports
+        self.dynamic_extra_configuration = {
+            "plugin_env_CLX_EXPORT_API_ENABLE_DOWN_PORT_COUNTERS": "1",
+            "plugin_env_CLX_EXPORT_API_ENABLE_DOWN_PHY": "1",
+            "arg_11": "",
+        }
+                        
     def calc_max_ber_wait_time(self, min_threshold):
         # min speed EDR = 32 Gb/s
         min_speed, min_width = 32 * 1024 * 1024 * 1024, 1
@@ -445,13 +445,7 @@ class IsolationMgr:
     def start_telemetry_session(self):
         self.logger.info("Starting telemetry session")
         guids = self.get_requested_guids()
-        # bring telemetry data on disabled ports
-        extra_configuration = {
-            "plugin_env_CLX_EXPORT_API_ENABLE_DOWN_PORT_COUNTERS": "1",
-            "plugin_env_CLX_EXPORT_API_ENABLE_DOWN_PHY": "1",
-            "arg_11": "",
-        }
-        response = self.ufm_client.start_dynamic_session(Constants.PDR_DYNAMIC_NAME, self.telemetry_counters, self.t_isolate, guids, extra_configuration)
+        response = self.ufm_client.start_dynamic_session(Constants.PDR_DYNAMIC_NAME, self.telemetry_counters, self.t_isolate, guids, self.dynamic_extra_configuration)
         if response and response.status_code == http.HTTPStatus.ACCEPTED:
             port = str(int(response.content))
         else:

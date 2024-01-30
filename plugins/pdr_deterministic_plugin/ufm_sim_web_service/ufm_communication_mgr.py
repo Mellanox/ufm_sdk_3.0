@@ -110,7 +110,7 @@ class UFMCommunicator:
         data = {
             "counters": counters,
             "sample_rate": sample_rate,
-            "requested_guids": guids,            
+            "requested_guids": guids,
             }
         if extra_configuration:
             data["configuration"] = extra_configuration
