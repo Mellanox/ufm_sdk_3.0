@@ -1,4 +1,3 @@
-#!/bin/bash
 #
 # Copyright © 2013-2024 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
@@ -10,15 +9,15 @@
 # This software product is governed by the End User License Agreement
 # provided with the software product.
 #
+# @author: Alexander Tolikin
+# @date: 30 January, 2024
+#
 
-set -eE
-mkdir -p /config
-cp -f /opt/ufm/snmp_plugin/*.conf /config
-mkdir -p /log
-touch /log/snmptrap.log
-python3 /opt/ufm/snmp_plugin/snmp_server/unregister_switches.py
-LOG_FILE=/log/snmptrap.log
-if test -f "$LOG_FILE"; then
-    rm "$LOG_FILE"
-fi
-exit 0
+import helpers
+from resources import Switch, UFMResource
+
+if __name__ == "__main__":
+    cli = Switch.get_cli(helpers.LOCAL_IP, "unregister")
+    description = f"Unregister all the switches upon the plugin removal"
+    registered_switches = UFMResource.read_json_file(helpers.ConfigParser.switches_file)
+    status_code, headers = helpers.post_provisioning_api(cli, description, registered_switches)
