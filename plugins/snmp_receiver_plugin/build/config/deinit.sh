@@ -12,10 +12,6 @@
 #
 
 set -eE
-mkdir -p /config
-cp -f /opt/ufm/snmp_plugin/*.conf /config
-mkdir -p /log
-touch /log/snmptrap.log
 python3 /opt/ufm/snmp_plugin/snmp_server/unregister_switches.py
 LOG_FILE=/log/snmptrap.log
 if test -f "$LOG_FILE"; then
