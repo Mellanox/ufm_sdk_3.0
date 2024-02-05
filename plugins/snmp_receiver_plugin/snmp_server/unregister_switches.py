@@ -15,6 +15,7 @@
 
 import helpers
 from resources import Switch, UFMResource
+import sys
 
 if __name__ == "__main__":
     try:
@@ -24,3 +25,4 @@ if __name__ == "__main__":
         status_code, headers = helpers.post_provisioning_api(cli, description, registered_switches)
     except Exception as e:
         print("Failed to run deinit.sh: %s" % e)
+        sys.exit(1)
