@@ -11,7 +11,6 @@
 # provided with the software product.
 #
 
-set -eE
 python3 /opt/ufm/snmp_plugin/snmp_server/unregister_switches.py
 LOG_FILE=/log/snmptrap.log
 if test -f "$LOG_FILE"; then
