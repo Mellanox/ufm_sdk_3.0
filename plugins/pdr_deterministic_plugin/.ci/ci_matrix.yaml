@@ -83,7 +83,6 @@ steps:
       export SERVER_HOST=$SERVER_HOST
       env
       bash -x plugins/pdr_deterministic_plugin/.ci/do_run_test.sh
-      fg
     parallel: false
 
   - name: remove plugin end
