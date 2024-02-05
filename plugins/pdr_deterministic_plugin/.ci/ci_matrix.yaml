@@ -38,8 +38,6 @@ steps:
   - name: remove plugin if exists on the location
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
-      ls
-      hostname
       env
       bash -x plugins/pdr_deterministic_plugin/.ci/do_remove_plugin.sh
     parallel: false
@@ -75,7 +73,10 @@ steps:
       service rsyslog restart
       export SERVER_HOST=$SERVER_HOST
       scp $WORKSPACE/plugins/pdr_deterministic_plugin/tests/simulation_telemetry.py root@ufm-appliance04:/tmp
+      env
+      ssh root@$SERVER_HOST 'python3 /tmp/simulation_telemetry.py' &
       bash -x plugins/pdr_deterministic_plugin/.ci/do_run_test.sh
+      fg
     parallel: false
 
   - name: remove plugin end
