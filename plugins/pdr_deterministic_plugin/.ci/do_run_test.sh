@@ -17,7 +17,7 @@ send -- "sed -i -e 's/DEISOLATE_CONSIDER_TIME=/DEISOLATE_CONSIDER_TIME=True/g' /
 expect "# "
 send -- "/opt/ufm/scripts/manage_ufm_plugins.sh enable -p pdr_deterministic\r"
 expect "# "
-send -- "python3 /tmp/simulation_telemetry.py\r"
+spawn python3 /tmp/simulation_telemetry.py
 expect "# "
 sleep 60
 send -- "echo $?"
