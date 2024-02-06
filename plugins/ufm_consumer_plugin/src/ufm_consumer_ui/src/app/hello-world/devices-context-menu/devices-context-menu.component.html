@@ -1,0 +1,58 @@
+<button type="button" class="btn btn-primary" (click)="openModal()">Create template modal</button>
+
+<ng-template #template>
+  <div class="modal-header">
+    <h4 class="modal-title pull-left">Device Details</h4>
+    <button type="button" class="btn-close close pull-right" aria-label="Close" (click)="modalRef?.hide()">
+      <span aria-hidden="true" class="visually-hidden">&times;</span>
+    </button>
+  </div>
+  <div class="modal-body">
+    <table class="key-value-table">
+      <tr>
+        <th>Property</th>
+        <th>Value</th>
+      </tr>
+      <tr>
+        <td>Name</td>
+        <td>
+          {{devices[0]['system_name']}}
+        </td>
+      </tr>
+      <tr>
+        <td>IP</td>
+        <td>
+          {{devices[0]['ip']}}
+        </td>
+      </tr>
+      <tr>
+        <td>GUID</td>
+        <td>0x{{devices[0]['guid']}}</td>
+      </tr>
+      <tr>
+        <td>Type</td>
+        <td>{{devices[0]['type']}}</td>
+      </tr>
+      <tr>
+        <td>Model</td>
+        <td>
+          {{devices[0]['model']}}
+        </td>
+      </tr>
+      <tr>
+        <td>Severity</td>
+        <td>
+          {{devices[0]['severity']}}
+        </td>
+      </tr>
+      <tr>
+        <td>FW Version</td>
+        <td>{{devices[0]['fw_version']}}</td>
+      </tr>
+      <tr>
+        <td>Total Alarms</td>
+        <td>{{devices[0]['total_alarms']}}</td>
+      </tr>
+    </table>
+  </div>
+</ng-template>
