@@ -104,12 +104,12 @@ MAX_ITERATIONS = max([x[0] for x in ALL_DATA_TEST]) + 2
 def randomizeValues(counter_name:str,iteration:int):
     if counter_name == RCV_PACKETS_COUNTER:
         return 1000000 + iteration * 10
-    if counter_name == TEMP_COUNTER:
-        return round(5 + random.triangular(0,10) + \
-            (random.randrange(50) == 0) * 50) ## have high temeprature
-    if counter_name == PHY_RAW_ERROR_LANE0 or counter_name == PHY_RAW_ERROR_LANE1 or\
-        counter_name == PHY_RAW_ERROR_LANE2 or counter_name == PHY_RAW_ERROR_LANE3:
-        return random.random()*1000
+    # if counter_name == TEMP_COUNTER:
+    #     return round(5 + random.triangular(0,10) + \
+    #         (random.randrange(50) == 0) * 50) ## have high temeprature
+    # if counter_name == PHY_RAW_ERROR_LANE0 or counter_name == PHY_RAW_ERROR_LANE1 or\
+    #     counter_name == PHY_RAW_ERROR_LANE2 or counter_name == PHY_RAW_ERROR_LANE3:
+    #     return random.random()*1000
     if counter_name == PHY_EFF_ERROR or counter_name == PHY_SYMBOL_ERROR or\
         counter_name == RCV_ERRORS_COUNTER or counter_name == RCV_REMOTE_PHY_ERROR_COUNTER:
         return random.triangular(0,50)

@@ -515,7 +515,8 @@ class IsolationMgr:
                     # UFM send external event
                     event_msg = "got too many ports detected as unhealthy: %d, skipping isolation" % len(issues)
                     self.logger.warning(event_msg)
-                    self.ufm_client.send_event(event_msg)
+                    if not self.test_mode:
+                        self.ufm_client.send_event(event_msg)
                 
                 # deal with reported new issues
                 else:
