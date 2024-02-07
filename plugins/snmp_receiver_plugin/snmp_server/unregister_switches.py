@@ -23,6 +23,7 @@ if __name__ == "__main__":
         description = f"Unregister all the switches upon the plugin removal"
         registered_switches = UFMResource.read_json_file(helpers.ConfigParser.switches_file)
         status_code, headers = helpers.post_provisioning_api(cli, description, registered_switches)
+        sys.exit(0)
     except Exception as e:
         print("Failed to run deinit.sh: %s" % e)
         sys.exit(1)
