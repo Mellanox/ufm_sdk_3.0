@@ -31,3 +31,4 @@ apache_port=`GetCfg $config_file common apache_port`
 sed -i -e "s/Listen 443/Listen $ssl_apache_port/g" -e "s/Listen 80/Listen $apache_port/g" /etc/apache2/ports.conf
 sed -i "s/VirtualHost _default_:443/VirtualHost _default_:$ssl_apache_port/g" /etc/apache2/sites-available/default-ssl.conf
 sed -i "s/VirtualHost \*:80/VirtualHost \*:$apache_port/g" /etc/apache2/sites-available/000-default.conf
+sed -i "s/APACHE_PORT/$ssl_apache_port/g" /config/ufm_consumer_ui_conf.json
