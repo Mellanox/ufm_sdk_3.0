@@ -81,8 +81,9 @@ steps:
     run: |
       export SERVER_HOST=$SERVER_HOST
       scp $WORKSPACE/plugins/pdr_deterministic_plugin/tests/simulation_telemetry.py root@$SERVER_HOST:/tmp
+      scp $WORKSPACE/plugins/pdr_deterministic_plugin/.ci/run_the_script_there.sh root@$SERVER_HOST:/tmp
       env
-      ssh root@$SERVER_HOST 'python3 /tmp/simulation_telemetry.py'
+      ssh root@$SERVER_HOST '/tmp/run_the_script_there.sh'
     parallel: true
   
   - name: remove plugin end
