@@ -75,15 +75,6 @@ def get_counter(counter_name, row, default=0):
         return default
     return val
 
-def calc_symbol_ber_val(row):
-    error_lane_0 = get_counter(Constants.PHY_RAW_ERROR_LANE0, row, default=None)
-    error_lane_1 = get_counter(Constants.PHY_RAW_ERROR_LANE1, row, default=None)
-    error_lane_2 = get_counter(Constants.PHY_RAW_ERROR_LANE2, row, default=None)
-    error_lane_3 = get_counter(Constants.PHY_RAW_ERROR_LANE3, row, default=None)
-    if error_lane_0 and error_lane_1 and error_lane_2 and error_lane_3:
-        return sum([error_lane_0, error_lane_1, error_lane_2, error_lane_3])
-    return None
-
 class IsolationMgr:
     
     def __init__(self, ufm_client: UFMCommunicator, logger):
@@ -131,10 +122,6 @@ class IsolationMgr:
             "NDR": 100,
             }
         self.telemetry_counters = [
-            Constants.PHY_RAW_ERROR_LANE0,
-            Constants.PHY_RAW_ERROR_LANE1,
-            Constants.PHY_RAW_ERROR_LANE2,
-            Constants.PHY_RAW_ERROR_LANE3,
             Constants.PHY_SYMBOL_ERROR,
             Constants.RCV_PACKETS_COUNTER,
             Constants.RCV_ERRORS_COUNTER,
@@ -142,14 +129,14 @@ class IsolationMgr:
             Constants.TEMP_COUNTER,
             Constants.LNK_DOWNED_COUNTER,
         ]
-                
-        # DEBUG
-        # self.iteration = 0
-        # self.t_isolate = 1
-        # self.deisolate_consider_time = 0
-        # self.dry_run = True
-        # self.d_tmax = 9000
-        
+
+        # bring telemetry data on disabled ports
+        self.dynamic_extra_configuration = {
+            "plugin_env_CLX_EXPORT_API_ENABLE_DOWN_PORT_COUNTERS": "1",
+            "plugin_env_CLX_EXPORT_API_ENABLE_DOWN_PHY": "1",
+            "arg_11": "",
+        }
+                        
     def calc_max_ber_wait_time(self, min_threshold):
         # min speed EDR = 32 Gb/s
         min_speed, min_width = 32 * 1024 * 1024 * 1024, 1
@@ -316,7 +303,7 @@ class IsolationMgr:
                 if link_downed_issue:
                     issues[port_name] = link_downed_issue
             if self.configured_ber_check:
-                symbol_ber_val = calc_symbol_ber_val(row)
+                symbol_ber_val = get_counter(Constants.PHY_SYMBOL_ERROR, row, default=None)
                 if symbol_ber_val is not None:
                     ber_data = {
                         Constants.TIMESTAMP : timestamp,
@@ -458,7 +445,7 @@ class IsolationMgr:
     def start_telemetry_session(self):
         self.logger.info("Starting telemetry session")
         guids = self.get_requested_guids()
-        response = self.ufm_client.start_dynamic_session(Constants.PDR_DYNAMIC_NAME, self.telemetry_counters, self.t_isolate, guids)
+        response = self.ufm_client.start_dynamic_session(Constants.PDR_DYNAMIC_NAME, self.telemetry_counters, self.t_isolate, guids, self.dynamic_extra_configuration)
         if response and response.status_code == http.HTTPStatus.ACCEPTED:
             port = str(int(response.content))
         else:
