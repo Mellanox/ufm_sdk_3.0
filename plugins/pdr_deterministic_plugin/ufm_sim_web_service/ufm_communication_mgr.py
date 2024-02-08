@@ -52,7 +52,7 @@ class UFMCommunicator:
 
     def get_telemetry(self, port, instance_name,test_mode):
         if test_mode:
-            url = f"http://127.0.0.1:9003/csv/xcset/simulated_telemetry"
+            url = f"http://127.0.0.1:9090/csv/xcset/simulated_telemetry"
         else:
             url = f"http://127.0.0.1:{port}/csv/xcset/{instance_name}"
         try:

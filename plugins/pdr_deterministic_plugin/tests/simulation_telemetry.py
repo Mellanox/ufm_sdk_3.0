@@ -239,7 +239,7 @@ def main():
         help="number of ports to simulate if set to 0 ports will be taken from the UFM REST server")
     parser.add_argument('--url_suffix', type=str, default="/csv/xcset/simulated_telemetry",
         help="endpoint url to simulate, if not set, will be taken from configuration file")
-    parser.add_argument('--endpoint_port', type=str, default=9003, help="")
+    parser.add_argument('--endpoint_port', type=str, default=9090, help="")
     parser.add_argument('--changes_intervals', type=float, default=0.5,
                          help="interval time that the server to sleep. in seconds")
     parser.add_argument('--run_forever', action='store_true')

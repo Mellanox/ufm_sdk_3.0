@@ -472,7 +472,7 @@ class IsolationMgr:
 
     # this function create dynamic telemetry and returns the port of this telemetry
     def run_telemetry_get_port(self):
-        # if we are on test_mode, there is no dynamic telemetry and it will auto go to http://127.0.0.1:9003/csv/xcset/simulated_telemetry (the port is 9003)
+        # if we are on test_mode, there is no dynamic telemetry and it will auto go to http://127.0.0.1:9090/csv/xcset/simulated_telemetry (the port is 9090)
         if self.test_mode: return Constants.TEST_MODE_PORT
         try:
             while not self.ufm_client.running_dynamic_session(Constants.PDR_DYNAMIC_NAME):
