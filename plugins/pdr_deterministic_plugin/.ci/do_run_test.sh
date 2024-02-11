@@ -15,6 +15,4 @@ send -- "sed -i -e 's/CONFIGURED_TEMP_CHECK=False/CONFIGURED_TEMP_CHECK=True/g' 
 expect "# "
 send -- "sed -i -e 's/DEISOLATE_CONSIDER_TIME=5/DEISOLATE_CONSIDER_TIME=1/g' /opt/ufm/files/conf/plugins/pdr_deterministic/pdr_deterministic.conf \r"
 expect "# "
-send -- "/opt/ufm/scripts/manage_ufm_plugins.sh enable -p pdr_deterministic\r"
-expect "# "
 EOF
