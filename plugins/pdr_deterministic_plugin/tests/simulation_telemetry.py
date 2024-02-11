@@ -5,8 +5,8 @@ from threading import Lock
 import copy
 import argparse
 import random
-from os import listdir
-from os.path import isfile, join
+from os import _exit
+from os.path import exists
 
 lock = Lock()
 
@@ -209,8 +209,18 @@ def initialize_simulated_counters(endpoint_obj: dict):
 
 def check_logs(config):
     lines=[]
-    with open("/log/pdr_deterministic_plugin.log",'r') as log_file:
-        lines=log_file.readlines()
+    location_logs_can_be = ["/log/pdr_deterministic_plugin.log",
+                            "/tmp/pdr_deterministic_plugin.log",
+                            "/opt/ufm/log/pdr_deterministic_plugin.log",
+                            "/opt/ufm/log/plugins/pdr_deterministic/pdr_deterministic_plugin.log"]
+    for log_location in location_logs_can_be:
+        if exists(log_location):
+            with open(log_location,'r') as log_file:
+                lines=log_file.readlines()
+            break
+    if len(lines) == 0:
+        print("Could not find log file in " + str(location_logs_can_be))
+        return 1        
     # if a you want to add more tests, please add more guids and test on other indeces.
     ports_should_be_isoloated_indeces = [2,3,4,6,8]
     ports_shouldnt_be_isolated_indeces = [0]
@@ -280,4 +290,4 @@ def main():
         return check_logs(config)
 
 if __name__ == '__main__':
-    main()
+    _exit(main())
