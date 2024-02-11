@@ -25,7 +25,7 @@ expect "/(config/) # "
 sleep 10
 send -- "ufm plugin pdr_deterministic add tag latest\r"
 expect "/(config/) # "
-send -- "ufm plugin pdr_deterministic enable\r"
+send -- "no ufm plugin pdr_deterministic enable\r"
 expect "/(config/) # "
 send -- "show ufm plugin\r"
 expect "/(config/) # "
