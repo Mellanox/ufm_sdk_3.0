@@ -31,7 +31,7 @@ send -- "show ufm plugin\r"
 expect "/(config/) # "
 send -- "show ufm status\r"
 sleep 10
-send -- "ufm plugin pdr_deterministic disable\r"
+send -- "no ufm plugin pdr_deterministic enable\r"
 expect "/(config/) # "
 
 EOF

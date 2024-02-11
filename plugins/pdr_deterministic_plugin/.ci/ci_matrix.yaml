@@ -84,7 +84,7 @@ steps:
       scp $WORKSPACE/plugins/pdr_deterministic_plugin/.ci/run_the_script_there.sh root@$SERVER_HOST:/tmp
       env
       ssh root@$SERVER_HOST '/tmp/run_the_script_there.sh'
-    parallel: true
+    parallel: false
   
   - name: remove plugin end
     agentSelector: "{nodeLabel: 'UFM-POC'}"
