@@ -20,7 +20,6 @@ import sys
 current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
 sys.path.append(os.path.dirname(parent))
-sys.path.append("/.autodirect/mtrswgwork/egershon/git/ufm_sdk_3")
 from utils.json_schema_validator import ValidationError, SchemaValidationError
 
 from api import InvalidRequest
