@@ -103,7 +103,7 @@ class IsolationMgr:
         self.temp_check = pdr_config.getboolean(Constants.CONF_COMMON,Constants.CONFIGURED_TEMP_CHECK)
         self.no_down_count = pdr_config.getboolean(Constants.CONF_COMMON,Constants.NO_DOWN_COUNT)
         self.access_isolation = pdr_config.getboolean(Constants.CONF_COMMON,Constants.ACCESS_ISOLATION)
-        self.test_mode = pdr_config.getboolean(Constants.CONF_COMMON,Constants.TEST_MODE)
+        self.test_mode = pdr_config.getboolean(Constants.CONF_COMMON,Constants.TEST_MODE,fallback=False)
         # Take from Conf
         self.logger = logger
         self.ber_intervals = Constants.BER_THRESHOLDS_INTERVALS if not self.test_mode else [[0.5 * 60, 3]]

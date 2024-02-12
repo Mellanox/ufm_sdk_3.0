@@ -5,7 +5,7 @@ spawn ssh root@${SERVER_HOST}
 expect "Password:*"
 send -- "admin\r"
 expect "# "
-send -- "sed -i -e 's/TEST_MODE=False/TEST_MODE=True/g' /opt/ufm/files/conf/plugins/pdr_deterministic/pdr_deterministic.conf \r"
+send -- "echo TEST_MODE=True>>/opt/ufm/files/conf/plugins/pdr_deterministic/pdr_deterministic.conf \r"
 expect "# "
 send -- "sed -i -e 's/DRY_RUN=False/DRY_RUN=True/g' /opt/ufm/files/conf/plugins/pdr_deterministic/pdr_deterministic.conf \r"
 expect "# "

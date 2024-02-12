@@ -207,6 +207,12 @@ def initialize_simulated_counters(endpoint_obj: dict):
             counter_obj['last_val'] = initial_val
             row[1].append(counter_obj)
 
+def assert_equal(message, left_expr, right_expr, test_name="positive"):
+        if left_expr == right_expr:
+            print(f"    - {test_name} test name : {message} -- PASS")
+        else:
+            print(f"    - {test_name} test name: {message}  -- FAIL (expected: {right_expr}, actual: {left_expr})")
+
 def check_logs(config):
     lines=[]
     location_logs_can_be = ["/log/pdr_deterministic_plugin.log",
@@ -222,25 +228,35 @@ def check_logs(config):
         print("Could not find log file in " + str(location_logs_can_be))
         return 1        
     # if a you want to add more tests, please add more guids and test on other indeces.
-    ports_should_be_isoloated_indeces = [2,3,4,6,8]
+    
+    ports_should_be_isoloated_indeces = list(set([x[1] for x in ALL_DATA_TEST]))
     ports_shouldnt_be_isolated_indeces = [0]
+    # remove negative tests from the positive ones
+    ports_should_be_isoloated_indeces = [port for port in ports_should_be_isoloated_indeces if port not in ports_shouldnt_be_isolated_indeces]
 
     number_of_tests_approved = len(ports_should_be_isoloated_indeces)
     number_of_negative_tests = len(ports_shouldnt_be_isolated_indeces)
     isolated_message="WARNING: Isolated port: "
     for p in ports_should_be_isoloated_indeces:
         for line in lines:
-            if isolated_message + config["Ports_names"][p] in line:
+            foundPort = isolated_message + config["Ports_names"][p] in line
+            testedCounter = [x[2] for x in ALL_DATA_TEST if x[1]==p]
+            assert_equal(f"{testedCounter} changed and in the logs",foundPort,True)
+            if foundPort:
                 number_of_tests_approved -= 1 # it was found
                 break
 
     for p in ports_shouldnt_be_isolated_indeces:
         for line in lines:
-            if isolated_message + config["Ports_names"][p] in line:
+            foundPort = isolated_message + config["Ports_names"][p] in line
+            testedCounter = [x[2] for x in ALL_DATA_TEST if x[1]==p]
+            assert_equal(f"{testedCounter} changed and in the logs",foundPort,False,"negative")
+            if foundPort:
                 number_of_negative_tests -= 1 # it was found, but it shouldnt
                 break
     
-    return number_of_tests_approved == 0 and number_of_negative_tests == len(ports_shouldnt_be_isolated_indeces)
+    all_pass = number_of_tests_approved == 0 and number_of_negative_tests == len(ports_shouldnt_be_isolated_indeces)
+    return 0 if all_pass else 1
 
 # start a server which update the counters every time
 def main():
