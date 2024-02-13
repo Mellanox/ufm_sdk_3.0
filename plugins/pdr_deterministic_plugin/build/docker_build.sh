@@ -78,15 +78,15 @@ function build_docker_image()
     docker images | grep ${image_with_prefix}
     printf "\n\n\n"
 
-    echo "docker save ${image_with_prefix}:latest | gzip > ${out_dir}/${full_image_version}-docker.img.gz"
-    docker save ${image_with_prefix}:latest | gzip > ${out_dir}/${full_image_version}-docker.img.gz
+    echo "docker save ${image_with_prefix}:${image_version} | gzip > ${out_dir}/${full_image_version}-docker.img.gz"
+    docker save ${image_with_prefix}:${image_version} | gzip > ${out_dir}/${full_image_version}-docker.img.gz
     exit_code=$?
     if [ $exit_code -ne 0 ]; then
         echo "Failed to save image"
         return $exit_code
     fi
     if [ "$keep_image" != "y" -a "$keep_image" != "Y" ]; then
-        docker image rm -f ${image_with_prefix}:latest
+        docker image rm -f ${image_with_prefix}:${image_version}
     fi
     return 0
 }
