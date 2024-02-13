@@ -227,7 +227,6 @@ class UFM:
         resource_path = Constants.UFM_VER_URL
         url = self.getUrl(resource_path, auth_type)
         result = self.utils.sendGetRequest(session, ufm_server, url)
-        logging.info("return code is : %s" % result.status_code)
         ver = result.text
 
         if not ver or result.status_code != http.client.OK:
@@ -297,14 +296,6 @@ class UFM:
             return True
         except:
             return False
-
-    def kerberos_host_name_validation(self, host_name):
-        is_valid_ip_address = self.IPAddressValidation(host_name)
-        if is_valid_ip_address:
-            logging.error("For using %s you must set '%s=' the host name of UFM server in ufm_slurm.conf file" % (
-                Constants.KERBEROS_AUTH, Constants.CONF_UFM_IP))
-            return False
-        return True
 
     def getUfmIP(self):
         ufm_manual_ip = self.utils.get_conf_parameter_value(Constants.CONF_UFM_IP)
