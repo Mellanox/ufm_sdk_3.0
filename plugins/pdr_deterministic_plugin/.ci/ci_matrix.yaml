@@ -66,24 +66,15 @@ steps:
     run: |
       bash -x plugins/pdr_deterministic_plugin/.ci/do_add_plugin.sh 
     parallel: false
-
-  - name: run enable the plugin with test configuration
-    agentSelector: "{nodeLabel: 'UFM-POC'}"
-    run: |
-      service rsyslog restart
-      export SERVER_HOST=$SERVER_HOST
-      env
-      bash -x plugins/pdr_deterministic_plugin/.ci/do_run_test.sh
-    parallel: false
   
   - name: run simulation and tests on machine
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
       export SERVER_HOST=$SERVER_HOST
       scp $WORKSPACE/plugins/pdr_deterministic_plugin/tests/simulation_telemetry.py root@$SERVER_HOST:/tmp
-      scp $WORKSPACE/plugins/pdr_deterministic_plugin/.ci/run_the_script_there.sh root@$SERVER_HOST:/tmp
+      scp $WORKSPACE/plugins/pdr_deterministic_plugin/.ci/run_simulation_test.sh root@$SERVER_HOST:/tmp
       env
-      ssh root@$SERVER_HOST '/tmp/run_the_script_there.sh'
+      ssh root@$SERVER_HOST '/tmp/run_simulation_test.sh'
     parallel: false
   
   - name: remove plugin end
