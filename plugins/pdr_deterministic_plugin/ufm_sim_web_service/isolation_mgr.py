@@ -252,7 +252,7 @@ class IsolationMgr:
         port_obj.counters_values[Constants.LAST_TIMESTAMP] = timestamp
         return counter_delta
    
-    def check_link_down_condition(self, port_obj, port_name, ports_counters):
+    def check_link_down_condition(self, port_obj, ports_counters):
         """
         Check if the peer port link downed was raised and return an issue
         """
@@ -271,7 +271,7 @@ class IsolationMgr:
             return None
         peer_link_downed_rate = self.get_rate_and_update(peer_obj, Constants.LNK_DOWNED_COUNTER, peer_link_downed, peer_row_timestamp)
         if peer_link_downed_rate > 0:
-            return Issue(port_name, Constants.ISSUE_LINK_DOWN)
+            return Issue(port_obj.port_name, Constants.ISSUE_LINK_DOWN)
         return None
     
     def calc_error_rate(self, port_obj, row, timestamp):
@@ -284,7 +284,7 @@ class IsolationMgr:
         error_rate = self.get_rate_and_update(port_obj, Constants.ERRORS_COUNTER, errors, timestamp)
         return error_rate        
 
-    def check_pdr_issue(self, port_obj, port_name, row, timestamp):
+    def check_pdr_issue(self, port_obj, row, timestamp):
         """
         Check if the port passed the PacketDropRate threshold and return an issue
         """
@@ -292,10 +292,10 @@ class IsolationMgr:
         rcv_pkt_rate = self.get_rate_and_update(port_obj, Constants.RCV_PACKETS_COUNTER, rcv_pkts, timestamp)
         error_rate = self.calc_error_rate(port_obj, row, timestamp)
         if rcv_pkt_rate and error_rate / rcv_pkt_rate > self.max_pdr:
-            return Issue(port_name, Constants.ISSUE_PDR)
+            return Issue(port_obj.port_name, Constants.ISSUE_PDR)
         return None
     
-    def check_temp_issue(self, port_obj, port_name, row, timestamp):
+    def check_temp_issue(self, port_obj, row, timestamp):
         """
         Check if the port passed the temperature threshold and return an issue
         """
@@ -303,16 +303,16 @@ class IsolationMgr:
             return None
         cable_temp = get_counter(Constants.TEMP_COUNTER, row, default=None)
         if cable_temp is not None and not numpy.isnan(cable_temp):
-            if cable_temp == "NA" or cable_temp == "N/A" or cable_temp == "" or cable_temp == "0C":
+            if cable_temp in ["NA", "N/A", "", "0C"]:
                 return None
             cable_temp = int(cable_temp.split("C")[0]) if type(cable_temp) == str else cable_temp
             dT = abs(port_obj.counters_values.get(Constants.TEMP_COUNTER, 0) - cable_temp)
             port_obj.counters_values[Constants.TEMP_COUNTER] = cable_temp
             if cable_temp and (cable_temp > self.tmax or dT > self.d_tmax):
-                return Issue(port_name, Constants.ISSUE_OONOC)
+                return Issue(port_obj.port_name, Constants.ISSUE_OONOC)
         return None
 
-    def check_link_down_issue(self, port_obj, port_name, row, timestamp, ports_counters):
+    def check_link_down_issue(self, port_obj, row, timestamp, ports_counters):
         """
         Check if the port passed the link down threshold and return an issue
         """
@@ -321,12 +321,12 @@ class IsolationMgr:
         link_downed = get_counter(Constants.LNK_DOWNED_COUNTER, row)
         link_downed_rate = self.get_rate_and_update(port_obj, Constants.LNK_DOWNED_COUNTER, link_downed, timestamp)
         if link_downed_rate > 0:
-            link_downed_issue = self.check_link_down_condition(port_obj, port_name, ports_counters)
+            link_downed_issue = self.check_link_down_condition(port_obj, port_obj.port_name, ports_counters)
             if link_downed_issue:
                 return link_downed_issue
         return None
 
-    def check_ber_issue(self, port_obj, port_name, row, timestamp):
+    def check_ber_issue(self, port_obj, row, timestamp):
         """
         Check if the port passed the BER threshold and return an issue
         """
@@ -342,14 +342,14 @@ class IsolationMgr:
             port_obj.last_symbol_ber_timestamp = timestamp
             port_obj.last_symbol_ber_val = symbol_ber_val
             if not port_obj.active_speed or not port_obj.port_width:
-                port_obj.active_speed, port_obj.port_width = self.get_port_metadata(port_name)
+                port_obj.active_speed, port_obj.port_width = self.get_port_metadata(port_obj.port_name)
             if not port_obj.port_width:
-                self.logger.debug(f"port width for port {port_name} is None, can't verify it's BER values")
+                self.logger.debug(f"port width for port {port_obj.port_name} is None, can't verify it's BER values")
                 return None
             for (interval, threshold) in self.ber_intervals:
-                symbol_ber_rate = self.calc_ber_rates(port_name, port_obj.active_speed, port_obj.port_width, interval)
+                symbol_ber_rate = self.calc_ber_rates(port_obj.port_name, port_obj.active_speed, port_obj.port_width, interval)
                 if symbol_ber_rate and symbol_ber_rate > threshold:
-                    return Issue(port_name, Constants.ISSUE_BER)
+                    return Issue(port_obj.port_name, Constants.ISSUE_BER)
         return None
 
     def read_next_set_of_high_ber_or_pdr_ports(self, endpoint_port):
@@ -374,10 +374,10 @@ class IsolationMgr:
             # Converting from micro seconds to seconds.
             timestamp = row.get(Constants.TIMESTAMP) / 1000 / 1000
             
-            pdr_issue = self.check_pdr_issue(port_obj, port_name, row, timestamp)
-            temp_issue = self.check_temp_issue(port_obj, port_name, row, timestamp)
-            link_downed_issue = self.check_link_down_issue(port_obj, port_name, row, timestamp, ports_counters)
-            ber_issue = self.check_ber_issue(port_obj, port_name, row, timestamp)
+            pdr_issue = self.check_pdr_issue(port_obj, row, timestamp)
+            temp_issue = self.check_temp_issue(port_obj, row, timestamp)
+            link_downed_issue = self.check_link_down_issue(port_obj, row, timestamp, ports_counters)
+            ber_issue = self.check_ber_issue(port_obj, row, timestamp)
             port_obj.last_timestamp = timestamp
             if pdr_issue:
                 issues[port_name] = pdr_issue
@@ -390,6 +390,9 @@ class IsolationMgr:
         return issues
 
     def calc_symbol_ber_rate(self, port_name, port_speed, port_width, col_name, time_delta):
+        """
+        calculate the symbol BER rate for a given port given the time delta
+        """
         try:
             if port_speed != "NDR":
                 # BER calculations is only relevant for NDR
@@ -547,6 +550,9 @@ class IsolationMgr:
         return endpoint_port
 
     def restart_telemetry_session(self):
+        """
+        Restart the dynamic telemetry session and return the new endpoint port
+        """
         self.logger.info("Restarting telemetry session")
         self.ufm_client.stop_dynamic_session(Constants.PDR_DYNAMIC_NAME)
         time.sleep(self.dynamic_wait_time)
