@@ -57,7 +57,6 @@ steps:
   - name: load plugin
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
-      service opensmd start
       bash -x plugins/pdr_deterministic_plugin/.ci/do_load_plugin.sh
     parallel: false
 
