@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright © 2017-2021 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright © 2017-2024 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -40,9 +40,14 @@ class UfmSlurmEpilog(UfmSlurmBase):
                         Constants.TOKEN_AUTH, Constants.CONF_TOKEN))
                     sys.exit(self.should_fail)
                 self.session = self.ufm.getServerSession(auth_type=self.auth_type, token=token)
+            elif self.auth_type == Constants.KERBEROS_AUTH:
+                principal_name = self.general_utils.get_conf_parameter_value(Constants.CONF_PRINCIPAL_NAME)
+                principal_pass = self.general_utils.get_conf_parameter_value(Constants.CONF_PRINCIPAL_PASSWORD)
+                self.session = self.ufm.getServerSession(auth_type=self.auth_type, principal_name=principal_name,
+                                                         principal_password=principal_pass if principal_pass else "")
             else:
-                logging.error("auth_type in ufm_slurm.conf file must be one of the following (%s, %s)" % (
-                    Constants.BASIC_AUTH, Constants.CONF_TOKEN))
+                logging.error("auth_type in ufm_slurm.conf file must be one of the following (%s, %s, %s)" % (
+                    Constants.BASIC_AUTH, Constants.TOKEN_AUTH, Constants.KERBEROS_AUTH))
                 sys.exit(self.should_fail)
         except Exception as exc:
             logging.error("error in epilog init function: %s" % str(exc) )
