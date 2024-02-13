@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright © 2017-2023 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright © 2017-2024 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -20,6 +20,7 @@ import re
 import subprocess
 import json
 import requests
+import kerberos
 import ipaddress
 import http.client
 import logging
@@ -45,8 +46,11 @@ class Constants:
     CONF_DEBUG_MODE = 'debug_mode'
     CONF_NUM_OF_RETRIES = "num_of_retries"
     CONF_RETRY_INTERVAL = "retry_interval"
+    CONF_PRINCIPAL_NAME = "principal_name"
+    CONF_PRINCIPAL_PASSWORD = "principal_pass"
     BASIC_AUTH = "basic_auth"
     TOKEN_AUTH = "token_auth"
+    KERBEROS_AUTH = "kerberos_auth"
     CONF_FAIL_SLURM_JOB_UPON_FAILURE_PARAM = "fail_slurm_job_upon_failure"
     LS_JOB_NAME = 'slurm_job_'
     DEF_LOG_FILE = 'ufm_slurm.log'
@@ -187,28 +191,32 @@ class UFM:
     def getUrl(self, resource_path, auth_type=Constants.BASIC_AUTH):
         if auth_type == Constants.TOKEN_AUTH:
             url = resource_path.replace("ufmRest", "ufmRestV3")
+        elif auth_type == Constants.KERBEROS_AUTH:
+            url = resource_path.replace("ufmRest", "ufmRestKrb")
         else:
             url = resource_path
         return url
 
-    def getServerSession(self, auth_type=None, username=None, password=None, token=None):
+    def getServerSession(self, auth_type=None, username=None, password=None, token=None, principal_name=None,
+                         principal_password=""):
         """
         Creating REST client session for server connection,
         after globally setting Authorization,
         Content-Type and charset for session.
         """
         session = requests.Session()
+        session.verify = False
+        session.headers.update({'Content-Type': 'application/json; charset=utf-8'})
 
         if auth_type == Constants.BASIC_AUTH:
             session.auth = (username, password)
-            session.verify = False
-            session.headers.update(
-                {'Content-Type': 'application/json; charset=utf-8'})
         elif auth_type == Constants.TOKEN_AUTH:
-            session.verify = False
-            session.headers.update(
-                {'Content-Type': 'application/json; charset=utf-8',
-                 'Authorization': 'Basic %s' % token})
+            session.headers.update({'Authorization': 'Basic %s' % token})
+        elif auth_type == Constants.KERBEROS_AUTH:
+            __, krb_context = kerberos.authGSSClientInit("HTTP", principal_name)
+            kerberos.authGSSClientStep(krb_context, principal_password)
+            negotiate_details = kerberos.authGSSClientResponse(krb_context)
+            session.headers.update({'Authorization': 'Negotiate {0}'.format(negotiate_details)})
 
         return session
 
@@ -219,6 +227,7 @@ class UFM:
         resource_path = Constants.UFM_VER_URL
         url = self.getUrl(resource_path, auth_type)
         result = self.utils.sendGetRequest(session, ufm_server, url)
+        logging.info("return code is : %s" % result.status_code)
         ver = result.text
 
         if not ver or result.status_code != http.client.OK:
@@ -288,6 +297,14 @@ class UFM:
             return True
         except:
             return False
+
+    def kerberos_host_name_validation(self, host_name):
+        is_valid_ip_address = self.IPAddressValidation(host_name)
+        if is_valid_ip_address:
+            logging.error("For using %s you must set '%s=' the host name of UFM server in ufm_slurm.conf file" % (
+                Constants.KERBEROS_AUTH, Constants.CONF_UFM_IP))
+            return False
+        return True
 
     def getUfmIP(self):
         ufm_manual_ip = self.utils.get_conf_parameter_value(Constants.CONF_UFM_IP)

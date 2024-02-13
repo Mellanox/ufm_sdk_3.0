@@ -42,6 +42,31 @@ Then you must copy the generated token and paste it into the config file beside 
 
 
 
+Configure the SLURM server for Kerberos authentication
+-------------------------------------------------------
+
+
+### 1) Verify that both the UFM server and the Kerberos server are appropriately configured to support Kerberos authentication.
+### 2) Install Required Packages: Execute the command yum install krb5-libs krb5-workstation to install the necessary packages.
+### 3) Adjust the /etc/krb5.conf file to match your realm, domain, and other settings, either manually or by copying it from the Kerberos server.
+### 4) Obtain a Kerberos ticket-granting ticket (TGT) using one of the following methods:
+        Using the keytab file:
+            Copy the Keytab from Kerberos server to SLURM server Machine.
+            Create the Kerberos ticket by running: kinit -k -t /path/to/your-keytab-file HTTP/YOUR-HOST-NAME@YOUR-REALM
+
+        Using user principle:
+            In the Kerberos server create user principle by running: kadmin.local addprinc user_name
+            In the SLURM client, acquire the TGT by running: kinit user_name
+### 5) Test Kerberos Authentication
+        Use curl to verify the user's ability to authenticate to UFM REST APIs using Kerberos authentication:
+        curl --negotiate -i -u : -k 'https://<ufm_server_name>/ufmRestKrb/app/tokens'
+### 6) Configure ufm_slurm.conf file on the SLURM server:.
+        Set ufm_server=<ufm_host_name>, recommended to use the host name and not host IP.
+        Set auth_type=kerberos_auth.
+        Set principal_name=<your_principal_name>; retrieve it using the klist command.
+        If you used the user principal to obtain the TGT, set principal_pass=<your_principal_password>; otherwise, leave it empty.
+
+
 Deployment
 --------------------------------------------------------
 

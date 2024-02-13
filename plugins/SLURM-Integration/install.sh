@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright © 2019-2023 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright © 2019-2024 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -248,7 +248,7 @@ CheckRPMS() {
 # prepare list of packages to be installed using pip
 PreparePrereqPackages()
 {
-    python_packages_for_pip=( requests ipaddress)
+    python_packages_for_pip=( requests kerberos ipaddress)
     case "${distro}" in
 	rhel7)
 	    python_packages_for_pip=(${python_packages_for_pip[@]})
