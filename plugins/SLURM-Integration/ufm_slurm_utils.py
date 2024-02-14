@@ -47,7 +47,6 @@ class Constants:
     CONF_NUM_OF_RETRIES = "num_of_retries"
     CONF_RETRY_INTERVAL = "retry_interval"
     CONF_PRINCIPAL_NAME = "principal_name"
-    CONF_PRINCIPAL_PASSWORD = "principal_pass"
     BASIC_AUTH = "basic_auth"
     TOKEN_AUTH = "token_auth"
     KERBEROS_AUTH = "kerberos_auth"
@@ -197,8 +196,7 @@ class UFM:
             url = resource_path
         return url
 
-    def getServerSession(self, auth_type=None, username=None, password=None, token=None, principal_name=None,
-                         principal_password=""):
+    def getServerSession(self, auth_type=None, username=None, password=None, token=None, principal_name=None):
         """
         Creating REST client session for server connection,
         after globally setting Authorization,
@@ -214,7 +212,7 @@ class UFM:
             session.headers.update({'Authorization': 'Basic %s' % token})
         elif auth_type == Constants.KERBEROS_AUTH:
             __, krb_context = kerberos.authGSSClientInit("HTTP", principal_name)
-            kerberos.authGSSClientStep(krb_context, principal_password)
+            kerberos.authGSSClientStep(krb_context, "")
             negotiate_details = kerberos.authGSSClientResponse(krb_context)
             session.headers.update({'Authorization': 'Negotiate {0}'.format(negotiate_details)})
 

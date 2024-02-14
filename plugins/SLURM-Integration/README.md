@@ -64,7 +64,6 @@ Configure the SLURM server for Kerberos authentication
         Set ufm_server=<ufm_host_name>, recommended to use the host name and not host IP.
         Set auth_type=kerberos_auth.
         Set principal_name=<your_principal_name>; retrieve it using the klist command.
-        If you used the user principal to obtain the TGT, set principal_pass=<your_principal_password>; otherwise, leave it empty.
 
 
 Deployment
