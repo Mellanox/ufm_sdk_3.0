@@ -42,9 +42,7 @@ class UfmSlurmEpilog(UfmSlurmBase):
                 self.session = self.ufm.getServerSession(auth_type=self.auth_type, token=token)
             elif self.auth_type == Constants.KERBEROS_AUTH:
                 principal_name = self.general_utils.get_conf_parameter_value(Constants.CONF_PRINCIPAL_NAME)
-                principal_pass = self.general_utils.get_conf_parameter_value(Constants.CONF_PRINCIPAL_PASSWORD)
-                self.session = self.ufm.getServerSession(auth_type=self.auth_type, principal_name=principal_name,
-                                                         principal_password=principal_pass if principal_pass else "")
+                self.session = self.ufm.getServerSession(auth_type=self.auth_type, principal_name=principal_name)
             else:
                 logging.error("auth_type in ufm_slurm.conf file must be one of the following (%s, %s, %s)" % (
                     Constants.BASIC_AUTH, Constants.TOKEN_AUTH, Constants.KERBEROS_AUTH))
