@@ -260,13 +260,18 @@ class IsolationMgr:
             return None
         peer_guid, peer_num = port_obj.peer.split('_')
         #TODO check for a way to save peer row in data structure for performance
-        peer_row = ports_counters.loc[(ports_counters['port_guid'] == peer_guid) & (ports_counters['port_num'] == int(peer_num))]
+        peer_row = ports_counters.loc[(ports_counters['port_guid'] == peer_guid) & (ports_counters['port_num'] == int(peer_num))].iloc[0]
         if peer_row.empty:
             self.logger.warning("Peer port {0} not found in ports data".format(port_obj.peer))
             return None
         peer_row_timestamp = peer_row.get(Constants.TIMESTAMP)
         peer_link_downed = get_counter(Constants.LNK_DOWNED_COUNTER, peer_row)
         peer_obj = self.ports_data.get(port_obj.peer)
+        if self.test_mode:
+            peer_obj = port_obj
+            # because we use the port obj we need to change the peer link is down.
+            # it would have enter here only if there was a change, so the test mode is working
+            peer_obj.counters_values[Constants.LNK_DOWNED_COUNTER] = peer_link_downed - 1
         if not peer_obj:
             return None
         peer_link_downed_rate = self.get_rate_and_update(peer_obj, Constants.LNK_DOWNED_COUNTER, peer_link_downed, peer_row_timestamp)
@@ -321,7 +326,7 @@ class IsolationMgr:
         link_downed = get_counter(Constants.LNK_DOWNED_COUNTER, row)
         link_downed_rate = self.get_rate_and_update(port_obj, Constants.LNK_DOWNED_COUNTER, link_downed, timestamp)
         if link_downed_rate > 0:
-            link_downed_issue = self.check_link_down_condition(port_obj, port_obj.port_name, ports_counters)
+            link_downed_issue = self.check_link_down_condition(port_obj, ports_counters)
             if link_downed_issue:
                 return link_downed_issue
         return None
@@ -366,7 +371,7 @@ class IsolationMgr:
             if self.test_mode:
                 # Adding the port data upon fetching the first telemetry data
                 if not self.ports_data.get(port_name):
-                    self.ports_data[port_name] = PortData(port_name)
+                    self.ports_data[port_name] = PortData(port_name=port_name,peer="0x"+port_name)
             port_obj = self.ports_data.get(port_name)
             if not port_obj:
                 self.logger.warning("Port {0} not found in ports data".format(port_name))
@@ -536,7 +541,7 @@ class IsolationMgr:
 
     # this function create dynamic telemetry and returns the port of this telemetry
     def run_telemetry_get_port(self):
-        # if we are on test_mode, there is no dynamic telemetry and it will auto go to http://127.0.0.1:9003/csv/xcset/simulated_telemetry (the port is 9003)
+        # if we are on test_mode, there is no dynamic telemetry and it will auto go to http://127.0.0.1:9090/csv/xcset/simulated_telemetry (the port is 9090)
         if self.test_mode: return Constants.TEST_MODE_PORT
         try:
             while not self.ufm_client.running_dynamic_session(Constants.PDR_DYNAMIC_NAME):
@@ -584,7 +589,8 @@ class IsolationMgr:
                     # UFM send external event
                     event_msg = "got too many ports detected as unhealthy: %d, skipping isolation" % len(issues)
                     self.logger.warning(event_msg)
-                    self.ufm_client.send_event(event_msg, event_id=Constants.EXTERNAL_EVENT_ALERT, external_event_name="Skipping isolation")
+                    if not self.test_mode:
+                        self.ufm_client.send_event(event_msg, event_id=Constants.EXTERNAL_EVENT_ALERT, external_event_name="Skipping isolation")
                 
                 # deal with reported new issues
                 else:

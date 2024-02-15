@@ -16,15 +16,17 @@ kubernetes:
 volumes:
   - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
   - {mountPath: /auto/UFM, hostPath: /auto/UFM }
+   
+runs_on_agents:
+  - nodeLabel: 'UFM-POC'
 
-
-runs_on_dockers:
-   - {file: '.ci/Dockerfile', arch: 'x86_64', name: 'plugin_worker', tag: 'latest'}
+credentials:
+  - {credentialsId: '2c8fd3fe-df05-4f6f-9d1f-f1896d611434', usernameVariable: 'REST_USER', passwordVariable: 'PASSWORD'}
 
 
 steps:
   - name: Build Plugin
-    containerSelector: "{name: 'plugin_worker'}"
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
       cd plugins/$plugin_dir/build
       bash -x ./docker_build.sh latest /
@@ -32,6 +34,55 @@ steps:
       cp /ufm-plugin* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
     parallel: true
 
+
+  - name: remove plugin if exists on the location
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: |
+      env
+      bash -x plugins/pdr_deterministic_plugin/.ci/do_remove_plugin.sh
+    parallel: false
+    
+
+  - name: Install the new plugin on Server
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    credentialsId: '2c8fd3fe-df05-4f6f-9d1f-f1896d611434'
+    run: |
+      env
+      pwd
+      export PASSWORD=$PASSWORD
+      bash -x plugins/pdr_deterministic_plugin/.ci/do_install_plugin_server.sh
+    parallel: false
+
+  
+  - name: load plugin
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: |
+      bash -x plugins/pdr_deterministic_plugin/.ci/do_load_plugin.sh
+    parallel: false
+
+  - name: add plugin
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: |
+      bash -x plugins/pdr_deterministic_plugin/.ci/do_add_plugin.sh 
+    parallel: false
+  
+  - name: run simulation and tests on machine
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: |
+      export SERVER_HOST=$SERVER_HOST
+      scp $WORKSPACE/plugins/pdr_deterministic_plugin/tests/simulation_telemetry.py root@$SERVER_HOST:/tmp
+      scp $WORKSPACE/plugins/pdr_deterministic_plugin/.ci/run_simulation_test.sh root@$SERVER_HOST:/tmp
+      env
+      ssh root@$SERVER_HOST '/tmp/run_simulation_test.sh'
+    parallel: false
+  
+  - name: remove plugin end
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: |
+      bash -x plugins/pdr_deterministic_plugin/.ci/do_remove_plugin.sh
+    parallel: false
+
+    
 pipeline_start:
   run: |
     mkdir -p /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
