@@ -39,6 +39,7 @@ class PDRConstants(object):
     ACCESS_ISOLATION = "ACCESS_ISOLATION"
     TEST_MODE = "TEST_MODE"
     TEST_MODE_PORT = 9090
+    DYNAMIC_UNRESPONSIVE_LIMIT = "DYNAMIC_UNRESPONSIVE_LIMIT"
     
     GET_SESSION_DATA_REST = "/monitoring/session/0/data"
     POST_EVENT_REST = "/app/events/external_event"
@@ -51,6 +52,10 @@ class PDRConstants(object):
     DYNAMIC_SESSION_REST = "/app/telemetry/instances/%s"
     STATUS_DYNAMIC_SESSION_REST = "/app/telemetry/instances/status"
 
+    EXTERNAL_EVENT_ERROR = 554
+    EXTERNAL_EVENT_ALERT = 553
+    EXTERNAL_EVENT_NOTICE = 552
+    
     POST_METHOD = "POST"
     PUT_METHOD = "PUT"
     GET_METHOD = "GET"

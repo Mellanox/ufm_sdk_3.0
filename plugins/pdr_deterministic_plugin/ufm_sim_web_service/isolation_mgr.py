@@ -24,6 +24,10 @@ from ufm_communication_mgr import UFMCommunicator
 # should actually be persistent and thread safe dictionary pf PortStates
 
 
+class DynamicTelemetryUnresponsive(Exception):
+    pass
+
+
 class PortData(object):
     def __init__(self, port_name=None, port_num=None, peer=None, node_type=None, active_speed=None, port_width=None, port_guid=None):
         self.counters_values = {}
@@ -103,7 +107,8 @@ class IsolationMgr:
         self.temp_check = pdr_config.getboolean(Constants.CONF_COMMON,Constants.CONFIGURED_TEMP_CHECK)
         self.no_down_count = pdr_config.getboolean(Constants.CONF_COMMON,Constants.NO_DOWN_COUNT)
         self.access_isolation = pdr_config.getboolean(Constants.CONF_COMMON,Constants.ACCESS_ISOLATION)
-        self.test_mode = pdr_config.getboolean(Constants.CONF_COMMON,Constants.TEST_MODE,fallback=False)
+        self.test_mode = pdr_config.getboolean(Constants.CONF_COMMON,Constants.TEST_MODE, fallback=False)
+        self.dynamic_unresponsive_limit = pdr_config.getint(Constants.CONF_COMMON,Constants.DYNAMIC_UNRESPONSIVE_LIMIT, fallback=3)
         # Take from Conf
         self.logger = logger
         self.ber_intervals = Constants.BER_THRESHOLDS_INTERVALS if not self.test_mode else [[0.5 * 60, 3]]
@@ -181,20 +186,22 @@ class IsolationMgr:
             self.ports_states[port_name] = PortState(port_name)
         self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
             
-        self.logger.warning(f"Isolated port: {port_name} cause: {cause}. dry_run: {self.dry_run}")
+        log_message = f"Isolated port: {port_name} cause: {cause}. dry_run: {self.dry_run}"
+        self.logger.warning(log_message)
+        self.ufm_client.send_event(log_message, event_id=Constants.EXTERNAL_EVENT_ALERT, external_event_name="Isolating Port")
+
 
     def eval_deisolate(self, port_name):
+        self.logger.info("Evaluating deisolation of port {0}".format(port_name))
         if not port_name in self.ufm_latest_isolation_state and not self.dry_run:
             if self.ports_states.get(port_name):
                 self.ports_states.pop(port_name)
             return
-
         # we dont return those out of NOC
         if self.is_out_of_operating_conf(port_name):
             cause = Constants.ISSUE_OONOC
             self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
             return
-
         # we need some time after the change in state
         elif datetime.now() >= self.ports_states[port_name].get_change_time() + timedelta(minutes=self.deisolate_consider_time):
             port_obj = self.ports_data.get(port_name)
@@ -224,11 +231,16 @@ class IsolationMgr:
                 self.logger.warning("Failed deisolating port: %s with cause: %s... status_code= %s", port_name, self.ports_states[port_name].cause, ret.status_code)        
                 return
         self.ports_states.pop(port_name)
-        self.logger.warning(f"Deisolated port: {port_name}. dry_run: {self.dry_run}")
+        log_message = f"Deisolated port: {port_name}. dry_run: {self.dry_run}"
+        self.logger.warning(log_message)
+        self.ufm_client.send_event(log_message, event_id=Constants.EXTERNAL_EVENT_NOTICE, external_event_name="Deisolating Port")
                 
     def get_rate_and_update(self, port_obj, counter_name, new_val, timestamp):
-
+        """
+        Calculate the rate of the counter and update the counters_values dictionary with the new value
+        """
         if timestamp - port_obj.last_timestamp < 1:
+            port_obj.counters_values[counter_name] = new_val
             return port_obj.counters_values.get(counter_name + "_rate", 0)
         old_val = port_obj.counters_values.get(counter_name)
         if old_val and new_val > old_val:
@@ -240,7 +252,10 @@ class IsolationMgr:
         port_obj.counters_values[Constants.LAST_TIMESTAMP] = timestamp
         return counter_delta
    
-    def check_link_down_condition(self, port_obj, port_name, ports_counters):
+    def check_link_down_condition(self, port_obj, ports_counters):
+        """
+        Check if the peer port link downed was raised and return an issue
+        """
         if not port_obj.peer or port_obj.peer == 'N/A':
             return None
         peer_guid, peer_num = port_obj.peer.split('_')
@@ -256,79 +271,128 @@ class IsolationMgr:
             return None
         peer_link_downed_rate = self.get_rate_and_update(peer_obj, Constants.LNK_DOWNED_COUNTER, peer_link_downed, peer_row_timestamp)
         if peer_link_downed_rate > 0:
-            return Issue(port_name, Constants.ISSUE_LINK_DOWN)
+            return Issue(port_obj.port_name, Constants.ISSUE_LINK_DOWN)
         return None
     
+    def calc_error_rate(self, port_obj, row, timestamp):
+        """
+        Calculate the error rate of the port and update the counters_values
+        """
+        rcv_error = get_counter(Constants.RCV_ERRORS_COUNTER, row)
+        rcv_remote_phy_error = get_counter(Constants.RCV_REMOTE_PHY_ERROR_COUNTER, row)
+        errors = rcv_error + rcv_remote_phy_error
+        error_rate = self.get_rate_and_update(port_obj, Constants.ERRORS_COUNTER, errors, timestamp)
+        return error_rate        
+
+    def check_pdr_issue(self, port_obj, row, timestamp):
+        """
+        Check if the port passed the PacketDropRate threshold and return an issue
+        """
+        rcv_pkts = get_counter(Constants.RCV_PACKETS_COUNTER, row)
+        rcv_pkt_rate = self.get_rate_and_update(port_obj, Constants.RCV_PACKETS_COUNTER, rcv_pkts, timestamp)
+        error_rate = self.calc_error_rate(port_obj, row, timestamp)
+        if rcv_pkt_rate and error_rate / rcv_pkt_rate > self.max_pdr:
+            return Issue(port_obj.port_name, Constants.ISSUE_PDR)
+        return None
+    
+    def check_temp_issue(self, port_obj, row, timestamp):
+        """
+        Check if the port passed the temperature threshold and return an issue
+        """
+        if not self.temp_check:
+            return None
+        cable_temp = get_counter(Constants.TEMP_COUNTER, row, default=None)
+        if cable_temp is not None and not numpy.isnan(cable_temp):
+            if cable_temp in ["NA", "N/A", "", "0C"]:
+                return None
+            cable_temp = int(cable_temp.split("C")[0]) if type(cable_temp) == str else cable_temp
+            dT = abs(port_obj.counters_values.get(Constants.TEMP_COUNTER, 0) - cable_temp)
+            port_obj.counters_values[Constants.TEMP_COUNTER] = cable_temp
+            if cable_temp and (cable_temp > self.tmax or dT > self.d_tmax):
+                return Issue(port_obj.port_name, Constants.ISSUE_OONOC)
+        return None
+
+    def check_link_down_issue(self, port_obj, row, timestamp, ports_counters):
+        """
+        Check if the port passed the link down threshold and return an issue
+        """
+        if not self.no_down_count:
+            return None
+        link_downed = get_counter(Constants.LNK_DOWNED_COUNTER, row)
+        link_downed_rate = self.get_rate_and_update(port_obj, Constants.LNK_DOWNED_COUNTER, link_downed, timestamp)
+        if link_downed_rate > 0:
+            link_downed_issue = self.check_link_down_condition(port_obj, port_obj.port_name, ports_counters)
+            if link_downed_issue:
+                return link_downed_issue
+        return None
+
+    def check_ber_issue(self, port_obj, row, timestamp):
+        """
+        Check if the port passed the BER threshold and return an issue
+        """
+        if not self.configured_ber_check:
+            return None
+        symbol_ber_val = get_counter(Constants.PHY_SYMBOL_ERROR, row, default=None)
+        if symbol_ber_val is not None:
+            ber_data = {
+                Constants.TIMESTAMP : timestamp,
+                Constants.SYMBOL_BER : symbol_ber_val, 
+            }
+            port_obj.ber_tele_data.loc[len(port_obj.ber_tele_data)] = ber_data
+            port_obj.last_symbol_ber_timestamp = timestamp
+            port_obj.last_symbol_ber_val = symbol_ber_val
+            if not port_obj.active_speed or not port_obj.port_width:
+                port_obj.active_speed, port_obj.port_width = self.get_port_metadata(port_obj.port_name)
+            if not port_obj.port_width:
+                self.logger.debug(f"port width for port {port_obj.port_name} is None, can't verify it's BER values")
+                return None
+            for (interval, threshold) in self.ber_intervals:
+                symbol_ber_rate = self.calc_ber_rates(port_obj.port_name, port_obj.active_speed, port_obj.port_width, interval)
+                if symbol_ber_rate and symbol_ber_rate > threshold:
+                    return Issue(port_obj.port_name, Constants.ISSUE_BER)
+        return None
+
     def read_next_set_of_high_ber_or_pdr_ports(self, endpoint_port):
+        """
+        Read the next set of ports and check if they have high BER, PDR, temperature or link downed issues
+        """
         issues = {}
         ports_counters = self.ufm_client.get_telemetry(endpoint_port, Constants.PDR_DYNAMIC_NAME,self.test_mode)
         if ports_counters is None:
-            # implement health check for the telemetry instance
             self.logger.error("Couldn't retrieve telemetry data")
-            return issues
+            raise DynamicTelemetryUnresponsive
         for index, row in ports_counters.iterrows():
             port_name = f"{row.get('port_guid', '').split('x')[-1]}_{row.get('port_num', '')}"
             if self.test_mode:
-                # I want to add them once we get our first telemetry.
+                # Adding the port data upon fetching the first telemetry data
                 if not self.ports_data.get(port_name):
                     self.ports_data[port_name] = PortData(port_name)
             port_obj = self.ports_data.get(port_name)
             if not port_obj:
                 self.logger.warning("Port {0} not found in ports data".format(port_name))
                 continue
-            # from micro seconds to seconds.
+            # Converting from micro seconds to seconds.
             timestamp = row.get(Constants.TIMESTAMP) / 1000 / 1000
-            rcv_error = get_counter(Constants.RCV_ERRORS_COUNTER, row)
-            rcv_remote_phy_error = get_counter(Constants.RCV_REMOTE_PHY_ERROR_COUNTER, row)
-            errors = rcv_error + rcv_remote_phy_error
-            error_rate = self.get_rate_and_update(port_obj, Constants.ERRORS_COUNTER, errors, timestamp)
-            rcv_pkts = get_counter(Constants.RCV_PACKETS_COUNTER, row)
-            rcv_pkt_rate = self.get_rate_and_update(port_obj, Constants.RCV_PACKETS_COUNTER, rcv_pkts, timestamp)
-            cable_temp = get_counter(Constants.TEMP_COUNTER, row, default=None)
-            link_downed = get_counter(Constants.LNK_DOWNED_COUNTER, row)
-            link_downed_rate = self.get_rate_and_update(port_obj, Constants.LNK_DOWNED_COUNTER, link_downed, timestamp)
+            
+            pdr_issue = self.check_pdr_issue(port_obj, row, timestamp)
+            temp_issue = self.check_temp_issue(port_obj, row, timestamp)
+            link_downed_issue = self.check_link_down_issue(port_obj, row, timestamp, ports_counters)
+            ber_issue = self.check_ber_issue(port_obj, row, timestamp)
             port_obj.last_timestamp = timestamp
-            if cable_temp is not None and not numpy.isnan(cable_temp):
-                if cable_temp == "NA" or cable_temp == "N/A" or cable_temp == "" or cable_temp == "0C":
-                    continue
-                cable_temp = int(cable_temp.split("C")[0]) if type(cable_temp) == str else cable_temp
-                dT = abs(port_obj.counters_values.get(Constants.TEMP_COUNTER, 0) - cable_temp)
-                port_obj.counters_values[Constants.TEMP_COUNTER] = cable_temp
-            if rcv_pkt_rate and error_rate / rcv_pkt_rate > self.max_pdr:
-                issues[port_name] = Issue(port_name, Constants.ISSUE_PDR)
-            elif self.temp_check and cable_temp and (cable_temp > self.tmax or dT > self.d_tmax):
-                issues[port_name] = Issue(port_name, Constants.ISSUE_OONOC)
-            elif self.no_down_count and link_downed_rate > 0:
-                link_downed_issue = self.check_link_down_condition(port_obj, port_name, ports_counters)
-                if link_downed_issue:
-                    issues[port_name] = link_downed_issue
-            if self.configured_ber_check:
-                symbol_ber_val = get_counter(Constants.PHY_SYMBOL_ERROR, row, default=None)
-                if symbol_ber_val is not None:
-                    ber_data = {
-                        Constants.TIMESTAMP : timestamp,
-                        Constants.SYMBOL_BER : symbol_ber_val, 
-                    }
-                    port_obj.ber_tele_data.loc[len(port_obj.ber_tele_data)] = ber_data
-                    port_obj.last_symbol_ber_timestamp = timestamp
-                    port_obj.last_symbol_ber_val = symbol_ber_val
-                    if not port_obj.active_speed or not port_obj.port_width:
-                        port_obj.active_speed, port_obj.port_width = self.get_port_metadata(port_name)
-                    if not port_obj.port_width:
-                        self.logger.debug(f"port width for port {port_name} is None, can't verify it's BER values")
-                        continue
-                    for (interval, threshold) in self.ber_intervals:
-                        symbol_ber_rate = self.calc_ber_rates(port_name, port_obj.active_speed, port_obj.port_width, interval)
-                        if symbol_ber_rate and symbol_ber_rate > threshold:
-                            issued_port = issues.get(port_name)
-                            if issued_port:
-                                issued_port.cause = Constants.ISSUE_PDR_BER
-                            else:
-                                issues[port_name] = Issue(port_name, Constants.ISSUE_BER)                    
-                            break                        
+            if pdr_issue:
+                issues[port_name] = pdr_issue
+            elif temp_issue:
+                issues[port_name] = temp_issue
+            elif link_downed_issue:
+                issues[port_name] = link_downed_issue
+            elif ber_issue:
+                issues[port_name] = ber_issue                        
         return issues
 
-    def calc_single_rate(self, port_name, port_speed, port_width, col_name, time_delta):
+    def calc_symbol_ber_rate(self, port_name, port_speed, port_width, col_name, time_delta):
+        """
+        calculate the symbol BER rate for a given port given the time delta
+        """
         try:
             if port_speed != "NDR":
                 # BER calculations is only relevant for NDR
@@ -359,7 +423,7 @@ class IsolationMgr:
             return 0
     
     def calc_ber_rates(self, port_name, port_speed, port_width, time_delta):
-        symbol_rate = self.calc_single_rate(port_name, port_speed, port_width, Constants.SYMBOL_BER, time_delta)
+        symbol_rate = self.calc_symbol_ber_rate(port_name, port_speed, port_width, Constants.SYMBOL_BER, time_delta)
         return symbol_rate
 
     # called first time to get all the metadata of the telemetry.
@@ -485,6 +549,16 @@ class IsolationMgr:
         endpoint_port = self.ufm_client.dynamic_session_get_port(Constants.PDR_DYNAMIC_NAME)
         return endpoint_port
 
+    def restart_telemetry_session(self):
+        """
+        Restart the dynamic telemetry session and return the new endpoint port
+        """
+        self.logger.info("Restarting telemetry session")
+        self.ufm_client.stop_dynamic_session(Constants.PDR_DYNAMIC_NAME)
+        time.sleep(self.dynamic_wait_time)
+        endpoint_port = self.run_telemetry_get_port()
+        return endpoint_port
+
     def main_flow(self):
         # sync to the telemetry clock by blocking read
         self.logger.info("Isolation Manager initialized, starting isolation loop")
@@ -492,29 +566,35 @@ class IsolationMgr:
         self.logger.info("Retrieved ports metadata")
         endpoint_port = self.run_telemetry_get_port()
         self.logger.info("telemetry session started")
+        dynamic_telemetry_unresponsive_count = 0
         while(True):
             try:
                 t_begin = time.time()
                 self.get_isolation_state()
                 self.logger.info("Retrieving telemetry data to determine ports' states")
-                issues = self.read_next_set_of_high_ber_or_pdr_ports(endpoint_port)
+                try:
+                    issues = self.read_next_set_of_high_ber_or_pdr_ports(endpoint_port)
+                except DynamicTelemetryUnresponsive as e:
+                    dynamic_telemetry_unresponsive_count += 1
+                if dynamic_telemetry_unresponsive_count > self.dynamic_unresponsive_limit:
+                    self.logger.error(f"Dynamic telemetry is unresponsive for {dynamic_telemetry_unresponsive_count} times, restarting telemetry session...")
+                    endpoint_port = self.restart_telemetry_session()
+                    dynamic_telemetry_unresponsive_count = 0
                 if len(issues) > self.max_num_isolate:
                     # UFM send external event
                     event_msg = "got too many ports detected as unhealthy: %d, skipping isolation" % len(issues)
                     self.logger.warning(event_msg)
                     if not self.test_mode:
-                        self.ufm_client.send_event(event_msg)
+                        self.ufm_client.send_event(event_msg, event_id=Constants.EXTERNAL_EVENT_ALERT, external_event_name="Skipping isolation")
                 
                 # deal with reported new issues
                 else:
                     for issue in issues.values():
                         port = issue.port
-                        cause = issue.cause # ber|pdr|{ber&pdr}
-
+                        cause = issue.cause # ber|pdr|oonoc|link_down
                         self.eval_isolation(port, cause)
 
-                # deal with ports that with either cause = oonoc or fix
-
+                # deal with ports that with either cause = oonoc or fixed
                 if self.do_deisolate:
                     for port_state in list(self.ports_states.values()):
                         state = port_state.get_state()

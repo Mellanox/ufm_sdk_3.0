@@ -58,15 +58,19 @@ class UFMCommunicator:
         try:
             telemetry_data = pd.read_csv(url)
         except Exception as e:
-            logging.error(e)
+            logging.error(f"Failed to get telemetry data from UFM, fetched url={url}. Error: {e}")
             telemetry_data = None
         return telemetry_data
     
-    def send_event(self, message):
-        data = {}
-        data["event_id"] = 666
-        data["description"] = message
-        data["object_name"] = "PDR Plugin Event"
+    def send_event(self, message, event_id=Constants.EXTERNAL_EVENT_NOTICE, external_event_name="PDR Plugin Event", external_event_type="PDR Plugin Event"):
+        data = {
+            "event_id": event_id,
+            "description": message,
+            "external_event_name": external_event_name,
+            "external_event_type": external_event_type,
+            "external_event_source": "PDR Plugin"
+
+        }
         ret = self.send_request(Constants.POST_EVENT_REST, data)
         if ret: 
             return True 
