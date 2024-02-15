@@ -26,45 +26,12 @@ class UfmSlurmProlog(UfmSlurmBase):
     allocated_ls = []
 
     def prolog_init(self):
+        UfmSlurmBase.init(self)
         try:
-            logging.info("Start JobID: " + self.args.job_id)
-            self.auth_type = self.general_utils.get_conf_parameter_value(Constants.AUTH_TYPE)
-            if self.auth_type == Constants.BASIC_AUTH:
-                user2 = self.general_utils.get_conf_parameter_value(Constants.CONF_UFM_USER)
-                password2 = self.general_utils.get_conf_parameter_value(Constants.CONF_UFM_PASSWORD)
-                if user2 is None or password2 is None:
-                    logging.error("For using %s you should set a valid %s %s in ufm_slurm.conf" % (
-                        Constants.BASIC_AUTH, Constants.CONF_UFM_USER, Constants.CONF_UFM_PASSWORD))
-                    sys.exit(self.should_fail)
-                self.session = self.ufm.getServerSession(auth_type=self.auth_type, username=user2, password=password2)
-            elif self.auth_type == Constants.TOKEN_AUTH:
-                token = self.general_utils.get_conf_parameter_value(Constants.CONF_TOKEN)
-                if token is None:
-                    logging.error("For using %s you should set a valid %s in ufm_slurm.conf" % (
-                        Constants.TOKEN_AUTH, Constants.CONF_TOKEN))
-                    sys.exit(self.should_fail)
-                self.session = self.ufm.getServerSession(auth_type=self.auth_type, token=token)
-            elif self.auth_type == Constants.KERBEROS_AUTH:
-                principal_name = self.general_utils.get_conf_parameter_value(Constants.CONF_PRINCIPAL_NAME)
-                self.session = self.ufm.getServerSession(auth_type=self.auth_type, principal_name=principal_name)
-            else:
-                logging.error("auth_type in ufm_slurm.conf file must be one of the following (%s, %s, %s)" % (
-                    Constants.BASIC_AUTH, Constants.TOKEN_AUTH, Constants.KERBEROS_AUTH))
-                sys.exit(self.should_fail)
+            logging.info("Starting JobID: " + self.args.job_id)
+            self.create_server_session()
         except Exception as exc:
-            logging.error("error in prolog init function: %s" % str(exc))
-            sys.exit(self.should_fail)
-
-    def get_job_nodes(self):
-        try:
-            slurm_job_nodelist = self.integration.getJobNodesName()
-            logging.info("SLURM_JOB_NODELIST: {0}".format(slurm_job_nodelist))
-            if not slurm_job_nodelist:
-                logging.error(Constants.LOG_CANNOT_GET_NODES)
-                sys.exit(self.should_fail)
-            return slurm_job_nodelist
-        except Exception as exc:
-            logging.error(Constants.LOG_ERROR_GET_NODES % str(exc))
+            logging.error("Error in ufm_slurm_prolog init function: %s" % str(exc))
             sys.exit(self.should_fail)
 
 
@@ -74,7 +41,6 @@ if __name__ == '__main__':
         prolog = UfmSlurmProlog()
         prolog.parse_args()
         prolog.prepare_logger(file="Prolog")
-        prolog.init()
         prolog.prolog_init()
         prolog.connect_to_ufm()
         slurm_job_nodelist = prolog.get_job_nodes()
@@ -82,7 +48,7 @@ if __name__ == '__main__':
             prolog.add_hosts_to_pkey(slurm_job_nodelist)
         if prolog.sharp_allocation:
             prolog.create_sharp_allocation(prolog.args.job_id, slurm_job_nodelist)
-        logging.info("UFM-Prolog time: %.1f seconds" % (time.time() - all_time_start))
+        logging.info("UFM-Slurm-Prolog time: %.1f seconds" % (time.time() - all_time_start))
     except Exception as exc:
         logging.error(
         Constants.LOG_ERR_PROLOG % str(exc))
