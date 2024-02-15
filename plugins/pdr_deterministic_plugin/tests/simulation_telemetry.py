@@ -10,14 +10,11 @@ from os.path import exists
 
 lock = Lock()
 
-PHY_RAW_ERROR_LANE0 = "phy_raw_errors_lane0"
-PHY_RAW_ERROR_LANE1 = "phy_raw_errors_lane1"
-PHY_RAW_ERROR_LANE2 = "phy_raw_errors_lane2"
-PHY_RAW_ERROR_LANE3 = "phy_raw_errors_lane3"
 PHY_EFF_ERROR = "phy_effective_errors"
 PHY_SYMBOL_ERROR = "phy_symbol_errors"
 RCV_PACKETS_COUNTER = "PortRcvPktsExtended"
 RCV_ERRORS_COUNTER = "PortRcvErrorsExtended"
+LINK_DOWN_COUNTER = "LinkDownedCounterExtended"
 RCV_REMOTE_PHY_ERROR_COUNTER = "PortRcvRemotePhysicalErrorsExtended"
 TEMP_COUNTER = "CableInfo.Temperature"
 FEC_MODE = "fec_mode_active"
@@ -47,16 +44,12 @@ DIFFERENT_DEFAULT_VALUES = {
     # because the plugin reads the meta data to know the first temperature and we cannot stream the metadata.
     TEMP_COUNTER:"5",
     RCV_PACKETS_COUNTER:"10000000",
-    PHY_RAW_ERROR_LANE0:0.01,
-    PHY_RAW_ERROR_LANE1:0.01,
-    PHY_RAW_ERROR_LANE2:0.01,
-    PHY_RAW_ERROR_LANE3:0.01,
 }
 
 ALL_DATA_TEST = {
     # all positive tests
     # iteration, row index, counter name = value
-    (1,0,PHY_SYMBOL_ERROR):0, # example
+    (1,0,PHY_SYMBOL_ERROR):0, # example, also negative test
     (1,3,RCV_ERRORS_COUNTER):50,
     # testing packet drop rate criteria
     (2,3,RCV_ERRORS_COUNTER):500,
@@ -70,30 +63,12 @@ ALL_DATA_TEST = {
     # testing packet drop rate criteria from the second counter. because we look on rate
     (5,8,RCV_REMOTE_PHY_ERROR_COUNTER):500,
     
-    # testing ber calculation
-    (0,2,PHY_RAW_ERROR_LANE0):0.001,
-    (0,2,PHY_RAW_ERROR_LANE1):0.001,
-    (0,2,PHY_RAW_ERROR_LANE2):0.001,
-    (0,2,PHY_RAW_ERROR_LANE3):0.001,
-
-    # testing ber calculation rate it is so high because we try to do it instead of 25 minutes, now.
-    (9,2,PHY_RAW_ERROR_LANE0):1024**5,
-    (9,2,PHY_RAW_ERROR_LANE1):1024**6,
-    (9,2,PHY_RAW_ERROR_LANE2):1024**5,
-    (9,2,PHY_RAW_ERROR_LANE3):1024**5,
-    
-    # should not work now, only after 30 (3 iterations) seconds, which is 5 more iterations
-    
+    # testing link down
+    (5,2,LINK_DOWN_COUNTER):2,
+    (6,2,LINK_DOWN_COUNTER):4,
 
     # negative tests
     # testing ber calculation ( should not pass as not all are not equal to 0)
-    (8,0,PHY_RAW_ERROR_LANE1):0.001,
-    (8,0,PHY_RAW_ERROR_LANE2):0.001,
-    (8,0,PHY_RAW_ERROR_LANE3):0.001,
-
-    (9,0,PHY_RAW_ERROR_LANE1):1024**6,
-    (9,0,PHY_RAW_ERROR_LANE2):1024**6,
-    (9,0,PHY_RAW_ERROR_LANE3):1024**6,
 
 }
 
@@ -107,9 +82,6 @@ def randomizeValues(counter_name:str,iteration:int):
     if counter_name == TEMP_COUNTER:
         return round(5 + random.triangular(0,10) + \
             (random.randrange(50) == 0) * 50) ## have high temeprature
-    if counter_name == PHY_RAW_ERROR_LANE0 or counter_name == PHY_RAW_ERROR_LANE1 or\
-        counter_name == PHY_RAW_ERROR_LANE2 or counter_name == PHY_RAW_ERROR_LANE3:
-        return random.random()*1000
     if counter_name == PHY_EFF_ERROR or counter_name == PHY_SYMBOL_ERROR or\
         counter_name == RCV_ERRORS_COUNTER or counter_name == RCV_REMOTE_PHY_ERROR_COUNTER:
         return random.triangular(0,50)
@@ -196,7 +168,6 @@ def simulate_counters(supported_counters: list):
         }
     return counters
 
-
 def initialize_simulated_counters(endpoint_obj: dict):
     counters = endpoint_obj['counters']
     rows = endpoint_obj['row']
@@ -230,7 +201,7 @@ def check_logs(config):
     # if a you want to add more tests, please add more guids and test on other indeces.
     
     ports_should_be_isoloated_indeces = list(set([x[1] for x in ALL_DATA_TEST]))
-    ports_shouldnt_be_isolated_indeces = [0,2]
+    ports_shouldnt_be_isolated_indeces = [0]
     # remove negative tests from the positive ones
     ports_should_be_isoloated_indeces = [port for port in ports_should_be_isoloated_indeces if port not in ports_shouldnt_be_isolated_indeces]
 
@@ -248,8 +219,7 @@ def check_logs(config):
                 number_of_tests_approved -= 1 # it was found
                 break
         assert_equal(f"{port_name} which check {testedCounter} changed and in the logs",found,True)
-        
-
+    
     for p in ports_shouldnt_be_isolated_indeces:
         found=False
         port_name = config["Ports_names"][p][2:]
@@ -261,7 +231,6 @@ def check_logs(config):
                 number_of_negative_tests -= 1 # it was found, but it shouldnt
                 break
         assert_equal(f"{port_name} changed and in the logs",found,False,"negative")
-        
     
     all_pass = number_of_tests_approved == 0 and number_of_negative_tests == len(ports_shouldnt_be_isolated_indeces)
     return 0 if all_pass else 1
@@ -281,17 +250,14 @@ def main():
     args = parser.parse_args()
 
     supported_counters = [
-            PHY_RAW_ERROR_LANE0,
-            PHY_RAW_ERROR_LANE1,
-            PHY_RAW_ERROR_LANE2,
-            PHY_RAW_ERROR_LANE3,
             PHY_EFF_ERROR,
             PHY_SYMBOL_ERROR,
             RCV_PACKETS_COUNTER,
             RCV_ERRORS_COUNTER,
             RCV_REMOTE_PHY_ERROR_COUNTER,
             TEMP_COUNTER,
-            FEC_MODE
+            FEC_MODE,
+            LINK_DOWN_COUNTER,
         ]
 
     config = {}
