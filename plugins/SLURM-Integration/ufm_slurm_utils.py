@@ -101,8 +101,7 @@ class GeneralUtils:
             path = path.split('=')[1]
             return "%s/%s" % (os.path.dirname(path), Constants.UFM_SLURM_CONF_NAME)
         else:
-            # return "%s/%s" % (Constants.SLURM_DEF_PATH, Constants.UFM_SLURM_CONF_NAME)
-            return "/tmp/%s" % Constants.UFM_SLURM_CONF_NAME
+            return "%s/%s" % (Constants.SLURM_DEF_PATH, Constants.UFM_SLURM_CONF_NAME)
 
     def get_conf_parameter_value(self, conf_param_name):
         """
