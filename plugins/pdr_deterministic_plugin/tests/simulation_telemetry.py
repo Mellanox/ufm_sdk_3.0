@@ -64,7 +64,8 @@ ALL_DATA_TEST = {
     (5,8,RCV_REMOTE_PHY_ERROR_COUNTER):500,
     
     # testing link down
-    (5,2,LINK_DOWN_COUNTER):2,
+    (4,2,LINK_DOWN_COUNTER):2,
+    (5,2,LINK_DOWN_COUNTER):3,
     (6,2,LINK_DOWN_COUNTER):4,
 
     # negative tests
