@@ -305,8 +305,8 @@ class UFMTelemetryStreaming(Singleton):
         try:
             response = requests.get(url)
             response.raise_for_status()
-            expected_content_size = int(response.headers.get('Content-Length'))
             actual_content_size = len(response.content)
+            expected_content_size = int(response.headers.get('Content-Length', actual_content_size))
             if expected_content_size > actual_content_size:
                 log_msg = (f'Telemetry Response Received Partially from {msg_tag}, The Expected Size is {expected_content_size} Bytes'
                            f' While The Received Size is {actual_content_size} Bytes')
