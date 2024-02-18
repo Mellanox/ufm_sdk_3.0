@@ -31,8 +31,9 @@ steps:
       whoami
       mkdir -p /auto/mswg/release/ufm/plugins/${Plugin_name}
       cd plugins/${Plugin_name}/build
-      sudo -u swx-jenkins bash -x ./docker_build.sh ${PLUGIN_VERSION} /auto/mswg/release/ufm/plugins/${Plugin_name} 
+      bash -x ./docker_build.sh ${PLUGIN_VERSION} /tmp 
       BUILD_EXIT_CODE=$?
+      sudo -u swx-jenkins mv /tmp/${Plugin_name} auto/mswg/release/ufm/plugins/${Plugin_name}
       ls /auto/mswg/release/ufm/plugins/${Plugin_name}
       if [ $BUILD_EXIT_CODE -eq 1 ];then 
         echo -e "Error: Docker build failed in ./docker_build.sh"
