@@ -37,6 +37,7 @@ steps:
       BUILD_EXIT_CODE=$?
       echo "after build"
       file_name=$(ls /tmp/${Plugin_name} | grep _${PLUGIN_VERSION})
+      chmod a+w /tmp/${Plugin_name}/${file_name}
       sudo -u swx-jenkins mv /tmp/${Plugin_name}/${file_name} /auto/mswg/release/ufm/plugins/${Plugin_name}/${file_name}
       echo "after move"
       ls /auto/mswg/release/ufm/plugins/${Plugin_name}
