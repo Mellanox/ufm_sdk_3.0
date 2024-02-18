@@ -32,11 +32,12 @@ steps:
       whoami
       mkdir -p /auto/mswg/release/ufm/plugins/${Plugin_name}
       cd plugins/${Plugin_name}/build
-      bash -x ./docker_build.sh ${PLUGIN_VERSION} /tmp 
+      mkdir -p /tmp/${Plugin_name}
+      bash -x ./docker_build.sh ${PLUGIN_VERSION} /tmp/${Plugin_name}
       BUILD_EXIT_CODE=$?
       echo "after build"
-      file_name=$(ls /tmp | grep ${Plugin_name}_${PLUGIN_VERSION})
-      sudo -u swx-jenkins mv /tmp/${file_name} /auto/mswg/release/ufm/plugins/${file_name}
+      file_name=$(ls /tmp/${Plugin_name} | grep _${PLUGIN_VERSION})
+      sudo -u swx-jenkins mv /tmp/${Plugin_name}/${file_name} /auto/mswg/release/ufm/plugins/${Plugin_name}/${file_name}
       echo "after move"
       ls /auto/mswg/release/ufm/plugins/${Plugin_name}
       if [ $BUILD_EXIT_CODE -eq 1 ];then 
