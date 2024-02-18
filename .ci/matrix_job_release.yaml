@@ -34,7 +34,7 @@ steps:
       bash -x ./docker_build.sh ${PLUGIN_VERSION} /tmp 
       BUILD_EXIT_CODE=$?
       file_name=$(ls /tmp | grep ${Plugin_name}_${PLUGIN_VERSION})
-      sudo -u swx-jenkins mv /tmp/${file_name} auto/mswg/release/ufm/plugins/${file_name}
+      sudo -u swx-jenkins mv /tmp/${file_name} /auto/mswg/release/ufm/plugins/${file_name}
       ls /auto/mswg/release/ufm/plugins/${Plugin_name}
       if [ $BUILD_EXIT_CODE -eq 1 ];then 
         echo -e "Error: Docker build failed in ./docker_build.sh"
