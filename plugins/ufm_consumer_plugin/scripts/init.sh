@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright © 2013-2023 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright (C) 2013-2024 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -9,8 +9,8 @@
 #
 # This software product is governed by the End User License Agreement
 # provided with the software product.
-# @author: Anan Al-Aghbar
-# @date:   Jan 29, 2023
+# @author: Alex Tabachnik
+# @date:   Feb 10, 2024
 #
 # ================================================================
 # This script prepares and checks ufm_consumer docker container Environment
@@ -22,13 +22,12 @@ SRC_DIR_PATH=/opt/ufm/ufm_plugin_${PLUGIN_NAME}/${PLUGIN_NAME}_plugin
 CONFIG_PATH=/config
 
 cp $SRC_DIR_PATH/conf/${PLUGIN_NAME}_httpd_proxy.conf $SRC_DIR_PATH/conf/${PLUGIN_NAME}_plugin.conf $SRC_DIR_PATH/conf/${PLUGIN_NAME}_ui_conf.json ${CONFIG_PATH}
-cp -r $SRC_DIR_PATH/${PLUGIN_NAME}_ui /data
 
 touch ${CONFIG_PATH}/${PLUGIN_NAME}_shared_volumes.conf
 
-echo /opt/ufm/files/log/:/log > ${CONFIG_PATH}/${PLUGIN_NAME}_shared_volumes.conf
-# Update gv.cfg
-/config_consumer.sh
+echo /opt/ufm/files/log/${PLUGIN_NAME}:/opt/ufm/files/log > ${CONFIG_PATH}/${PLUGIN_NAME}_shared_volumes.conf
+
+
 # UFM version test
 required_ufm_version=(6 12 0)
 echo "Required UFM version: ${required_ufm_version[0]}.${required_ufm_version[1]}.${required_ufm_version[2]}"

@@ -1,7 +1,0 @@
-requests
-configparser
-flask
-flask_restful
-twisted
-service_identity
-jsonschema

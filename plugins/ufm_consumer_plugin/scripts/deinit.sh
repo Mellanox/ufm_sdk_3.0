@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright © 2013-2022 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright (C) 2013-2024 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -9,14 +9,13 @@
 #
 # This software product is governed by the End User License Agreement
 # provided with the software product.
-# @author: Anan Al-Aghbar
-# @date:   Jan 29, 2023
+# @author: Alex Tabachnik
+# @date:   Feb 10, 2024
 #
 
 set -eE
 
 # removing log file
-# TODO: how to remove all the ufm logs from log ...
-# rm -rf /log/ufm_consumer_plugin*.log*
+rm -rf /opt/ufm/files/log/ufm_consumer
 
 exit 0
