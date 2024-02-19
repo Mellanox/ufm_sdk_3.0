@@ -8,6 +8,7 @@ ARG OFED_URL=http://nbu-nfs.mellanox.com/auto/sw/release/mlnx_ofed/MLNX_OFED/MLN
 ARG NDT_OFED_DEP="libibumad3 libibverbs1 ibverbs-providers "
 ARG BASE_PATH=/opt/ufm/ufm_plugin_ndt
 
+SHELL ["/bin/bash", "-c"]
 ENV TZ=Europe/Moscow
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
