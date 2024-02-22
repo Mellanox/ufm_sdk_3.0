@@ -1,6 +1,12 @@
-**Deployment**
+# Deployment
 
-To deploy the plugin on UFM Appliance:
+## UFM WEB UI
+- pull the plugin container with _docker pull mellanox/ufm-plugin-snmp_;
+- add the plugin through UFM WEB UI -> Settings -> Plugin Management;
+
+## CLI
+
+### To deploy the plugin on UFM Appliance:
 - login as admin;
 - run _enable_;
 - run _config terminal_;
@@ -9,11 +15,11 @@ To deploy the plugin on UFM Appliance:
 - make sure that SNMP plugin is disabled with _show ufm plugin_;
 - pull the plugin container with _docker pull mellanox/ufm-plugin-snmp_;
   - in case of HA load the plugin on the standby node as well;
-- on gen3 appliance, open the default SNMP port with _ufw allow 162/udp_;
+- on UFM Enterprise Appliance (e.g., gen3), open the default SNMP port with _ufw allow 162/udp_ (enter _\_shell_, if needed);
 - run _ufm plugin snmp add_ to enable the plugin;
 - check that plugin is up and running with _ufm plugin show_;
 
-To deploy the plugin with UFM (SA or HA):
+### To deploy the plugin with UFM (SA or HA):
 - install the latest version of UFM;
 - run UFM with _service ufmd start_;
 - pull the plugin container with _docker pull mellanox/ufm-plugin-snmp_;
@@ -23,8 +29,6 @@ To deploy the plugin with UFM (SA or HA):
 
 Log file snmp.log is located in /opt/ufm/files/log on the host.
 
-------------------------------------------------------------------------------------------------------------
-
-**Usage**
+# Usage
 
 This plugin is listening to SNMP traps from all managed switches in the fabric and redirecting them as events to UFM.
