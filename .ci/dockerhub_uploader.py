@@ -194,17 +194,18 @@ class DockerHubUploader:
                 self._delete_image_locally(self.image, new_tag)
             except Exception as e:
                 log_error(f'Could not delete {self.repository}/{self.image}:{new_tag} from local docker.\n    {e}')
-            try:
-                img = self.client.images.get(f'{self.repository}/{self.image}:{self.tag}')
-                img.tag(f'{self.repository}/{self.image}', new_tag)
-                log_info(f'Tagged {self.repository}/{self.image}:{self.tag} as {self.repository}/{self.image}:{new_tag}.')
-            except Exception as e:
-                log_error(f'Could not tag {self.repository}/{self.image}:{self.tag} as {self.repository}/{self.image}:{new_tag}\n    {e}')
+        try:
+            img = self.client.images.get(f'{self.repository}/{self.image}:{self.tag}')
+            img.tag(f'{self.repository}/{self.image}', new_tag)
+            log_info(f'Tagged {self.repository}/{self.image}:{self.tag} as {self.repository}/{self.image}:{new_tag}.')
+        except Exception as e:
+            log_error(f'Could not tag {self.repository}/{self.image}:{self.tag} as {self.repository}/{self.image}:{new_tag}\n    {e}')
 
     def push_image(self,tag=None) -> None:
         """Push image to docker-hub"""
         if not tag:
             tag = self.tag
+        log_debug(f'starting DockerHubUploader.push_image with image:"{self.image}"tag:"{tag}"')
         try:
             result = self.client.images.push(repository=f'{self.repository}/{self.image}', tag=tag,
                                               auth_config={'username': self.username, 'password': self.password},stream=True)
