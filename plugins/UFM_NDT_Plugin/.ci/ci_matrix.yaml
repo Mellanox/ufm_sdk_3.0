@@ -11,7 +11,7 @@ kubernetes:
 
 credentials:
   - {credentialsId: '2c8fd3fe-df05-4f6f-9d1f-f1896d611434', usernameVariable: 'REST_USER', passwordVariable: 'PASSWORD'}
-  - {credentialsId: 'ef94fa95-5480-41ea-863f-6525aace5bc9', usernameVariable: 'GH_USER', passwordVariable: 'GH_TOKEN'}
+  - {credentialsId: 'e4ba8d7a-d304-4c01-aff9-90de67d97efc', usernameVariable: 'GH_USER', passwordVariable: 'GH_TOKEN'}
 
 volumes:
   - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
@@ -91,7 +91,7 @@ steps:
 
   - name: start simulator
     agentSelector: "{nodeLabel: 'UFM-POC'}"
-    credentialsId: 'ef94fa95-5480-41ea-863f-6525aace5bc9'
+    credentialsId: 'e4ba8d7a-d304-4c01-aff9-90de67d97efc'
     run: |
       if [ -z "${GH_TOKEN}" ]; then
         echo "GH_TOKEN env variable is not set wont be able to retrieve simulator from UFM repo, exiting..."
@@ -128,6 +128,10 @@ steps:
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
       # restart ufm plugin after simulator start
+      # verify container is down
+      ssh -4 root@${SERVER_HOST} '/opt/ufm/scripts/manage_ufm_plugins.sh stop -p ndt'
+      ssh -4 root@${SERVER_HOST} '/opt/ufm/scripts/manage_ufm_plugins.sh show'
+      sleep 10
       ssh -4 root@${SERVER_HOST} '/opt/ufm/scripts/manage_ufm_plugins.sh start -p ndt'
       ssh -4 root@${SERVER_HOST} '/opt/ufm/scripts/manage_ufm_plugins.sh show'
     parallel: false
