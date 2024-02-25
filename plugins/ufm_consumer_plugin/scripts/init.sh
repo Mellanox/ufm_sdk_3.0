@@ -25,11 +25,12 @@ cp $SRC_DIR_PATH/conf/${PLUGIN_NAME}_httpd_proxy.conf $SRC_DIR_PATH/conf/${PLUGI
 
 touch ${CONFIG_PATH}/${PLUGIN_NAME}_shared_volumes.conf
 
-echo /opt/ufm/files/log/${PLUGIN_NAME}:/opt/ufm/files/log > ${CONFIG_PATH}/${PLUGIN_NAME}_shared_volumes.conf
+# TODO: remove after Kobi B. aprovement
+#echo /opt/ufm/files/log/plugins/${PLUGIN_NAME}:/opt/ufm/files/log > ${CONFIG_PATH}/${PLUGIN_NAME}_shared_volumes.conf
 
 
 # UFM version test
-required_ufm_version=(6 12 0)
+required_ufm_version=(6 14 0)
 echo "Required UFM version: ${required_ufm_version[0]}.${required_ufm_version[1]}.${required_ufm_version[2]}"
 
 if [ "$1" == "-ufm_version" ]; then

@@ -15,6 +15,8 @@ IMAGE_NAME="ufm-plugin-${PLUGIN_NAME}"
 IMAGE_VERSION=$1
 OUT_DIR=$2
 RANDOM_HASH=$3
+UFM_DISTRO_NAME="ufm_ubuntu_20"
+UFM_DISTRO_NAME_TAR=${UFM_DISTRO_NAME}.tgz
 
 echo "RANDOM_HASH  : [${RANDOM_HASH}]"
 echo "SCRIPT_DIR   : [${SCRIPT_DIR}]"
@@ -105,8 +107,9 @@ echo ${IMAGE_VERSION} > ../../${PLUGIN_NAME}_plugin/version
 
 BUILD_DIR=$(create_out_dir)
 cp Dockerfile ${BUILD_DIR}
-cp -r ../../../utils ${BUILD_DIR}
 cp -r ../../${PLUGIN_NAME}_plugin ${BUILD_DIR}
+# copy latest release of UFM to be used for installation
+scp /mswg/release/ufm/ufm-enterprise/latest/ufm-*.ubuntu20.x86_64.mofed5.tgz ${BUILD_DIR}
 
 echo "BUILD_DIR    : [${BUILD_DIR}]"
 

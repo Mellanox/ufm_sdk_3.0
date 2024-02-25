@@ -4,6 +4,8 @@
 # values for multisubnet_enabled = true and 
 # multisubnet_role = consumer
 . /opt/ufm/scripts/common
+log_link=/log
+log_dir=/opt/ufm/files/log
 
 keep_config_file()
 {
@@ -30,6 +32,13 @@ keep_config_file()
     chown -R ufmapp:ufmapp ${target_file_path} ${conf_file_path}
 }
 
+create_log_symbolic_link()
+{
+    ln -s $log_dir $log_link
+    status=$?
+    [ $status -ne 0 ] && echo "Failed to create symbolic link $log_link to $log_dir"
+    return $?
+}
 #
 UpdCfg /opt/ufm/files/conf/gv.cfg Multisubnet multisubnet_enabled true
 #
@@ -70,4 +79,26 @@ for conf_file2keep in /opt/ufm/files/conf/gv.cfg /opt/ufm/files/conf/ufm_provide
     do
          keep_config_file $conf_file2keep
     done
+
+# create soft link between /opt/ufm/files/log to /log
+if [ -L ${log_link} ] ; then
+   if [ -e ${log_link} ] ; then
+      echo "Link ${log_link} to ${log_dir} already exist."
+   else
+      echo "Link ${log_link} to ${log_dir} exist, but broken. Failure."
+   fi
+elif [ -e ${log_link} ] ; then
+   echo "Link ${log_link} - not a link. Remove and create."
+   rm -rf ${log_link}
+   if [ $? -ne 0 ]; then
+       echo "Failed to remove ${log_link}"
+   else
+       echo "Create log symbolic link"
+       create_log_symbolic_link
+   fi
+else
+   echo "Create log symbolic link"
+   create_log_symbolic_link
+fi
+
 exit 0

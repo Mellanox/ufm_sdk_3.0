@@ -16,6 +16,5 @@
 set -eE
 
 # removing log file
-rm -rf /opt/ufm/files/log/ufm_consumer
 
 exit 0
