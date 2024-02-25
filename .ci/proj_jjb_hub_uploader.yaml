@@ -5,7 +5,7 @@
     jobs:
         - "DOCKERHUB_UPLOADER":
             jjb_git: https://github.com/Mellanox/ufm_sdk_3.0.git
-            jjb_email: 'bitkin@nvidia.com'
+            jjb_email: 'ufm_plugins_report@nvidia.com'
             disabled_var: false
             type: github
             branch: main
