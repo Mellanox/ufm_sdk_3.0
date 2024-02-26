@@ -7,7 +7,7 @@ cd .ci
 changed_files=$(git diff --name-only remotes/origin/$ghprbTargetBranch)
 
 # Check for changes excluding .gitmodules and root .ci directory
-changes_excluding_gitmodules_and_root_ci=$(echo "$changed_files" | grep -v -e '.gitmodules' -e '^\.ci/')
+changes_excluding_gitmodules_and_root_ci=$(echo "$changed_files" | grep -v -e '.gitmodules' -e '.gitignore' -e '^\.ci/')
 
 # Check if changes exist and only in a single plugin directory (including its .ci directory)
 if [ -n "$changes_excluding_gitmodules_and_root_ci" ] && [ $(echo "$changes_excluding_gitmodules_and_root_ci" | cut -d '/' -f1,2 | uniq | wc -l) -eq 1 ]; then

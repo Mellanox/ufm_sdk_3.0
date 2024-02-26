@@ -1,0 +1,78 @@
+########## Docker-Hub uploader ##################
+- project:
+    name: dockerhub-uploader
+    jjb_owner: 'Benny Itkin'
+    jobs:
+        - "DOCKERHUB_UPLOADER":
+            jjb_git: https://github.com/Mellanox/ufm_sdk_3.0.git
+            jjb_email: 'ufm_plugins_report@nvidia.com'
+            disabled_var: false
+            type: github
+            branch: main
+
+- job-template:
+    name: "DOCKERHUB_UPLOADER"
+    project-type: pipeline
+    disabled: '{obj:disabled_var}'
+    properties:
+        - github:
+             url: "{jjb_git}"
+        - build-discarder:
+            days-to-keep: 15
+            num-to-keep: 15
+        - inject:
+            keep-system-variables: true
+            properties-content: |
+              REPOSITORY={jjb_git}
+        - rebuild:
+            rebuild-disabled: false
+    description: Do NOT edit this job through the Web GUI !
+    concurrent: false
+    parameters:
+        - string:
+            name: "sha1"
+            default: '{branch}'
+            description: "What branch to take in ufm_sdk_3.0"
+        - string:
+            name: "IMAGE_NAME"
+            default: ''
+            description: "OPTIONAL: use to override the Docker image name to be used in docker hub</br>Format:<registry default is mellanox>/<image name>"
+        - string:
+            name: "IMAGE_TAG"
+            default: ""
+            description: "OPTIONAL: use to override the Docker image tag to be used in docker hub."
+        - string:
+            name: "IMAGE_PATH"
+            default: ""
+            description: "Path to docker tar archive (the artifact of docker save ...)."
+        - bool:
+            name: "FORCE_PUSH"
+            default: "false"
+            description: "Force push to docker hub if the tag already exists (use with caution)."
+        - bool:
+            name: "LATEST"
+            default: "true"
+            description: "Create additional &quot;latest&quot; tag in docker hub."
+        - string:
+            name: "EMAIL"
+            default: "{jjb_email}"
+            description: "email notifications <br>"
+        - bool:
+            name: "DEBUG"
+            default: "true"
+            description: "Enable additional info in logs."
+    pipeline-scm:
+        scm:
+            - git:
+                url: "{jjb_git}"
+                credentials-id: '4a532b1d-81ff-4c06-8f20-ddfeede633e5'
+                branches: ['$sha1']
+                shallow-clone: true
+                browser: githubweb
+                browser-url: "{jjb_git}"
+                submodule:
+                    disable: true
+        script-path: ".ci/jenkinsfile_hub_uploader.groovy"
+    wrappers:
+      - timeout:
+          timeout: 30
