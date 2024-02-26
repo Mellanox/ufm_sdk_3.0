@@ -8,9 +8,10 @@ ARG UFM_TAR_SUFIX="ubuntu20.x86_64.mofed5"
 ARG DEBIAN_FRONTEND=noninteractive
 ARG BASE_PATH=/opt/ufm/ufm_plugin_${PLUGIN_NAME}
 ARG SRC_BASE_DIR=${PLUGIN_NAME}_plugin
+ARG LOG_LINK=/log
+ARG LOG_DIR=/opt/ufm/files/log
 
 COPY ${SRC_BASE_DIR}/ ${BASE_PATH}/${SRC_BASE_DIR}/
-COPY utils/ ${BASE_PATH}/utils/
 COPY ${UFM_DISTRO_PREFIX}*${UFM_TAR_SUFIX}.tgz /tmp
 COPY ${SRC_BASE_DIR}/conf/supervisord.conf /etc/supervisor/conf.d/
 COPY ${SRC_BASE_DIR}/conf/ufm_consumer_plugin.conf /etc/supervisor/conf.d/
@@ -30,6 +31,9 @@ RUN     tar xvzf /tmp/${UFM_DISTRO_PREFIX}*${UFM_TAR_SUFIX}.tgz -C /tmp && \
         cd - && \
         rm -rf /tmp/${UFM_DISTRO_PREFIX}*${UFM_TAR_SUFIX} && \
         rm -f /tmp/${UFM_DISTRO_PREFIX}*${UFM_TAR_SUFIX}.tgz
+
+# create symbolic link for log
+RUN ln -s ${LOG_DIR} ${LOG_LINK}
 
 COPY ${SRC_BASE_DIR}/scripts/config_consumer.sh config_consumer.sh
 COPY ${SRC_BASE_DIR}/conf/ufm_consumer_plugin.conf ufm_consumer_plugin.conf

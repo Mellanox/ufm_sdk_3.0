@@ -21,13 +21,9 @@ PLUGIN_NAME=ufm_consumer
 SRC_DIR_PATH=/opt/ufm/ufm_plugin_${PLUGIN_NAME}/${PLUGIN_NAME}_plugin
 CONFIG_PATH=/config
 
+
 cp $SRC_DIR_PATH/conf/${PLUGIN_NAME}_httpd_proxy.conf $SRC_DIR_PATH/conf/${PLUGIN_NAME}_plugin.conf $SRC_DIR_PATH/conf/${PLUGIN_NAME}_ui_conf.json ${CONFIG_PATH}
-
 touch ${CONFIG_PATH}/${PLUGIN_NAME}_shared_volumes.conf
-
-# TODO: remove after Kobi B. aprovement
-#echo /opt/ufm/files/log/plugins/${PLUGIN_NAME}:/opt/ufm/files/log > ${CONFIG_PATH}/${PLUGIN_NAME}_shared_volumes.conf
-
 
 # UFM version test
 required_ufm_version=(6 14 0)
