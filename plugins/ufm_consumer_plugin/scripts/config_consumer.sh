@@ -7,6 +7,7 @@
 
 sqlite_conf=/config/sqlite
 sqlite_target=/opt/ufm/files/sqlite
+log_dir=/log
 
 keep_config_file()
 {
@@ -46,9 +47,9 @@ else
     config_file="/config/ufm_consumer_plugin.conf"
 fi
 port_value=`GetCfg $config_file common port_number`
-# update in gv.cfg with port to listen 8989
+# update in gv.cfg with port to listen 8997
 if [ -z $port_value ]; then
-    port_value="8989"
+    port_value="8997"
 fi
 UpdCfg /opt/ufm/files/conf/gv.cfg Server rest_port $port_value
 UpdCfg /opt/ufm/files/conf/gv.cfg Server osm_traps_listening_port 8088
@@ -88,9 +89,8 @@ if [ ! -d ${sqlite_conf} ]; then
    fi
 else
    # dir already exist from first run: rm orig and create symbolic link
-   [ -d ${sqlite_target} ] && [ ! -L ${sqlite_target}] && rm -rf ${sqlite_target}
+   [ -d ${sqlite_target} ] && [ ! -L ${sqlite_target} ] && rm -rf ${sqlite_target}
    ln -s ${sqlite_conf} ${sqlite_target}
 fi
-chown -R ufmapp:ufmapp ${sqlite_target} ${sqlite_conf}
-
+chown -R ufmapp:ufmapp ${sqlite_target} ${sqlite_conf} ${log_dir}
 exit 0

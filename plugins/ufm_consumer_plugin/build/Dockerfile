@@ -33,7 +33,8 @@ RUN     tar xvzf /tmp/${UFM_DISTRO_PREFIX}*${UFM_TAR_SUFIX}.tgz -C /tmp && \
         rm -f /tmp/${UFM_DISTRO_PREFIX}*${UFM_TAR_SUFIX}.tgz
 
 # create symbolic link for log
-RUN ln -s ${LOG_DIR} ${LOG_LINK}
+RUN rm -rf  ${LOG_DIR} && \
+    ln -s ${LOG_LINK} ${LOG_DIR}
 
 COPY ${SRC_BASE_DIR}/scripts/config_consumer.sh config_consumer.sh
 COPY ${SRC_BASE_DIR}/conf/ufm_consumer_plugin.conf ufm_consumer_plugin.conf
