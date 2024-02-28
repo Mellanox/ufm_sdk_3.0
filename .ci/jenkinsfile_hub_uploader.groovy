@@ -16,23 +16,30 @@ pipeline{
         stage('Upload to docker-hub'){
             steps{
                 withCredentials([usernamePassword(credentialsId: '0fbf63c0-4a61-4543-811d-a182df47711b', usernameVariable: 'DH_USER', passwordVariable: 'DH_TOKEN' )]){
-                    sh '''#!/bin/bash -xveE
-                    printenv
-                    cmd_args=''
-                    if [ -n "${IMAGE_NAME}" ]; then
-                        cmd_args="${cmd_args}-i ${IMAGE_NAME} "
-                    fi
-                    if [ -n "${IMAGE_TAG}" ]; then
-                        cmd_args="${cmd_args}-t ${IMAGE_TAG} "
-                    fi
-                    if [ "${FORCE_PUSH}" == "true" ]; then
-                        cmd_args="${cmd_args}-f "
-                    fi
-                    if [ "${LATEST}" == "true" ]; then
-                        cmd_args="${cmd_args}-l "
-                    fi
-                    python3 .ci/dockerhub_uploader.py -u ${DH_USER} -p ${DH_TOKEN} -d ${IMAGE_PATH} ${cmd_args}
-                    '''
+                    wrap([$class: 'BuildUser']) {
+                        sh '''#!/bin/bash -xveE
+                        authorized_users=( "bitkin" "afok" "kobib" "drorl" "tlerner" "omarj" "samerd" "atolikin" "atabachnik" "eylonk" "lennyv" )
+                        if [[ ! "${authorized_users[*]}" == *"${BUILD_USER_ID}"* ]]; then
+                            echo "${} not authorized to upload images to docker hub"
+                            exit 1
+                        fi
+                        printenv
+                        cmd_args=''
+                        if [ -n "${IMAGE_NAME}" ]; then
+                            cmd_args="${cmd_args}-i ${IMAGE_NAME} "
+                        fi
+                        if [ -n "${IMAGE_TAG}" ]; then
+                            cmd_args="${cmd_args}-t ${IMAGE_TAG} "
+                        fi
+                        if [ "${FORCE_PUSH}" == "true" ]; then
+                            cmd_args="${cmd_args}-f "
+                        fi
+                        if [ "${LATEST}" == "true" ]; then
+                            cmd_args="${cmd_args}-l "
+                        fi
+                        python3 .ci/dockerhub_uploader.py -u ${DH_USER} -p ${DH_TOKEN} -d ${IMAGE_PATH} ${cmd_args}
+                        '''
+                    }
                 }
             }
         }
