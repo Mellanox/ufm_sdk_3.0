@@ -15,6 +15,4 @@
 
 set -eE
 
-# removing log file
-
 exit 0

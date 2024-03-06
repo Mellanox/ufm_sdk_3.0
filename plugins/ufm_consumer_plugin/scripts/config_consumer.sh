@@ -11,6 +11,8 @@ log_dir=/log
 
 keep_config_file()
 {
+# verify that after plugin restart configuration file will be percistent
+# and symbolic link will exist for config file in correct location
     conf_file_path=$1
     conf_file_name=$(basename $conf_file_path)
     target_dir=/config
@@ -75,22 +77,32 @@ for conf_file2keep in /opt/ufm/files/conf/gv.cfg /opt/ufm/files/conf/ufm_provide
          keep_config_file $conf_file2keep
     done
 
-# special treatment for sqlite database
+# special treatment for sqlite database. gv.db file should be percistent and for this purpose
+# it is physically located on hosting server location and created a runtime link so it will be
+# accessable from the plugin.
 if [ ! -d ${sqlite_conf} ]; then
    # run first time
    if [ -d ${sqlite_target} ] && [ ! -L ${sqlite_target} ]; then
        mv ${sqlite_target} ${sqlite_conf}
+       [ $? -ne 0 ] && echo "Failed to move ${sqlite_target} to ${sqlite_conf}" && exit 1
    else
-       echo "Failed to move sql database files ${sqlite_target} to $sqlite_conf directory"
+       echo "Failed to move sql database files ${sqlite_target} to ${sqlite_conf directory}"
+       exit 1
    fi
    # create symbolic link
    if [ -d ${sqlite_conf} ]; then
        ln -s ${sqlite_conf} ${sqlite_target}
+       [ $? -ne 0 ] && echo "Failed to create symbolic link ${sqlite_conf} ${sqlite_target}" && exit 1
    fi
 else
    # dir already exist from first run: rm orig and create symbolic link
    [ -d ${sqlite_target} ] && [ ! -L ${sqlite_target} ] && rm -rf ${sqlite_target}
-   ln -s ${sqlite_conf} ${sqlite_target}
+   if [ ! -L ${sqlite_target} ]; then
+       ln -s ${sqlite_conf} ${sqlite_target}
+       [ $? -ne 0 ] && echo "Failed to create symbolic link ${sqlite_conf} ${sqlite_target} exist flow" && exit 1
+   fi
 fi
 chown -R ufmapp:ufmapp ${sqlite_target} ${sqlite_conf} ${log_dir}
+
+echo "Consumer configuration completed succesfully."
 exit 0
