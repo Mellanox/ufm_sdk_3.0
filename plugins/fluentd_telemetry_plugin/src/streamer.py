@@ -28,7 +28,7 @@ import time
 import datetime
 from requests.exceptions import ConnectionError
 from prometheus_client.parser import text_string_to_metric_families
-from utils.fluentd.fluent import asyncsender as asycsender
+from fluentbit_writer import init_fb_writer
 from utils.utils import Utils
 
 from utils.args_parser import ArgsParser
@@ -61,6 +61,10 @@ class UFMTelemetryConstants:
             "name": '--compressed_streaming',
             "help": "Compressed streaming flag, i.e. if True the streamed data will be sent gzipped json; "
                     "otherwise, will be sent plain text as json"
+        },{
+            "name": '--c_fluent_streamer',
+            "help": "C Fluent Streamer flag, i.e. if True the C fluent streamer will be used; "
+                    "otherwise, the native python streamer will be used"
         },{
             "name": '--enable_streaming',
             "help": "If true, the streaming will be started once the required configurations have been set"
@@ -103,6 +107,7 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
 
     STREAMING_SECTION = "streaming"
     STREAMING_SECTION_COMPRESSED_STREAMING = "compressed_streaming"
+    STREAMING_SECTION_C_FLUENT__STREAMER = "c_fluent_streamer"
     STREAMING_SECTION_BULK_STREAMING = "bulk_streaming"
     STREAMING_SECTION_STREAM_ONLY_NEW_SAMPLES = "stream_only_new_samples"
     STREAMING_SECTION_ENABLED = "enabled"
@@ -146,6 +151,12 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
         return self.safe_get_bool(self.args.compressed_streaming,
                                   self.STREAMING_SECTION,
                                   self.STREAMING_SECTION_COMPRESSED_STREAMING,
+                                  True)
+
+    def get_c_fluent_streamer_flag(self):
+        return self.safe_get_bool(self.args.c_fluent_streamer,
+                                  self.STREAMING_SECTION,
+                                  self.STREAMING_SECTION_C_FLUENT__STREAMER,
                                   True)
 
     def get_stream_only_new_samples_flag(self):
@@ -230,6 +241,8 @@ class UFMTelemetryStreaming(Singleton):
         self.streaming_attributes = {}
         self.init_streaming_attributes()
 
+        self._fluent_sender = None
+
     @property
     def ufm_telemetry_host(self):
         return self.config_parser.get_telemetry_host()
@@ -270,6 +283,10 @@ class UFMTelemetryStreaming(Singleton):
         return self.config_parser.get_bulk_streaming_flag()
 
     @property
+    def c_fluent_streamer_flag(self):
+        return self.config_parser.get_c_fluent_streamer_flag()
+
+    @property
     def compressed_streaming_flag(self):
         return self.config_parser.get_compressed_streaming_flag()
 
@@ -297,6 +314,23 @@ class UFMTelemetryStreaming(Singleton):
     @property
     def fluentd_msg_tag(self):
         return self.config_parser.get_fluentd_msg_tag()
+
+    @property
+    def fluent_sender(self):
+        _use_c = self.c_fluent_streamer_flag
+        if self._fluent_sender and _use_c:
+            # in case of C sender, and if the object already initialized
+            # no need to init a new sender
+            return self._fluent_sender
+        host = self.fluentd_host
+        port = self.fluentd_port
+        timeout = self.fluentd_timeout
+        self._fluent_sender = init_fb_writer(host=host,
+                                             port=port,
+                                             tag_prefix=UFMTelemetryConstants.PLUGIN_NAME,
+                                             timeout=timeout,
+                                             use_c=_use_c)
+        return self._fluent_sender
 
     def _get_metrics(self, _host, _port, _url, msg_tag):
         _host = f'[{_host}]' if Utils.is_ipv6_address(_host) else _host
@@ -469,11 +503,7 @@ class UFMTelemetryStreaming(Singleton):
                     headers={"Content-Encoding": "gzip", "Content-Type": "application/json"})
                 res.raise_for_status()
             else:
-                fluent_sender = asycsender.FluentSender(UFMTelemetryConstants.PLUGIN_NAME,
-                                                    self.fluentd_host,
-                                                    self.fluentd_port, timeout=self.fluentd_timeout)
-                fluent_sender.emit(fluentd_msg_tag, fluentd_message)
-                fluent_sender.close()
+                self.fluent_sender.write(fluentd_msg_tag, fluentd_message)
             et = time.time()
             streaming_time = round(et-st, 6)
             self.streaming_metrics_mgr.update_streaming_metrics(fluentd_msg_tag, **{
@@ -585,7 +615,7 @@ class UFMTelemetryStreaming(Singleton):
         Logger.log_message('The streaming attributes were updated successfully')
 
     def clear_cached_streaming_data(self):
-        self.last_streamed_data_sample_timestamp = None
+        self.last_streamed_data_sample_timestamp = self._fluent_sender = None
         self.last_streamed_data_sample_per_port = {}
         self.streaming_metrics_mgr = MonitorStreamingMgr()
 
