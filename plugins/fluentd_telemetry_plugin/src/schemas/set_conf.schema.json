@@ -92,6 +92,9 @@
         "bulk_streaming": {
           "type": "boolean"
         },
+        "c_fluent_streamer": {
+          "type": "boolean"
+        },
         "compressed_streaming": {
           "type": "boolean"
         },

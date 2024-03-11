@@ -22,7 +22,7 @@ cp /opt/ufm/ufm_plugin_tfs/fluentd_telemetry_plugin.cfg /config
 touch /config/tfs_shared_volumes.conf
 
 echo /opt/ufm/files/log/:/log > /config/tfs_shared_volumes.conf
-# echo /opt/ufm/conf/plugins/tfs/fluentd_telemetry_plugin.cfg:/config/fluentd_telemetry_plugin.cfg > /config/tfs_shared_volumes.conf
+echo /opt/ufm/telemetry/collectx/lib/:/opt/ufm/telemetry/collectx/lib >> /config/tfs_shared_volumes.conf
 
 # UFM version test
 required_ufm_version=(6 8 0)

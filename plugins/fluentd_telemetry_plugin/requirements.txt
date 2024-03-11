@@ -8,3 +8,4 @@ twisted
 tzlocal<3.0
 jsonschema
 prometheus_client
+msgpack
