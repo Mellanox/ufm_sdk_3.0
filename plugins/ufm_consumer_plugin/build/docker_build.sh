@@ -110,7 +110,7 @@ cp Dockerfile ${BUILD_DIR}
 cp -r ../../${PLUGIN_NAME}_plugin ${BUILD_DIR}
 # copy latest release of UFM to be used for installation
 #scp /mswg/release/ufm/ufm-enterprise/latest/ufm-*.ubuntu20.x86_64.mofed5.tgz ${BUILD_DIR}
-scp /mswg/release/ufm/ufm-enterprise/6.16.5/6.16.5-2/ufm-6.16.5-2.ubuntu20.x86_64.mofed5.tgz ${BUILD_DIR}
+scp /mswg/release/ufm/ufm-enterprise/6.16.5/6.16.5-3/ufm-6.16.5-3.ubuntu20.x86_64.mofed5.tgz ${BUILD_DIR}
 
 echo "BUILD_DIR    : [${BUILD_DIR}]"
 

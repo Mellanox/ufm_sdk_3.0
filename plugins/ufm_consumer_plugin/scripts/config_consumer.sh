@@ -8,6 +8,8 @@
 sqlite_conf=/config/sqlite
 sqlite_target=/opt/ufm/files/sqlite
 log_dir=/log
+auth_log_file_path=/opt/ufm/files/log/authentication_service.log
+
 
 keep_config_file()
 {
@@ -102,6 +104,14 @@ else
        [ $? -ne 0 ] && echo "Failed to create symbolic link ${sqlite_conf} ${sqlite_target} exist flow" && exit 1
    fi
 fi
+# special treatment for /opt/ufm/files/log/authentication_service.log file as it is created
+# by ufm start as root user and on some setups remain with root permissions, so ufm with ufmapp user
+# failed to write into that file. So create it if not exist
+if [ ! -f ${auth_log_file_path} ]; then
+    touch ${auth_log_file_path}
+    chown ufmapp:ufmapp ${auth_log_file_path}
+fi
+
 chown -R ufmapp:ufmapp ${sqlite_target} ${sqlite_conf} ${log_dir}
 
 echo "Consumer configuration completed succesfully."

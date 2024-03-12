@@ -21,6 +21,7 @@ PLUGIN_NAME=ufm_consumer
 SRC_DIR_PATH=/opt/ufm/ufm_plugin_${PLUGIN_NAME}/${PLUGIN_NAME}_plugin
 CONFIG_PATH=/config
 
+echo /opt/ufm/files/licenses:/opt/ufm/files/licenses > /config/${PLUGIN_NAME}_shared_volumes.conf
 
 cp $SRC_DIR_PATH/conf/${PLUGIN_NAME}_httpd_proxy.conf $SRC_DIR_PATH/conf/${PLUGIN_NAME}_plugin.conf $SRC_DIR_PATH/conf/${PLUGIN_NAME}_ui_conf.json ${CONFIG_PATH}
 
