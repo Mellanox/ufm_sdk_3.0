@@ -96,6 +96,9 @@ class FluentBitCWriter(object):
 
         self.lib = context.get('so_lib')
         self.tag_prefix = context.get('tag_prefix', '')
+        # the tag will be determined on each write
+        # we may use the same fluent writer to send multiple messages with different tags
+        self.tag = None
 
         if not self.lib:
             msg = "Cannot find 'libraw_msgpack_api.so'. Cannot export with Fluent-Bit."
@@ -109,6 +112,7 @@ class FluentBitCWriter(object):
         plugin_params = {
             'tag_match_pair': f'{self.tag_prefix}.{tag}'
         }
+        self.tag = tag
         # init the lib args
         self.lib.init.argtypes = [c_char_p,
                                   c_char_p,
@@ -154,7 +158,7 @@ class FluentBitCWriter(object):
             Logger.log_message(msg, LOG_LEVELS.WARNING)
             raise InitFBLibFailure(msg)
 
-        if not self.initialized:
+        if not self.initialized or self.tag != label:
             self._init_lib_args(tag=label)
 
         new_record = FluentBitCWriter.prepare_flb_std_record(data)
