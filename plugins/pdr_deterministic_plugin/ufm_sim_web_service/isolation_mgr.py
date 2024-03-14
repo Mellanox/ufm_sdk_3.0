@@ -376,6 +376,8 @@ class IsolationMgr:
                     self.ports_data[port_name] = PortData(port_name=port_name,peer="0x"+port_name)
             port_obj = self.ports_data.get(port_name)
             if not port_obj:
+                if get_counter(Constants.RCV_PACKETS_COUNTER,row,0) == 0: # meaning it is down port
+                    continue
                 self.logger.warning("Port {0} not found in ports data".format(port_name))
                 continue
             # Converting from micro seconds to seconds.
