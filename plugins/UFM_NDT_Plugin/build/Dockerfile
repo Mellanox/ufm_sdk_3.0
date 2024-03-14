@@ -5,7 +5,7 @@ ARG _ARCH=x86_64
 ARG _DIST=ubuntu20.04
 ARG _OFED_VER=5.9-0.5.6.0
 ARG OFED_URL=http://nbu-nfs.mellanox.com/auto/sw/release/mlnx_ofed/MLNX_OFED/MLNX_OFED_LINUX-${_OFED_VER}/MLNX_OFED_LINUX-${_OFED_VER}-${_DIST}-${_ARCH}/DEBS
-ARG NDT_OFED_DEP="libibumad3 libibverbs1 ibverbs-providers "
+ARG NDT_OFED_DEP="libibumad3 libibverbs1 ibverbs-providers ibutils2 "
 ARG BASE_PATH=/opt/ufm/ufm_plugin_ndt
 
 SHELL ["/bin/bash", "-c"]
