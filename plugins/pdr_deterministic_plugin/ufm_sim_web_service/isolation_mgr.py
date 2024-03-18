@@ -156,7 +156,7 @@ def get_counter(counter_name, row, default=0):
      or its value is NaN.
     """
     try:
-        val = row.get(counter_name) if (row.get(counter_name) is not None and not pd.isna(row.get(counter_name))) else default
+        val = row.get(counter_name) if (row.get(counter_name) is not None and not numpy.isnan(row.get(counter_name))) else default
     except Exception as e:
         return default
     return val
