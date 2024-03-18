@@ -307,13 +307,11 @@ class IsolationMgr:
         if not self.temp_check:
             return None
         cable_temp = get_counter(Constants.TEMP_COUNTER, row, default=None)
-        self.logger.debug(f"Got cable temp {cable_temp} for port_obj {port_obj}")
         if cable_temp is not None and not numpy.isnan(cable_temp):
             if cable_temp in ["NA", "N/A", "", "0C"]:
                 return None
             cable_temp = int(cable_temp.split("C")[0]) if type(cable_temp) == str else cable_temp
             dT = abs(port_obj.counters_values.get(Constants.TEMP_COUNTER, 0) - cable_temp)
-            self.logger.debug(f"cable temp is {cable_temp}, dT is {dT},tmax is {self.tmax} and d_tmax is {self.d_tmax} so {cable_temp > self.tmax} or {dT > self.d_tmax}")
             port_obj.counters_values[Constants.TEMP_COUNTER] = cable_temp
             if cable_temp and (cable_temp > self.tmax or dT > self.d_tmax):
                 return Issue(port_obj.port_name, Constants.ISSUE_OONOC)
@@ -583,13 +581,12 @@ class IsolationMgr:
                 self.logger.info("Retrieving telemetry data to determine ports' states")
                 try:
                     issues = self.read_next_set_of_high_ber_or_pdr_ports(endpoint_port)
-                except DynamicTelemetryUnresponsive:
+                except DynamicTelemetryUnresponsive as e:
                     dynamic_telemetry_unresponsive_count += 1
-                    if dynamic_telemetry_unresponsive_count > self.dynamic_unresponsive_limit:
-                        self.logger.error(f"Dynamic telemetry is unresponsive for {dynamic_telemetry_unresponsive_count} times, restarting telemetry session...")
-                        endpoint_port = self.restart_telemetry_session()
-                        dynamic_telemetry_unresponsive_count = 0
-                    continue
+                if dynamic_telemetry_unresponsive_count > self.dynamic_unresponsive_limit:
+                    self.logger.error(f"Dynamic telemetry is unresponsive for {dynamic_telemetry_unresponsive_count} times, restarting telemetry session...")
+                    endpoint_port = self.restart_telemetry_session()
+                    dynamic_telemetry_unresponsive_count = 0
                 if len(issues) > self.max_num_isolate:
                     # UFM send external event
                     event_msg = "got too many ports detected as unhealthy: %d, skipping isolation" % len(issues)
