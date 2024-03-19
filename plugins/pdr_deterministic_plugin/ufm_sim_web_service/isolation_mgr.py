@@ -74,7 +74,7 @@ class Issue(object):
 
 def get_counter(counter_name, row, default=0):
     try:
-        val = row.get(counter_name) if (row.get(counter_name) is not None and not numpy.isnan(row.get(counter_name))) else default
+        val = row.get(counter_name) if (row.get(counter_name) is not None and not pd.isna(row.get(counter_name))) else default
     except Exception as e:
         return default
     return val
@@ -307,7 +307,7 @@ class IsolationMgr:
         if not self.temp_check:
             return None
         cable_temp = get_counter(Constants.TEMP_COUNTER, row, default=None)
-        if cable_temp is not None and not numpy.isnan(cable_temp):
+        if cable_temp is not None and not pd.isna(cable_temp):
             if cable_temp in ["NA", "N/A", "", "0C"]:
                 return None
             cable_temp = int(cable_temp.split("C")[0]) if type(cable_temp) == str else cable_temp
