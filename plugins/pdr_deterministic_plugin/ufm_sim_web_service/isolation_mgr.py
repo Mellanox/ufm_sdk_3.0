@@ -579,12 +579,13 @@ class IsolationMgr:
                 self.logger.info("Retrieving telemetry data to determine ports' states")
                 try:
                     issues = self.read_next_set_of_high_ber_or_pdr_ports(endpoint_port)
-                except DynamicTelemetryUnresponsive as e:
+                except DynamicTelemetryUnresponsive:
                     dynamic_telemetry_unresponsive_count += 1
-                if dynamic_telemetry_unresponsive_count > self.dynamic_unresponsive_limit:
-                    self.logger.error(f"Dynamic telemetry is unresponsive for {dynamic_telemetry_unresponsive_count} times, restarting telemetry session...")
-                    endpoint_port = self.restart_telemetry_session()
-                    dynamic_telemetry_unresponsive_count = 0
+                    if dynamic_telemetry_unresponsive_count > self.dynamic_unresponsive_limit:
+                        self.logger.error(f"Dynamic telemetry is unresponsive for {dynamic_telemetry_unresponsive_count} times, restarting telemetry session...")
+                        endpoint_port = self.restart_telemetry_session()
+                        dynamic_telemetry_unresponsive_count = 0
+                    continue
                 if len(issues) > self.max_num_isolate:
                     # UFM send external event
                     event_msg = "got too many ports detected as unhealthy: %d, skipping isolation" % len(issues)
