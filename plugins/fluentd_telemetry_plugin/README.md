@@ -103,7 +103,7 @@ Plugin Deployment
  
     >docker ps;
 
-Log file tfs.log is located in /opt/ufm/files/log on the host.
+Log file tfs.log is located in /opt/ufm/files/log/plugins/tfs/tfs.log
 
 FluentdD Deployment configurations
 --------------------------------------------------------
