@@ -1,0 +1,13 @@
+[
+  {
+    "name": "ufm_consumer",
+    "hookInfo": {
+      "type": "leftMenu",
+      "label": "UFM Consumer",
+      "key": "ufm_consumer",
+      "route": ":APACHE_PORT",
+      "icon": "fas fa-network-wired",
+      "external": true
+    }
+  }
+]
