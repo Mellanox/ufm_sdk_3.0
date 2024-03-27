@@ -149,7 +149,7 @@ class FluentBitCWriter(object):
 
     @staticmethod
     def prepare_flb_std_record(record):
-        timestamp = 0.000001 * timer()
+        timestamp = int(time.time())
         return [timestamp, record]
 
     def write(self, label, data):
