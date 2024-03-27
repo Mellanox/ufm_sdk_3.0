@@ -397,6 +397,15 @@ class UFMTelemetryStreaming(Singleton):
             for pIDKey in self.port_id_keys:
                 port_id_keys_indices += [i for i, x in enumerate(keys) if x == pIDKey]
 
+        modified_keys = {}
+
+        for i in range(keys_length):
+            key = keys[i]
+            attr_obj = self.streaming_attributes.get(key)
+            if attr_obj and attr_obj.get('enabled', False):
+                modified_keys[i] = attr_obj.get('name', key)
+        available_keys_indices = modified_keys.keys()
+
         for row in rows[1:-1]:
             # skip the first row since it contains the headers
             # skip the last row since its empty row
@@ -408,23 +417,22 @@ class UFMTelemetryStreaming(Singleton):
             #######
             is_data_changed = False
             dic = {}
-            for i in range(keys_length):
+            for i in available_keys_indices:
                 value = values[i]
-                key = keys[i]
+                key = modified_keys[i]
                 is_constant_value = self.port_constants_keys.get(key)
-                attr_obj = self.streaming_attributes.get(key, None)
-                if attr_obj and attr_obj.get('enabled', False) and len(value):
+                if len(value):
                     value = self._convert_str_to_num(value)
                     # if the attribute/counter is enabled and
                     # also the value of this counter not empty
                     if (is_constant_value is None and
                             stream_only_new_samples and value != current_port_values.get(key)):
                         # and the value was changed -> stream it
-                        dic[attr_obj.get("name", key)] = value
+                        dic[key] = value
                         current_port_values[key] = value
                         is_data_changed = True
                     elif not stream_only_new_samples or is_constant_value:
-                        dic[attr_obj.get("name", key)] = value
+                        dic[key] = value
                         is_data_changed = not stream_only_new_samples
             ########
             if stream_only_new_samples:
