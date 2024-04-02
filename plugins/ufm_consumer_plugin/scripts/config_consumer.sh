@@ -59,6 +59,10 @@ UpdCfg /opt/ufm/files/conf/gv.cfg Server rest_port $port_value
 UpdCfg /opt/ufm/files/conf/gv.cfg Server osm_traps_listening_port 8088
 UpdCfg /opt/ufm/files/conf/gv.cfg UFMAgent default_ufma_port 6366
 UpdCfg /opt/ufm/files/conf/gv.cfg Logging syslog_addr /dev/consumer_log
+# Update authentication server configuration
+# read the new auth service port from ufm_consumer_plugin.conf
+auth_service_port=`GetCfg $config_file common auth_service_port`
+UpdCfg /opt/ufm/files/conf/gv.cfg AuthService auth_service_port $auth_service_port
 # update apache configuration
 ssl_apache_port=`GetCfg $config_file common ssl_apache_port`
 apache_port=`GetCfg $config_file common apache_port`
