@@ -53,15 +53,15 @@ The following parameters are configurable via the plugin's configuration file. (
 
 | Name | Description | Default Value |
 | --- | --- | --- |
-| T_ISOLATE | interval for requesting telemetry counters. in seconds. | 300 |
+| INTERVAL | interval for requesting telemetry counters. in seconds. | 300 |
 | MAX_NUM_ISOLATE | maximum ports to be isolated. max(MAX_NUM_ISOLATE, 0.5% * fabric_size) | 10 |
 | TMAX | Maximum temperature threshold | 70 (Celsius) |
 | D_TMAX | Maximum allowed Temperature Delta | 10 |
 | MAX_PDR | Max allowed packet drop rate | 1e-12 |
 | CONFIGURED_BER_CHECK | if set to true, the plugin will isolate based on BER calculations | True |
 | CONFIGURED_TEMP_CHECK | if set to true, the plugin will isolate based on temperature measurements | True |
-| NO_DOWN_COUNT | if set to true, the plugin will isolate based on LinkDownedCounterExt measurements | True |
-| ACCESS_ISOLATION | if set to true, the plugin will isolate ports connected via access link | True |
+| LINK_DOWN_ISOLATION | if set to true, the plugin will isolate based on LinkDownedCounterExt measurements | True |
+| SWITCH_TO_HOST_ISOLATION | if set to true, the plugin will isolate ports connected via access link | True |
 | DRY_RUN | isolation decisions will be only logged and will not take affect | False |
 | DEISOLATE_CONSIDER_TIME | consideration time for port deisolation (in minutes) | 5 |
 | DO_DEISOLATION | if set to false, the plugin will not perform deisolation | True |

@@ -13,10 +13,9 @@ import traceback
 from datetime import datetime
 from datetime import timedelta
 import time
+import http
 import configparser
 import pandas as pd
-import json
-import http
 import numpy
 
 from constants import PDRConstants as Constants
@@ -25,20 +24,35 @@ from ufm_communication_mgr import UFMCommunicator
 
 
 class DynamicTelemetryUnresponsive(Exception):
+    """
+    Exception raised when the dynamic telemetry is unresponsive.
+    """
     pass
 
 
 class PortData(object):
     def __init__(self, port_name=None, port_num=None, peer=None, node_type=None, active_speed=None, port_width=None, port_guid=None):
+        """
+        Initializes an instance of the IsolationManager class.
+
+        Args:
+            port_name (str): The name of the port.
+            port_num (int): The number of the port.
+            peer (str): The peer of the port.
+            node_type (str): The type of the node.
+            active_speed (str): The active speed of the port.
+            port_width (int): The width of the port.
+            port_guid (str): The GUID of the port.
+        """
         self.counters_values = {}
         self.node_type = node_type
         self.peer = peer
         self.port_name = port_name
-        self.port_num = None
+        self.port_num = port_num
         self.last_timestamp = 0
         self.active_speed = active_speed
         self.port_width = port_width
-        self.port_guid = None
+        self.port_guid = port_guid
         self.ber_tele_data = pd.DataFrame(columns=[Constants.TIMESTAMP, Constants.SYMBOL_BER])
         self.last_symbol_ber_timestamp = None
         self.last_symbol_ber_val = None
@@ -46,7 +60,23 @@ class PortData(object):
 
 
 class PortState(object):
+    """
+    Represents the state of a port.
+
+    Attributes:
+        name (str): The name of the port.
+        state (str): The current state of the port (isolated or treated).
+        cause (str): The cause of the state change (oonoc, pdr, ber).
+        maybe_fixed (bool): Indicates if the port may have been fixed.
+        change_time (datetime): The time of the last state change.
+    """
+
     def __init__(self, name):
+        """
+        Initialize a new instance of the PortState class.
+
+        :param name: The name of the port.
+        """
         self.name = name
         self.state = Constants.STATE_NORMAL # isolated | treated
         self.cause = Constants.ISSUE_INIT # oonoc, pdr, ber
@@ -54,25 +84,71 @@ class PortState(object):
         self.change_time = datetime.now()
 
     def update(self, state, cause):
+        """
+        Update the state and cause of the port.
+
+        :param state: The new state of the port.
+        :param cause: The cause of the state change.
+        """
         self.state = state
         self.cause = cause
         self.change_time = datetime.now()
-    
+
     def get_cause(self):
+        """
+        Get the cause of the state change.
+
+        :return: The cause of the state change.
+        """
         return self.cause
-    
+
     def get_state(self):
+        """
+        Get the current state of the port.
+
+        :return: The current state of the port.
+        """
         return self.state
-    
+
     def get_change_time(self):
+        """
+        Get the time of the last state change.
+
+        :return: The time of the last state change.
+        """
         return self.change_time
-        
+
+
 class Issue(object):
+    """
+    Represents an issue that occurred on a specific port.
+
+    Attributes:
+        port (int): The port where the issue occurred.
+        cause (str): The cause of the issue.
+    """
+
     def __init__(self, port, cause):
+        """
+        Initialize a new instance of the Issue class.
+
+        :param port: The port where the issue occurred.
+        :param cause: The cause of the issue.
+        """
         self.cause = cause
         self.port = port
 
 def get_counter(counter_name, row, default=0):
+    """
+    Get the value of a specific counter from a row of data. If the counter is not present 
+    or its value is NaN, return a default value.
+
+    :param counter_name: The name of the counter to get.
+    :param row: The row of data from which to get the counter.
+    :param default: The default value to return if the counter is not present or its value is NaN.
+    :return: The value of the counter, or the default value if the counter is not present
+     or its value is NaN.
+    """
     try:
         val = row.get(counter_name) if (row.get(counter_name) is not None and not pd.isna(row.get(counter_name))) else default
     except Exception as e:
@@ -80,7 +156,10 @@ def get_counter(counter_name, row, default=0):
     return val
 
 class IsolationMgr:
-    
+    '''
+    This class is responsible for managing the isolation of ports based on the telemetry data
+    '''
+
     def __init__(self, ufm_client: UFMCommunicator, logger):
         self.ufm_client = ufm_client
         # {port_name: PortState}
@@ -88,27 +167,27 @@ class IsolationMgr:
         # {port_name: telemetry_data}
         self.ports_data = dict()
         self.ufm_latest_isolation_state = []
-        
+
         pdr_config = configparser.ConfigParser()
         pdr_config.read(Constants.CONF_FILE)
-        
+
         # Take from Conf
-        self.t_isolate = pdr_config.getint(Constants.CONF_COMMON, Constants.T_ISOLATE)
-        self.max_num_isolate = pdr_config.getint(Constants.CONF_COMMON, Constants.MAX_NUM_ISOLATE)
-        self.tmax = pdr_config.getint(Constants.CONF_COMMON, Constants.TMAX)
-        self.d_tmax = pdr_config.getint(Constants.CONF_COMMON, Constants.D_TMAX)
-        self.max_pdr = pdr_config.getfloat(Constants.CONF_COMMON, Constants.MAX_PDR)
-        self.configured_ber_check = pdr_config.getboolean(Constants.CONF_COMMON,Constants.CONFIGURED_BER_CHECK)
-        self.dry_run = pdr_config.getboolean(Constants.CONF_COMMON,Constants.DRY_RUN)
-        self.do_deisolate = pdr_config.getboolean(Constants.CONF_COMMON,Constants.DO_DEISOLATION)
-        self.deisolate_consider_time = pdr_config.getint(Constants.CONF_COMMON,Constants.DEISOLATE_CONSIDER_TIME)
-        self.automatic_deisolate = pdr_config.getboolean(Constants.CONF_COMMON,Constants.AUTOMATIC_DEISOLATE)
-        self.dynamic_wait_time = pdr_config.getint(Constants.CONF_COMMON,"DYNAMIC_WAIT_TIME")
-        self.temp_check = pdr_config.getboolean(Constants.CONF_COMMON,Constants.CONFIGURED_TEMP_CHECK)
-        self.no_down_count = pdr_config.getboolean(Constants.CONF_COMMON,Constants.NO_DOWN_COUNT)
-        self.access_isolation = pdr_config.getboolean(Constants.CONF_COMMON,Constants.ACCESS_ISOLATION)
+        self.interval = pdr_config.getint(Constants.CONF_SAMPLING, Constants.INTERVAL)
+        self.max_num_isolate = pdr_config.getint(Constants.CONF_ISOLATION, Constants.MAX_NUM_ISOLATE)
+        self.tmax = pdr_config.getint(Constants.CONF_METRICS, Constants.TMAX)
+        self.d_tmax = pdr_config.getint(Constants.CONF_METRICS, Constants.D_TMAX)
+        self.max_pdr = pdr_config.getfloat(Constants.CONF_METRICS, Constants.MAX_PDR)
+        self.configured_ber_check = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.CONFIGURED_BER_CHECK)
+        self.dry_run = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.DRY_RUN)
+        self.do_deisolate = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.DO_DEISOLATION)
+        self.deisolate_consider_time = pdr_config.getint(Constants.CONF_ISOLATION,Constants.DEISOLATE_CONSIDER_TIME)
+        self.automatic_deisolate = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.AUTOMATIC_DEISOLATE)
+        self.dynamic_wait_time = pdr_config.getint(Constants.CONF_ISOLATION,"DYNAMIC_WAIT_TIME")
+        self.temp_check = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.CONFIGURED_TEMP_CHECK)
+        self.link_down_isolation = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.LINK_DOWN_ISOLATION)
+        self.switch_hca_isolation = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.SWITCH_TO_HOST_ISOLATION)
         self.test_mode = pdr_config.getboolean(Constants.CONF_COMMON,Constants.TEST_MODE, fallback=False)
-        self.dynamic_unresponsive_limit = pdr_config.getint(Constants.CONF_COMMON,Constants.DYNAMIC_UNRESPONSIVE_LIMIT, fallback=3)
+        self.dynamic_unresponsive_limit = pdr_config.getint(Constants.CONF_ISOLATION,Constants.DYNAMIC_UNRESPONSIVE_LIMIT, fallback=3)
         # Take from Conf
         self.logger = logger
         self.ber_intervals = Constants.BER_THRESHOLDS_INTERVALS if not self.test_mode else [[0.5 * 60, 3]]
@@ -116,7 +195,7 @@ class IsolationMgr:
         self.min_ber_wait_time = min(intervals)
         self.max_ber_wait_time = max(intervals)
         self.max_ber_threshold = max([x[1] for x in self.ber_intervals])
-        
+
         self.start_time = time.time()
         self.max_time = self.start_time
         self.ber_tele_data = pd.DataFrame(columns=[Constants.TIMESTAMP, Constants.SYMBOL_BER, Constants.PORT_NAME])
@@ -141,16 +220,34 @@ class IsolationMgr:
             "plugin_env_CLX_EXPORT_API_ENABLE_DOWN_PHY": "1",
             "arg_11": "",
         }
-                        
+
     def calc_max_ber_wait_time(self, min_threshold):
-        # min speed EDR = 32 Gb/s
-        min_speed, min_width = 32 * 1024 * 1024 * 1024, 1
-        min_port_rate = min_speed * min_width
-        min_bits = float(format(float(min_threshold), '.0e').replace('-', ''))
-        min_sec_to_wait = min_bits / min_port_rate
-        return min_sec_to_wait
+            """
+            Calculates the maximum wait time for Bit Error Rate (BER) based on the given minimum threshold.
+
+            Args:
+                min_threshold (float): The minimum threshold for BER.
+
+            Returns:
+                float: The maximum wait time in seconds.
+            """
+            # min speed EDR = 32 Gb/s
+            min_speed, min_width = 32 * 1024 * 1024 * 1024, 1
+            min_port_rate = min_speed * min_width
+            min_bits = float(format(float(min_threshold), '.0e').replace('-', ''))
+            min_sec_to_wait = min_bits / min_port_rate
+            return min_sec_to_wait
 
     def is_out_of_operating_conf(self, port_name):
+        """
+        Checks if a port is out of operating configuration based on its temperature.
+
+        Args:
+            port_name (str): The name of the port to check.
+
+        Returns:
+            bool: True if the port is out of operating configuration, False otherwise.
+        """
         port_obj = self.ports_data.get(port_name)
         if not port_obj:
             self.logger.warning(f"Port {port_name} not found in ports data in calculation of oonoc port")
@@ -161,6 +258,16 @@ class IsolationMgr:
         return False
 
     def eval_isolation(self, port_name, cause):
+        """
+        Evaluates the isolation of a port based on the given port name and cause.
+
+        Args:
+            port_name (str): The name of the port to evaluate isolation for.
+            cause (str): The cause of the isolation.
+
+        Returns:
+            None
+        """
         self.logger.info("Evaluating isolation of port {0} with cause {1}".format(port_name, cause))
         if port_name in self.ufm_latest_isolation_state:
             self.logger.info("Port is already isolated. skipping...")
@@ -169,13 +276,14 @@ class IsolationMgr:
         if not port_obj:
             self.logger.warning("Port {0} not found in ports data".format(port_name))
             return
-        if port_obj.node_type == Constants.NODE_TYPE_COMPUTER and not self.access_isolation:
+        # TODO: check if we need to check the peer as well
+        if port_obj.node_type == Constants.NODE_TYPE_COMPUTER and not self.switch_hca_isolation:
             self.logger.info("Port {0} is a computer port. skipping...".format(port_name))
             return
         # if out of operating conditions we ignore the cause
         if self.temp_check and self.is_out_of_operating_conf(port_name):
             cause = Constants.ISSUE_OONOC
-        
+
         if not self.dry_run:
             ret = self.ufm_client.isolate_port(port_name)
             if not ret or ret.status_code != http.HTTPStatus.OK:
@@ -185,13 +293,22 @@ class IsolationMgr:
         if not port_state:
             self.ports_states[port_name] = PortState(port_name)
         self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
-            
+
         log_message = f"Isolated port: {port_name} cause: {cause}. dry_run: {self.dry_run}"
         self.logger.warning(log_message)
         self.ufm_client.send_event(log_message, event_id=Constants.EXTERNAL_EVENT_ALERT, external_event_name="Isolating Port")
 
 
     def eval_deisolate(self, port_name):
+        """
+        Evaluates the deisolation of a port.
+
+        Args:
+            port_name (str): The name of the port to evaluate.
+
+        Returns:
+            None
+        """
         self.logger.info("Evaluating deisolation of port {0}".format(port_name))
         if not port_name in self.ufm_latest_isolation_state and not self.dry_run:
             if self.ports_states.get(port_name):
@@ -203,7 +320,7 @@ class IsolationMgr:
             self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
             return
         # we need some time after the change in state
-        elif datetime.now() >= self.ports_states[port_name].get_change_time() + timedelta(minutes=self.deisolate_consider_time):
+        elif datetime.now() >= self.ports_states[port_name].get_change_time() + timedelta(seconds=self.deisolate_consider_time):
             port_obj = self.ports_data.get(port_name)
             port_state = self.ports_states.get(port_name)
             if port_state.cause == Constants.ISSUE_BER:
@@ -212,11 +329,11 @@ class IsolationMgr:
                 if symbol_ber_rate and symbol_ber_rate > self.max_ber_threshold:
                     cause = Constants.ISSUE_BER
                     self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
-                    return                
+                    return
         else:
             # too close to state change
             return
-        
+
         # port is clean now - de-isolate it
         # using UFM "mark as healthy" API - PUT /ufmRestV2/app/unhealthy_ports 
             # {
@@ -234,7 +351,7 @@ class IsolationMgr:
         log_message = f"Deisolated port: {port_name}. dry_run: {self.dry_run}"
         self.logger.warning(log_message)
         self.ufm_client.send_event(log_message, event_id=Constants.EXTERNAL_EVENT_NOTICE, external_event_name="Deisolating Port")
-                
+
     def get_rate_and_update(self, port_obj, counter_name, new_val, timestamp):
         """
         Calculate the rate of the counter and update the counters_values dictionary with the new value
@@ -251,7 +368,7 @@ class IsolationMgr:
         port_obj.counters_values[counter_name + "_rate"] = counter_delta
         port_obj.counters_values[Constants.LAST_TIMESTAMP] = timestamp
         return counter_delta
-   
+
     def check_link_down_condition(self, port_obj, ports_counters):
         """
         Check if the peer port link downed was raised and return an issue
@@ -278,7 +395,7 @@ class IsolationMgr:
         if peer_link_downed_rate > 0:
             return Issue(port_obj.port_name, Constants.ISSUE_LINK_DOWN)
         return None
-    
+
     def calc_error_rate(self, port_obj, row, timestamp):
         """
         Calculate the error rate of the port and update the counters_values
@@ -299,7 +416,7 @@ class IsolationMgr:
         if rcv_pkt_rate and error_rate / rcv_pkt_rate > self.max_pdr:
             return Issue(port_obj.port_name, Constants.ISSUE_PDR)
         return None
-    
+
     def check_temp_issue(self, port_obj, row, timestamp):
         """
         Check if the port passed the temperature threshold and return an issue
@@ -321,7 +438,7 @@ class IsolationMgr:
         """
         Check if the port passed the link down threshold and return an issue
         """
-        if not self.no_down_count:
+        if not self.link_down_isolation:
             return None
         link_downed = get_counter(Constants.LNK_DOWNED_COUNTER, row)
         link_downed_rate = self.get_rate_and_update(port_obj, Constants.LNK_DOWNED_COUNTER, link_downed, timestamp)
@@ -380,7 +497,7 @@ class IsolationMgr:
                 continue
             # Converting from micro seconds to seconds.
             timestamp = row.get(Constants.TIMESTAMP) / 1000 / 1000
-            
+            #TODO add logs regarding the exact telemetry value leading to the decision
             pdr_issue = self.check_pdr_issue(port_obj, row, timestamp)
             temp_issue = self.check_temp_issue(port_obj, row, timestamp)
             link_downed_issue = self.check_link_down_issue(port_obj, row, timestamp, ports_counters)
@@ -393,7 +510,7 @@ class IsolationMgr:
             elif link_downed_issue:
                 issues[port_name] = link_downed_issue
             elif ber_issue:
-                issues[port_name] = ber_issue                        
+                issues[port_name] = ber_issue
         return issues
 
     def calc_symbol_ber_rate(self, port_name, port_speed, port_width, col_name, time_delta):
@@ -409,8 +526,8 @@ class IsolationMgr:
             if not port_obj.last_symbol_ber_val or ber_data.empty:
                 return 0
             # Calculate the adjusted time delta, rounded up to the nearest sample interval
-            adjusted_time_delta = numpy.ceil(time_delta / self.t_isolate) * self.t_isolate
-            
+            adjusted_time_delta = numpy.ceil(time_delta / self.interval) * self.interval
+
             compare_timestamp = port_obj.last_symbol_ber_timestamp - adjusted_time_delta
             # Find the sample closest to, but not less than, the calculated compare_timestamp
             comparison_df = ber_data[ber_data[Constants.TIMESTAMP] <= compare_timestamp]
@@ -424,17 +541,37 @@ class IsolationMgr:
             delta = port_obj.last_symbol_ber_val - comparison_sample[Constants.SYMBOL_BER]
             actual_speed = self.speed_types.get(port_speed, 100000)
             return delta / ((port_obj.last_symbol_ber_timestamp - comparison_df.loc[comparison_idx][Constants.TIMESTAMP]) * actual_speed * port_width * 1024 * 1024 * 1024)
-            
+
         except Exception as e:
             self.logger.error(f"Error calculating {col_name}, error: {e}")
             return 0
-    
+
     def calc_ber_rates(self, port_name, port_speed, port_width, time_delta):
+        """
+        Calculate the Bit Error Rate (BER) rates for a given port.
+
+        Args:
+            port_name (str): The name of the port.
+            port_speed (int): The speed of the port in Gbps.
+            port_width (int): The width of the port in bits.
+            time_delta (float): The time difference for calculating the BER rates.
+
+        Returns:
+            float: The symbol rate.
+
+        """
         symbol_rate = self.calc_symbol_ber_rate(port_name, port_speed, port_width, Constants.SYMBOL_BER, time_delta)
         return symbol_rate
 
     # called first time to get all the metadata of the telemetry.
     def get_ports_metadata(self):
+        """
+        Retrieves the metadata for all ports.
+
+        Returns:
+            None: If test mode is enabled.
+            dict: A dictionary containing the metadata for each port.
+        """
         if self.test_mode:
             # we need to skip this check and put the data on the telemetry side.
             return
@@ -445,8 +582,18 @@ class IsolationMgr:
                 if not self.ports_data.get(port_name):
                     self.ports_data[port_name] = PortData(port_name)
                 self.update_port_metadata(port_name, port)
-        
+
     def update_port_metadata(self, port_name, port):
+        """
+        Update the metadata of a port.
+
+        Args:
+            port_name (str): The name of the port.
+            port (dict): The port information.
+
+        Returns:
+            None
+        """
         port_obj = self.ports_data[port_name]
         port_obj.active_speed = port.get(Constants.ACTIVE_SPEED)
         port_obj.port_guid = port.get(Constants.SYSTEM_ID)
@@ -460,11 +607,17 @@ class IsolationMgr:
             port_obj.node_type = Constants.NODE_TYPE_OTHER
         port_width = port.get(Constants.WIDTH)
         if port_width:
-            port_width = int(port_width.strip('x'))    
+            port_width = int(port_width.strip('x'))
         port_obj.port_width = port_width
 
 
     def update_ports_data(self):
+        """
+        Updates the ports data by retrieving metadata from the UFM client.
+        
+        Returns:
+            bool: True if ports data is updated, False otherwise.
+        """
         if self.test_mode:
             return False
         meta_data = self.ufm_client.get_ports_metadata()
@@ -479,9 +632,21 @@ class IsolationMgr:
         return ports_updated
 
     def get_port_metadata(self, port_name):
+        """
+        Retrieves the metadata for a given port.
+
+        Args:
+            port_name (str): The name of the port.
+
+        Returns:
+            tuple: A tuple containing the port speed and width.
+
+        Raises:
+            None
+        """
         if self.test_mode:
             # all the switches have the same data for the testing
-            return "NDR",4
+            return "NDR", 4
         meta_data = self.ufm_client.get_port_metadata(port_name)
         if meta_data and len(meta_data) > 0:
             port_data = meta_data[0]
@@ -493,12 +658,29 @@ class IsolationMgr:
 
 
     def set_ports_as_treated(self, ports_dict):
+        """
+        Sets the state of the specified ports as treated.
+
+        Args:
+            ports_dict (dict): A dictionary containing the ports and their desired state.
+
+        Returns:
+            None
+        """
         for port, state in ports_dict.items():
             port_state = self.ports_states.get(port)
             if port_state and state == Constants.STATE_TREATED:
                 port_state.state = state
     
     def get_isolation_state(self):
+        """
+        Retrieves the isolation state of the ports.
+
+        Returns:
+            None: If the test mode is enabled.
+            List[str]: A list of isolated ports if available.
+        """
+        
         if self.test_mode:
             # I don't want to get to the isolated ports because we simulating everything..
             return
@@ -514,9 +696,15 @@ class IsolationMgr:
                 self.ports_states[port] = port_state
 
     def start_telemetry_session(self):
+        """
+        Starts a telemetry session.
+
+        Returns:
+            str: The port number if the dynamic session is started successfully, False otherwise.
+        """
         self.logger.info("Starting telemetry session")
         guids = self.get_requested_guids()
-        response = self.ufm_client.start_dynamic_session(Constants.PDR_DYNAMIC_NAME, self.telemetry_counters, self.t_isolate, guids, self.dynamic_extra_configuration)
+        response = self.ufm_client.start_dynamic_session(Constants.PDR_DYNAMIC_NAME, self.telemetry_counters, self.interval, guids, self.dynamic_extra_configuration)
         if response and response.status_code == http.HTTPStatus.ACCEPTED:
             port = str(int(response.content))
         else:
@@ -525,12 +713,24 @@ class IsolationMgr:
         return port
 
     def update_telemetry_session(self):
+        """
+        Updates the telemetry session by requesting and updating the dynamic session with the specified interval and guids.
+
+        Returns:
+            The response from the UFM client after updating the dynamic session.
+        """
         self.logger.info("Updating telemetry session")
         guids = self.get_requested_guids()
-        response = self.ufm_client.update_dynamic_session(Constants.PDR_DYNAMIC_NAME, self.t_isolate, guids)
+        response = self.ufm_client.update_dynamic_session(Constants.PDR_DYNAMIC_NAME, self.interval, guids)
         return response
 
     def get_requested_guids(self):
+        """
+        Get the requested GUIDs and their corresponding ports.
+
+        Returns:
+            list: A list of dictionaries, where each dictionary contains the GUID and its associated ports.
+        """
         guids = {}
         for port in self.ports_data.values():
             sys_guid = port.port_guid
@@ -543,8 +743,21 @@ class IsolationMgr:
 
     # this function create dynamic telemetry and returns the port of this telemetry
     def run_telemetry_get_port(self):
-        # if we are on test_mode, there is no dynamic telemetry and it will auto go to http://127.0.0.1:9090/csv/xcset/simulated_telemetry (the port is 9090)
-        if self.test_mode: return Constants.TEST_MODE_PORT
+        """
+        Runs the telemetry and returns the endpoint port.
+
+        If the test mode is enabled, it returns the test mode port.
+        Otherwise, it waits for the dynamic session to start, starts the telemetry session,
+        and retrieves the endpoint port.
+
+        Returns:
+            int: The endpoint port for the telemetry.
+
+        Raises:
+            Exception: If an error occurs during the process.
+        """
+        if self.test_mode:
+            return Constants.TEST_MODE_PORT
         try:
             while not self.ufm_client.running_dynamic_session(Constants.PDR_DYNAMIC_NAME):
                 self.logger.info("Waiting for dynamic session to start")
@@ -567,9 +780,23 @@ class IsolationMgr:
         return endpoint_port
 
     def main_flow(self):
-        # sync to the telemetry clock by blocking read
+        """
+        Executes the main flow of the Isolation Manager.
+
+        This method synchronizes with the telemetry clock, retrieves ports metadata,
+        starts the telemetry session, and continuously retrieves telemetry data to
+        determine the states of the ports. It handles dynamic telemetry unresponsiveness,
+        skips isolation if too many ports are detected as unhealthy, and evaluates
+        isolation and deisolation for reported issues and ports with specific causes.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
         self.logger.info("Isolation Manager initialized, starting isolation loop")
-        self.get_ports_metadata()    
+        self.get_ports_metadata()
         self.logger.info("Retrieved ports metadata")
         endpoint_port = self.run_telemetry_get_port()
         self.logger.info("telemetry session started")
@@ -621,7 +848,7 @@ class IsolationMgr:
                 traceback_err = traceback.format_exc()
                 self.logger.warning(traceback_err)
                 t_end = time.time()      
-            time.sleep(max(1, self.t_isolate - (t_end - t_begin)))
+            time.sleep(max(1, self.interval - (t_end - t_begin)))
 
 # this is a callback for API exposed by this code - second phase
 # def work_reportingd(port):

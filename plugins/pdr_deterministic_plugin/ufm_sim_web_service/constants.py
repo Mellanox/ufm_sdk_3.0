@@ -14,14 +14,18 @@ import logging
 
 class PDRConstants(object):
 
-    CONF_FILE = "/config/pdr_deterministic.conf"   
+    CONF_FILE = "/config/pdr_deterministic.conf"
     LOG_FILE = '/log/pdr_deterministic_plugin.log'
     log_level = logging.INFO
     log_file_backup_count = 5
     log_file_max_size = 100 * 100 * 1024
-    
+
     CONF_COMMON = "Common"
-    T_ISOLATE = "T_ISOLATE"
+    CONF_LOGGING = "Logging"
+    CONF_SAMPLING = "Sampling"
+    CONF_ISOLATION = "Isolation"
+    CONF_METRICS = "Metrics"
+    INTERVAL = "INTERVAL"
     MAX_NUM_ISOLATE = "MAX_NUM_ISOLATE"
     TMAX = "TMAX"
     D_TMAX = "D_TMAX"
@@ -35,12 +39,12 @@ class PDRConstants(object):
     TIMESTAMP = "timestamp"
     LAST_TIMESTAMP = "last_timestamp"
     CONFIGURED_TEMP_CHECK = "CONFIGURED_TEMP_CHECK"
-    NO_DOWN_COUNT = "NO_DOWN_COUNT"
-    ACCESS_ISOLATION = "ACCESS_ISOLATION"
+    LINK_DOWN_ISOLATION = "LINK_DOWN_ISOLATION"
+    SWITCH_TO_HOST_ISOLATION = "SWITCH_TO_HOST_ISOLATION"
     TEST_MODE = "TEST_MODE"
     TEST_MODE_PORT = 9090
     DYNAMIC_UNRESPONSIVE_LIMIT = "DYNAMIC_UNRESPONSIVE_LIMIT"
-    
+
     GET_SESSION_DATA_REST = "/monitoring/session/0/data"
     POST_EVENT_REST = "/app/events/external_event"
     ISOLATION_REST = "/app/unhealthy_ports"
@@ -55,12 +59,12 @@ class PDRConstants(object):
     EXTERNAL_EVENT_ERROR = 554
     EXTERNAL_EVENT_ALERT = 553
     EXTERNAL_EVENT_NOTICE = 552
-    
+
     POST_METHOD = "POST"
     PUT_METHOD = "PUT"
     GET_METHOD = "GET"
     DELETE_METHOD = "DELETE"
-    
+
     CONF_INTERNAL_PORT= "ufm_internal_port"
     UFM_HTTP_PORT = 8000
     CONF_USERNAME = 'admin'
@@ -72,13 +76,13 @@ class PDRConstants(object):
     RCV_ERRORS_COUNTER = "PortRcvErrorsExtended"
     RCV_REMOTE_PHY_ERROR_COUNTER = "PortRcvRemotePhysicalErrorsExtended"
     LNK_DOWNED_COUNTER = "LinkDownedCounterExtended"
-    
+
     PHY_RAW_ERROR_LANE0 = "phy_raw_errors_lane0"
     PHY_RAW_ERROR_LANE1 = "phy_raw_errors_lane1"
     PHY_RAW_ERROR_LANE2 = "phy_raw_errors_lane2"
     PHY_RAW_ERROR_LANE3 = "phy_raw_errors_lane3"
     PHY_SYMBOL_ERROR = "phy_symbol_errors"
-    
+
     SYMBOL_BER = "symbol_ber"
     ACTIVE_SPEED = "active_speed"
     WIDTH = "active_width"
