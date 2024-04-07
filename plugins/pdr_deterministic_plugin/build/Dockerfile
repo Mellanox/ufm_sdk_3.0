@@ -23,6 +23,9 @@ RUN apt-get update && apt-get -y install supervisor python3 python3-pip rsyslog 
 
 RUN python3 -m pip install flask flask_restful requests twisted jsonschema pandas numpy
 
+# remove an unused library that caused a high CVE vulnerability issue https://redmine.mellanox.com/issues/3837452
+RUN apt-get remove -y linux-libc-dev
+
 COPY ufm_sim_web_service/ ${BASE_PATH}/ufm_sim_web_service/
 
 COPY config/supervisord.conf /etc/supervisor/conf.d/
