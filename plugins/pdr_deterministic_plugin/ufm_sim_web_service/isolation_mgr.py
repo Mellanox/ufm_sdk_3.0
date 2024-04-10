@@ -35,7 +35,7 @@ class PortData(object):
         self.peer = peer
         self.port_name = port_name
         self.port_num = None
-        self.last_timestamp = 0
+        self.last_timestamp = 0.0 # seconds as float
         self.active_speed = active_speed
         self.port_width = port_width
         self.port_guid = None
@@ -239,7 +239,7 @@ class IsolationMgr:
         """
         Calculate the rate of the counter and update the counters_values dictionary with the new value
         """
-        if timestamp - port_obj.last_timestamp < 1:
+        if timestamp - port_obj.last_timestamp < 0.001: # 1 millisecond
             port_obj.counters_values[counter_name] = new_val
             return port_obj.counters_values.get(counter_name + "_rate", 0)
         old_val = port_obj.counters_values.get(counter_name)
@@ -259,11 +259,15 @@ class IsolationMgr:
         if not port_obj.peer or port_obj.peer == 'N/A':
             return None
         peer_guid, peer_num = port_obj.peer.split('_')
+        # Fix peer guid format for future search
+        if ports_counters['port_guid'].iloc[0].startswith('0x') and not peer_guid.startswith('0x'):
+            peer_guid = f'0x{peer_guid}'
         #TODO check for a way to save peer row in data structure for performance
-        peer_row = ports_counters.loc[(ports_counters['port_guid'] == peer_guid) & (ports_counters['port_num'] == int(peer_num))].iloc[0]
-        if peer_row.empty:
-            self.logger.warning("Peer port {0} not found in ports data".format(port_obj.peer))
+        peer_row_list = ports_counters.loc[(ports_counters['port_guid'] == peer_guid) & (ports_counters['port_num'] == int(peer_num))]
+        if peer_row_list.empty:
+            self.logger.warning(f"Peer port {port_obj.peer} not found in ports data")
             return None
+        peer_row = peer_row_list.iloc[0]
         peer_row_timestamp = peer_row.get(Constants.TIMESTAMP)
         peer_link_downed = get_counter(Constants.LNK_DOWNED_COUNTER, peer_row)
         peer_obj = self.ports_data.get(port_obj.peer)
@@ -378,8 +382,8 @@ class IsolationMgr:
                     continue
                 self.logger.warning("Port {0} not found in ports data".format(port_name))
                 continue
-            # Converting from micro seconds to seconds.
-            timestamp = row.get(Constants.TIMESTAMP) / 1000 / 1000
+            # Converting from micro seconds to seconds as float
+            timestamp = row.get(Constants.TIMESTAMP) / 1000.0 / 1000.0
             
             pdr_issue = self.check_pdr_issue(port_obj, row, timestamp)
             temp_issue = self.check_temp_issue(port_obj, row, timestamp)
