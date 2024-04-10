@@ -17,6 +17,7 @@ import configparser
 import pandas as pd
 import json
 import http
+import math
 import numpy
 
 from constants import PDRConstants as Constants
@@ -244,13 +245,16 @@ class IsolationMgr:
         Calculate the rate of the counter
         """
         counter_delta = 0
-        if timestamp - port_obj.last_timestamp < 0.001: # 1 millisecond
+        if math.isclose(timestamp, port_obj.last_timestamp):
             # Return last saved value
             counter_delta = port_obj.counters_values.get(counter_name + "_rate", 0)
         else:
             old_val = port_obj.counters_values.get(counter_name)
             if old_val and new_val > old_val:
                 counter_delta = (new_val - old_val) / (timestamp - port_obj.last_timestamp)
+
+        if math.isclose(0, counter_delta):
+            counter_delta = 0
 
         return counter_delta
 
