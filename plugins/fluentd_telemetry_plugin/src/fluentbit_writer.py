@@ -80,19 +80,9 @@ class FluentBitCWriter(object):
         self.lib = None
         self.lib_path = None
 
-        default_plugin_host_port = 'forward:localhost:24224'
-        plugin_host_port = context.get('plugin_host_port', default_plugin_host_port)
-
-        plugin_host_port_parts = plugin_host_port.split(":")
-        if len(plugin_host_port_parts) != 3:
-            Logger.log_message("Failed to parse argument '%s'." % plugin_host_port, LOG_LEVELS.WARNING)
-            plugin_host_port = default_plugin_host_port
-            Logger.log_message("Fallback to default configuration '%s'" % plugin_host_port, LOG_LEVELS.WARNING)
-            plugin_host_port_parts = plugin_host_port.split(":")
-
-        self.plugin_name = plugin_host_port_parts[0]
-        self.host = plugin_host_port_parts[1]
-        self.port = plugin_host_port_parts[2]
+        self.plugin_name = context.get('plugin_name', 'forward')
+        self.host = context.get('plugin_host', 'localhost') # could be IPv4, IPv6 or Hostname
+        self.port = context.get('plugin_port', '24224')
 
         self.lib = context.get('so_lib')
         self.tag_prefix = context.get('tag_prefix', '')
@@ -181,9 +171,12 @@ def init_fb_writer(host, port, tag_prefix, timeout=120, use_c=True):
     if use_c:
         [lib, lib_path] = load_api_lib_from_path(LIB_RAW_MSGPACK_API_SO_PATH)
         ctx = {
-            'plugin_host_port': f'forward:{host}:{port}',
+            # 'plugin_host_port': f'forward:{host}:{port}',
             # 'plugin_host_port': 'stdout_raw:10.209.36.68:24226', # for testing
             # 'plugin_host_port': 'stdout:10.209.36.68:24226', # for testing
+            'plugin_name': 'forward',
+            'plugin_host': host,
+            'plugin_port': str(port),
             'msgpack_data_layout': 'standard',
             'so_lib': lib,
             'tag_prefix': tag_prefix
@@ -202,6 +195,8 @@ if __name__ == '__main__':
     # Example on how to set & use the FB writer
     _use_c = True
     _host = '10.209.36.67'
+    # _host = 'r-ufm254-hyp-03'
+    # _host = 'fcfc:fcfc:209:36:219:b9ff:fe0a:ed14'
     _port = '24224'
     _tag = 'UFM_Telemetry_Streaming'
     # record = Utils.read_json_from_file('../tests/message_samples/small_telemetry.json')
