@@ -503,9 +503,11 @@ class UFMTelemetryStreaming(Singleton):
             }
 
             if self.compressed_streaming_flag:
+                _fluentd_host = self.fluentd_host
+                _fluentd_host = f'[{_fluentd_host}]' if Utils.is_ipv6_address(_fluentd_host) else _fluentd_host
                 compressed = gzip.compress(json.dumps(fluentd_message).encode('utf-8'))
                 res = requests.post(
-                    url=f'http://{self.fluentd_host}:{self.fluentd_port}/'
+                    url=f'http://{_fluentd_host}:{self.fluentd_port}/'
                         f'{UFMTelemetryConstants.PLUGIN_NAME}.{fluentd_msg_tag}',
                     data=compressed,
                     headers={"Content-Encoding": "gzip", "Content-Type": "application/json"})
