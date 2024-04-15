@@ -53,7 +53,7 @@ def parse_config():
     :return:
     """
     defaults = {Constants.CONF_INTERNAL_PORT: Constants.UFM_HTTP_PORT,
-                Constants.T_ISOLATE: 300,
+                Constants.INTERVAL: 300,
                 Constants.MAX_NUM_ISOLATE: 10,
                 Constants.D_TMAX: 10,
                 Constants.MAX_PDR: 1e-12,
@@ -67,9 +67,9 @@ def parse_config():
 
     if os.path.exists(Constants.CONF_FILE):
         pdr_config.read(Constants.CONF_FILE)
-        Constants.log_level = pdr_config.get(Constants.CONF_COMMON,"log_level")
-        Constants.log_file_max_size = pdr_config.getint(Constants.CONF_COMMON,"log_file_max_size")
-        Constants.log_file_backup_count = pdr_config.getint(Constants.CONF_COMMON,"log_file_backup_count")
+        Constants.log_level = pdr_config.get(Constants.CONF_LOGGING,"log_level")
+        Constants.log_file_max_size = pdr_config.getint(Constants.CONF_LOGGING,"log_file_max_size")
+        Constants.log_file_backup_count = pdr_config.getint(Constants.CONF_LOGGING,"log_file_backup_count")
     return pdr_config
 
 def run_api(app):
@@ -80,7 +80,7 @@ def run_api(app):
 
 def main():
     config_parser = parse_config()
-    ufm_port = config_parser.getint(Constants.CONF_COMMON, Constants.CONF_INTERNAL_PORT)
+    ufm_port = config_parser.getint(Constants.CONF_LOGGING, Constants.CONF_INTERNAL_PORT)
     ufm_client = UFMCommunicator("127.0.0.1", ufm_port)
     logger = create_logger(Constants.LOG_FILE)
     
