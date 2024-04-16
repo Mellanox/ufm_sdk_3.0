@@ -16,6 +16,8 @@ import time
 import http
 import configparser
 import pandas as pd
+import json
+import math
 import numpy
 
 from constants import PDRConstants as Constants
@@ -49,7 +51,7 @@ class PortData(object):
         self.peer = peer
         self.port_name = port_name
         self.port_num = port_num
-        self.last_timestamp = 0
+        self.last_timestamp = 0.0 # seconds as float
         self.active_speed = active_speed
         self.port_width = port_width
         self.port_guid = port_guid
@@ -154,6 +156,10 @@ def get_counter(counter_name, row, default=0):
     except Exception as e:
         return default
     return val
+
+def get_timestamp_seconds(row):
+    # Converting from micro seconds to seconds as float
+    return row.get(Constants.TIMESTAMP) / 1000.0 / 1000.0
 
 class IsolationMgr:
     '''
@@ -351,19 +357,32 @@ class IsolationMgr:
         log_message = f"Deisolated port: {port_name}. dry_run: {self.dry_run}"
         self.logger.warning(log_message)
         self.ufm_client.send_event(log_message, event_id=Constants.EXTERNAL_EVENT_NOTICE, external_event_name="Deisolating Port")
+    
+    def get_rate(self, port_obj, counter_name, new_val, timestamp):
+        """
+        Calculate the rate of the counter
+        """
+        counter_delta = 0
+        if math.isclose(timestamp, port_obj.last_timestamp):
+            # Return last saved value
+            counter_delta = port_obj.counters_values.get(counter_name + "_rate", 0)
+        else:
+            old_val = port_obj.counters_values.get(counter_name)
+            if old_val and new_val > old_val:
+                counter_delta = (new_val - old_val) / (timestamp - port_obj.last_timestamp)
+
+        if math.isclose(0, counter_delta):
+            counter_delta = 0
+
+        return counter_delta
 
     def get_rate_and_update(self, port_obj, counter_name, new_val, timestamp):
         """
         Calculate the rate of the counter and update the counters_values dictionary with the new value
         """
-        if timestamp - port_obj.last_timestamp < 1:
-            port_obj.counters_values[counter_name] = new_val
-            return port_obj.counters_values.get(counter_name + "_rate", 0)
-        old_val = port_obj.counters_values.get(counter_name)
-        if old_val and new_val > old_val:
-            counter_delta = (new_val - old_val) / (timestamp - port_obj.last_timestamp)
-        else:
-            counter_delta = 0
+        # Calculate the rate
+        counter_delta = self.get_rate(port_obj, counter_name, new_val, timestamp)
+        # Update counters_values
         port_obj.counters_values[counter_name] = new_val
         port_obj.counters_values[counter_name + "_rate"] = counter_delta
         port_obj.counters_values[Constants.LAST_TIMESTAMP] = timestamp
@@ -376,12 +395,16 @@ class IsolationMgr:
         if not port_obj.peer or port_obj.peer == 'N/A':
             return None
         peer_guid, peer_num = port_obj.peer.split('_')
+        # Fix peer guid format for future search
+        if ports_counters['port_guid'].iloc[0].startswith('0x') and not peer_guid.startswith('0x'):
+            peer_guid = f'0x{peer_guid}'
         #TODO check for a way to save peer row in data structure for performance
-        peer_row = ports_counters.loc[(ports_counters['port_guid'] == peer_guid) & (ports_counters['port_num'] == int(peer_num))].iloc[0]
-        if peer_row.empty:
-            self.logger.warning("Peer port {0} not found in ports data".format(port_obj.peer))
+        peer_row_list = ports_counters.loc[(ports_counters['port_guid'] == peer_guid) & (ports_counters['port_num'] == int(peer_num))]
+        if peer_row_list.empty:
+            self.logger.warning(f"Peer port {port_obj.peer} not found in ports data")
             return None
-        peer_row_timestamp = peer_row.get(Constants.TIMESTAMP)
+        peer_row = peer_row_list.iloc[0]
+        peer_row_timestamp = get_timestamp_seconds(peer_row)
         peer_link_downed = get_counter(Constants.LNK_DOWNED_COUNTER, peer_row)
         peer_obj = self.ports_data.get(port_obj.peer)
         if self.test_mode:
@@ -391,7 +414,7 @@ class IsolationMgr:
             peer_obj.counters_values[Constants.LNK_DOWNED_COUNTER] = peer_link_downed - 1
         if not peer_obj:
             return None
-        peer_link_downed_rate = self.get_rate_and_update(peer_obj, Constants.LNK_DOWNED_COUNTER, peer_link_downed, peer_row_timestamp)
+        peer_link_downed_rate = self.get_rate(peer_obj, Constants.LNK_DOWNED_COUNTER, peer_link_downed, peer_row_timestamp)
         if peer_link_downed_rate > 0:
             return Issue(port_obj.port_name, Constants.ISSUE_LINK_DOWN)
         return None
@@ -496,7 +519,7 @@ class IsolationMgr:
                 self.logger.warning("Port {0} not found in ports data".format(port_name))
                 continue
             # Converting from micro seconds to seconds.
-            timestamp = row.get(Constants.TIMESTAMP) / 1000 / 1000
+            timestamp = get_timestamp_seconds(row)
             #TODO add logs regarding the exact telemetry value leading to the decision
             pdr_issue = self.check_pdr_issue(port_obj, row, timestamp)
             temp_issue = self.check_temp_issue(port_obj, row, timestamp)
