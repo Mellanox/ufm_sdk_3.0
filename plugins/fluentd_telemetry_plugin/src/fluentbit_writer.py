@@ -172,8 +172,8 @@ def init_fb_writer(host, port, tag_prefix, timeout=120, use_c=True):
         [lib, lib_path] = load_api_lib_from_path(LIB_RAW_MSGPACK_API_SO_PATH)
         ctx = {
             # 'plugin_host_port': f'forward:{host}:{port}',
-            # 'plugin_host_port': 'stdout_raw:10.209.36.68:24226', # for testing
-            # 'plugin_host_port': 'stdout:10.209.36.68:24226', # for testing
+            # 'plugin_host_port': 'stdout_raw:127.0.0.1:24226', # for testing
+            # 'plugin_host_port': 'stdout:127.0.0.1:24226', # for testing
             'plugin_name': 'forward',
             'plugin_host': host,
             'plugin_port': str(port),
@@ -194,9 +194,9 @@ def init_fb_writer(host, port, tag_prefix, timeout=120, use_c=True):
 if __name__ == '__main__':
     # Example on how to set & use the FB writer
     _use_c = True
-    _host = '10.209.36.67'
-    # _host = 'r-ufm254-hyp-03'
-    # _host = 'fcfc:fcfc:209:36:219:b9ff:fe0a:ed14'
+    _host = '127.0.0.1'
+    # _host = 'localhost'
+    # _host = '0:0:0:0:0:0:0:0'
     _port = '24224'
     _tag = 'UFM_Telemetry_Streaming'
     # record = Utils.read_json_from_file('../tests/message_samples/small_telemetry.json')
