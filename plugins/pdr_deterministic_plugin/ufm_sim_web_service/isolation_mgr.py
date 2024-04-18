@@ -158,7 +158,9 @@ def get_counter(counter_name, row, default=0):
     return val
 
 def get_timestamp_seconds(row):
-    # Converting from micro seconds to seconds as float
+    '''
+    Converting from micro seconds to seconds as float
+    '''
     return row.get(Constants.TIMESTAMP) / 1000.0 / 1000.0
 
 class IsolationMgr:
@@ -448,13 +450,21 @@ class IsolationMgr:
             return None
         cable_temp = get_counter(Constants.TEMP_COUNTER, row, default=None)
         if cable_temp is not None and not pd.isna(cable_temp):
-            if cable_temp in ["NA", "N/A", "", "0C"]:
+            if cable_temp in ["NA", "N/A", "", "0C", "0"]:
                 return None
-            cable_temp = int(cable_temp.split("C")[0]) if type(cable_temp) == str else cable_temp
-            dT = abs(port_obj.counters_values.get(Constants.TEMP_COUNTER, cable_temp) - cable_temp)
+            # Get new and saved temperature values
+            cable_temp = int(cable_temp.split("C")[0]) if isinstance(cable_temp, str) else cable_temp
+            old_cable_temp = port_obj.counters_values.get(Constants.TEMP_COUNTER);
+            # Save new temperature value
             port_obj.counters_values[Constants.TEMP_COUNTER] = cable_temp
-            if cable_temp and (cable_temp > self.tmax or dT > self.d_tmax):
+            # Check temperature condition
+            if cable_temp > self.tmax:
                 return Issue(port_obj.port_name, Constants.ISSUE_OONOC)
+            # Check temperature delta condition
+            if old_cable_temp is not None and old_cable_temp != 0:
+                delta_temp = abs(old_cable_temp - cable_temp)
+                if delta_temp > self.d_tmax:
+                    return Issue(port_obj.port_name, Constants.ISSUE_OONOC)
         return None
 
     def check_link_down_issue(self, port_obj, row, timestamp, ports_counters):
