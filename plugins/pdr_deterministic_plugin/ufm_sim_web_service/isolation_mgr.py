@@ -458,15 +458,15 @@ class IsolationMgr:
             # Save new temperature value
             port_obj.counters_values[Constants.TEMP_COUNTER] = cable_temp
             # Check temperature condition
-            if cable_temp > self.tmax:
-                self.logger.info(f"Isolation issue ({Constants.ISSUE_OONOC}) triggered for port {port_obj.port_name}: "
+            if cable_temp and (cable_temp > self.tmax):
+                self.logger.info(f"Isolation issue ({Constants.ISSUE_OONOC}) detected for port {port_obj.port_name}: "
                                  f"cable temperature ({cable_temp}) is higher than TMAX ({self.tmax})")
                 return Issue(port_obj.port_name, Constants.ISSUE_OONOC)
             # Check temperature delta condition
             if old_cable_temp is not None and old_cable_temp != 0:
                 delta_temp = abs(old_cable_temp - cable_temp)
                 if delta_temp > self.d_tmax:
-                    self.logger.info(f"Isolation issue ({Constants.ISSUE_OONOC}) triggered for port {port_obj.port_name}: "
+                    self.logger.info(f"Isolation issue ({Constants.ISSUE_OONOC}) detected for port {port_obj.port_name}: "
                                      f"cable temperature changed ({old_cable_temp} -> {cable_temp}): "
                                      f"the delta ({delta_temp}) is greater than D_TMAX ({self.d_tmax})")
                     return Issue(port_obj.port_name, Constants.ISSUE_OONOC)
