@@ -486,9 +486,9 @@ class IsolationMgr:
             peer_link_downed_rate = self.get_rate(peer_obj, Constants.LNK_DOWNED_COUNTER, peer_link_downed, peer_row_timestamp)
             if peer_link_downed_rate > 0:
                 old_peer_link_downed = peer_obj.counters_values.get(Constants.LNK_DOWNED_COUNTER)
-                self.logger.info(f"Isolation issue ({Constants.ISSUE_LINK_DOWN}) triggered for port {port_obj.port_name}: "
+                self.logger.info(f"Isolation issue ({Constants.ISSUE_LINK_DOWN}) detected for port {port_obj.port_name}: "
                                  f"link down counter raised from {old_link_downed} to {link_downed} "
-                                 f"and peer ({port_obj.peer}) link down counter raised from {old_peer_link_downed} to {peer_link_downed}")
+                                 f"and its peer ({port_obj.peer}) link down counter raised from {old_peer_link_downed} to {peer_link_downed}")
                 return Issue(port_obj.port_name, Constants.ISSUE_LINK_DOWN)
         return None
 
@@ -515,6 +515,8 @@ class IsolationMgr:
             for (interval, threshold) in self.ber_intervals:
                 symbol_ber_rate = self.calc_ber_rates(port_obj.port_name, port_obj.active_speed, port_obj.port_width, interval)
                 if symbol_ber_rate and symbol_ber_rate > threshold:
+                    self.logger.info(f"Isolation issue ({Constants.ISSUE_BER}) detected for port {port_obj.port_name} (speed: {port_obj.active_speed}, width: {port_obj.port_width}): "
+                                     f"symbol ber rate ({symbol_ber_rate}) is higher than threshold ({threshold})")
                     return Issue(port_obj.port_name, Constants.ISSUE_BER)
         return None
 
