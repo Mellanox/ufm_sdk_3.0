@@ -426,6 +426,9 @@ class IsolationMgr:
         rcv_pkt_rate = self.get_rate_and_update(port_obj, Constants.RCV_PACKETS_COUNTER, rcv_pkts, timestamp)
         error_rate = self.calc_error_rate(port_obj, row, timestamp)
         if rcv_pkt_rate and error_rate / rcv_pkt_rate > self.max_pdr:
+            self.logger.info(f"Isolation issue ({Constants.ISSUE_PDR}) detected for port {port_obj.port_name}: "
+                             f"error rate to packet rate ratio ({error_rate / rcv_pkt_rate}) is greater than MAX_PDR ({self.max_pdr}) "
+                             f"for {rcv_pkts} of received packets")
             return Issue(port_obj.port_name, Constants.ISSUE_PDR)
         return None
 
