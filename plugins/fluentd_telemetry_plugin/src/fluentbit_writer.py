@@ -28,6 +28,9 @@ from utils.utils import Utils
 
 
 LIB_RAW_MSGPACK_API_SO_PATH = '/opt/ufm/telemetry/collectx/lib/libraw_msgpack_api.so'
+DEFAULT_FB_PLUGIN_NAME = 'forward'
+DEFAULT_FB_HOST = '127.0.0.1'
+DEFAULT_FB_PORT = '24224'
 
 
 def str2c_char_ptr(str_val):
@@ -80,9 +83,9 @@ class FluentBitCWriter(object):
         self.lib = None
         self.lib_path = None
 
-        self.plugin_name = context.get('plugin_name', 'forward')
-        self.host = context.get('plugin_host', 'localhost') # could be IPv4, IPv6 or Hostname
-        self.port = context.get('plugin_port', '24224')
+        self.plugin_name = context.get('plugin_name', DEFAULT_FB_PLUGIN_NAME)
+        self.host = context.get('plugin_host', DEFAULT_FB_HOST) # could be IPv4, IPv6 or Hostname
+        self.port = context.get('plugin_port', DEFAULT_FB_PORT)
 
         self.lib = context.get('so_lib')
         self.tag_prefix = context.get('tag_prefix', '')
@@ -171,9 +174,6 @@ def init_fb_writer(host, port, tag_prefix, timeout=120, use_c=True):
     if use_c:
         [lib, lib_path] = load_api_lib_from_path(LIB_RAW_MSGPACK_API_SO_PATH)
         ctx = {
-            # 'plugin_host_port': f'forward:{host}:{port}',
-            # 'plugin_host_port': 'stdout_raw:127.0.0.1:24226', # for testing
-            # 'plugin_host_port': 'stdout:127.0.0.1:24226', # for testing
             'plugin_name': 'forward',
             'plugin_host': host,
             'plugin_port': str(port),
@@ -194,12 +194,9 @@ def init_fb_writer(host, port, tag_prefix, timeout=120, use_c=True):
 if __name__ == '__main__':
     # Example on how to set & use the FB writer
     _use_c = True
-    _host = '127.0.0.1'
-    # _host = 'localhost'
-    # _host = '0:0:0:0:0:0:0:0'
-    _port = '24224'
+    _host = DEFAULT_FB_HOST
+    _port = DEFAULT_FB_PORT
     _tag = 'UFM_Telemetry_Streaming'
-    # record = Utils.read_json_from_file('../tests/message_samples/small_telemetry.json')
     msg_record = Utils.read_json_from_file('../tests/message_samples/small_telemetry.json')
     writer = init_fb_writer(_host, _port, _tag, use_c=_use_c)
     #####
