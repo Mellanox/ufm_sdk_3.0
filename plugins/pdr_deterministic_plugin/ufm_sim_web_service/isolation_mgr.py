@@ -474,7 +474,7 @@ class IsolationMgr:
         if link_downed_rate > 0:
             # Check if the peer port link downed was raised
             peer_row = self.find_peer_row_for_port(port_obj, ports_counters)
-            if not peer_row:
+            if peer_row is None:
                 return None
             peer_row_timestamp = get_timestamp_seconds(peer_row)
             peer_link_downed = get_counter(Constants.LNK_DOWNED_COUNTER, peer_row)
@@ -488,10 +488,9 @@ class IsolationMgr:
                 return None
             peer_link_downed_rate = self.get_rate(peer_obj, Constants.LNK_DOWNED_COUNTER, peer_link_downed, peer_row_timestamp)
             if peer_link_downed_rate > 0:
-                old_peer_link_downed = peer_obj.counters_values.get(Constants.LNK_DOWNED_COUNTER)
                 self.logger.info(f"Isolation issue ({Constants.ISSUE_LINK_DOWN}) detected for port {port_obj.port_name}: "
                                  f"link down counter raised from {old_link_downed} to {link_downed} "
-                                 f"and its peer ({port_obj.peer}) link down counter raised from {old_peer_link_downed} to {peer_link_downed}")
+                                 f"and its peer ({port_obj.peer}) link down rate is {peer_link_downed_rate}")
                 return Issue(port_obj.port_name, Constants.ISSUE_LINK_DOWN)
         return None
 
