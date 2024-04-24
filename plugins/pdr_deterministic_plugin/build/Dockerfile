@@ -31,6 +31,7 @@ COPY ufm_sim_web_service/ ${BASE_PATH}/ufm_sim_web_service/
 COPY config/supervisord.conf /etc/supervisor/conf.d/
 COPY config/init.sh config/deinit.sh /
 COPY config/pdr_deterministic.conf ${CONF_PATH}/
+COPY config/pdr_deterministic_httpd_proxy.conf ${CONF_PATH}/
 COPY config/pdr_deterministic_shared_volumes.conf ${CONF_PATH}/
 COPY scripts/init_pdr_conf.sh ${SCRIPTS_PATH}/
 COPY utils/ ${BASE_PATH}/utils/

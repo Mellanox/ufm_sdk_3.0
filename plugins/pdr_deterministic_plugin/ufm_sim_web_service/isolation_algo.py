@@ -17,10 +17,13 @@ from logging.handlers import RotatingFileHandler
 from constants import PDRConstants as Constants
 from isolation_mgr import IsolationMgr
 from ufm_communication_mgr import UFMCommunicator
-from api.port_state_api import PortsStateAPI
+from api.pdr_plugin_api import PDRPluginAPI
 from twisted.web.wsgi import WSGIResource
 from twisted.internet import reactor
 from twisted.web import server
+from utils.flask_server import run_api
+from utils.flask_server.base_flask_api_app import BaseFlaskAPIApp
+from utils.utils import Utils
 
 
 def create_logger(file):
@@ -72,12 +75,6 @@ def parse_config():
         Constants.log_file_backup_count = pdr_config.getint(Constants.CONF_LOGGING,"log_file_backup_count")
     return pdr_config
 
-def run_api(app):
-    port_number = 8982
-    resource = WSGIResource(reactor, reactor.getThreadPool(), app.application)
-    reactor.listenTCP(port_number, server.Site(resource,logPath=None))
-    reactor.run()
-
 def main():
     config_parser = parse_config()
     ufm_port = config_parser.getint(Constants.CONF_LOGGING, Constants.CONF_INTERNAL_PORT)
@@ -85,9 +82,22 @@ def main():
     logger = create_logger(Constants.LOG_FILE)
     
     algo_loop = IsolationMgr(ufm_client, logger)
-    app = PortsStateAPI(algo_loop)
     reactor.callInThread(algo_loop.main_flow)
-    run_api(app)
+
+    try:
+        plugin_port = Utils.get_plugin_port(
+            port_conf_file='/config/pdr_deterministic_httpd_proxy.conf',
+            default_port_value=8977)
+
+        routes = {
+            "": PDRPluginAPI(algo_loop).application
+        }
+
+        app = BaseFlaskAPIApp(routes)
+        run_api(app=app, port_number=int(plugin_port))
+
+    except Exception as ex:
+        print(f'Failed to run the app: {str(ex)}')
 
     
     #optional second phase

@@ -15,10 +15,11 @@ from datetime import timedelta
 import time
 import http
 import configparser
-import pandas as pd
-import json
 import math
+import json
+import pandas as pd
 import numpy
+from exclude_list import ExcludeList
 
 from constants import PDRConstants as Constants
 from ufm_communication_mgr import UFMCommunicator
@@ -33,9 +34,12 @@ class DynamicTelemetryUnresponsive(Exception):
 
 
 class PortData(object):
+    """
+    Represents the port data.
+    """
     def __init__(self, port_name=None, port_num=None, peer=None, node_type=None, active_speed=None, port_width=None, port_guid=None):
         """
-        Initializes an instance of the IsolationManager class.
+        Initialize a new instance of the PortData class.
 
         Args:
             port_name (str): The name of the port.
@@ -229,6 +233,8 @@ class IsolationMgr:
             "arg_11": ""
         }
 
+        self.exclude_list = ExcludeList(self.logger)
+
     def calc_max_ber_wait_time(self, min_threshold):
             """
             Calculates the maximum wait time for Bit Error Rate (BER) based on the given minimum threshold.
@@ -276,17 +282,21 @@ class IsolationMgr:
         Returns:
             None
         """
-        self.logger.info("Evaluating isolation of port {0} with cause {1}".format(port_name, cause))
+        if self.exclude_list.contains(port_name):
+            self.logger.info(f"Skipping isolation of port {port_name}")
+            return
+
+        self.logger.info(f"Evaluating isolation of port {port_name} with cause {cause}")
         if port_name in self.ufm_latest_isolation_state:
             self.logger.info("Port is already isolated. skipping...")
             return
         port_obj = self.ports_data.get(port_name)
         if not port_obj:
-            self.logger.warning("Port {0} not found in ports data".format(port_name))
+            self.logger.warning(f"Port {port_name} not found in ports data")
             return
         # TODO: check if we need to check the peer as well
         if port_obj.node_type == Constants.NODE_TYPE_COMPUTER and not self.switch_hca_isolation:
-            self.logger.info("Port {0} is a computer port. skipping...".format(port_name))
+            self.logger.info(f"Port {port_name} is a computer port. skipping...")
             return
         # if out of operating conditions we ignore the cause
         if self.temp_check and self.is_out_of_operating_conf(port_name):
@@ -295,7 +305,7 @@ class IsolationMgr:
         if not self.dry_run:
             ret = self.ufm_client.isolate_port(port_name)
             if not ret or ret.status_code != http.HTTPStatus.OK:
-                self.logger.warning("Failed isolating port: %s with cause: %s... status_code= %s", port_name, cause, ret.status_code)        
+                self.logger.warning("Failed isolating port: %s with cause: %s... status_code= %s", port_name, cause, ret.status_code)
                 return
         port_state = self.ports_states.get(port_name)
         if not port_state:
@@ -317,7 +327,11 @@ class IsolationMgr:
         Returns:
             None
         """
-        self.logger.info("Evaluating deisolation of port {0}".format(port_name))
+        if self.exclude_list.contains(port_name):
+            self.logger.info(f"Skipping deisolation of port {port_name}")
+            return
+
+        self.logger.info(f"Evaluating deisolation of port {port_name}")
         if not port_name in self.ufm_latest_isolation_state and not self.dry_run:
             if self.ports_states.get(port_name):
                 self.ports_states.pop(port_name)
@@ -476,6 +490,9 @@ class IsolationMgr:
             peer_row = self.find_peer_row_for_port(port_obj, ports_counters)
             if peer_row is None:
                 return None
+            if self.exclude_list.contains(port_obj.peer):
+                # The peer is excluded from analysis
+                return None
             peer_row_timestamp = get_timestamp_seconds(peer_row)
             peer_link_downed = get_counter(Constants.LNK_DOWNED_COUNTER, peer_row)
             peer_obj = self.ports_data.get(port_obj.peer)
@@ -533,6 +550,9 @@ class IsolationMgr:
             raise DynamicTelemetryUnresponsive
         for index, row in ports_counters.iterrows():
             port_name = f"{row.get('port_guid', '').split('x')[-1]}_{row.get('port_num', '')}"
+            if self.exclude_list.contains(port_name):
+                # The port is excluded from analysis
+                continue
             if self.test_mode:
                 # Adding the port data upon fetching the first telemetry data
                 if not self.ports_data.get(port_name):
@@ -852,6 +872,7 @@ class IsolationMgr:
         while(True):
             try:
                 t_begin = time.time()
+                self.exclude_list.refresh()
                 self.get_isolation_state()
                 self.logger.info("Retrieving telemetry data to determine ports' states")
                 try:
