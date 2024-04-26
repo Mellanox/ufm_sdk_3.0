@@ -391,9 +391,9 @@ class IsolationMgr:
         port_obj.counters_values[Constants.LAST_TIMESTAMP] = timestamp
         return counter_delta
 
-    def check_link_down_condition(self, port_obj, ports_counters):
+    def find_peer_row_for_port(self, port_obj, ports_counters):
         """
-        Check if the peer port link downed was raised and return an issue
+        Retrieves peer row for given port
         """
         if not port_obj.peer or port_obj.peer == 'N/A':
             return None
@@ -407,20 +407,7 @@ class IsolationMgr:
             self.logger.warning(f"Peer port {port_obj.peer} not found in ports data")
             return None
         peer_row = peer_row_list.iloc[0]
-        peer_row_timestamp = get_timestamp_seconds(peer_row)
-        peer_link_downed = get_counter(Constants.LNK_DOWNED_COUNTER, peer_row)
-        peer_obj = self.ports_data.get(port_obj.peer)
-        if self.test_mode:
-            peer_obj = port_obj
-            # because we use the port obj we need to change the peer link is down.
-            # it would have enter here only if there was a change, so the test mode is working
-            peer_obj.counters_values[Constants.LNK_DOWNED_COUNTER] = peer_link_downed - 1
-        if not peer_obj:
-            return None
-        peer_link_downed_rate = self.get_rate(peer_obj, Constants.LNK_DOWNED_COUNTER, peer_link_downed, peer_row_timestamp)
-        if peer_link_downed_rate > 0:
-            return Issue(port_obj.port_name, Constants.ISSUE_LINK_DOWN)
-        return None
+        return peer_row
 
     def calc_error_rate(self, port_obj, row, timestamp):
         """
@@ -440,6 +427,9 @@ class IsolationMgr:
         rcv_pkt_rate = self.get_rate_and_update(port_obj, Constants.RCV_PACKETS_COUNTER, rcv_pkts, timestamp)
         error_rate = self.calc_error_rate(port_obj, row, timestamp)
         if rcv_pkt_rate and error_rate / rcv_pkt_rate > self.max_pdr:
+            self.logger.info(f"Isolation issue ({Constants.ISSUE_PDR}) detected for port {port_obj.port_name}: "
+                             f"error rate to packet rate ratio ({error_rate / rcv_pkt_rate}) is greater than MAX_PDR ({self.max_pdr}) "
+                             f"for {rcv_pkts} of received packets")
             return Issue(port_obj.port_name, Constants.ISSUE_PDR)
         return None
 
@@ -479,12 +469,30 @@ class IsolationMgr:
         """
         if not self.link_down_isolation:
             return None
+        old_link_downed = port_obj.counters_values.get(Constants.LNK_DOWNED_COUNTER)
         link_downed = get_counter(Constants.LNK_DOWNED_COUNTER, row)
         link_downed_rate = self.get_rate_and_update(port_obj, Constants.LNK_DOWNED_COUNTER, link_downed, timestamp)
         if link_downed_rate > 0:
-            link_downed_issue = self.check_link_down_condition(port_obj, ports_counters)
-            if link_downed_issue:
-                return link_downed_issue
+            # Check if the peer port link downed was raised
+            peer_row = self.find_peer_row_for_port(port_obj, ports_counters)
+            if peer_row is None:
+                return None
+            peer_row_timestamp = get_timestamp_seconds(peer_row)
+            peer_link_downed = get_counter(Constants.LNK_DOWNED_COUNTER, peer_row)
+            peer_obj = self.ports_data.get(port_obj.peer)
+            if self.test_mode:
+                peer_obj = port_obj
+                # because we use the port obj we need to change the peer link is down.
+                # it would have enter here only if there was a change, so the test mode is working
+                peer_obj.counters_values[Constants.LNK_DOWNED_COUNTER] = peer_link_downed - 1
+            if not peer_obj:
+                return None
+            peer_link_downed_rate = self.get_rate(peer_obj, Constants.LNK_DOWNED_COUNTER, peer_link_downed, peer_row_timestamp)
+            if peer_link_downed_rate > 0:
+                self.logger.info(f"Isolation issue ({Constants.ISSUE_LINK_DOWN}) detected for port {port_obj.port_name}: "
+                                 f"link down counter raised from {old_link_downed} to {link_downed} "
+                                 f"and its peer ({port_obj.peer}) link down rate is {peer_link_downed_rate}")
+                return Issue(port_obj.port_name, Constants.ISSUE_LINK_DOWN)
         return None
 
     def check_ber_issue(self, port_obj, row, timestamp):
@@ -510,6 +518,8 @@ class IsolationMgr:
             for (interval, threshold) in self.ber_intervals:
                 symbol_ber_rate = self.calc_ber_rates(port_obj.port_name, port_obj.active_speed, port_obj.port_width, interval)
                 if symbol_ber_rate and symbol_ber_rate > threshold:
+                    self.logger.info(f"Isolation issue ({Constants.ISSUE_BER}) detected for port {port_obj.port_name} (speed: {port_obj.active_speed}, width: {port_obj.port_width}): "
+                                     f"symbol ber rate ({symbol_ber_rate}) is higher than threshold ({threshold})")
                     return Issue(port_obj.port_name, Constants.ISSUE_BER)
         return None
 
