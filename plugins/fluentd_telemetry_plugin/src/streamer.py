@@ -242,6 +242,7 @@ class UFMTelemetryStreaming(Singleton):
         self.init_streaming_attributes()
 
         self._fluent_sender = None
+        self.meta_fields = self.config_parser.get_meta_fields()
 
     @property
     def ufm_telemetry_host(self):
@@ -293,11 +294,6 @@ class UFMTelemetryStreaming(Singleton):
     @property
     def stream_only_new_samples(self):
         return self.config_parser.get_stream_only_new_samples_flag()
-
-    @property
-    def meta_fields(self):
-        # aliases_meta_fields, self.custom_meta_fields
-        return self.config_parser.get_meta_fields()
 
     @property
     def fluentd_host(self):
@@ -385,35 +381,39 @@ class UFMTelemetryStreaming(Singleton):
     def update_saved_streaming_attributes(self, attributes):
         Utils.write_json_to_file(self.streaming_attributes_file, attributes)
 
-    def _parse_telemetry_csv_metrics_to_json(self, data, line_separator="\n", attrs_separator=","):
+    def _get_filtered_counters(self, counters):
+        keys_length = len(counters)
+        modified_keys = {}
+        for i in range(keys_length):
+            key = counters[i]
+            attr_obj = self.streaming_attributes.get(key, {'enabled': True})
+            if attr_obj and attr_obj.get('enabled', False):
+                modified_keys[i] = attr_obj.get('name', key)
+        return modified_keys
+
+    def _parse_telemetry_csv_metrics_to_json_with_delta(self, data, line_separator="\n", attrs_separator=","):
         rows = data.split(line_separator)
         keys = rows[0].split(attrs_separator)
         keys_length = len(keys)
+        is_meta_fields_available = len(self.meta_fields[0]) or len(self.meta_fields[1])
         output = []
-        stream_only_new_samples = self.stream_only_new_samples
-        port_id_keys_indices = None
-        if stream_only_new_samples:
-            port_id_keys_indices = []
-            for pIDKey in self.port_id_keys:
-                port_id_keys_indices += [i for i, x in enumerate(keys) if x == pIDKey]
 
-        modified_keys = {}
+        port_id_keys_indices = []
+        for pIDKey in self.port_id_keys:
+            port_id_keys_indices += [i for i, x in enumerate(keys) if x == pIDKey]
 
-        for i in range(keys_length):
-            key = keys[i]
-            attr_obj = self.streaming_attributes.get(key)
-            if attr_obj and attr_obj.get('enabled', False):
-                modified_keys[i] = attr_obj.get('name', key)
+        modified_keys = self._get_filtered_counters(keys)
         available_keys_indices = modified_keys.keys()
 
         for row in rows[1:-1]:
             # skip the first row since it contains the headers
             # skip the last row since its empty row
             values = row.split(attrs_separator)
-            port_key = current_port_values = None
-            if stream_only_new_samples:
-                port_key = ":".join([values[index] for index in port_id_keys_indices])
-                current_port_values = self.last_streamed_data_sample_per_port.get(port_key, {})
+
+            # prepare the port_key that will be used as an ID in delta
+            port_key = ":".join([values[index] for index in port_id_keys_indices])
+            # get the last cached port's values
+            current_port_values = self.last_streamed_data_sample_per_port.get(port_key, {})
             #######
             is_data_changed = False
             dic = {}
@@ -421,26 +421,51 @@ class UFMTelemetryStreaming(Singleton):
                 value = values[i]
                 key = modified_keys[i]
                 is_constant_value = self.port_constants_keys.get(key)
-                if len(value):
+                if value:
+                    # the value of this counter not empty
                     value = self._convert_str_to_num(value)
-                    # if the attribute/counter is enabled and
-                    # also the value of this counter not empty
-                    if (is_constant_value is None and
-                            stream_only_new_samples and value != current_port_values.get(key)):
-                        # and the value was changed -> stream it
+                    if is_constant_value is None and value != current_port_values.get(key):
+                        # the value was changed -> stream it
                         dic[key] = value
                         current_port_values[key] = value
                         is_data_changed = True
-                    elif not stream_only_new_samples or is_constant_value:
+                    elif is_constant_value:
                         dic[key] = value
-                        is_data_changed = not stream_only_new_samples
             ########
-            if stream_only_new_samples:
-                self.last_streamed_data_sample_per_port[port_key] = current_port_values
+            self.last_streamed_data_sample_per_port[port_key] = current_port_values
             if is_data_changed:
-                dic = self._append_meta_fields_to_dict(dic)
+                if is_meta_fields_available:
+                    dic = self._append_meta_fields_to_dict(dic)
                 output.append(dic)
         return output, None, keys_length
+
+    def _parse_telemetry_csv_metrics_to_json_without_delta(self, data, line_separator="\n", attrs_separator=","):
+        rows = data.split(line_separator)
+        keys = rows[0].split(attrs_separator)
+        keys_length = len(keys)
+        output = []
+
+        is_meta_fields_available = len(self.meta_fields[0]) or len(self.meta_fields[1])
+        modified_keys = self._get_filtered_counters(keys)
+        available_keys_indices = modified_keys.keys()
+
+        for row in rows[1:-1]:
+            values = row.split(attrs_separator)
+            port_record = {}
+            for i in available_keys_indices:
+                value = values[i]
+                key = modified_keys[i]
+                if value:
+                    port_record[key] = self._convert_str_to_num(value)
+                    if is_meta_fields_available:
+                        port_record = self._append_meta_fields_to_dict(port_record)
+            output.append(port_record)
+        return output, None, keys_length
+
+    def _parse_telemetry_csv_metrics_to_json(self, data, line_separator="\n", attrs_separator=","):
+        if self.stream_only_new_samples:
+            return self._parse_telemetry_csv_metrics_to_json_with_delta(data, line_separator, attrs_separator)
+        return self._parse_telemetry_csv_metrics_to_json_without_delta(data, line_separator, attrs_separator)
 
     def _parse_telemetry_prometheus_metrics_to_json(self, data):
         elements_dict = {}
@@ -503,6 +528,7 @@ class UFMTelemetryStreaming(Singleton):
             }
 
             if self.compressed_streaming_flag:
+                plugin_name = 'HTTP'
                 _fluentd_host = self.fluentd_host
                 _fluentd_host = f'[{_fluentd_host}]' if Utils.is_ipv6_address(_fluentd_host) else _fluentd_host
                 compressed = gzip.compress(json.dumps(fluentd_message).encode('utf-8'))
@@ -513,6 +539,7 @@ class UFMTelemetryStreaming(Singleton):
                     headers={"Content-Encoding": "gzip", "Content-Type": "application/json"})
                 res.raise_for_status()
             else:
+                plugin_name = 'FORWARD'
                 self.fluent_sender.write(fluentd_msg_tag, fluentd_message)
             et = time.time()
             streaming_time = round(et-st, 6)
@@ -520,7 +547,7 @@ class UFMTelemetryStreaming(Singleton):
                 self.streaming_metrics_mgr.streaming_time_seconds_key: streaming_time
             })
             logging.info(f'Finished Streaming to Fluentd Host: {self.fluentd_host} port: {self.fluentd_port} in '
-                         f'{streaming_time} Seconds')
+                         f'{streaming_time} Seconds using {plugin_name} plugin protocol')
         except ConnectionError as e:
             logging.error(f'Failed to connect to stream destination due to the error :{str(e)}')
         except Exception as e:

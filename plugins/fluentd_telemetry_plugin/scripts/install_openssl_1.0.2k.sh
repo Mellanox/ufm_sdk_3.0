@@ -18,7 +18,7 @@
 # Download and extract OpenSSL
 wget https://www.openssl.org/source/old/1.0.2/openssl-1.0.2k.tar.gz -O openssl.tar.gz
 tar -zxf openssl.tar.gz
-cd openssl-1.0.2k
+pushd openssl-1.0.2k
 
 # Configure OpenSSL with a specific prefix
 ./config --prefix=/usr/local/ssl --openssldir=/usr/local/ssl shared
@@ -35,5 +35,9 @@ ldconfig
 ln -s /usr/local/ssl/lib/libssl.so.1.0.0 /usr/lib/x86_64-linux-gnu/libssl.so.10
 ln -s /usr/local/ssl/lib/libcrypto.so.1.0.0 /usr/lib/x86_64-linux-gnu/libcrypto.so.10
 ldconfig
+
+popd
+
+rm -rf openssl-1.0.2k openssl.tar.gzl
 
 exit 0
