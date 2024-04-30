@@ -382,16 +382,42 @@ class UFMTelemetryStreaming(Singleton):
         Utils.write_json_to_file(self.streaming_attributes_file, attributes)
 
     def _get_filtered_counters(self, counters):
+        """
+        :desc:
+        filters the counters list in order based on the saved streaming_attributes
+        it checks if the counter is enabled or disabled to skip it
+        and also takes the configured name in case the counter was renamed by the user
+
+        :param: counters: list of counters strings
+        :return: {1: 'counter1', 2:'counter2', etc...} , where the key is the index and the value is the saved counter name
+        """
         keys_length = len(counters)
         modified_keys = {}
         for i in range(keys_length):
             key = counters[i]
-            attr_obj = self.streaming_attributes.get(key, {'enabled': True})
+            attr_obj = self.streaming_attributes.get(key)
             if attr_obj and attr_obj.get('enabled', False):
                 modified_keys[i] = attr_obj.get('name', key)
         return modified_keys
 
     def _parse_telemetry_csv_metrics_to_json_with_delta(self, data, line_separator="\n", attrs_separator=","):
+        """
+        :desc: parsed the data csv input & convert it to list of ports records
+        each record contains key[s]:value[s] for the port's counters
+        process operations:
+        1. extract the port's ID keys indices from the CSV headers.
+        2. filter the headers/counters to include only the enabled counters using _get_filtered_counters method
+        3. parse the data CSV, iterate over all rows and construct the port's counters based on the filtered headers/counters
+        4. when constructing the port's record, will try to convert the values to int/float if possible
+        5. After the first iteration, only the changed counters will be considered and added to the output list (delta only)
+        6. if there's a configured/saved meta fields (aliases or constants), they will be appended to the port's record
+
+        :param: data: csv string metrics
+        :return: [
+        {port_guid: port1, counterA:value, counterB:value...},
+        {port_guid: port2, counterA:value, counterB:value}...
+        ]
+        """
         rows = data.split(line_separator)
         keys = rows[0].split(attrs_separator)
         keys_length = len(keys)
@@ -440,6 +466,22 @@ class UFMTelemetryStreaming(Singleton):
         return output, None, keys_length
 
     def _parse_telemetry_csv_metrics_to_json_without_delta(self, data, line_separator="\n", attrs_separator=","):
+        """
+        :desc: parsed the data csv input & convert it to list of ports records
+        each record contains key[s]:value[s] for the port's counters
+        process operations:
+        1. extract the port's ID keys indices from the CSV headers.
+        2. filter the headers/counters to include only the enabled counters using _get_filtered_counters method
+        3. parse the data CSV, iterate over all rows and construct the port's counters based on the filtered headers/counters
+        4. when constructing the port's record, will try to convert the values to int/float if possible
+        5. if there's a configured/saved meta fields (aliases or constants), they will be appended to the port's record
+
+        :param: data: csv string metrics
+        :return: [
+        {port_guid: port1, counterA:value, counterB:value...},
+        {port_guid: port2, counterA:value, counterB:value}...
+        ]
+        """
         rows = data.split(line_separator)
         keys = rows[0].split(attrs_separator)
         keys_length = len(keys)
