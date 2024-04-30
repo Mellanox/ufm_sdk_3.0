@@ -226,8 +226,7 @@ class IsolationMgr:
         self.dynamic_extra_configuration = {
             "plugin_env_CLX_EXPORT_API_ENABLE_DOWN_PORT_COUNTERS": "1",
             "plugin_env_CLX_EXPORT_API_ENABLE_DOWN_PHY": "1",
-            "arg_11": "",
-            "is_registered_discovery": "False"
+            "arg_11": ""
         }
 
     def calc_max_ber_wait_time(self, min_threshold):
