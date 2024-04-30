@@ -115,6 +115,7 @@ class UFMCommunicator:
             "counters": counters,
             "sample_rate": sample_rate,
             "requested_guids": guids,
+            "is_registered_discovery": False
             }
         if extra_configuration:
             data["configuration"] = extra_configuration
