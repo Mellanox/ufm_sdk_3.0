@@ -37,6 +37,7 @@ from utils.logger import Logger, LOG_LEVELS
 from utils.singleton import Singleton
 from monitor_streaming_mgr import MonitorStreamingMgr
 
+
 class UFMTelemetryConstants:
     PLUGIN_NAME = "UFM_Telemetry_Streaming"
 
@@ -85,6 +86,9 @@ class UFMTelemetryConstants:
             "help": "Tag name of fluentd endpoint message"
         }
     ]
+
+    CSV_LINE_SEPARATOR = "\n"
+    CSV_ROW_ATTRS_SEPARATOR = ","
 
 
 class UFMTelemetryStreamingConfigParser(ConfigParser):
@@ -400,7 +404,7 @@ class UFMTelemetryStreaming(Singleton):
                 modified_keys[i] = attr_obj.get('name', key)
         return modified_keys
 
-    def _parse_telemetry_csv_metrics_to_json_with_delta(self, data, line_separator="\n", attrs_separator=","):
+    def _parse_telemetry_csv_metrics_to_json_with_delta(self, data):
         """
         :desc: parsed the data csv input & convert it to list of ports records
         each record contains key[s]:value[s] for the port's counters
@@ -418,8 +422,8 @@ class UFMTelemetryStreaming(Singleton):
         {port_guid: port2, counterA:value, counterB:value}...
         ]
         """
-        rows = data.split(line_separator)
-        keys = rows[0].split(attrs_separator)
+        rows = data.split(UFMTelemetryConstants.CSV_LINE_SEPARATOR)
+        keys = rows[0].split(UFMTelemetryConstants.CSV_ROW_ATTRS_SEPARATOR)
         keys_length = len(keys)
         is_meta_fields_available = len(self.meta_fields[0]) or len(self.meta_fields[1])
         output = []
@@ -434,7 +438,7 @@ class UFMTelemetryStreaming(Singleton):
         for row in rows[1:-1]:
             # skip the first row since it contains the headers
             # skip the last row since its empty row
-            values = row.split(attrs_separator)
+            values = row.split(UFMTelemetryConstants.CSV_ROW_ATTRS_SEPARATOR)
 
             # prepare the port_key that will be used as an ID in delta
             port_key = ":".join([values[index] for index in port_id_keys_indices])
@@ -465,7 +469,7 @@ class UFMTelemetryStreaming(Singleton):
                 output.append(dic)
         return output, None, keys_length
 
-    def _parse_telemetry_csv_metrics_to_json_without_delta(self, data, line_separator="\n", attrs_separator=","):
+    def _parse_telemetry_csv_metrics_to_json_without_delta(self, data):
         """
         :desc: parsed the data csv input & convert it to list of ports records
         each record contains key[s]:value[s] for the port's counters
@@ -482,8 +486,8 @@ class UFMTelemetryStreaming(Singleton):
         {port_guid: port2, counterA:value, counterB:value}...
         ]
         """
-        rows = data.split(line_separator)
-        keys = rows[0].split(attrs_separator)
+        rows = data.split(UFMTelemetryConstants.CSV_LINE_SEPARATOR)
+        keys = rows[0].split(UFMTelemetryConstants.CSV_ROW_ATTRS_SEPARATOR)
         keys_length = len(keys)
         output = []
 
@@ -492,7 +496,7 @@ class UFMTelemetryStreaming(Singleton):
         available_keys_indices = modified_keys.keys()
 
         for row in rows[1:-1]:
-            values = row.split(attrs_separator)
+            values = row.split(UFMTelemetryConstants.CSV_ROW_ATTRS_SEPARATOR)
             port_record = {}
             for i in available_keys_indices:
                 value = values[i]
@@ -504,10 +508,10 @@ class UFMTelemetryStreaming(Singleton):
             output.append(port_record)
         return output, None, keys_length
 
-    def _parse_telemetry_csv_metrics_to_json(self, data, line_separator="\n", attrs_separator=","):
+    def _parse_telemetry_csv_metrics_to_json(self, data):
         if self.stream_only_new_samples:
-            return self._parse_telemetry_csv_metrics_to_json_with_delta(data, line_separator, attrs_separator)
-        return self._parse_telemetry_csv_metrics_to_json_without_delta(data, line_separator, attrs_separator)
+            return self._parse_telemetry_csv_metrics_to_json_with_delta(data)
+        return self._parse_telemetry_csv_metrics_to_json_without_delta(data)
 
     def _parse_telemetry_prometheus_metrics_to_json(self, data):
         elements_dict = {}
@@ -570,7 +574,7 @@ class UFMTelemetryStreaming(Singleton):
             }
 
             if self.compressed_streaming_flag:
-                plugin_name = 'HTTP'
+                plugin_fluent_protocol = 'HTTP'
                 _fluentd_host = self.fluentd_host
                 _fluentd_host = f'[{_fluentd_host}]' if Utils.is_ipv6_address(_fluentd_host) else _fluentd_host
                 compressed = gzip.compress(json.dumps(fluentd_message).encode('utf-8'))
@@ -581,7 +585,7 @@ class UFMTelemetryStreaming(Singleton):
                     headers={"Content-Encoding": "gzip", "Content-Type": "application/json"})
                 res.raise_for_status()
             else:
-                plugin_name = 'FORWARD'
+                plugin_fluent_protocol = 'FORWARD'
                 self.fluent_sender.write(fluentd_msg_tag, fluentd_message)
             et = time.time()
             streaming_time = round(et-st, 6)
@@ -589,7 +593,7 @@ class UFMTelemetryStreaming(Singleton):
                 self.streaming_metrics_mgr.streaming_time_seconds_key: streaming_time
             })
             logging.info(f'Finished Streaming to Fluentd Host: {self.fluentd_host} port: {self.fluentd_port} in '
-                         f'{streaming_time} Seconds using {plugin_name} plugin protocol')
+                         f'{streaming_time} Seconds using {plugin_fluent_protocol} plugin protocol')
         except ConnectionError as e:
             logging.error(f'Failed to connect to stream destination due to the error :{str(e)}')
         except Exception as e:
