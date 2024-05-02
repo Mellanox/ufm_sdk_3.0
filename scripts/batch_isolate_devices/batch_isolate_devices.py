@@ -34,8 +34,8 @@ def parse_args():
     parser.add_argument("-H", "--host", default="localhost", help="UFM host address")
     parser.add_argument("-u", "--user", default="admin", help="UFM user name")
     parser.add_argument("-p", "--password", default="123456", help="UFM password")
-    parser.add_argument("--num_retries", default=10, type=int, help="Number of retries when marking Switch as isolated.")
-    parser.add_argument("--sleep_time", default=20, type=int, help="How much time to sleep until the next time we check the isolation job status.")
+    parser.add_argument("--num_retries", default=10, type=int, help="Number of retries when marking Switch as isolated or when waiting for port to be up")
+    parser.add_argument("--sleep_time", default=20, type=int, help="How much time to sleep until the next time we check the isolation job status or when waiting for port to be up")
     parser.add_argument("-f", "--file", help="CSV file path", required=True)
     return parser.parse_args()
 
@@ -159,7 +159,34 @@ def mark_switches_and_port_as_healthy(host, authorization_header, switch_port_id
         exit(1)
     print('Marked the below ports as active')
     print('{}'.format(switch_port_ids))
-    print('Notice - it can take up to 1 minute until the ports are up')
+
+
+def wait_for_ports_to_be_healthy(host, authorization_header, switch_port_ids, number_retries, sleep_time):
+    """
+    Waiting for given ports not to be listed as Unhealthy
+    """
+    print('Waiting for the ports to be active')
+    url = "https://{}/ufmRest/app/unhealthy_ports".format(host)
+    for i in range(number_retries):
+        response = requests.get(url, headers=authorization_header, verify=False)
+        if response.status_code != 200:
+            print("Failed getting list of unhealthy ports. Error: {}".format(response.text))
+            exit(1)
+        unhealthy_ports = response.json()
+        still_unhealthy_ports = []
+        for switch_port in switch_port_ids:
+            switch, port = switch_port.split('_')
+            for unhealthy_port in unhealthy_ports:
+                if unhealthy_port['PeerGUID'] == switch and unhealthy_port['PeerPortDname'] == port:
+                    still_unhealthy_ports.append((switch, port))
+        if len(still_unhealthy_ports) > 0:
+            print('Some ports are still unhealthy {}'.format(still_unhealthy_ports))
+            print('Waiting {} sec'.format(sleep_time))
+            sleep(sleep_time)
+        else:
+            print('All ports {} are healthy'.format(switch_port_ids))
+            return
+    print('Reached max retires for ports to be healthy, please check manually and continue to next batch')
 
 
 def main():
@@ -180,6 +207,7 @@ def main():
             exit(1)
         print('{} switches ports were isolated'.format(str(switches)))
         mark_switches_and_port_as_healthy(args.host, authorization_header, switches_ports)
+        wait_for_ports_to_be_healthy(args.host, authorization_header, switches_ports, args.num_retries, args.sleep_time)
         switches, switches_ports = get_next_batch(switches_info)
 
 if __name__ == "__main__":

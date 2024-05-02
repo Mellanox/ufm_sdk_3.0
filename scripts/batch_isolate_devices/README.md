@@ -29,12 +29,12 @@ Run
  Running syntax
 --------------------------------------------------------
 
-| Option                     | Description                                            |
-|----------------------------|--------------------------------------------------------|
-| -h, --help                 | Show help message and exit                             |
-| -H HOST, --host HOST       | UFM host address                                       |
-| -u USER, --user USER       | UFM user name                                          |
-| -p PASSWORD, --password PASSWORD | UFM password                                       |
-| --num_retries NUM_RETRIES  | Number of retries when marking Switch as isolated      |
-| --sleep_time SLEEP_TIME    | Time to sleep until checking the isolation job status  |
+| Option                     | Description                                                                                                     |
+|----------------------------|-----------------------------------------------------------------------------------------------------------------|
+| -h, --help                 | Show help message and exit                                                                                      |
+| -H HOST, --host HOST       | UFM host address                                                                                                |
+| -u USER, --user USER       | UFM user name                                                                                                   |
+| -p PASSWORD, --password PASSWORD | UFM password                                                                                              |
+| --num_retries NUM_RETRIES  | Number of retries when marking Switch as isolated or when waiting for port to be up                             |
+| --sleep_time SLEEP_TIME    | How much time to sleep until the next time we check the isolation job status or when waiting for port to be up  |
 | -f FILE, --file FILE       | Path to CSV file 
