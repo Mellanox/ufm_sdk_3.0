@@ -116,5 +116,7 @@ class ExcludeList(object):
         """
         Return all exclude list items.
         """
+        self.refresh()
         with self.__lock:
-            return self.__dict.values()
+            # Convert to list to avoid "dictionary changed size during iteration" error
+            return list(self.__dict.values())

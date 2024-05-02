@@ -10,6 +10,7 @@
 # provided with the software product.
 #
 
+import time
 from utils.flask_server.base_flask_api_server import BaseAPIApplication
 
 class PDRPluginAPI(BaseAPIApplication):
@@ -41,7 +42,8 @@ class PDRPluginAPI(BaseAPIApplication):
         Return ports from exclude list as comma separated port names
         """
         items = self.isolation_mgr.exclude_list.items()
-        return '\n'.join(item.port_name for item in items) + '\n'
+        formatted_items = [f"{item.port_name}: {'infinite' if item.ttl_seconds == 0 else int(max(0, item.remove_time - time.time()))}" for item in items]
+        return '\n'.join(formatted_items) + ('' if not formatted_items else '\n')
 
 
     def exclude_ports(self, excluded_ports_str):
@@ -56,8 +58,8 @@ class PDRPluginAPI(BaseAPIApplication):
         for item in excluded_ports_str.split(','):
             parts = item.strip().split(':')
             name = parts[0].strip()
-            time = 0 if len(parts) == 1 or not parts[1].strip().isdigit() else int(parts[1].strip())
-            self.isolation_mgr.exclude_list.add(name, time)
+            ttl = 0 if len(parts) == 1 or not parts[1].strip().isdigit() else int(parts[1].strip())
+            self.isolation_mgr.exclude_list.add(name, ttl)
         return "Ports added to exclude list\n"
 
 
