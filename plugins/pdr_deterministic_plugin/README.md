@@ -81,3 +81,18 @@ Example:
 | HDR | 2.00 E+11 | 1.00 E-16 | 1.00 E+16 | 50000 | 833.3333 |
 
 BER counters are calculated with the following formula: BER = (error bits_i - error bits_i-1) / (total bits_i - total bits_i-1) = (error bits_i - error bits_i-1) / (Link data rate * (time_i - time_i-1))
+
+## API
+
+Add ports to exclude list (to be excluded from the analysis):
+    curl -k -i -X PUT 'http://<host_ip>/excluded/<formatted_ports_list>'
+    TTL can optionally follow the port after the colon (if zero or not specified, then port is excluded forever)
+    Example: curl -k -i -X PUT 'http://127.0.0.1:8977/excluded/9c0591030085ac80_45,9c0591030085ac80_46:300' (first port is added forever, second - just for 300 seconds)
+
+Remove ports from exclude list
+    curl -k -i -X DELETE 'http://<host_ip>/excluded/<comma_separated_port_mames>'
+    Example: curl -k -i -X DELETE 'http://127.0.0.1:8977/excluded/9c0591030085ac80_45,9c0591030085ac80_46'
+
+Get ports and remaining times from exclude list
+    curl -k -i -X GET 'http://<host_ip>/excluded'
+    Example: curl -k -i -X GET 'http://127.0.0.1:8977/excluded'
