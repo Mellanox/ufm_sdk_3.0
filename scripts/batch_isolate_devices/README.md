@@ -23,7 +23,7 @@ Run
 --------------------------------------------------------
 ###  To run the script for a given host:
 
-    python3 ufm_pkeys.py -f <path to CSV file> -h <host>
+    python3 batch_isolate_devices.py -f <path to CSV file> -h <host>
 
 
  Running syntax
