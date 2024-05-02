@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import csv
 from time import sleep
@@ -7,19 +9,6 @@ import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-"""
-Example for CSV content:
-fc6a1c0300621900,1
-fc6a1c03001f1a00,10
-fc6a1c0300681b00,8
-===,
-fc6a1c0300621910,1
-fc6a1c03001f1a02,1
-fc6a1c0300681b30,1
-fc6a1c0300624900,1
-fc6a1c03001f5a00,1
-fc6a1c0300681b11,1
-"""
 
 
 def get_authorization_header(username, password):
@@ -93,35 +82,47 @@ def get_next_batch(switches_info_list):
     Second - a set of the switches and their ports
     """
     switches = list()
+    switches_ports = list()
     num_items_to_remove = 0
     for switch, port in switches_info_list:
         num_items_to_remove += 1
         if switch is None and port is None:
             break
-        switches.append((switch, port))
+        switches.append(switch)
+        switches_ports.append(switch + '_' + port)
     if num_items_to_remove > 0: #We are not in the last batch
         for i in range(num_items_to_remove):
             del switches_info_list[0]
-    return switches
+    switches_ports = [switches_port[1:] if switches_port.startswith('\ufeff') else switches_port for switches_port in switches_ports]
+    return switches, switches_ports
 
 
-def mark_ports_as_isolated(host, authorization_header, ports_to_isolate):
+def mark_switches_as_unhealthy(host, authorization_header, switches):
     """
-    Isolate ports.
+    Isolate switches.
     """
 
-    url = "https://{}/ufmRest/app/unhealthy_ports?force_set=true".format(host)
+    url = "https://{}/ufmRest/actions".format(host)
     payload = {
-   "ports": ports_to_isolate,
-   "ports_policy":"UNHEALTHY",
-   "action":"isolate"
+    "params": {
+               "action": "isolate",
+             "device_policy": "UNHEALTHY"
+    },
+   "action": "mark_device_unhealthy",
+   "object_ids": switches,
+   "object_type": "System",
+   "identifier":"id"
 }
     headers = authorization_header
     headers['Content-Type'] = "application/json"
-    response = requests.put(url, json=payload, headers=headers, verify=False)
-    if response.status_code != 200:
-        print("Failed to isolate ports. Error: {}".format(response.text))
+    response = requests.post(url, json=payload, headers=headers, verify=False)
+    if response.status_code != 202:
+        print("Failed to isolate switches. Error: {}".format(response.text))
         exit(1)
+    location_header = response.headers['Location']
+    job_id = location_header.split('/')[-1]
+    print('Marking switches as unhealthy is in progress, job id: {}'.format(job_id))
+    return job_id
 
 
 def wait_for_job_done(host, authorization_header, job_id, num_retries=10, sleep_time=20):
@@ -146,7 +147,6 @@ def wait_for_job_done(host, authorization_header, job_id, num_retries=10, sleep_
     print(f'Max retires reached while waiting for job {job_id}')
     return False
 
-
 def mark_switches_and_port_as_healthy(host, authorization_header, switch_port_ids):
     url = "https://{}/ufmRest/app/unhealthy_ports".format(host)
     payload = {"ports": switch_port_ids,
@@ -162,82 +162,25 @@ def mark_switches_and_port_as_healthy(host, authorization_header, switch_port_id
     print('Notice - it can take up to 1 minute until the ports are up')
 
 
-def get_all_ports(host, authorization_header):
-    url = "https://{}/ufmRest/resources/ports".format(host)
-    response = requests.get(url, headers=authorization_header, verify=False)
-    if response.status_code != 200:
-        print("Failed to get list of all ports")
-        exit(1)
-    return response.json()
-
-
-def get_all_unhealthy_ports(host, authorization_header):
-    url = "https://{}/ufmRest/app/unhealthy_ports".format(host)
-    response = requests.get(url, headers=authorization_header, verify=False)
-    if response.status_code != 200:
-        print("Failed to get list of unhealthy ports")
-        exit(1)
-    return response.json()
-
-
-def check_if_switch_port_is_unhealthy(unhealthy_ports, switch, port):
-    for port in unhealthy_ports:
-        if port['UnhealthyGUID'] == switch and port['UnhealthyPortDname'] == port:
-            return True
-    return False
-
-
-def get_all_ports_to_isolate_for_switch(ports_info, switch, port_to_keep):
-    port_numbers = [str(port['external_number']) for port in ports_info if port['guid'] == switch and port['logical_state'] != 'Down']
-    if port_to_keep in port_numbers:
-        port_numbers.remove(port_to_keep)
-        port_numbers = {switch + "_" + str(port_id) for port_id in port_numbers}
-        return port_numbers
-    else:
-        print('The requested port {} does not exists on switch {}'.format(port_to_keep, switch))
-        print('The available ports: {}'.format(port_numbers))
-        print('Please fix the input file and rerun the script')
-        exit(1)
-
-
-
 def main():
     args = parse_args()
     # Validating that the input CSV is valid and getting a list of all the items in it,
     # Including the batch delimiter.
     switches_info = validate_csv_file_and_get_list_of_items(args.file)
     authorization_header = get_authorization_header(args.user, args.password)
-    all_ports_info = get_all_ports(args.host, authorization_header)
     # Getting the next batch of switches to work with, and a list of switch_port for the make port healthy.
-    switches = get_next_batch(switches_info)
+    switches, switches_ports = get_next_batch(switches_info)
     while len(switches) > 0:
         input("Press Enter key to start the operation on the next batch: {}".format(switches))
         print('Performing operations on {} switches'.format(len(switches)))
-        ports_to_isolate = list()
-        for switch, port in switches:
-            ports_to_isolate += get_all_ports_to_isolate_for_switch(all_ports_info, switch, port)
-        
-        mark_ports_as_isolated(args.host, authorization_header, ports_to_isolate)
-
-        for i in range(20):
-            #Checking if isolated
-            print('wait 20s')
-            sleep(20)
-            print('done sleep')
-            counter = 0
-            all_unhealthy_ports = get_all_unhealthy_ports(args.host, authorization_header)
-            for switch_and_port in ports_to_isolate:
-                switch, port = switch_and_port.split('_')
-                if not check_if_switch_port_is_unhealthy(all_unhealthy_ports, switch, port):
-                    print('switch {} and port {} are not yet in unhealthy state'.format(switch, port))
-                    counter += 1
-            print('counter is {}'.format(counter))
-            if counter == 0:
-                print('done for this batch')
-                break
-
-
-        switches = get_next_batch(switches_info)
+        job_id = mark_switches_as_unhealthy(args.host, authorization_header, switches)
+        status = wait_for_job_done(args.host, authorization_header, job_id, args.num_retries, args.sleep_time)
+        if not status:
+            print(f'Error waiting for job {job_id} to be done')
+            exit(1)
+        print('{} switches ports were isolated'.format(str(switches)))
+        mark_switches_and_port_as_healthy(args.host, authorization_header, switches_ports)
+        switches, switches_ports = get_next_batch(switches_info)
 
 if __name__ == "__main__":
     main()
