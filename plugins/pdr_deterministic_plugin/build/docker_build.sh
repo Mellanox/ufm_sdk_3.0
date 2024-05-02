@@ -99,7 +99,7 @@ cp Dockerfile ${BUILD_DIR}
 cp -r config ${BUILD_DIR}
 cp -r scripts ${BUILD_DIR}
 cp -r ../ufm_sim_web_service ${BUILD_DIR}
-cp -r ../../../utils ${BUILD_DIR}
+cp -r ../../../utils ${BUILD_DIR}/ufm_sim_web_service
 
 echo "BUILD_DIR    : [${BUILD_DIR}]"
 

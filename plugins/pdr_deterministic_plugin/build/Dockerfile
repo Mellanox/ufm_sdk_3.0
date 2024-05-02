@@ -26,6 +26,7 @@ RUN python3 -m pip install flask flask_restful requests twisted jsonschema panda
 # remove an unused library that caused a high CVE vulnerability issue https://redmine.mellanox.com/issues/3837452
 RUN apt-get remove -y linux-libc-dev
 
+# At this point 'utils' should be already copied into 'ufm_sim_web_service' directory
 COPY ufm_sim_web_service/ ${BASE_PATH}/ufm_sim_web_service/
 
 COPY config/supervisord.conf /etc/supervisor/conf.d/
@@ -34,6 +35,5 @@ COPY config/pdr_deterministic.conf ${CONF_PATH}/
 COPY config/pdr_deterministic_httpd_proxy.conf ${CONF_PATH}/
 COPY config/pdr_deterministic_shared_volumes.conf ${CONF_PATH}/
 COPY scripts/init_pdr_conf.sh ${SCRIPTS_PATH}/
-COPY utils/ ${BASE_PATH}/utils/
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
