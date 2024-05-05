@@ -79,11 +79,12 @@ class ExcludeList(object):
             data = self.__dict.get(port_name)
             if data is not None:
                 if data.remove_time == 0 or time.time() < data.remove_time:
-                    # Exclude port
+                    # Excluded port
                     return True
-                # The time is expired, so remove port from the list
-                self.__dict.pop(port_name)
-                self.__logger.info(f"Port {port_name} automatically removed from exclude list after {data.ttl_seconds} seconds")
+                else:
+                    # The time is expired, so remove port from the list
+                    self.__dict.pop(port_name)
+                    self.__logger.info(f"Port {port_name} automatically removed from exclude list after {data.ttl_seconds} seconds")
         return False
 
 
