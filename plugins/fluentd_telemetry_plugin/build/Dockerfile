@@ -1,4 +1,4 @@
-FROM ubuntu:20.04 AS tfs_base_ubuntu20
+FROM ubuntu:22.04 AS tfs_base_ubuntu22
 
 LABEL maintainer="anana@nvidia.com"
 
@@ -17,7 +17,8 @@ COPY ${SRC_BASE_DIR}/lib/libfluent-bit.so ${SRC_BASE_DIR}/lib/libraw_msgpack_api
 
 RUN apt-get update && apt-get -y install supervisor python3 python3-pip vim rsyslog wget
 
-RUN ${BASE_PATH}/${SRC_BASE_DIR}/scripts/install_openssl_1.0.2k.sh
+# remove an unused library that caused a high CVE vulnerability issue https://redmine.mellanox.com/issues/3621861
+RUN apt-get remove -y linux-libc-dev
 
 RUN python3 -m pip install -r ${BASE_PATH}/${SRC_BASE_DIR}/requirements.txt
 
