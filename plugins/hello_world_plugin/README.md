@@ -37,14 +37,19 @@ Functions commonly added by optional UFM plugins include:
 
 * Each plugin may have the following files:
 
-    1. _**{plugin name}_shared_volumes.conf**_ : Contains a list of folders that are mapped between the host and the container. It consists of multiple lines in format “<host path>:<container path>” (e.g., /opt/ufm/files/log:/log). 
+    1. _**{plugin name}_shared_volumes.conf**_ : Contains a list of folders that are mapped between the host and the container. It consists of multiple lines in format “<host path>:<container path>” (e.g., /opt/ufm/files/conf:/opt/ufm/files/conf). 
         * The following folders are shared between the host and the container by default: 
-            1. _**{UFM files path}/conf/plugins/{plugin name}:/config**_ : This folder should contain the plugin’s configuration files. It is managed by DRBD (in case of HA) and thus, it is replicated between master and standby nodes. 
-            2. _**/opt/ufm/ufm_plugins_data/{plugin name}:/data**_ : This folder may contain the plugin’s data files that should be persistent 
+            1. **{UFM files path}/conf/plugins/{plugin name}:/config** : This folder should contain the plugin’s configuration files. It is managed by DRBD (in case of HA) and thus, it is replicated between master and standby nodes. 
+            2. **{UFM files path}/log/plugins/{plugin name}:/log** : This folder should contain the plugin’s log files. It is managed by DRBD (in case of HA) and thus, it is replicated between master and standby nodes.
+            3. **/opt/ufm/ufm_plugins_data/{plugin name}:/data** : This folder may contain the plugin’s data files that should be persistent
 
         * **Note**: The default folders are being removed by the UFM plugin manager upon plugin’s removal, while the plugin is responsible to remove all the files and folders which are mapped to host and are listed in shared volumes configuration file (e.g., logs files that were written to /log folder in the container which is mapped to /opt/ufm/files/log folder on the host)
     
-    2. _**{plugin name}_httpd_proxy.conf**_ : Contains the port that UFM may use to forward the plugin’s HTTP request. It consists of one line in format _“port={port number}”_. All the HTTP requests to the plugin are being forwarded by the UFM server (authentication is handled by UFM). 
+    2. **{plugin name}_httpd_proxy.conf** : Contains the port that UFM may use to forward the plugin’s HTTP request. It consists of one line in format _“port={port number}”_. All the HTTP requests to the plugin are being forwarded by the UFM server (authentication is handled by UFM).
+    
+    3. **ufm_plugin_{plugin name}_httpd.conf** : This file contains the Apache configuration for the plugin, redirecting HTTP requests from Apache directly to the plugin's web server. These requests are not authenticated by UFM.
+    
+    4. **{plugin name}_runtime_args.conf** : This file serves as the configuration file for the runtime plugin's resources. It consists of key-value arguments (e.g., cpus=1.5). Currently, only CPU limits are supported.
 
 * **Note**: The configuration files _{plugin name}_shared_volumes.conf_ , _{plugin name}_httpd_proxy.conf_ and any custom configurations files must be copied to  _/config_ folder upon plugin deployment for UFM to manage the plugin (the plugins configuration is written to **{UFM files path}/conf/ufm_plugins.conf**
 
