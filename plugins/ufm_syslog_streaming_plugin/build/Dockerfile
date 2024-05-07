@@ -1,4 +1,4 @@
-FROM ubuntu:20.04 AS efs_base_ubuntu20
+FROM ubuntu:22.04 AS efs_base_ubuntu22
 
 LABEL maintainer="anana@nvidia.com"
 
@@ -12,6 +12,9 @@ COPY ${SRC_BASE_DIR}/conf/supervisord.conf /etc/supervisor/conf.d/
 COPY ${SRC_BASE_DIR}/scripts/init.sh ${SRC_BASE_DIR}/scripts/deinit.sh /
 
 RUN apt-get update && apt-get -y install supervisor python3 python3-pip vim rsyslog curl sudo systemctl
+
+# remove an unused library that caused a high CVE vulnerability issue https://redmine.mellanox.com/issues/3621856
+RUN apt-get remove -y linux-libc-dev
 
 # install the fluent-bit
 RUN curl https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | sh
