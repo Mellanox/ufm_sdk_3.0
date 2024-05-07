@@ -1,5 +1,5 @@
 ---
-job: ufm-bright-plugin
+job: ufm-efs-plugin
 
 registry_host: harbor.mellanox.com
 registry_path: /swx-storage/ci-demo
