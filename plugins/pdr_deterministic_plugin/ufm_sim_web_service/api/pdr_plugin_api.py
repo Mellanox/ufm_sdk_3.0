@@ -10,7 +10,6 @@
 # provided with the software product.
 #
 
-import re
 import time
 
 from flask import request
@@ -52,21 +51,23 @@ class PDRPluginAPI(BaseAPIApplication):
     def exclude_ports(self):
         """
         Parse input ports and add them to exclude list (or just update TTL)
-        Input string example: 0c42a10300756a04_1,98039b03006c73ba_2:300
+        Input string example: [(0c42a10300756a04_1,),(98039b03006c73ba_2,300)]
         TTL that follows port name after the colon is optional
         """
-        data_dict = request.form.to_dict()
-        if not data_dict:
-            return "No ports added to exclude list"
-      
+        excluded_ports_str = request.get_data(as_text=True)
+
+        # Remove all spaces from the input string and extract from square brackets
+        excluded_ports_str = excluded_ports_str.replace(' ', '').strip('[]')
+
+        # Extract pairs from comma separated brackets
+        pairs = [pair.strip('()') for pair in excluded_ports_str.split(',(') if pair.strip('()')]
+
         response = ""
-        excluded_pors_str = next(iter(data_dict.keys()))
-        pair_pattern = re.compile(r'\((.*?)(?:,(.*?))?\)')
-        pairs = pair_pattern.findall(excluded_pors_str)
-        for pair in pairs:
-            if pair[0].strip():
-                port_name = pair[0].strip()
-                ttl = 0 if not pair[1].strip().isdigit() else int(pair[1].strip())
+        for pair_str in pairs:
+            pair = pair_str.split(',')
+            if pair:
+                port_name = pair[0]
+                ttl = 0 if len(pair) == 1 or not pair[1].isdigit() else int(pair[1])
                 self.isolation_mgr.exclude_list.add(port_name, ttl)
                 response += f"Port {port_name} added to exclude list\n"
 
@@ -76,21 +77,22 @@ class PDRPluginAPI(BaseAPIApplication):
     def include_ports(self):
         """
         Remove ports from exclude list
-        Input string: comma separated port names
+        Input string: comma separated port names list
+        Example: [0c42a10300756a04_1,98039b03006c73ba_2]
         """
-        data_dict = request.form.to_dict()
-        if not data_dict:
-            return "No ports removed from exclude list"
-      
-        port_names_str = next(iter(data_dict.keys()))
-        port_names = re.findall(r'\w+', port_names_str)
+        ports_names_str = request.get_data(as_text=True)
+
+        # Remove all spaces from the input string and extract from square brackets
+        ports_names_str = ports_names_str.replace(' ', '').strip('[]')
+
+        # Extract port names from comma separated string
+        port_names = [name for name in ports_names_str.split(',') if name]
+
         response = ""
         for port_name in port_names:
-            if port_name.strip():
-                port_name = port_name.strip();
-                if self.isolation_mgr.exclude_list.remove(port_name):
-                    response += f"Port {port_name} removed from exclude list\n"
-                else:
-                    response += f"Port {port_name} is not in exclude list\n"
-        
+            if self.isolation_mgr.exclude_list.remove(port_name):
+                response += f"Port {port_name} removed from exclude list\n"
+            else:
+                response += f"Port {port_name} is not in exclude list\n"
+
         return response
