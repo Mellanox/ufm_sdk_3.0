@@ -31,9 +31,11 @@ Functions commonly added by optional UFM plugins include:
 
 * Each plugin should consist of the following files:
 
-    1. _**init.sh**_ : Initialize script that should be placed in the root folder _**(/init.sh)**_ and have execute permission. It is being invoked by the UFM plugin manager upon plugin deployment (when adding a new plugin). The developer may copy the plugins configuration files to _**/config**_ folder which is mapped to the DRBD partition on the host (location on host: _/opt/ufm/files/plugins/{plugin name}_)
+    1. **init.sh** : Initialize script that should be placed in the root folder **(/init.sh)** and have execute permission. It is being invoked by the UFM plugin manager upon plugin deployment (when adding a new plugin). The developer may copy the plugins configuration files to **/config** folder which is mapped to the DRBD partition on the host (location on host: _/opt/ufm/files/conf/plugins/{plugin name}_)
 
-    2. _**deinit.sh**_ : De-initialize script that should be placed in the root folder _**(/deinit.sh)**_, have execute permission and return zero. It is being invoked by the UFM plugin manager upon plugin removal. The developer may clear files and folders that are placed on the host (e.g., log files) 
+    2. **deinit.sh** : De-initialize script that should be placed in the root folder **(/deinit.sh)**, have execute permission and return zero. It is being invoked by the UFM plugin manager upon plugin removal. The developer may clear files and folders that are placed on the host (e.g., log files)
+    
+    3. **upgrade.sh** : This is the upgrade script, which should be placed in the root folder **(/upgrade.sh)** and granted execute permission. It is invoked by the UFM plugin manager upon plugin upgrade. During the upgrade stage, the developer may handle the upgrade of the plugin's configuration files. If the upgrade is successful (i.e., exits with zero), the new plugin's TAG (version) will be updated in the plugins' configuration file located at _/opt/ufm/files/conf/ufm_plugins.conf_.
 
 * Each plugin may have the following files:
 
@@ -89,13 +91,15 @@ Functions commonly added by optional UFM plugins include:
 ## Lifecycle
 The UFM plugins lifecycle is managed by UFM. Currently, It is the user responsibility to pull/load the plugin’s Docker container image on both master and standby nodes.
 
-* **Add** : Upon addition, the plugin’s Docker container is started, and the _**/init.sh**_ script is invoked. Its configuration files must be copied to _**/config**_ folder. The container will exit once the init stage is done and it will be re-started upon UFM startup. In case UFM is already running when the plugin is deployed, it will be started automatically.
+* **Add** : Upon addition, the plugin’s Docker container is started, and the **_/init.sh_** script is invoked. Its configuration files must be copied to **_/config_** folder. The container will exit once the init stage is done and it will be re-started upon UFM startup. In case UFM is already running when the plugin is deployed, it will be started automatically.
 
 * **Disable** : The plugin’s Docker container is stopped. However, its data is still accessible via the host. 
 
 * **Enable** : The plugin’s Docker container is re-started. 
 
-* **Remove** : The plugin’s Docker container is stopped, and the _**/deinit.sh**_ script is being invoked. In this stage, all the plugin’s data is removed. 
+* **Remove** : The plugin’s Docker container is stopped, and the **_/deinit.sh_** script is being invoked. In this stage, all the plugin’s data is removed.
+
+* **Upgrade** : The plugin's **_/upgrade.sh_** script is invoked once the plugin is stopped, either manually before the upgrade or via the optional "force" flag. In this stage, all the plugin's data may be upgraded. It is up to the developer to decide whether the data needs to be upgraded. The **_upgrade.sh_** script receives the plugin's new TAG (version) as an argument ("-to_version {TAG}"). If the upgrade is successful (i.e., exits with zero), the new plugin's TAG (version) will be updated in the plugins' configuration file located at _/opt/ufm/files/conf/ufm_plugins.conf_. The developer should decide how to proceed in case the upgrade has failed (e.g., revert to the old configuration and return a non-zero value, or reset to the new configuration with default values and return zero).
 
 **Note**: The plugin’s Docker container is started/stopped upon UFM start/stop. In case UFM is already running when the plugin is added/enabled, it will be started. While, in case it is disabled/removed, it will be stopped 
 
