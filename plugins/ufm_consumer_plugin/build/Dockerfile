@@ -1,6 +1,6 @@
 FROM ubuntu:20.04
 
-LABEL maintainer="a@b.com"
+LABEL maintainer="atabachnik@nvidia.com"
 
 ARG PLUGIN_NAME="ufm_consumer"
 ARG UFM_TAR_PREFIX="ufm"

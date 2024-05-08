@@ -109,11 +109,7 @@ BUILD_DIR=$(create_out_dir)
 cp Dockerfile ${BUILD_DIR}
 cp -r ../../${PLUGIN_NAME}_plugin ${BUILD_DIR}
 # copy latest release of UFM to be used for installation
-#scp /mswg/release/ufm/ufm-enterprise/latest/ufm-*.ubuntu20.x86_64.mofed5.tgz ${BUILD_DIR}
-#scp /mswg/release/ufm/ufm-enterprise/6.16.5/6.16.5-6/ufm-6.16.5-6.ubuntu20.x86_64.mofed5.tgz ${BUILD_DIR}
-#scp /auto/UFM/tmp/UFM-CI/13219/ubuntu20/ufm-6.16.5-4.ubuntu20.x86_64.mofed5.tgz ${BUILD_DIR}
-
-scp /mswg/release/ufm/ufm-enterprise/6.17.0/6.17.0-5/ufm-6.17.0-5.ubuntu20.x86_64.mofed5.tgz ${BUILD_DIR}
+scp /mswg/release/ufm/ufm-enterprise/latest/ufm-*.ubuntu20.x86_64.mofed5.tgz ${BUILD_DIR}
 echo "BUILD_DIR    : [${BUILD_DIR}]"
 
 build_docker_image $BUILD_DIR $IMAGE_NAME $IMAGE_VERSION $OUT_DIR ${RANDOM_HASH}
