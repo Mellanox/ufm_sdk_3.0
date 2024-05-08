@@ -14,8 +14,10 @@ import time
 from http import HTTPStatus
 from json import JSONDecodeError
 from flask import json, request
-
 from utils.flask_server.base_flask_api_server import BaseAPIApplication
+
+ERROR_INCORRECT_INPUT_FORMAT = "Incorrect input format"
+EOL = '\n'
 
 class PDRPluginAPI(BaseAPIApplication):
     '''
@@ -47,7 +49,7 @@ class PDRPluginAPI(BaseAPIApplication):
         """
         items = self.isolation_mgr.exclude_list.items()
         formatted_items = [f"{item.port_name}: {'infinite' if item.ttl_seconds == 0 else int(max(0, item.remove_time - time.time()))}" for item in items]
-        response = '\n'.join(formatted_items) + ('' if not formatted_items else '\n')
+        response = EOL.join(formatted_items) + ('' if not formatted_items else EOL)
         return response, HTTPStatus.OK
 
 
@@ -61,7 +63,7 @@ class PDRPluginAPI(BaseAPIApplication):
         try:
             pairs = self.get_request_data()
         except JSONDecodeError:
-            return "Incorrect input format\n", HTTPStatus.BAD_REQUEST
+            return ERROR_INCORRECT_INPUT_FORMAT + EOL, HTTPStatus.BAD_REQUEST
         
         response = ""
         for pair in pairs:
@@ -69,7 +71,7 @@ class PDRPluginAPI(BaseAPIApplication):
                 port_name = pair[0]
                 ttl = 0 if len(pair) == 1 else int(pair[1])
                 self.isolation_mgr.exclude_list.add(port_name, ttl)
-                response += f"Port {port_name} added to exclude list\n"
+                response += f"Port {port_name} added to exclude list{EOL}"
 
         return response, HTTPStatus.OK
 
@@ -83,14 +85,14 @@ class PDRPluginAPI(BaseAPIApplication):
         try:
             port_names = self.get_request_data()
         except JSONDecodeError:
-            return "Incorrect input format\n", HTTPStatus.BAD_REQUEST
+            return ERROR_INCORRECT_INPUT_FORMAT + EOL, HTTPStatus.BAD_REQUEST
 
         response = ""
         for port_name in port_names:
             if self.isolation_mgr.exclude_list.remove(port_name):
-                response += f"Port {port_name} removed from exclude list\n"
+                response += f"Port {port_name} removed from exclude list{EOL}"
             else:
-                response += f"Port {port_name} is not in exclude list\n"
+                response += f"Port {port_name} is not in exclude list{EOL}"
 
         return response, HTTPStatus.OK
     
