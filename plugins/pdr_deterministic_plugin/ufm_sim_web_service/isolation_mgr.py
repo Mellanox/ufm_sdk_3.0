@@ -22,7 +22,7 @@ import numpy
 from exclude_list import ExcludeList
 
 from constants import PDRConstants as Constants
-from ufm_communication_mgr import UFMCommunicator
+from ufm_communication_mgr import DynamicSessionState, UFMCommunicator
 # should actually be persistent and thread safe dictionary pf PortStates
 
 
@@ -827,10 +827,21 @@ class IsolationMgr:
         if self.test_mode:
             return Constants.TEST_MODE_PORT
         try:
-            while not self.ufm_client.running_dynamic_session(Constants.PDR_DYNAMIC_NAME):
-                self.logger.info("Waiting for dynamic session to start")
-                endpoint_port = self.start_telemetry_session()
-                time.sleep(self.dynamic_wait_time)
+            while True:
+                session_state = self.ufm_client.get_dynamic_session_state(Constants.PDR_DYNAMIC_NAME)
+                if session_state == DynamicSessionState.RUNNING:
+                    # Telemetry session is running
+                    break
+                if session_state == DynamicSessionState.NONE:
+                    # Start new session
+                    self.logger.info("Waiting for dynamic session to start")
+                    endpoint_port = self.start_telemetry_session()
+                    time.sleep(self.dynamic_wait_time)
+                else:
+                    # Stop inactive session
+                    self.logger.info("Waiting for inactive dynamic session to stop")
+                    self.ufm_client.stop_dynamic_session(Constants.PDR_DYNAMIC_NAME)
+                    time.sleep(self.dynamic_wait_time)
         except Exception as e:
             self.ufm_client.stop_dynamic_session(Constants.PDR_DYNAMIC_NAME)
             time.sleep(self.dynamic_wait_time)

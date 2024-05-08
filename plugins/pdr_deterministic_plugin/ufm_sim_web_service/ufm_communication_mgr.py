@@ -10,12 +10,22 @@
 # provided with the software product.
 #
 
+from enum import Enum
 from constants import PDRConstants as Constants
 import requests
 import logging
 import copy
 import http
 import pandas as pd
+
+class DynamicSessionState(Enum):
+    """
+    States of telemetry session instance
+    """
+    NONE     = 0
+    INACTIVE = 1
+    RUNNING  = 2
+
 class UFMCommunicator:
 
     def __init__(self, host='127.0.0.1', ufm_port=8000):
@@ -128,13 +138,16 @@ class UFMCommunicator:
             }
         return self.send_request(Constants.DYNAMIC_SESSION_REST % instance_name, data, method=Constants.PUT_METHOD)
 
-    def running_dynamic_session(self, instance_name):
+    def get_dynamic_session_state(self, instance_name):
         response = self.get_request(Constants.STATUS_DYNAMIC_SESSION_REST)
         if response:
             instance_status = response.get(instance_name)
-            if instance_status and instance_status.get("status") == "running":
-                return True
-        return False
+            if instance_status:
+                if instance_status.get("status") == "running":
+                    return DynamicSessionState.RUNNING
+                else:
+                    return DynamicSessionState.INACTIVE
+        return DynamicSessionState.NONE
 
     def stop_dynamic_session(self, instance_name):
         data = {}
