@@ -5,8 +5,10 @@ from threading import Lock
 import copy
 import argparse
 import random
+import requests
 from os import _exit
 from os.path import exists
+from utils.utils import Utils
 
 lock = Lock()
 
@@ -18,6 +20,7 @@ LINK_DOWN_COUNTER = "LinkDownedCounterExtended"
 RCV_REMOTE_PHY_ERROR_COUNTER = "PortRcvRemotePhysicalErrorsExtended"
 TEMP_COUNTER = "CableInfo.Temperature"
 FEC_MODE = "fec_mode_active"
+BLACK_TTL =  "ExcludePortTimeSeconds"
 ENDPOINT_CONFIG = {}
 
 class CsvEndpointHandler(BaseHTTPRequestHandler):
@@ -26,7 +29,6 @@ class CsvEndpointHandler(BaseHTTPRequestHandler):
         super().__init__(*args, **kwargs)
 
     def do_GET(self):
-        ENDPOINT_CONFIG["ITERATION_TIME"] += 1
         self.send_response(200)
         self.send_header('Content-type', 'text/plain')
         self.end_headers()
@@ -37,6 +39,11 @@ class CsvEndpointHandler(BaseHTTPRequestHandler):
             return
 
         endpoint = ENDPOINT_CONFIG[path]
+        black_ports_simulation(endpoint)
+
+        # Increase iteration counter AFTER black ports simulation
+        ENDPOINT_CONFIG["ITERATION_TIME"] += 1
+
         data = endpoint['data']
         self.wfile.write(data.encode())
 
@@ -46,38 +53,58 @@ DIFFERENT_DEFAULT_VALUES = {
     RCV_PACKETS_COUNTER:"10000000",
 }
 
-ALL_DATA_TEST = {
+POSITIVE_DATA_TEST = {
     # all positive tests
     # iteration, row index, counter name = value
-    (1,0,PHY_SYMBOL_ERROR):0, # example, also negative test
-    (1,3,RCV_ERRORS_COUNTER):50,
+    (1,0,PHY_SYMBOL_ERROR): 0, # example, also negative test
+    (1,3,RCV_ERRORS_COUNTER): 50,
     # testing packet drop rate criteria
-    (2,3,RCV_ERRORS_COUNTER):500,
+    (2,3,RCV_ERRORS_COUNTER): 500,
 
     # testing temperature changes
-    (3,4,TEMP_COUNTER):90,
+    (3,4,TEMP_COUNTER): 90,
     # testing temperature max difference
-    (3,6,TEMP_COUNTER):25,
+    (3,6,TEMP_COUNTER): 25,
 
-    (4,8,RCV_REMOTE_PHY_ERROR_COUNTER):50,
+    (4,8,RCV_REMOTE_PHY_ERROR_COUNTER): 50,
     # testing packet drop rate criteria from the second counter. because we look on rate
-    (5,8,RCV_REMOTE_PHY_ERROR_COUNTER):500,
+    (5,8,RCV_REMOTE_PHY_ERROR_COUNTER): 500,
     
     # testing link down
-    (4,2,LINK_DOWN_COUNTER):2,
-    (5,2,LINK_DOWN_COUNTER):3,
-    (6,2,LINK_DOWN_COUNTER):4,
+    (4,2,LINK_DOWN_COUNTER): 2,
+    (5,2,LINK_DOWN_COUNTER): 3,
+    (6,2,LINK_DOWN_COUNTER): 4,
+
+    # testing auto remove port from black list
+    (0,9,BLACK_TTL): 60,        # add to blacklist for 60 seconds
+    (8,9,LINK_DOWN_COUNTER): 1, # at this moment the port should be already automatically removed from blacklist
+    (9,9,LINK_DOWN_COUNTER): 2, # try trigger isolation issue
+}
+
+NEGATIVE_DATA_TEST = {
+    # testing black list
+    (0,5,BLACK_TTL): 0,         # add to blacklist forever
+    (1,5,LINK_DOWN_COUNTER): 1,
+    (2,5,LINK_DOWN_COUNTER): 2, # try trigger isolation issue (should be ignored)
+    (3,5,LINK_DOWN_COUNTER): 3, # try trigger isolation issue (should be ignored)
+    (4,5,LINK_DOWN_COUNTER): 4, # try trigger isolation issue (should be ignored)
+    (5,5,LINK_DOWN_COUNTER): 5, # try trigger isolation issue (should be ignored)
+    (6,5,LINK_DOWN_COUNTER): 6, # try trigger isolation issue (should be ignored)
+    (7,5,LINK_DOWN_COUNTER): 7, # try trigger isolation issue (should be ignored)
+    (8,5,LINK_DOWN_COUNTER): 8, # try trigger isolation issue (should be ignored)
+    (9,5,LINK_DOWN_COUNTER): 9, # try trigger isolation issue (should be ignored)
 
     # negative tests
-    # testing ber calculation ( should not pass as not all are not equal to 0)
-
+    # testing ber calculation (should not pass as not all are not equal to 0)
 }
 
 # getting the max tests we test plus 2
-MAX_ITERATIONS = max([x[0] for x in ALL_DATA_TEST]) + 2
+MAX_POSITIVE_ITERATIONS = max([x[0] for x in POSITIVE_DATA_TEST])
+MAX_NEGATIVE_ITERATIONS = max([x[0] for x in NEGATIVE_DATA_TEST])
+MAX_ITERATIONS = max(MAX_POSITIVE_ITERATIONS, MAX_NEGATIVE_ITERATIONS) + 2
 
 # return randomize value base on the counter name
-def randomizeValues(counter_name:str,iteration:int):
+def randomize_values(counter_name:str,iteration:int):
     if counter_name == RCV_PACKETS_COUNTER:
         return 1000000 + iteration * 10
     if counter_name == TEMP_COUNTER:
@@ -90,12 +117,15 @@ def randomizeValues(counter_name:str,iteration:int):
         return 0
 
 # return value if found on our testing telemetry simulation, else return default value for that telemetry.
-def findValue(row_index:int, counter_name:str, iteration:int):
+def find_value(row_index:int, counter_name:str, iteration:int, default=0):
     if counter_name == RCV_PACKETS_COUNTER:
         return str(1000000 + iteration * 10)
-    return ALL_DATA_TEST.get((iteration,row_index,counter_name),
-                             DIFFERENT_DEFAULT_VALUES.get(counter_name,0))
-        
+    value = POSITIVE_DATA_TEST.get((iteration, row_index, counter_name), None)
+    if value is None:
+        value = NEGATIVE_DATA_TEST.get((iteration, row_index, counter_name),
+                                       DIFFERENT_DEFAULT_VALUES.get(counter_name, default))
+
+    return value
 
 def start_server(port:str,changes_intervals:int, run_forever:bool):
     server_address = ('', int(port))
@@ -130,20 +160,56 @@ def start_server(port:str,changes_intervals:int, run_forever:bool):
                 last_val = counter['last_val']
                 ## here we set the value for the counters
                 if ENDPOINT_CONFIG["ITERATION_TIME"] < MAX_ITERATIONS:
-                    counter['last_val'] = findValue(index,counters_names[i],ENDPOINT_CONFIG["ITERATION_TIME"])
+                    counter['last_val'] = find_value(index,counters_names[i],ENDPOINT_CONFIG["ITERATION_TIME"], 0)
                 else:
-                    counter['last_val'] = randomizeValues(counters_names[i],ENDPOINT_CONFIG["ITERATION_TIME"])
+                    counter['last_val'] = randomize_values(counters_names[i],ENDPOINT_CONFIG["ITERATION_TIME"])
                 row_data.append(str(last_val))
             data.append(row_data)
 
         output = [header] + data
         csv_data = '\n'.join([','.join(row) for row in output]) + '\n'
-        endpoint['data'] = csv_data        
+        endpoint['data'] = csv_data
         if not run_forever and ENDPOINT_CONFIG["ITERATION_TIME"] > MAX_ITERATIONS:
             # after all the tests are done, we need to stop the simulator and check the logs
             return
         time.sleep(changes_intervals)
 
+def get_full_port_name(endpoint, index):
+    row = endpoint["selected_row"][index];
+    items = row[0].split(',')
+    return items[3][2:] + '_' + items[4]
+
+def black_ports_simulation(endpoint):
+    added_ports = []
+    removed_ports = []
+    rows = endpoint['row']
+    for port_index in range(len(rows)):
+        iteration = ENDPOINT_CONFIG["ITERATION_TIME"]
+        ttl_seconds = find_value(port_index, BLACK_TTL, iteration, None)
+        if ttl_seconds is not None:
+            port_name = get_full_port_name(endpoint, port_index)
+            if ttl_seconds == -1:
+                # Remove from black list
+                removed_ports.append(f"\"{port_name}\"")
+            else:
+                # Add to black list
+                if ttl_seconds == 0:
+                    # Test optional parameter for infinite TTL
+                    added_ports.append(f"[\"{port_name}\"]")
+                else:
+                    # Test limited TTL value
+                    added_ports.append(f"[\"{port_name}\",{ttl_seconds}]")
+
+    if added_ports or removed_ports:
+        plugin_port = Utils.get_plugin_port(port_conf_file='/config/pdr_deterministic_httpd_proxy.conf', default_port_value=8977)
+        url=f"http://127.0.0.1:{plugin_port}/excluded"
+        if added_ports:
+            added_ports_str = '[' + ','.join(added_ports) + ']'
+            requests.put(url=url, data=added_ports_str, timeout=5)
+
+        if removed_ports:
+            removed_ports_str = '[' + ','.join(removed_ports) + ']'
+            requests.delete(url=url, data=removed_ports_str, timeout=5)
 
 # create an array of ports in size of ports_num
 def create_ports(config:dict,ports_num: int):
@@ -185,6 +251,15 @@ def assert_equal(message, left_expr, right_expr, test_name="positive"):
         else:
             print(f"    - {test_name} test name: {message} -- FAIL (expected: {right_expr}, actual: {left_expr})")
 
+def validate_simulation_data():
+    positive_test_port_indexes = set([x[1] for x in POSITIVE_DATA_TEST])
+    negative_test_port_indexes = set([x[1] for x in NEGATIVE_DATA_TEST])
+    if not positive_test_port_indexes.isdisjoint(negative_test_port_indexes):
+        print("ERROR: same port can't participate in both positive and negative tests")
+        return False
+
+    return True
+
 def check_logs(config):
     lines=[]
     location_logs_can_be = ["/log/pdr_deterministic_plugin.log",
@@ -201,7 +276,7 @@ def check_logs(config):
         return 1        
     # if a you want to add more tests, please add more guids and test on other indeces.
     
-    ports_should_be_isoloated_indeces = list(set([x[1] for x in ALL_DATA_TEST]))
+    ports_should_be_isoloated_indeces = list(set([x[1] for x in POSITIVE_DATA_TEST]))
     ports_shouldnt_be_isolated_indeces = [0]
     # remove negative tests from the positive ones
     ports_should_be_isoloated_indeces = [port for port in ports_should_be_isoloated_indeces if port not in ports_shouldnt_be_isolated_indeces]
@@ -212,22 +287,22 @@ def check_logs(config):
     for p in ports_should_be_isoloated_indeces:
         found=False
         port_name = config["Ports_names"][p][2:]
-        testedCounter = set([x[2] for x in ALL_DATA_TEST if x[1]==p])
+        tested_counter = set([x[2] for x in POSITIVE_DATA_TEST if x[1]==p])
         for line in lines:
-            foundPort = isolated_message + port_name in line
-            if foundPort:
+            found_port = isolated_message + port_name in line
+            if found_port:
                 found = True
                 number_of_tests_approved -= 1 # it was found
                 break
-        assert_equal(f"{port_name} which check {testedCounter} changed and in the logs",found,True)
+        assert_equal(f"{port_name} which check {tested_counter} changed and in the logs",found,True)
     
     for p in ports_shouldnt_be_isolated_indeces:
         found=False
         port_name = config["Ports_names"][p][2:]
-        testedCounter = set([x[2] for x in ALL_DATA_TEST if x[1]==p])
+        tested_counter = set([x[2] for x in POSITIVE_DATA_TEST if x[1]==p])
         for line in lines:
-            foundPort = isolated_message + port_name in line
-            if foundPort:
+            found_port = isolated_message + port_name in line
+            if found_port:
                 found=True
                 number_of_negative_tests -= 1 # it was found, but it shouldnt
                 break
@@ -273,6 +348,9 @@ def main():
     config['row'] = config['selected_row']
     initialize_simulated_counters(config)
 
+    if not validate_simulation_data():
+        return False
+    
     port = args.endpoint_port
     url = f'http://0.0.0.0:{port}{args.url_suffix}'
     print(f'---Starting endpoint {url}')
