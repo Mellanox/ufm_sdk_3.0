@@ -90,11 +90,11 @@ The ports are added or removed to blacklist via PDR plugin Rest API.
 Add ports to exclude list (to be excluded from the analysis):
     curl -k -i -X PUT 'http://<host_ip>/excluded' -d '[<formatted_ports_list>]'
     TTL (time to live in blacklist) can optionally follow the port after the comma (if zero or not specified, then port is excluded forever)
-    Example: curl -k -i -X PUT 'http://127.0.0.1:8977/excluded' -d '[(9c0591030085ac80_45,),(9c0591030085ac80_46,300)]' (first port is added forever, second - just for 300 seconds)
+    Example: curl -k -i -X PUT 'http://127.0.0.1:8977/excluded' -d '[["9c0591030085ac80_45"],["9c0591030085ac80_46",300]' (first port is added forever, second - just for 300 seconds)
 
 Remove ports from exclude list
     curl -k -i -X DELETE 'http://<host_ip>/excluded' -d '[<comma_separated_port_mames>]'
-    Example: curl -k -i -X DELETE 'http://127.0.0.1:8977/excluded' -d '[9c0591030085ac80_45,9c0591030085ac80_46]'
+    Example: curl -k -i -X DELETE 'http://127.0.0.1:8977/excluded' -d '["9c0591030085ac80_45","9c0591030085ac80_46"]'
 
 Get ports and remaining times from exclude list
     curl -k -i -X GET 'http://<host_ip>/excluded'
