@@ -1,5 +1,5 @@
 [MASTER]
-init-hook="import sys; sys.path.append("./plugins/fluentd_telemetry_plugin/src")"
+init-hook="import sys; sys.path.append("./src")"
 
 [MESSAGES CONTROL]
 disable=missing-module-docstring,missing-function-docstring,fixme
