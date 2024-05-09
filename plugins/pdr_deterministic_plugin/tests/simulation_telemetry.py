@@ -1,3 +1,15 @@
+#
+# Copyright © 2013-2024 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+#
+# This software product is a proprietary product of Nvidia Corporation and its affiliates
+# (the "Company") and all right, title, and interest in and to the software
+# product, including all associated intellectual property rights, are and
+# shall remain exclusively with the Company.
+#
+# This software product is governed by the End User License Agreement
+# provided with the software product.
+#
+
 import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
@@ -5,9 +17,9 @@ from threading import Lock
 import copy
 import argparse
 import random
-import requests
 from os import _exit
 from os.path import exists
+import requests
 from utils.utils import Utils
 
 lock = Lock()
@@ -69,7 +81,7 @@ POSITIVE_DATA_TEST = {
     (4,8,RCV_REMOTE_PHY_ERROR_COUNTER): 50,
     # testing packet drop rate criteria from the second counter. because we look on rate
     (5,8,RCV_REMOTE_PHY_ERROR_COUNTER): 500,
-    
+
     # testing link down
     (4,2,LINK_DOWN_COUNTER): 2,
     (5,2,LINK_DOWN_COUNTER): 3,
@@ -94,14 +106,16 @@ NEGATIVE_DATA_TEST = {
     (8,5,LINK_DOWN_COUNTER): 8, # try trigger isolation issue (should be ignored)
     (9,5,LINK_DOWN_COUNTER): 9, # try trigger isolation issue (should be ignored)
 
-    # negative tests
     # testing ber calculation (should not pass as not all are not equal to 0)
 }
 
+def get_max_iteration_index(tests):
+   return max([test[0] for test in tests]) if tests else 0
+
 # getting the max tests we test plus 2
-MAX_POSITIVE_ITERATIONS = max([x[0] for x in POSITIVE_DATA_TEST])
-MAX_NEGATIVE_ITERATIONS = max([x[0] for x in NEGATIVE_DATA_TEST])
-MAX_ITERATIONS = max(MAX_POSITIVE_ITERATIONS, MAX_NEGATIVE_ITERATIONS) + 2
+MAX_POSITIVE_ITERATION_INDEX = get_max_iteration_index(POSITIVE_DATA_TEST)
+MAX_NEGATIVE_ITERATION_INDEX = get_max_iteration_index(NEGATIVE_DATA_TEST)
+MAX_ITERATIONS = max(MAX_POSITIVE_ITERATION_INDEX, MAX_NEGATIVE_ITERATION_INDEX) + 2
 
 # return randomize value base on the counter name
 def randomize_values(counter_name:str,iteration:int):
