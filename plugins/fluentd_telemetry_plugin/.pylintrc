@@ -1,0 +1,11 @@
+[MASTER]
+init-hook="import sys; sys.path.append("./plugins/fluentd_telemetry_plugin/src")"
+
+[MESSAGES CONTROL]
+disable=missing-module-docstring,missing-function-docstring,fixme
+
+[FORMAT]
+max-line-length=140
+
+[BASIC]
+min-public-methods=1
