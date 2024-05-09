@@ -11,7 +11,7 @@ ARG SRC_BASE_DIR=${PLUGIN_NAME}_plugin
 ARG LOG_LINK=/log
 ARG LOG_DIR=/opt/ufm/files/log
 
-SHELL ['/bin/bash', '-c']
+SHELL ["/bin/bash", "-c"]
 
 COPY ${SRC_BASE_DIR}/ ${BASE_PATH}/${SRC_BASE_DIR}/
 COPY ${UFM_DISTRO_PREFIX}*${UFM_TAR_SUFIX}.tgz /tmp/
