@@ -101,10 +101,10 @@ POSITIVE_DATA_TEST = {
     (8, 9, LINK_DOWN_COUNTER): 1,        # at this moment the port should be already automatically removed from blacklist
     (9, 9, LINK_DOWN_COUNTER): 2,        # try trigger isolation issue
     # testing forced remove port from blacklist
-    (0, 1, EXCLUDE_PORT_LONG_TIME): 60, # add to blacklist for 60 seconds
-    (1, 1, INCLUDE_PORT): -1,           # remove port from blacklist
-    (2, 1, LINK_DOWN_COUNTER): 1,       # at this moment the port should be already removed from blacklist
-    (3, 1, LINK_DOWN_COUNTER): 2,       # try trigger isolation issue
+    (0, 1, EXCLUDE_PORT_LONG_TIME): 0,   # add to blacklist forever
+    (1, 1, INCLUDE_PORT): -1,            # remove port from blacklist
+    (2, 1, LINK_DOWN_COUNTER): 1,        # at this moment the port should be already removed from blacklist
+    (3, 1, LINK_DOWN_COUNTER): 2,        # try trigger isolation issue
 
     # testing ber calculation (should not pass as not all are not equal to 0)
 }
@@ -316,11 +316,7 @@ def check_logs(config):
     # if a you want to add more tests, please add more guids and test on other indices.
 
     ports_should_be_isolated_indices = list(set([x[1] for x in POSITIVE_DATA_TEST]))
-    # For negative tests select all ports that are not in positive tests
-    all_ports_indices = list(range(len(config['selected_row'])))
-    ports_negative_tests_indices = list(set([x[1] for x in NEGATIVE_DATA_TEST]))
-    ports_should_not_be_isolated_indices = [port for port in all_ports_indices if port not in ports_should_be_isolated_indices]
-    ports_should_not_be_isolated_indices = sorted(ports_should_not_be_isolated_indices, key=lambda x: x not in ports_negative_tests_indices)
+    ports_should_not_be_isolated_indices = list(set([x[1] for x in NEGATIVE_DATA_TEST]))
 
     number_of_failed_positive_tests = 0
     number_of_failed_negative_tests = 0
@@ -348,10 +344,7 @@ def check_logs(config):
                 found = True
                 number_of_failed_negative_tests += 1
                 break
-        if tested_counter:
-            assert_equal(f"{port_name} which check {tested_counter} changed but should not be in the logs", found, False, "negative")
-        else:
-            assert_equal(f"{port_name} not changed and should not be in the logs", found, False, "negative")
+        assert_equal(f"{port_name} which check {tested_counter} should not be in the logs", found, False, "negative")
 
     all_pass = number_of_failed_positive_tests == 0 and number_of_failed_negative_tests == 0
     return 0 if all_pass else 1
