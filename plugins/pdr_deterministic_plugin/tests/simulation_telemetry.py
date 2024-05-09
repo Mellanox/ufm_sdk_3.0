@@ -21,6 +21,7 @@ from os import _exit
 from os.path import exists
 import requests
 from utils.utils import Utils
+from collections import OrderedDict
 
 lock = Lock()
 
@@ -317,7 +318,9 @@ def check_logs(config):
     ports_should_be_isolated_indices = list(set([x[1] for x in POSITIVE_DATA_TEST]))
     # For negative tests select all ports that are not in positive tests
     all_ports_indices = list(range(len(config['selected_row'])))
+    ports_negative_tests_indices = list(set([x[1] for x in NEGATIVE_DATA_TEST]))
     ports_should_not_be_isolated_indices = [port for port in all_ports_indices if port not in ports_should_be_isolated_indices]
+    ports_should_not_be_isolated_indices = sorted(ports_should_not_be_isolated_indices, key=lambda x: x not in ports_negative_tests_indices)
 
     number_of_failed_positive_tests = 0
     number_of_failed_negative_tests = 0
@@ -325,7 +328,7 @@ def check_logs(config):
     for p in ports_should_be_isolated_indices:
         found=False
         port_name = config["Ports_names"][p][2:]
-        tested_counter = set([x[2] for x in POSITIVE_DATA_TEST if x[1] == p])
+        tested_counter = list(OrderedDict.fromkeys([x[2] for x in POSITIVE_DATA_TEST if x[1] == p]))
         for line in lines:
             found_port = isolated_message + port_name in line
             if found_port:
@@ -338,7 +341,7 @@ def check_logs(config):
     for p in ports_should_not_be_isolated_indices:
         found=False
         port_name = config["Ports_names"][p][2:]
-        tested_counter = set([x[2] for x in NEGATIVE_DATA_TEST if x[1] == p])
+        tested_counter = list(OrderedDict.fromkeys([x[2] for x in NEGATIVE_DATA_TEST if x[1] == p]))
         for line in lines:
             found_port = isolated_message + port_name in line
             if found_port:
@@ -391,7 +394,7 @@ def main():
     initialize_simulated_counters(config)
 
     if not validate_simulation_data():
-        return False
+        return 1
     
     port = args.endpoint_port
     url = f'http://0.0.0.0:{port}{args.url_suffix}'
