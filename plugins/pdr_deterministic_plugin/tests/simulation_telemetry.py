@@ -32,7 +32,7 @@ LINK_DOWN_COUNTER = "LinkDownedCounterExtended"
 RCV_REMOTE_PHY_ERROR_COUNTER = "PortRcvRemotePhysicalErrorsExtended"
 TEMP_COUNTER = "CableInfo.Temperature"
 FEC_MODE = "fec_mode_active"
-BLACK_TTL =  "ExcludePortTimeSeconds"
+EXCLUDE_PORT =  "ExcludePort"
 ENDPOINT_CONFIG = {}
 
 class CsvEndpointHandler(BaseHTTPRequestHandler):
@@ -65,7 +65,7 @@ DIFFERENT_DEFAULT_VALUES = {
     RCV_PACKETS_COUNTER:"10000000",
 }
 
-# All positive tests
+# All positive tests (tested ports should be isolated)
 # (iteration, row index, counter name): value
 POSITIVE_DATA_TEST = {
     (1,0,PHY_SYMBOL_ERROR): 0, # example, also negative test
@@ -88,16 +88,16 @@ POSITIVE_DATA_TEST = {
     (6,2,LINK_DOWN_COUNTER): 4,
 
     # testing auto remove port from black list
-    (0,9,BLACK_TTL): 60,        # add to blacklist for 60 seconds
+    (0,9,EXCLUDE_PORT): 60,     # add to blacklist for 60 seconds
     (8,9,LINK_DOWN_COUNTER): 1, # at this moment the port should be already automatically removed from blacklist
     (9,9,LINK_DOWN_COUNTER): 2, # try trigger isolation issue
 }
 
-# All negaitive tests
+# All negaitive tests (tested ports should not be isolated)
 # (iteration, row index, counter name): value
 NEGATIVE_DATA_TEST = {
     # testing black list
-    (0,5,BLACK_TTL): 0,         # add to blacklist forever
+    (0,5,EXCLUDE_PORT): 0,      # add to blacklist forever
     (1,5,LINK_DOWN_COUNTER): 1,
     (2,5,LINK_DOWN_COUNTER): 2, # try trigger isolation issue (should be ignored)
     (3,5,LINK_DOWN_COUNTER): 3, # try trigger isolation issue (should be ignored)
@@ -201,7 +201,7 @@ def black_ports_simulation(endpoint):
     rows = endpoint['row']
     for port_index in range(len(rows)):
         iteration = ENDPOINT_CONFIG["ITERATION_TIME"]
-        ttl_seconds = find_value(port_index, BLACK_TTL, iteration, None)
+        ttl_seconds = find_value(port_index, EXCLUDE_PORT, iteration, None)
         if ttl_seconds is not None:
             port_name = get_full_port_name(endpoint, port_index)
             if ttl_seconds == -1:
@@ -290,41 +290,45 @@ def check_logs(config):
     if len(lines) == 0:
         print("Could not find log file in " + str(location_logs_can_be))
         return 1        
-    # if a you want to add more tests, please add more guids and test on other indeces.
-    
-    ports_should_be_isoloated_indeces = list(set([x[1] for x in POSITIVE_DATA_TEST]))
-    ports_shouldnt_be_isolated_indeces = [0]
-    # remove negative tests from the positive ones
-    ports_should_be_isoloated_indeces = [port for port in ports_should_be_isoloated_indeces if port not in ports_shouldnt_be_isolated_indeces]
+    # if a you want to add more tests, please add more guids and test on other indices.
 
-    number_of_tests_approved = len(ports_should_be_isoloated_indeces)
-    number_of_negative_tests = len(ports_shouldnt_be_isolated_indeces)
+    ports_should_be_isolated_indices = list(set([x[1] for x in POSITIVE_DATA_TEST]))
+    # For negative tests select all ports that are not in positive tests
+    all_ports_indices = list(range(len(config['selected_row'])))
+    ports_should_not_be_isolated_indices = [port for port in all_ports_indices if port not in ports_should_be_isolated_indices]
+
+    number_of_failed_positive_tests = 0
+    number_of_failed_negative_tests = 0
     isolated_message="WARNING: Isolated port: "
-    for p in ports_should_be_isoloated_indeces:
+    for p in ports_should_be_isolated_indices:
         found=False
         port_name = config["Ports_names"][p][2:]
-        tested_counter = set([x[2] for x in POSITIVE_DATA_TEST if x[1]==p])
+        tested_counter = set([x[2] for x in POSITIVE_DATA_TEST if x[1] == p])
         for line in lines:
             found_port = isolated_message + port_name in line
             if found_port:
                 found = True
-                number_of_tests_approved -= 1 # it was found
                 break
-        assert_equal(f"{port_name} which check {tested_counter} changed and in the logs",found,True)
-    
-    for p in ports_shouldnt_be_isolated_indeces:
+        if not found:
+            number_of_failed_positive_tests += 1
+        assert_equal(f"{port_name} which check {tested_counter} changed and should be in the logs", found, True)
+
+    for p in ports_should_not_be_isolated_indices:
         found=False
         port_name = config["Ports_names"][p][2:]
-        tested_counter = set([x[2] for x in POSITIVE_DATA_TEST if x[1]==p])
+        tested_counter = set([x[2] for x in NEGATIVE_DATA_TEST if x[1] == p])
         for line in lines:
             found_port = isolated_message + port_name in line
             if found_port:
-                found=True
-                number_of_negative_tests -= 1 # it was found, but it shouldnt
+                found = True
+                number_of_failed_negative_tests += 1
                 break
-        assert_equal(f"{port_name} changed and in the logs",found,False,"negative")
-    
-    all_pass = number_of_tests_approved == 0 and number_of_negative_tests == len(ports_shouldnt_be_isolated_indeces)
+        if tested_counter:
+            assert_equal(f"{port_name} which check {tested_counter} changed but should not be in the logs", found, False, "negative")
+        else:
+            assert_equal(f"{port_name} should not be not in the logs", found, False, "negative")
+
+    all_pass = number_of_failed_positive_tests == 0 and number_of_failed_negative_tests == 0
     return 0 if all_pass else 1
 
 # start a server which update the counters every time
