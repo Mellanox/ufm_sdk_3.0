@@ -65,9 +65,9 @@ DIFFERENT_DEFAULT_VALUES = {
     RCV_PACKETS_COUNTER:"10000000",
 }
 
+# All positive tests
+# (iteration, row index, counter name): value
 POSITIVE_DATA_TEST = {
-    # all positive tests
-    # iteration, row index, counter name = value
     (1,0,PHY_SYMBOL_ERROR): 0, # example, also negative test
     (1,3,RCV_ERRORS_COUNTER): 50,
     # testing packet drop rate criteria
@@ -93,6 +93,8 @@ POSITIVE_DATA_TEST = {
     (9,9,LINK_DOWN_COUNTER): 2, # try trigger isolation issue
 }
 
+# All negaitive tests
+# (iteration, row index, counter name): value
 NEGATIVE_DATA_TEST = {
     # testing black list
     (0,5,BLACK_TTL): 0,         # add to blacklist forever
