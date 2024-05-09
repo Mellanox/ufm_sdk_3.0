@@ -32,8 +32,17 @@ LINK_DOWN_COUNTER = "LinkDownedCounterExtended"
 RCV_REMOTE_PHY_ERROR_COUNTER = "PortRcvRemotePhysicalErrorsExtended"
 TEMP_COUNTER = "CableInfo.Temperature"
 FEC_MODE = "fec_mode_active"
-EXCLUDE_PORT =  "ExcludePort"
 ENDPOINT_CONFIG = {}
+
+EXCLUDE_PORT_LONG_TIME = "ExcludePortForLongTime"
+EXCLUDE_PORT_SHORT_TIME = "ExcludePortForShortTime"
+INCLUDE_PORT = "IncludePort"
+
+EXCLUDE_LIST_TEST_NAMES = [
+    EXCLUDE_PORT_LONG_TIME,
+    EXCLUDE_PORT_SHORT_TIME,
+    INCLUDE_PORT
+]
 
 class CsvEndpointHandler(BaseHTTPRequestHandler):
 
@@ -68,47 +77,54 @@ DIFFERENT_DEFAULT_VALUES = {
 # All positive tests (tested ports should be isolated)
 # (iteration, row index, counter name): value
 POSITIVE_DATA_TEST = {
-    (1,0,PHY_SYMBOL_ERROR): 0, # example, also negative test
-    (1,3,RCV_ERRORS_COUNTER): 50,
+    (1, 3, RCV_ERRORS_COUNTER): 50,
     # testing packet drop rate criteria
-    (2,3,RCV_ERRORS_COUNTER): 500,
+    (2, 3, RCV_ERRORS_COUNTER): 500,
 
     # testing temperature changes
-    (3,4,TEMP_COUNTER): 90,
+    (3, 4, TEMP_COUNTER): 90,
     # testing temperature max difference
-    (3,6,TEMP_COUNTER): 25,
+    (3, 6, TEMP_COUNTER): 25,
 
-    (4,8,RCV_REMOTE_PHY_ERROR_COUNTER): 50,
+    (4, 8, RCV_REMOTE_PHY_ERROR_COUNTER): 50,
     # testing packet drop rate criteria from the second counter. because we look on rate
-    (5,8,RCV_REMOTE_PHY_ERROR_COUNTER): 500,
+    (5, 8, RCV_REMOTE_PHY_ERROR_COUNTER): 500,
 
     # testing link down
-    (4,2,LINK_DOWN_COUNTER): 2,
-    (5,2,LINK_DOWN_COUNTER): 3,
-    (6,2,LINK_DOWN_COUNTER): 4,
+    (4, 2, LINK_DOWN_COUNTER): 2,
+    (5, 2, LINK_DOWN_COUNTER): 3,
+    (6, 2, LINK_DOWN_COUNTER): 4,
 
-    # testing auto remove port from black list
-    (0,9,EXCLUDE_PORT): 60,     # add to blacklist for 60 seconds
-    (8,9,LINK_DOWN_COUNTER): 1, # at this moment the port should be already automatically removed from blacklist
-    (9,9,LINK_DOWN_COUNTER): 2, # try trigger isolation issue
+    # testing auto remove port from blacklist
+    (0, 9, EXCLUDE_PORT_SHORT_TIME): 60, # add to blacklist for 60 seconds
+    (8, 9, LINK_DOWN_COUNTER): 1,        # at this moment the port should be already automatically removed from blacklist
+    (9, 9, LINK_DOWN_COUNTER): 2,        # try trigger isolation issue
+    # testing forced remove port from blacklist
+    (0, 1, EXCLUDE_PORT_LONG_TIME): 60, # add to blacklist for 60 seconds
+    (1, 1, INCLUDE_PORT): -1,           # remove port from blacklist
+    (2, 1, LINK_DOWN_COUNTER): 1,       # at this moment the port should be already removed from blacklist
+    (3, 1, LINK_DOWN_COUNTER): 2,       # try trigger isolation issue
+
+    # testing ber calculation (should not pass as not all are not equal to 0)
 }
 
 # All negaitive tests (tested ports should not be isolated)
 # (iteration, row index, counter name): value
 NEGATIVE_DATA_TEST = {
-    # testing black list
-    (0,5,EXCLUDE_PORT): 0,      # add to blacklist forever
-    (1,5,LINK_DOWN_COUNTER): 1,
-    (2,5,LINK_DOWN_COUNTER): 2, # try trigger isolation issue (should be ignored)
-    (3,5,LINK_DOWN_COUNTER): 3, # try trigger isolation issue (should be ignored)
-    (4,5,LINK_DOWN_COUNTER): 4, # try trigger isolation issue (should be ignored)
-    (5,5,LINK_DOWN_COUNTER): 5, # try trigger isolation issue (should be ignored)
-    (6,5,LINK_DOWN_COUNTER): 6, # try trigger isolation issue (should be ignored)
-    (7,5,LINK_DOWN_COUNTER): 7, # try trigger isolation issue (should be ignored)
-    (8,5,LINK_DOWN_COUNTER): 8, # try trigger isolation issue (should be ignored)
-    (9,5,LINK_DOWN_COUNTER): 9, # try trigger isolation issue (should be ignored)
-
-    # testing ber calculation (should not pass as not all are not equal to 0)
+    # example, also negative test
+    (1, 0, PHY_SYMBOL_ERROR): 0,
+    
+    # testing blacklist
+    (0, 5, EXCLUDE_PORT_LONG_TIME): 0, # add to blacklist forever
+    (1, 5, LINK_DOWN_COUNTER): 1,
+    (2, 5, LINK_DOWN_COUNTER): 2,      # try trigger isolation issue (should be ignored)
+    (3, 5, LINK_DOWN_COUNTER): 3,      # try trigger isolation issue (should be ignored)
+    (4, 5, LINK_DOWN_COUNTER): 4,      # try trigger isolation issue (should be ignored)
+    (5, 5, LINK_DOWN_COUNTER): 5,      # try trigger isolation issue (should be ignored)
+    (6, 5, LINK_DOWN_COUNTER): 6,      # try trigger isolation issue (should be ignored)
+    (7, 5, LINK_DOWN_COUNTER): 7,      # try trigger isolation issue (should be ignored)
+    (8, 5, LINK_DOWN_COUNTER): 8,      # try trigger isolation issue (should be ignored)
+    (9, 5, LINK_DOWN_COUNTER): 9,      # try trigger isolation issue (should be ignored)
 }
 
 def get_max_iteration_index(tests):
@@ -200,21 +216,27 @@ def black_ports_simulation(endpoint):
     removed_ports = []
     rows = endpoint['row']
     for port_index in range(len(rows)):
+        port_name = get_full_port_name(endpoint, port_index)
         iteration = ENDPOINT_CONFIG["ITERATION_TIME"]
-        ttl_seconds = find_value(port_index, EXCLUDE_PORT, iteration, None)
+        
+        # Process remove operation
+        if find_value(port_index, INCLUDE_PORT, iteration, None) is not None:
+            # Remove from blacklist
+            removed_ports.append(f"\"{port_name}\"")
+
+        # Process add operation
+        ttl_seconds = find_value(port_index, EXCLUDE_PORT_LONG_TIME, iteration, None)
+        if ttl_seconds is None:
+            ttl_seconds = find_value(port_index, EXCLUDE_PORT_SHORT_TIME, iteration, None)
+
         if ttl_seconds is not None:
-            port_name = get_full_port_name(endpoint, port_index)
-            if ttl_seconds == -1:
-                # Remove from black list
-                removed_ports.append(f"\"{port_name}\"")
+            # Add to blacklist
+            if ttl_seconds == 0:
+                # Test optional parameter for infinite TTL
+                added_ports.append(f"[\"{port_name}\"]")
             else:
-                # Add to black list
-                if ttl_seconds == 0:
-                    # Test optional parameter for infinite TTL
-                    added_ports.append(f"[\"{port_name}\"]")
-                else:
-                    # Test limited TTL value
-                    added_ports.append(f"[\"{port_name}\",{ttl_seconds}]")
+                # Test limited TTL value
+                added_ports.append(f"[\"{port_name}\",{ttl_seconds}]")
 
     if added_ports or removed_ports:
         plugin_port = Utils.get_plugin_port(port_conf_file='/config/pdr_deterministic_httpd_proxy.conf', default_port_value=8977)
@@ -326,7 +348,7 @@ def check_logs(config):
         if tested_counter:
             assert_equal(f"{port_name} which check {tested_counter} changed but should not be in the logs", found, False, "negative")
         else:
-            assert_equal(f"{port_name} should not be not in the logs", found, False, "negative")
+            assert_equal(f"{port_name} not changed and should not be in the logs", found, False, "negative")
 
     all_pass = number_of_failed_positive_tests == 0 and number_of_failed_negative_tests == 0
     return 0 if all_pass else 1
