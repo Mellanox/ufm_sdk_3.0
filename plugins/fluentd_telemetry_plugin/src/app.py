@@ -13,6 +13,11 @@
 @author: Anan Al-Aghbar
 @date:   Jan 25, 2022
 """
+import os
+import sys
+sys.path.append(os.getcwd())
+
+# pylint: disable=wrong-import-position
 import logging
 from web_service import UFMTelemetryFluentdStreamingAPI
 from streamer import \
