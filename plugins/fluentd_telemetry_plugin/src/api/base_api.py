@@ -26,7 +26,7 @@ class BaseAPIApplication:
         self.add_routes()
         self._add_error_handlers()
 
-    def _get_error_handlers(self):  # pylint: disable=no-self-use
+    def _get_error_handlers(self):
         return [
             (NoRunningStreamingInstance,
              lambda e: (NO_RUNNING_STREAMING_INSTANCE, HTTPStatus.BAD_REQUEST)),
@@ -52,13 +52,13 @@ class BaseAPIApplication:
         """read-only property for the application instance."""
         return self.app
 
-    def _get_routes(self):  # pylint: disable=no-self-use
+    def _get_routes(self):
         """Return a mapping between URLs to their
         view functions / endpoints. Subclasses should implement
         this method if they want to add routes to their applications."""
         return {}
 
-    def _check_rest_api_handlers(self, endpoint, *args, **kwargs):  # pylint: disable=no-self-use
+    def _check_rest_api_handlers(self, endpoint, *args, **kwargs):
 
         return endpoint(*args, **kwargs)
 

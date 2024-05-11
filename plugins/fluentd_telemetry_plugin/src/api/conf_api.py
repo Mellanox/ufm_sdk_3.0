@@ -30,10 +30,10 @@ class StreamingConfigurationsAPI(BaseAPIApplication):
 
     def _get_routes(self):
         return {
-            self.get: dict(urls=["/"], methods=["GET"]),
-            self.post: dict(urls=["/"], methods=["POST"]),
-            self.get_streaming_attributes: dict(urls=["/attributes"], methods=["GET"]),
-            self.update_streaming_attributes: dict(urls=["/attributes"], methods=["POST"])
+            self.get: {'urls': ["/"], 'methods': ["GET"]},
+            self.post: {'urls': ["/"], 'methods': ["POST"]},
+            self.get_streaming_attributes: {'urls': ["/attributes"], 'methods': ["GET"]},
+            self.update_streaming_attributes: {'urls': ["/attributes"], 'methods': ["POST"]}
         }
 
     def _set_new_conf(self):

@@ -26,7 +26,7 @@ class StreamingMonitoringStatsAPI(BaseAPIApplication):
 
     def _get_routes(self):
         return {
-            self.get: dict(urls=["/"], methods=["GET"])
+            self.get: {'urls': ["/"], 'methods': ["GET"]}
         }
 
     def get(self):

@@ -347,7 +347,7 @@ class UFMTelemetryStreaming(Singleton):
         url = f'http://{_host}:{_port}/{_url}'
         logging.info('Send UFM Telemetry Endpoint Request, Method: GET, URL: %s', url)
         try:
-            response = requests.get(url)
+            response = requests.get(url)  # pylint: disable=missing-timeout
             response.raise_for_status()
             actual_content_size = len(response.content)
             expected_content_size = int(response.headers.get('Content-Length', actual_content_size))
@@ -563,8 +563,7 @@ class UFMTelemetryStreaming(Singleton):
                         if attr_obj and attr_obj.get('enabled', False) and len(value):
                             current_row[attr_obj.get("name", key)] = value
                     current_num_of_counters = len(current_row)
-                    if current_num_of_counters > num_of_counters:
-                        num_of_counters = current_num_of_counters
+                    num_of_counters = max(num_of_counters, current_num_of_counters)
                     current_row = self._append_meta_fields_to_dict(current_row)
                     elements_dict[uid] = current_row
                 ####
@@ -589,6 +588,8 @@ class UFMTelemetryStreaming(Singleton):
                 _fluentd_host = self.fluentd_host
                 _fluentd_host = f'[{_fluentd_host}]' if Utils.is_ipv6_address(_fluentd_host) else _fluentd_host
                 compressed = gzip.compress(json.dumps(fluentd_message).encode('utf-8'))
+
+                # pylint: disable=missing-timeout
                 res = requests.post(
                     url=f'http://{_fluentd_host}:{self.fluentd_port}/'
                         f'{UFMTelemetryConstants.PLUGIN_NAME}.{fluentd_msg_tag}',
@@ -610,7 +611,7 @@ class UFMTelemetryStreaming(Singleton):
         except Exception as ex:  # pylint: disable=broad-except
             logging.error('Failed to stream the data due to the error: %s', str(ex))
 
-    def _check_data_prometheus_format(self, telemetry_data):  # pylint: disable=no-self-use
+    def _check_data_prometheus_format(self, telemetry_data):
         return telemetry_data and telemetry_data.startswith('#')
 
     def stream_data(self, telemetry_endpoint):  # pylint: disable=too-many-locals
@@ -712,7 +713,7 @@ class UFMTelemetryStreaming(Singleton):
         self.last_streamed_data_sample_per_port = {}
         self.streaming_metrics_mgr = MonitorStreamingMgr()
 
-    def _convert_str_to_num(self, str_val):  # pylint: disable=no-self-use
+    def _convert_str_to_num(self, str_val):
         try:
             return int(str_val)
         except ValueError:
