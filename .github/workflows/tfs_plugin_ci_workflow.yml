@@ -21,4 +21,4 @@ jobs:
         pip install -r plugins/fluentd_telemetry_plugin/requirements.txt
         pip install pylint
     - name: Run PyLint
-      run: pylint plugins/fluentd_telemetry_plugin
+      run: pylint --rcfile=plugins/fluentd_telemetry_plugin/.pylintrc plugins/fluentd_telemetry_plugin
