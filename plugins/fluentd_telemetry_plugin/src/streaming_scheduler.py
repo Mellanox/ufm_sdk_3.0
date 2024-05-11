@@ -14,27 +14,30 @@
 @date:   Jan 25, 2022
 """
 
-from streamer import UFMTelemetryStreaming
-from utils.singleton import Singleton
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.schedulers.base import STATE_RUNNING
-
 from datetime import datetime
+from streamer import UFMTelemetryStreaming
+from apscheduler.schedulers.background import BackgroundScheduler
+
+# pylint: disable=no-name-in-module,import-error
+from utils.singleton import Singleton
 
 
 class StreamingAlreadyRunning(Exception):
-    pass
+    """StreamingAlreadyRunning Exception class"""
 
 
 class NoRunningStreamingInstance(Exception):
-    pass
+    """NoRunningStreamingInstance Exception class"""
 
 
 class StreamingScheduler(Singleton):
+    """
+    StreamingScheduler class
+    """
+
     def __init__(self):
         self.scheduler = BackgroundScheduler()
         self.streaming_jobs = None
-        pass
 
     def start_streaming(self, update_attributes=False):
         streamer = UFMTelemetryStreaming.getInstance()
@@ -46,7 +49,9 @@ class StreamingScheduler(Singleton):
             for telemetry_endpoint in streamer.ufm_telemetry_endpoints:
                 interval = int(telemetry_endpoint[streamer.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_INTERVAL])
                 streaming_job = self.scheduler.add_job(streamer.stream_data, 'interval',
-                                                       name=telemetry_endpoint[streamer.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME],
+                                                       name=telemetry_endpoint[
+                                                           streamer.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME
+                                                       ],
                                                        args=[telemetry_endpoint],
                                                        seconds=interval,
                                                        next_run_time=datetime.now())
@@ -62,6 +67,7 @@ class StreamingScheduler(Singleton):
                 self.scheduler.remove_job(job.id)
             self.streaming_jobs = None
             return True
+        return False
 
     def get_streaming_state(self):
         return self.scheduler.state

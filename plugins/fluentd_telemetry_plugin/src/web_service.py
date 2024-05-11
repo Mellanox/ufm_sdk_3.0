@@ -23,12 +23,17 @@ from api.base_api import BaseAPIApplication
 
 
 class UFMTelemetryFluentdStreamingAPI(DispatcherMiddleware):
+    """
+    UFMTelemetryFluentdStreamingAPI Flask API class wrapper extends DispatcherMiddleware
+    """
 
-    def __init__(self,config_parser):
+    def __init__(self, config_parser):
 
         frontend = BaseAPIApplication()
         self.streaming_conf = StreamingConfigurationsAPI(config_parser)
         self.streaming_stats = StreamingMonitoringStatsAPI()
+
+        # pylint: disable=super-with-arguments
         super(UFMTelemetryFluentdStreamingAPI, self).__init__(
             frontend.application, {
                 "/conf": self.streaming_conf.application,
