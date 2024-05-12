@@ -207,17 +207,12 @@ def start_server(port:str,changes_intervals:int, run_forever:bool):
             return
         time.sleep(changes_intervals)
 
-def get_full_port_name(endpoint, index):
-    row = endpoint["selected_row"][index];
-    items = row[0].split(',')
-    return items[3][2:] + '_' + items[4]
-
 def black_ports_simulation(endpoint):
     added_ports = []
     removed_ports = []
     rows = endpoint['row']
     for port_index in range(len(rows)):
-        port_name = get_full_port_name(endpoint, port_index)
+        port_name = endpoint["Ports_names"][port_index]
         iteration = ENDPOINT_CONFIG["ITERATION_TIME"]
         
         # Process remove operation
@@ -255,11 +250,12 @@ def create_ports(config:dict,ports_num: int):
     ports_list = []
     ports_names = []
     for _ in range(ports_num):
-        port_str = '0x%016x' % random.randrange(16**16)
+        port_guid = f'0x{random.randrange(16**16):016x}'
         # holds the prefix of each simulated csv rows,
         # list of counters structures(will be filled further)
-        ports_list.append([f"{port_str},,{port_str},{port_str},1", []])
-        ports_names.append(port_str)
+        port_num = random.randint(1, 99)
+        ports_list.append([f"{port_guid},,{port_guid},{port_guid},{port_num}", []])
+        ports_names.append(f"{port_guid[2:]}_{port_num}")
     config["Ports_names"] = ports_names
     return ports_list
 
@@ -286,9 +282,9 @@ def initialize_simulated_counters(endpoint_obj: dict):
 
 def assert_equal(message, left_expr, right_expr, test_name="positive"):
         if left_expr == right_expr:
-            print(f"    - {test_name} test name: {message} -- PASS")
+            print(f"    - {test_name} test: {message} -- PASS")
         else:
-            print(f"    - {test_name} test name: {message} -- FAIL (expected: {right_expr}, actual: {left_expr})")
+            print(f"    - {test_name} test: {message} -- FAIL (expected: {right_expr}, actual: {left_expr})")
 
 def validate_simulation_data():
     positive_test_port_indexes = set([x[1] for x in POSITIVE_DATA_TEST])
@@ -323,7 +319,7 @@ def check_logs(config):
     isolated_message="WARNING: Isolated port: "
     for p in ports_should_be_isolated_indices:
         found=False
-        port_name = config["Ports_names"][p][2:]
+        port_name = config["Ports_names"][p]
         tested_counter = list(OrderedDict.fromkeys([x[2] for x in POSITIVE_DATA_TEST if x[1] == p]))
         for line in lines:
             found_port = isolated_message + port_name in line
@@ -332,11 +328,11 @@ def check_logs(config):
                 break
         if not found:
             number_of_failed_positive_tests += 1
-        assert_equal(f"{port_name} which check {tested_counter} changed and should be in the logs", found, True)
+        assert_equal(f"port {port_name} (index: {p}) which check {tested_counter} changed and should be in the logs", found, True)
 
     for p in ports_should_not_be_isolated_indices:
         found=False
-        port_name = config["Ports_names"][p][2:]
+        port_name = config["Ports_names"][p]
         tested_counter = list(OrderedDict.fromkeys([x[2] for x in NEGATIVE_DATA_TEST if x[1] == p]))
         for line in lines:
             found_port = isolated_message + port_name in line
@@ -344,7 +340,7 @@ def check_logs(config):
                 found = True
                 number_of_failed_negative_tests += 1
                 break
-        assert_equal(f"{port_name} which check {tested_counter} should not be in the logs", found, False, "negative")
+        assert_equal(f"port {port_name} (index: {p}) which check {tested_counter} should not be in the logs", found, False, "negative")
 
     all_pass = number_of_failed_positive_tests == 0 and number_of_failed_negative_tests == 0
     return 0 if all_pass else 1
