@@ -62,16 +62,22 @@ class PDRPluginAPI(BaseAPIApplication):
 
         try:
             pairs = self.get_request_data()
-        except JSONDecodeError:
+        except (JSONDecodeError, ValueError):
             return ERROR_INCORRECT_INPUT_FORMAT + EOL, HTTPStatus.BAD_REQUEST
-        
+
+        if not isinstance(pairs, list) or not all(isinstance(pair, list) for pair in pairs):
+            return ERROR_INCORRECT_INPUT_FORMAT + EOL, HTTPStatus.BAD_REQUEST
+
         response = ""
         for pair in pairs:
             if pair:
                 port_name = pair[0]
                 ttl = 0 if len(pair) == 1 else int(pair[1])
                 self.isolation_mgr.exclude_list.add(port_name, ttl)
-                response += f"Port {port_name} added to exclude list{EOL}"
+                if ttl == 0:
+                    response += f"Port {port_name} added to exclude list forever{EOL}"
+                else:
+                    response += f"Port {port_name} added to exclude list for {ttl} seconds{EOL}"
 
         return response, HTTPStatus.OK
 
@@ -84,7 +90,10 @@ class PDRPluginAPI(BaseAPIApplication):
         """
         try:
             port_names = self.get_request_data()
-        except JSONDecodeError:
+        except (JSONDecodeError, ValueError):
+            return ERROR_INCORRECT_INPUT_FORMAT + EOL, HTTPStatus.BAD_REQUEST
+
+        if not isinstance(port_names, list):
             return ERROR_INCORRECT_INPUT_FORMAT + EOL, HTTPStatus.BAD_REQUEST
 
         response = ""
@@ -95,7 +104,8 @@ class PDRPluginAPI(BaseAPIApplication):
                 response += f"Port {port_name} is not in exclude list{EOL}"
 
         return response, HTTPStatus.OK
-    
+
+
     def get_request_data(self):
         """
         Deserialize request json data into object
