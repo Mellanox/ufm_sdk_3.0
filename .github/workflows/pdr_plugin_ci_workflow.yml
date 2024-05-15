@@ -5,8 +5,12 @@ on:
      paths:
       - 'plugins/pdr_deterministic_plugin/**'
 jobs:
-  pylint:
+  build:
     runs-on: ubuntu-latest
+  
+    environment:
+      PYTHONPATH: 'plugins/pdr_deterministic_plugin/ufm_sim_web_service'
+
     steps:
     - name: Checkout code
       uses: actions/checkout@main
