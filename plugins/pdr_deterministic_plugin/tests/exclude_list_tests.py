@@ -15,11 +15,10 @@ from plugins.pdr_deterministic_plugin.ufm_sim_web_service.constants import PDRCo
 from plugins.pdr_deterministic_plugin.ufm_sim_web_service.exclude_list import ExcludeList
 from plugins.pdr_deterministic_plugin.ufm_sim_web_service.isolation_algo import create_logger
 
-def test_get_from_empty_list():
+def test_get_from_empty_exclude_list():
     """
     Create exclude list and ensure its empty via its method
     """
-
     logger = create_logger(Constants.LOG_FILE)
     exclude_list = ExcludeList(logger)
     items = exclude_list.items()
