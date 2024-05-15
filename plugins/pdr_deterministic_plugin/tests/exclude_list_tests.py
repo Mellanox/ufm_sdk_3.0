@@ -11,9 +11,9 @@
 #
 
 #import pytest
-from plugins.pdr_deterministic_plugin.ufm_sim_web_service.constants import PDRConstants as Constants
-from plugins.pdr_deterministic_plugin.ufm_sim_web_service.exclude_list import ExcludeList
-from plugins.pdr_deterministic_plugin.ufm_sim_web_service.isolation_algo import create_logger
+from constants import PDRConstants as Constants
+from exclude_list import ExcludeList
+from isolation_algo import create_logger
 
 def test_get_from_empty_exclude_list():
     """
@@ -23,3 +23,6 @@ def test_get_from_empty_exclude_list():
     exclude_list = ExcludeList(logger)
     items = exclude_list.items()
     assert not items
+
+if __name__ == '__main__':
+    test_get_from_empty_exclude_list()
