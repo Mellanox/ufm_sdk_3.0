@@ -24,10 +24,10 @@ def test_get_from_empty_exclude_list():
     """
     print("Test 5")
 
-    filename = os.path.basename(Constants.LOG_FILE)
-    lod_file = os.path.join(tempfile.gettempdir(), filename)
+    log_name = os.path.basename(Constants.LOG_FILE)
+    log_path = os.path.join(tempfile.gettempdir(), log_name)
 
-    logger = create_logger(lod_file)
+    logger = create_logger(log_path)
     exclude_list = ExcludeList(logger)
     items = exclude_list.items()
     assert not items
