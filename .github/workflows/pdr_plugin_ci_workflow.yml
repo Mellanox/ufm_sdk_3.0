@@ -26,4 +26,4 @@ jobs:
       run: pylint --rcfile=plugins/pdr_deterministic_plugin/.pylintrc plugins/pdr_deterministic_plugin
     
     - name: Test exclude list with pytest
-      run: pytest exclude_list_tests.py --doctest-modules --junitxml=junit/exclude_list_tests_results.xml --cov=com --cov-report=xml --cov-report=html
+      run: pytest plugins/pdr_deterministic_plugin/tests/exclude_list_tests.py --doctest-modules --junitxml=junit/exclude_list_tests_results.xml --cov=com --cov-report=xml --cov-report=html
