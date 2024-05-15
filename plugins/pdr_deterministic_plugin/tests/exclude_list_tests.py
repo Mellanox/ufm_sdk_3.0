@@ -19,7 +19,7 @@ def test_get_from_empty_exclude_list():
     """
     Create exclude list and ensure its empty via its method
     """
-    print("Test 1")
+    print("Test 2")
     logger = create_logger(Constants.LOG_FILE)
     exclude_list = ExcludeList(logger)
     items = exclude_list.items()

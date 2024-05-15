@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
   
     env:
-      PYTHONPATH: 'plugins/pdr_deterministic_plugin/ufm_sim_web_service'
+      PYTHONPATH: '.:plugins/pdr_deterministic_plugin/ufm_sim_web_service'
 
     steps:
     - name: Checkout code
