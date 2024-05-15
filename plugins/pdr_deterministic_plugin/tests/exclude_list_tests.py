@@ -22,7 +22,7 @@ def test_get_from_empty_exclude_list():
     """
     Create exclude list and ensure its empty via its method
     """
-    print("Test 4")
+    print("Test 5")
 
     filename = os.path.basename(Constants.LOG_FILE)
     lod_file = os.path.join(tempfile.gettempdir(), filename)
