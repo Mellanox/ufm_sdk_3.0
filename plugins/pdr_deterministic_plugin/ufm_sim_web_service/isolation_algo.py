@@ -26,27 +26,26 @@ from utils.flask_server.base_flask_api_app import BaseFlaskAPIApp
 from utils.utils import Utils
 
 
-def create_logger(file):
+def create_logger(log_file):
     """
     create a logger to put all the data of the server action
     :param file: name of the file
     :return:
     """
-    format_str = "%(asctime)-15s UFM-PDR_deterministic-plugin-{0} Machine: {1}     %(levelname)-7s: %(message)s".format(file,'localhost')
-    log_name = Constants.LOG_FILE
-    if not os.path.exists(log_name):
-        os.makedirs('/'.join(log_name.split('/')[:-1]), exist_ok=True)
-    logger = logging.getLogger(log_name)
+    format_str = "%(asctime)-15s UFM-PDR_deterministic-plugin-{0} Machine: {1}     %(levelname)-7s: %(message)s".format(log_file,'localhost')
+    if not os.path.exists(log_file):
+        os.makedirs('/'.join(log_file.split('/')[:-1]), exist_ok=True)
+    logger = logging.getLogger(log_file)
 
     logging_level = logging.getLevelName(Constants.log_level) \
         if isinstance(Constants.log_level, str) else Constants.log_level
 
     logging.basicConfig(format=format_str,level=logging_level)
-    rotateHandler = RotatingFileHandler(log_name,maxBytes=Constants.log_file_max_size,
+    rotate_handler = RotatingFileHandler(log_file,maxBytes=Constants.log_file_max_size,
                                         backupCount=Constants.log_file_backup_count)
-    rotateHandler.setLevel(Constants.log_level)
-    rotateHandler.setFormatter(logging.Formatter(format_str))
-    logger.addHandler(rotateHandler)
+    rotate_handler.setLevel(Constants.log_level)
+    rotate_handler.setFormatter(logging.Formatter(format_str))
+    logger.addHandler(rotate_handler)
     return logger
 
 
