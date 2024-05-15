@@ -10,6 +10,9 @@
 # provided with the software product.
 #
 
+import os
+import tempfile
+
 #import pytest
 from constants import PDRConstants as Constants
 from exclude_list import ExcludeList
@@ -19,8 +22,12 @@ def test_get_from_empty_exclude_list():
     """
     Create exclude list and ensure its empty via its method
     """
-    print("Test 3")
-    logger = create_logger(Constants.LOG_FILE)
+    print("Test 4")
+
+    filename = os.path.basename(Constants.LOG_FILE)
+    lod_file = os.path.join(tempfile.gettempdir(), filename)
+
+    logger = create_logger(lod_file)
     exclude_list = ExcludeList(logger)
     items = exclude_list.items()
     assert not items
