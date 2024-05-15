@@ -19,9 +19,9 @@ import argparse
 import random
 from os import _exit
 from os.path import exists
+from collections import OrderedDict
 import requests
 from utils.utils import Utils
-from collections import OrderedDict
 
 lock = Lock()
 
