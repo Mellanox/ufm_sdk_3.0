@@ -31,7 +31,7 @@ jobs:
 
     - name: Run single plugin instance on background as standalone
       run: |
-        kill -9 isolation_algo.py
+        pkill -9 -f isolation_algo.py
         sleep 10
         nohup python plugins/pdr_deterministic_plugin/ufm_sim_web_service/isolation_algo.py > /dev/null 2>&1 &
     
@@ -40,5 +40,5 @@ jobs:
 
     - name: Kill plugin process
       run: |
-        kill -9 isolation_algo.py
+        pkill -9 -f isolation_algo.py
         sleep 10
