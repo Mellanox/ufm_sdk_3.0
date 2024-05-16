@@ -21,8 +21,6 @@ from constants import PDRConstants as Constants
 from exclude_list import ExcludeList, ExcludeListItem
 from isolation_algo import create_logger
 
-# Comment just for trigger the test (1)
-
 def get_logger():
     """
     Return logger associated with log file in temporary directory
