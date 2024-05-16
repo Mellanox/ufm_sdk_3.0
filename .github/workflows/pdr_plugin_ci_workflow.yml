@@ -31,11 +31,11 @@ jobs:
 
     - name: Run single plugin instance on background as standalone
       run: |
-        cp -r utils plugins/pdr_deterministic_plugin/ufm_sim_web_service
-        cp -r utils plugins/pdr_deterministic_plugin/
+        cp -r ./utils plugins/pdr_deterministic_plugin/ufm_sim_web_service
+        cp -r ./utils plugins/pdr_deterministic_plugin/
         pkill -9 -f isolation_algo.py
         sleep 10
-        nohup python plugins/pdr_deterministic_plugin/ufm_sim_web_service/isolation_algo.py > /dev/null 2>&1 &
+#       nohup python plugins/pdr_deterministic_plugin/ufm_sim_web_service/isolation_algo.py > /dev/null 2>&1 &
     
     - name: Test exclude list with pytest
       run: pytest plugins/pdr_deterministic_plugin/tests/exclude_list_tests.py #--doctest-modules --junitxml=junit/exclude_list_tests_results.xml --cov=com --cov-report=xml --cov-report=html
