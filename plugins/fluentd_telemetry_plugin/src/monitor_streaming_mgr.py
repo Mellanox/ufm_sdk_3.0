@@ -17,6 +17,11 @@ from prometheus_client import Gauge, CollectorRegistry, generate_latest
 
 
 class MonitorStreamingMgr:
+    """
+    MonitorStreamingMgr class
+    To manage the streaming statistics metrics/attributes
+    that will be used to monitor the streaming pipeline
+    """
 
     def __init__(self):
 

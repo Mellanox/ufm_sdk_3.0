@@ -15,13 +15,16 @@
 @author: Anan Al-Aghbar
 @date:   Mar 10, 2024
 
-This file originally is based on the clxcli writer https://gitlab-master.nvidia.com/telemetry/Collectx/-/blob/master/server/exporter/fluentbit_writer.py
+This file originally is based on the clxcli writer
+https://gitlab-master.nvidia.com/telemetry/Collectx/-/blob/master/server/exporter/fluentbit_writer.py
 """
-import msgpack
 import time
 import datetime
-from ctypes import *
-from timeit import default_timer as timer
+from ctypes import Structure, CDLL, POINTER, pointer,\
+    cast, c_char_p, c_void_p, c_int
+import msgpack
+
+# pylint: disable=no-name-in-module,import-error
 from utils.logger import Logger, LOG_LEVELS
 from utils.fluentd.fluent import asyncsender as asycsender
 from utils.utils import Utils
@@ -39,32 +42,37 @@ def str2c_char_ptr(str_val):
 
 def load_api_lib_from_path(path):
     if not path:
-        return [None, None]
+        return None
     try:
         api_lib = CDLL(path)
-        Logger.log_message("opened raw_msgpack API lib: %s" % api_lib, LOG_LEVELS.DEBUG)
-        return [api_lib, path]
-    except Exception as ex:
+        Logger.log_message(f'opened raw_msgpack API lib: {api_lib}', LOG_LEVELS.DEBUG)
+        return api_lib
+    except Exception as ex:  # pylint: disable=broad-except
         Logger.log_message(f'Failed to load the API: {path}, due to the error: {str(ex)}', LOG_LEVELS.DEBUG)
-        return [None, None]
+        return None
 
 
 class LoadFBLibFailure(Exception):
-    pass
+    """LoadFBLibFailure Exception"""
 
 
 class InitFBLibFailure(Exception):
-    pass
+    """InitFBLibFailure Exception"""
 
 
 class ParamPair(Structure):
+    """ParamPair Structure class"""
     _fields_ = [("name", c_char_p), ("val", c_char_p)]
 
 
 class PluginParams(Structure):
+    """
+    PluginParams Structure class
+    for initializing and managing the FB plugin's params
+    """
     _fields_ = [("param_count", c_char_p), ("params", POINTER(ParamPair))]
 
-    def __init__(self, params_count, in_plugin_params):
+    def __init__(self, params_count, in_plugin_params):  # pylint: disable=super-init-not-called
         elems = (ParamPair * params_count)()
         self.params = cast(elems, POINTER(ParamPair))
         self.param_count = params_count
@@ -76,10 +84,15 @@ class PluginParams(Structure):
             i += 1
 
 
-class FluentBitCWriter(object):
+class FluentBitCWriter:
+    """
+    FluentBitCWriter class
+    Wrapper class for sending the FB messages via a given plugin
+    """
 
     def __init__(self, context):
         self.initialized = False
+        self.raw_msgpack_api_ctx = None
         self.lib = None
         self.lib_path = None
 
@@ -172,7 +185,7 @@ class FluentBitCWriter(object):
 
 def init_fb_writer(host, port, tag_prefix, timeout=120, use_c=True):
     if use_c:
-        [lib, lib_path] = load_api_lib_from_path(LIB_RAW_MSGPACK_API_SO_PATH)
+        lib = load_api_lib_from_path(LIB_RAW_MSGPACK_API_SO_PATH)
         ctx = {
             'plugin_name': 'forward',
             'plugin_host': host,
@@ -182,28 +195,28 @@ def init_fb_writer(host, port, tag_prefix, timeout=120, use_c=True):
             'tag_prefix': tag_prefix
         }
         fluent_writer = FluentBitCWriter(ctx)
-        init_msg = f'Fluent sender is initialized in C'
+        init_msg = 'Fluent sender is initialized in C'
     else:
         # use the fluentd's python sender
         fluent_writer = asycsender.FluentSender(tag_prefix, host, int(port), timeout=timeout)
-        init_msg = f'Fluent sender is initialized in Python'
+        init_msg = 'Fluent sender is initialized in Python'
     Logger.log_message(init_msg, LOG_LEVELS.DEBUG)
     return fluent_writer
 
 
 if __name__ == '__main__':
     # Example on how to set & use the FB writer
-    _use_c = True
-    _host = DEFAULT_FB_HOST
-    _port = DEFAULT_FB_PORT
-    _tag = 'UFM_Telemetry_Streaming'
+    _USE_C = True
+    _HOST = DEFAULT_FB_HOST
+    _PORT = DEFAULT_FB_PORT
+    _TAG = 'UFM_Telemetry_Streaming'
     msg_record = Utils.read_json_from_file('../tests/message_samples/small_telemetry.json')
-    writer = init_fb_writer(_host, _port, _tag, use_c=_use_c)
+    writer = init_fb_writer(_HOST, _PORT, _TAG, use_c=_USE_C)
     #####
     print(f"Start streaming on {datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S%z')}, "
-          f"{'Using the C writer' if _use_c else 'Using the Python writer'}..")
+          f"{'Using the C writer' if _USE_C else 'Using the Python writer'}..")
     ##################
-    writer.write(_tag, msg_record)
-    if _use_c:
+    writer.write(_TAG, msg_record)
+    if _USE_C:
         time.sleep(30)
     print('Streaming is completed')

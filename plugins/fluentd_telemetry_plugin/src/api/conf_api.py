@@ -1,19 +1,23 @@
 import re
 import json
 import logging
+from http import HTTPStatus
 from flask import make_response, request
 from api import InvalidConfRequest
 from api.base_api import BaseAPIApplication
 from streamer import UFMTelemetryStreaming
 from streaming_scheduler import StreamingScheduler
+
+# pylint: disable=no-name-in-module,import-error
 from utils.json_schema_validator import validate_schema
 from utils.utils import Utils
 
 
 class StreamingConfigurationsAPI(BaseAPIApplication):
+    """StreamingConfigurationsAPI class"""
 
     def __init__(self, conf):
-        super(StreamingConfigurationsAPI, self).__init__()
+        super(StreamingConfigurationsAPI, self).__init__()  # pylint: disable=super-with-arguments
         self.conf = conf
         self.scheduler = StreamingScheduler.getInstance()
         self.streamer = UFMTelemetryStreaming.getInstance()
@@ -26,10 +30,10 @@ class StreamingConfigurationsAPI(BaseAPIApplication):
 
     def _get_routes(self):
         return {
-            self.get: dict(urls=["/"], methods=["GET"]),
-            self.post: dict(urls=["/"], methods=["POST"]),
-            self.get_streaming_attributes: dict(urls=["/attributes"], methods=["GET"]),
-            self.update_streaming_attributes: dict(urls=["/attributes"], methods=["POST"])
+            self.get: {'urls': ["/"], 'methods': ["GET"]},
+            self.post: {'urls': ["/"], 'methods': ["POST"]},
+            self.get_streaming_attributes: {'urls': ["/attributes"], 'methods': ["GET"]},
+            self.update_streaming_attributes: {'urls': ["/attributes"], 'methods': ["POST"]}
         }
 
     def _set_new_conf(self):
@@ -68,7 +72,7 @@ class StreamingConfigurationsAPI(BaseAPIApplication):
     def _validate_required_configurations_on_enable(self):
         # just checking the required attributes
         # if one of the attributes below was missing it will throw an exception
-        fluentd_host = self.conf.get_fluentd_host()
+        return self.conf.get_fluentd_host()
 
     def post(self):
         # validate the new conf json
@@ -89,15 +93,15 @@ class StreamingConfigurationsAPI(BaseAPIApplication):
             self.conf.update_config_file(self.conf.config_file)
             raise ex
 
-    def get(self):
+    def get(self):  # pylint: disable=too-many-locals, too-many-branches
         try:
-            with open(Utils.get_absolute_path(self.conf_schema_path)) as json_data:
+            with open(Utils.get_absolute_path(self.conf_schema_path), encoding='utf-8') as json_data:
                 schema = json.load(json_data)
                 properties = schema.get('properties', None)
                 if properties is None:
                     raise InvalidConfRequest("Failed to get the configurations schema properties")
                 conf_dict = {}
-                for section in self.conf.get_conf_sections():
+                for section in self.conf.get_conf_sections():  # pylint: disable=too-many-nested-blocks
                     section_properties = properties.get(section, None)
                     if section_properties is None:
                         raise InvalidConfRequest("Failed to get the configurations schema for the section: " + section)
@@ -116,13 +120,12 @@ class StreamingConfigurationsAPI(BaseAPIApplication):
                                                              f'under the section: {section}')
                                 item_type = item_type.get('type', None)
                                 item_values = item_value.split(",")
-                                for i in range(len(item_values)):
+                                for i, value in enumerate(item_values):
                                     try:
                                         arr_element_obj = conf_dict[section][i]
                                     except IndexError:
                                         arr_element_obj = {}
                                         conf_dict[section].append(arr_element_obj)
-                                    value = item_values[i]
                                     arr_element_obj[item_key] = Utils.convert_str_to_type(value, item_type)
                                     conf_dict[section][i] = arr_element_obj
                     elif section_type == "object":
@@ -143,8 +146,10 @@ class StreamingConfigurationsAPI(BaseAPIApplication):
                         raise InvalidConfRequest(f'Failed to get the configurations, unsupported type '
                                                  f'{section_type}: for the section: {section}')
                 return make_response(conf_dict)
-        except InvalidConfRequest as e:
-            logging.error("Error occurred while getting the current streaming configurations: " + str(e))
+        except InvalidConfRequest as ex:
+            err_msg = f"Error occurred while getting the current streaming configurations: {str(ex)}"
+            logging.error(err_msg)
+            return make_response(err_msg, HTTPStatus.INTERNAL_SERVER_ERROR)
 
     def get_streaming_attributes(self):
         return make_response(self.streamer.streaming_attributes)

@@ -16,29 +16,28 @@
 @date:   Nov 23, 2021
 """
 import os
-import sys
-from datetime import time
-
-sys.path.append(os.getcwd())
+import time
 import json
 import gzip
-import requests
 import logging
-import time
 import datetime
-from requests.exceptions import ConnectionError
+import requests
+from requests.exceptions import ConnectionError  # pylint: disable=redefined-builtin
 from prometheus_client.parser import text_string_to_metric_families
 from fluentbit_writer import init_fb_writer
-from utils.utils import Utils
+from monitor_streaming_mgr import MonitorStreamingMgr
 
+# pylint: disable=no-name-in-module,import-error
+from utils.utils import Utils
 from utils.args_parser import ArgsParser
 from utils.config_parser import ConfigParser
 from utils.logger import Logger, LOG_LEVELS
 from utils.singleton import Singleton
-from monitor_streaming_mgr import MonitorStreamingMgr
 
 
 class UFMTelemetryConstants:
+    """UFMTelemetryConstants Class"""
+
     PLUGIN_NAME = "UFM_Telemetry_Streaming"
 
     args_list = [
@@ -92,6 +91,11 @@ class UFMTelemetryConstants:
 
 
 class UFMTelemetryStreamingConfigParser(ConfigParser):
+    """
+    UFMTelemetryStreamingConfigParser class to manage
+    the TFS configurations
+    """
+
     # for debugging
     #config_file = "../conf/fluentd_telemetry_plugin.cfg"
 
@@ -216,28 +220,33 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
                     "value": value
                 })
             else:
-                logging.warning("The meta field type : {} is not from the supported types list [alias, add]".format(meta_field_type))
-        return aliases,custom
+                logging.warning("The meta field type : %s is not from the supported types list [alias, add]",
+                                meta_field_type)
+        return aliases, custom
 
 
 class UFMTelemetryStreaming(Singleton):
+    """
+    UFMTelemetryStreaming class
+    to manage/control the streaming
+    """
 
-    def __init__(self, config_parser):
+    def __init__(self, conf_parser):
 
-        self.config_parser = config_parser
+        self.config_parser = conf_parser
 
         self.last_streamed_data_sample_timestamp = None
         self.port_id_keys = ['node_guid', 'Node_GUID', 'port_guid', 'port_num', 'Port_Number', 'Port']
         self.port_constants_keys = {
-            'timestamp': 'timestamp', 'source_id': 'source_id', 'tag': 'tag', 'node_guid': 'node_guid', 'port_guid': 'port_guid',
-            'port_num': 'port_num', 'node_description': 'node_description','m_label': 'm_label', 'port_label': 'port_label', 'status_message': 'status_message',
+            'timestamp': 'timestamp', 'source_id': 'source_id', 'tag': 'tag',
+            'node_guid': 'node_guid', 'port_guid': 'port_guid',
+            'port_num': 'port_num', 'node_description': 'node_description',
+            'm_label': 'm_label', 'port_label': 'port_label', 'status_message': 'status_message',
             'Port_Number': 'Port_Number', 'Node_GUID': 'Node_GUID', 'Device_ID': 'Device_ID', 'device_id': 'Device_ID',
             'mvcr_sensor_name': 'mvcr_sensor_name', 'mtmp_sensor_name': 'mtmp_sensor_name',
             'switch_serial_number': 'switch_serial_number', 'switch_part_number': 'switch_part_number'
         }
         self.last_streamed_data_sample_per_port = {}
-
-        self.TIMESTAMP_CSV_FIELD_KEY = 'timestamp'
 
         self.streaming_metrics_mgr = MonitorStreamingMgr()
 
@@ -273,13 +282,14 @@ class UFMTelemetryStreaming(Singleton):
         intervals = self.streaming_interval.split(splitter)
         msg_tags = self.fluentd_msg_tag.split(splitter)
         endpoints = []
-        for i in range(len(hosts)):
+        for i, value in enumerate(hosts):
             endpoints.append({
-                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_HOST: hosts[i],
+                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_HOST: value,
                 self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_PORT: ports[i],
                 self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_URL: urls[i],
                 self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_INTERVAL: intervals[i],
-                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME: msg_tags[i] if msg_tags[i] else f'{hosts[i]}:{ports[i]}/{urls[i]}',
+                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME:
+                    msg_tags[i] if msg_tags[i] else f'{value}:{ports[i]}/{urls[i]}'
             })
         return endpoints
 
@@ -335,9 +345,9 @@ class UFMTelemetryStreaming(Singleton):
     def _get_metrics(self, _host, _port, _url, msg_tag):
         _host = f'[{_host}]' if Utils.is_ipv6_address(_host) else _host
         url = f'http://{_host}:{_port}/{_url}'
-        logging.info(f'Send UFM Telemetry Endpoint Request, Method: GET, URL: {url}')
+        logging.info('Send UFM Telemetry Endpoint Request, Method: GET, URL: %s', url)
         try:
-            response = requests.get(url)
+            response = requests.get(url)  # pylint: disable=missing-timeout
             response.raise_for_status()
             actual_content_size = len(response.content)
             expected_content_size = int(response.headers.get('Content-Length', actual_content_size))
@@ -357,8 +367,8 @@ class UFMTelemetryStreaming(Singleton):
                 self.streaming_metrics_mgr.telemetry_received_response_size_bytes_key: actual_content_size
             })
             return response.text
-        except Exception as e:
-            logging.error(e)
+        except Exception as ex:  # pylint: disable=broad-except
+            logging.error(ex)
             return None
 
     def _append_meta_fields_to_dict(self, dic):
@@ -370,7 +380,7 @@ class UFMTelemetryStreaming(Singleton):
             value = dic.get(alias_key, None)
             if value is None:
                 logging.warning(
-                    "The alias : {} does not exist in the telemetry response keys: {}".format(alias_key, str(keys)))
+                    "The alias : %s does not exist in the telemetry response keys: %s", alias_key, str(keys))
                 continue
             dic[alias_value] = value
         for custom_field in custom_meta_fields:
@@ -404,7 +414,7 @@ class UFMTelemetryStreaming(Singleton):
                 modified_keys[i] = attr_obj.get('name', key)
         return modified_keys
 
-    def _parse_telemetry_csv_metrics_to_json_with_delta(self, data):
+    def _parse_telemetry_csv_metrics_to_json_with_delta(self, data):  # pylint: disable=too-many-locals
         """
         :desc: parsed the data csv input & convert it to list of ports records
         each record contains key[s]:value[s] for the port's counters
@@ -429,8 +439,8 @@ class UFMTelemetryStreaming(Singleton):
         output = []
 
         port_id_keys_indices = []
-        for pIDKey in self.port_id_keys:
-            port_id_keys_indices += [i for i, x in enumerate(keys) if x == pIDKey]
+        for port_id_key in self.port_id_keys:
+            port_id_keys_indices += [i for i, x in enumerate(keys) if x == port_id_key]
 
         modified_keys = self._get_filtered_counters(keys)
         available_keys_indices = modified_keys.keys()
@@ -513,7 +523,7 @@ class UFMTelemetryStreaming(Singleton):
             return self._parse_telemetry_csv_metrics_to_json_with_delta(data)
         return self._parse_telemetry_csv_metrics_to_json_without_delta(data)
 
-    def _parse_telemetry_prometheus_metrics_to_json(self, data):
+    def _parse_telemetry_prometheus_metrics_to_json(self, data):  # pylint: disable=too-many-locals,too-many-branches
         elements_dict = {}
         timestamp = current_port_values = None
         num_of_counters = 0
@@ -521,9 +531,9 @@ class UFMTelemetryStreaming(Singleton):
             if len(family.samples):
                 timestamp = family.samples[0].timestamp
             for sample in family.samples:
-                id = port_key = ":".join([sample.labels.get(key, '') for key in self.port_id_keys])
-                id += f':{str(sample.timestamp)}'
-                current_row = elements_dict.get(id, {})
+                uid = port_key = ":".join([sample.labels.get(key, '') for key in self.port_id_keys])
+                uid += f':{str(sample.timestamp)}'
+                current_row = elements_dict.get(uid, {})
                 if self.stream_only_new_samples:
                     current_port_values = self.last_streamed_data_sample_per_port.get(port_key, {})
 
@@ -553,10 +563,9 @@ class UFMTelemetryStreaming(Singleton):
                         if attr_obj and attr_obj.get('enabled', False) and len(value):
                             current_row[attr_obj.get("name", key)] = value
                     current_num_of_counters = len(current_row)
-                    if current_num_of_counters > num_of_counters:
-                        num_of_counters = current_num_of_counters
+                    num_of_counters = max(num_of_counters, current_num_of_counters)
                     current_row = self._append_meta_fields_to_dict(current_row)
-                    elements_dict[id] = current_row
+                    elements_dict[uid] = current_row
                 ####
                 if self.stream_only_new_samples:
                     self.last_streamed_data_sample_per_port[port_key] = current_port_values
@@ -564,8 +573,9 @@ class UFMTelemetryStreaming(Singleton):
         return list(elements_dict.values()), timestamp, num_of_counters
 
     def _stream_data_to_fluentd(self, data_to_stream, fluentd_msg_tag=''):
-        logging.info(f'Streaming to Fluentd IP: {self.fluentd_host} port: {self.fluentd_port} timeout: {self.fluentd_timeout}')
-        st = time.time()
+        logging.info('Streaming to Fluentd IP: %s port: %s timeout: %s',
+                     self.fluentd_host, self.fluentd_port, self.fluentd_timeout)
+        start_time = time.time()
         try:
             fluentd_message = {
                 "timestamp": datetime.datetime.fromtimestamp(int(time.time())).strftime('%Y-%m-%d %H:%M:%S'),
@@ -578,6 +588,8 @@ class UFMTelemetryStreaming(Singleton):
                 _fluentd_host = self.fluentd_host
                 _fluentd_host = f'[{_fluentd_host}]' if Utils.is_ipv6_address(_fluentd_host) else _fluentd_host
                 compressed = gzip.compress(json.dumps(fluentd_message).encode('utf-8'))
+
+                # pylint: disable=missing-timeout
                 res = requests.post(
                     url=f'http://{_fluentd_host}:{self.fluentd_port}/'
                         f'{UFMTelemetryConstants.PLUGIN_NAME}.{fluentd_msg_tag}',
@@ -587,22 +599,22 @@ class UFMTelemetryStreaming(Singleton):
             else:
                 plugin_fluent_protocol = 'FORWARD'
                 self.fluent_sender.write(fluentd_msg_tag, fluentd_message)
-            et = time.time()
-            streaming_time = round(et-st, 6)
+            end_time = time.time()
+            streaming_time = round(end_time-start_time, 6)
             self.streaming_metrics_mgr.update_streaming_metrics(fluentd_msg_tag, **{
                 self.streaming_metrics_mgr.streaming_time_seconds_key: streaming_time
             })
-            logging.info(f'Finished Streaming to Fluentd Host: {self.fluentd_host} port: {self.fluentd_port} in '
-                         f'{streaming_time} Seconds using {plugin_fluent_protocol} plugin protocol')
-        except ConnectionError as e:
-            logging.error(f'Failed to connect to stream destination due to the error :{str(e)}')
-        except Exception as e:
-            logging.error(f'Failed to stream the data due to the error: {str(e)}')
+            logging.info('Finished Streaming to Fluentd Host: %s port: %s in %.2f Seconds using %s plugin protocol',
+                         self.fluentd_host, self.fluentd_port, streaming_time, plugin_fluent_protocol)
+        except ConnectionError as ex:
+            logging.error('Failed to connect to stream destination due to the error : %s', str(ex))
+        except Exception as ex:  # pylint: disable=broad-except
+            logging.error('Failed to stream the data due to the error: %s', str(ex))
 
     def _check_data_prometheus_format(self, telemetry_data):
         return telemetry_data and telemetry_data.startswith('#')
 
-    def stream_data(self, telemetry_endpoint):
+    def stream_data(self, telemetry_endpoint):  # pylint: disable=too-many-locals
         _host = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_HOST)
         _port = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_PORT)
         _url = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_URL)
@@ -611,14 +623,14 @@ class UFMTelemetryStreaming(Singleton):
         if telemetry_data:
             try:
                 ufm_telemetry_is_prometheus_format = self._check_data_prometheus_format(telemetry_data)
-                logging.info(f'Start Processing The Received Response From {msg_tag}')
-                st = time.time()
+                logging.info('Start Processing The Received Response From %s', msg_tag)
+                start_time = time.time()
                 data_to_stream, new_data_timestamp, num_of_counters = self._parse_telemetry_prometheus_metrics_to_json(telemetry_data) \
                     if ufm_telemetry_is_prometheus_format else \
                     self._parse_telemetry_csv_metrics_to_json(telemetry_data)
-                et = time.time()
+                end_time = time.time()
                 data_len = len(data_to_stream)
-                resp_process_time = round(et - st, 6)
+                resp_process_time = round(end_time - start_time, 6)
                 self.streaming_metrics_mgr.update_streaming_metrics(msg_tag, **{
                     self.streaming_metrics_mgr.telemetry_response_process_time_seconds_key: resp_process_time
                 })
@@ -629,11 +641,9 @@ class UFMTelemetryStreaming(Singleton):
                         self.streaming_metrics_mgr.num_of_streamed_ports_in_last_msg_key: data_len,
                         self.streaming_metrics_mgr.num_of_processed_counters_in_last_msg_key: num_of_counters
                     })
-                    logging.info(
-                        f'Processing of endpoint {msg_tag} Completed In: '
-                        f'{resp_process_time} Seconds. '
-                        f'({data_len}) Ports, '
-                        f'({num_of_counters}) Counters Were Handled')
+                    logging.info('Processing of endpoint %s Completed In: %.2f Seconds. '
+                                 '(%d) Ports, (%d) Counters Were Handled',
+                                 msg_tag, resp_process_time, data_len, num_of_counters)
                     if self.bulk_streaming_flag:
                         self._stream_data_to_fluentd(data_to_stream, msg_tag)
                     else:
@@ -641,10 +651,10 @@ class UFMTelemetryStreaming(Singleton):
                             self._stream_data_to_fluentd(row, msg_tag)
                     self.last_streamed_data_sample_timestamp = new_data_timestamp
                 elif self.stream_only_new_samples:
-                    logging.info(f"No new samples in endpoint {msg_tag}, nothing to stream")
+                    logging.info('No new samples in endpoint %s, nothing to stream', msg_tag)
 
-            except Exception as e:
-                logging.error("Exception occurred during parsing telemetry data: "+ str(e))
+            except Exception as ex:  # pylint: disable=broad-except
+                logging.error("Exception occurred during parsing telemetry data: %s", str(ex))
         else:
             logging.error("Failed to get the telemetry data metrics")
 
@@ -656,18 +666,19 @@ class UFMTelemetryStreaming(Singleton):
                 'enabled': True
             }
 
-    def init_streaming_attributes(self):
+    def init_streaming_attributes(self):  # pylint: disable=too-many-locals
         Logger.log_message('Updating The streaming attributes', LOG_LEVELS.DEBUG)
         # load the saved attributes
         self.streaming_attributes = self._get_saved_streaming_attributes()
         telemetry_endpoints = self.ufm_telemetry_endpoints
         processed_endpoints = {}
-        for endpoint in telemetry_endpoints:
+        for endpoint in telemetry_endpoints:  # pylint: disable=too-many-nested-blocks
             _host = endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_HOST)
             _port = endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_PORT)
             _url = endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_URL)
             _msg_tag = endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME)
-            endpoint_id = f'{_host}:{_port}:{_url.split("?")[0]}' # the ID of the endpoint is the full URL without filters like the shading,etc...
+            # the ID of the endpoint is the full URL without filters like the shading,etc...
+            endpoint_id = f'{_host}:{_port}:{_url.split("?")[0]}'
             is_processed = processed_endpoints.get(endpoint_id)
             if not is_processed:
                 telemetry_data = self._get_metrics(_host, _port, _url, _msg_tag)
@@ -713,10 +724,10 @@ class UFMTelemetryStreaming(Singleton):
 
 if __name__ == "__main__":
     # init app args
-    args = ArgsParser.parse_args("UFM Telemetry Streaming to fluentd", UFMTelemetryConstants.args_list)
+    _args = ArgsParser.parse_args("UFM Telemetry Streaming to fluentd", UFMTelemetryConstants.args_list)
 
     # init app config parser & load config files
-    config_parser = UFMTelemetryStreamingConfigParser(args)
+    config_parser = UFMTelemetryStreamingConfigParser(_args)
 
     # init logs configs
     logs_file_name = config_parser.get_logs_file_name()
@@ -727,7 +738,7 @@ if __name__ == "__main__":
 
     telemetry_streaming = UFMTelemetryStreaming(config_parser)
 
-    #streaming_scheduler = StreamingScheduler.getInstance()
-    #streaming_scheduler.start_streaming(telemetry_streaming.stream_data, telemetry_streaming.streaming_interval)
+    # streaming_scheduler = StreamingScheduler.getInstance()
+    # streaming_scheduler.start_streaming(telemetry_streaming.stream_data, telemetry_streaming.streaming_interval)
 
-    telemetry_streaming.stream_data()
+    # telemetry_streaming.stream_data()

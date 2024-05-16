@@ -17,17 +17,20 @@ import os
 import sys
 sys.path.append(os.getcwd())
 
+# pylint: disable=wrong-import-position
 import logging
-from utils.flask_server import run_api
-from utils.args_parser import ArgsParser
-from utils.logger import Logger
-from utils.utils import Utils
 from web_service import UFMTelemetryFluentdStreamingAPI
 from streamer import \
     UFMTelemetryStreaming,\
     UFMTelemetryStreamingConfigParser,\
     UFMTelemetryConstants
 from streaming_scheduler import StreamingScheduler
+
+# pylint: disable=no-name-in-module,import-error
+from utils.flask_server import run_api
+from utils.args_parser import ArgsParser
+from utils.logger import Logger
+from utils.utils import Utils
 
 
 def _init_logs(config_parser):
@@ -44,14 +47,14 @@ if __name__ == '__main__':
 
     # init app config parser & load config files
     args = ArgsParser.parse_args("UFM Telemetry Streaming to fluentd", UFMTelemetryConstants.args_list)
-    config_parser = UFMTelemetryStreamingConfigParser(args)
+    _config_parser = UFMTelemetryStreamingConfigParser(args)
 
-    _init_logs(config_parser)
+    _init_logs(_config_parser)
 
-    streamer = None
+    STREAMER = None
     try:
-        streamer = UFMTelemetryStreaming.getInstance(config_parser)
-        if config_parser.get_enable_streaming_flag():
+        STREAMER = UFMTelemetryStreaming.getInstance(_config_parser)
+        if _config_parser.get_enable_streaming_flag():
             scheduler = StreamingScheduler.getInstance()
             job_id = scheduler.start_streaming()
             logging.info("Streaming has been started successfully")
@@ -59,16 +62,17 @@ if __name__ == '__main__':
             logging.warning("Streaming was not started, need to enable the streaming & set the required configurations")
 
     except ValueError as ex:
-        logging.warning("Streaming was not started, need to enable the streaming & set the required configurations. "+ str(ex))
-    except Exception as ex:
-        logging.error(f'Streaming was not started due to the following error: {str(ex)}')
+        logging.warning("Streaming was not started, need to enable the streaming & set the required configurations. %s"
+                        , str(ex))
+    except Exception as ex:  # pylint: disable=broad-except
+        logging.error('Streaming was not started due to the following error: %s', str(ex))
 
-    if streamer:
+    if STREAMER:
         try:
-            app = UFMTelemetryFluentdStreamingAPI(config_parser)
+            app = UFMTelemetryFluentdStreamingAPI(_config_parser)
             port = Utils.get_plugin_port('/config/tfs_httpd_proxy.conf', 8981)
             run_api(app=app, port_number=int(port))
-        except Exception as ex:
-            logging.error(f'Streaming server was not started due to the following error: {str(ex)}')
+        except Exception as ex:  # pylint: disable=broad-except
+            logging.error('Streaming server was not started due to the following error: %s', str(ex))
     else:
-        logging.error(f'Streaming server was not started.')
+        logging.error('Streaming server was not started.')

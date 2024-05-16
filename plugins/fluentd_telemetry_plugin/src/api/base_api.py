@@ -1,11 +1,10 @@
-from flask import Flask
-from flask_restful import Api
 from http import HTTPStatus
 from functools import partial
-from utils.json_schema_validator import ValidationError, SchemaValidationError
+from flask import Flask
+from flask_restful import Api
 from web_service_error_messages import \
-    no_running_streaming_instance,\
-    streaming_already_running
+    NO_RUNNING_STREAMING_INSTANCE,\
+    STREAMING_ALREADY_RUNNING
 
 from streaming_scheduler import \
     NoRunningStreamingInstance,\
@@ -13,8 +12,12 @@ from streaming_scheduler import \
 
 from api import InvalidConfRequest
 
+# pylint: disable=no-name-in-module,import-error
+from utils.json_schema_validator import ValidationError, SchemaValidationError
+
 
 class BaseAPIApplication:
+    """BaseAPIApplication API Flask Class Base"""
 
     def __init__(self):
         self.app = Flask(__name__)
@@ -26,9 +29,9 @@ class BaseAPIApplication:
     def _get_error_handlers(self):
         return [
             (NoRunningStreamingInstance,
-             lambda e: (no_running_streaming_instance, HTTPStatus.BAD_REQUEST)),
+             lambda e: (NO_RUNNING_STREAMING_INSTANCE, HTTPStatus.BAD_REQUEST)),
             (StreamingAlreadyRunning,
-             lambda e: (streaming_already_running, HTTPStatus.BAD_REQUEST)),
+             lambda e: (STREAMING_ALREADY_RUNNING, HTTPStatus.BAD_REQUEST)),
             (InvalidConfRequest,
              lambda e: (str(e), HTTPStatus.BAD_REQUEST)),
             (ValidationError,
@@ -41,8 +44,8 @@ class BaseAPIApplication:
 
     def _add_error_handlers(self):
         hdlrs = self._get_error_handlers()
-        for code_or_exception, f in hdlrs:
-            self.app.register_error_handler(code_or_exception, f)
+        for code_or_exception, callback in hdlrs:
+            self.app.register_error_handler(code_or_exception, callback)
 
     @property
     def application(self):
