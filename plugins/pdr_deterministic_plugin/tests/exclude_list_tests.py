@@ -10,10 +10,13 @@
 # provided with the software product.
 #
 
+import http
+import json
 import os
 import tempfile
 import time
 import pytest
+import requests
 from constants import PDRConstants as Constants
 from exclude_list import ExcludeList, ExcludeListItem
 from isolation_algo import create_logger
@@ -29,20 +32,20 @@ def get_logger():
 pytest.mark.run(order=0)
 def test_exclude_list_class_methods():
     """
-    Create exclude list and ensure its empty via its method
+    Test exclude list class methods by direct calls
     """
-    # Create exclude list and ensure it's
-
-    exclude_list = ExcludeList(get_logger())
-    items = exclude_list.items()
-    assert not items
-
-    # Add ports to excluded list
     excluded_ports = [
         ExcludeListItem("0123456789aaabbb_1", 0),  # Add forever
         ExcludeListItem("9876543210cccddd_2", 30), # Add for 30 seconds
         ExcludeListItem("3456789012eeefff_3", 0)   # Add forever
     ]
+
+    # Create exclude list and ensure it's empty
+    exclude_list = ExcludeList(get_logger())
+    items = exclude_list.items()
+    assert not items
+
+    # Add ports to excluded list
     for port in excluded_ports:
         exclude_list.add(port.port_name, port.ttl_seconds)
 
@@ -87,5 +90,28 @@ def test_exclude_list_class_methods():
         if port.port_name != remove_port.port_name and port.port_name != auto_remove_port.port_name:
             assert exclude_list.contains(port.port_name)
 
+pytest.mark.run(order=1)
+def test_exclude_list_rest_api():
+    """
+    Test exclude list inside plugin via REST API
+    """
+    url = "http://127.0.0.1:8977/excluded"
+
+    excluded_ports = [
+        ExcludeListItem("0123456789aaabbb_1", 0),  # Add forever
+        ExcludeListItem("9876543210cccddd_2", 30), # Add for 30 seconds
+        ExcludeListItem("3456789012eeefff_3", 0)   # Add forever
+    ]
+
+    # Prepare data for PUT HTTP request
+    data = []
+    for port in excluded_ports:
+        data.append([port.port_name, port.ttl_seconds])
+
+    # Add ports to excluded list
+    response = requests.put(url, data=json.dumps(data), headers={'Content-Type': 'application/json'}, timeout=5, auth = None, verify = False)
+    assert response.status_code == http.client.OK
+
 if __name__ == '__main__':
     test_exclude_list_class_methods()
+    test_exclude_list_rest_api()
