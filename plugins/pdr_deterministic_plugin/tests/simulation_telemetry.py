@@ -399,5 +399,6 @@ def main2():
         return check_logs(config)
 
 if __name__ == '__main__':
-    #_exit(main())
-    main()
+    result = main()
+    _exit(result)
+
