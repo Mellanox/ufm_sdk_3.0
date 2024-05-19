@@ -346,8 +346,12 @@ def check_logs(config):
     all_pass = number_of_failed_positive_tests == 0 and number_of_failed_negative_tests == 0
     return 0 if all_pass else 1
 
-# start a server which update the counters every time
 def main():
+    print("SIMULATION TELEMETRY")
+    time.sleep(5)
+
+# start a server which update the counters every time
+def main2():
     parser = argparse.ArgumentParser()
     parser.add_argument('--num_simulated_ports', type=int, default=10,
         help="number of ports to simulate if set to 0 ports will be taken from the UFM REST server")
