@@ -1,4 +1,7 @@
 #!/bin/bash -x
+
+pip install -r requirements.txt
+
 CONFIG_FILE="/config/pdr_deterministic.conf"
 mkdir -p /config
 cp -f plugins/pdr_deterministic_plugin/build/config/pdr_deterministic.conf "$CONFIG_FILE"
