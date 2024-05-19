@@ -314,7 +314,8 @@ class IsolationMgr:
 
         log_message = f"Isolated port: {port_name} cause: {cause}. dry_run: {self.dry_run}"
         self.logger.warning(log_message)
-        self.ufm_client.send_event(log_message, event_id=Constants.EXTERNAL_EVENT_ALERT, external_event_name="Isolating Port")
+        if not self.test_mode:
+            self.ufm_client.send_event(log_message, event_id=Constants.EXTERNAL_EVENT_ALERT, external_event_name="Isolating Port")
 
 
     def eval_deisolate(self, port_name):
@@ -372,8 +373,9 @@ class IsolationMgr:
         self.ports_states.pop(port_name)
         log_message = f"Deisolated port: {port_name}. dry_run: {self.dry_run}"
         self.logger.warning(log_message)
-        self.ufm_client.send_event(log_message, event_id=Constants.EXTERNAL_EVENT_NOTICE, external_event_name="Deisolating Port")
-    
+        if not self.test_mode:
+            self.ufm_client.send_event(log_message, event_id=Constants.EXTERNAL_EVENT_NOTICE, external_event_name="Deisolating Port")
+
     def get_rate(self, port_obj, counter_name, new_val, timestamp):
         """
         Calculate the rate of the counter
@@ -901,7 +903,7 @@ class IsolationMgr:
                     self.logger.warning(event_msg)
                     if not self.test_mode:
                         self.ufm_client.send_event(event_msg, event_id=Constants.EXTERNAL_EVENT_ALERT, external_event_name="Skipping isolation")
-                
+
                 # deal with reported new issues
                 else:
                     for issue in issues.values():
