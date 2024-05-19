@@ -33,7 +33,7 @@ jobs:
       run: |
         sudo bash plugins/pdr_deterministic_plugin/.pytest/run_pdr_standalone_pytest.sh 2>/dev/null
         echo "Starting simulated test"
-        pytest plugins/pdr_deterministic_plugin/tests/simulation_telemetry.py
+        pytest plugins/pdr_deterministic_plugin/tests/simulation_telemetry.py 3>&1
         echo "Terminating standalone PDR process"
         pkill -9 -f isolation_algo.py 2>/dev/null || true
             

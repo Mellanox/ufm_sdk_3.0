@@ -21,7 +21,6 @@ import random
 from os import _exit
 from os.path import exists
 from collections import OrderedDict
-import pytest
 import requests
 from utils.utils import Utils
 
@@ -348,8 +347,7 @@ def check_logs(config):
     return 0 if all_pass else 1
 
 # start a server which update the counters every time
-pytest.mark.run(order=0)
-def test_main():
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--num_simulated_ports', type=int, default=10,
         help="number of ports to simulate if set to 0 ports will be taken from the UFM REST server")
@@ -396,4 +394,4 @@ def test_main():
         return check_logs(config)
 
 if __name__ == '__main__':
-    _exit(test_main())
+    _exit(main())
