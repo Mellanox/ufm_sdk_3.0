@@ -31,7 +31,7 @@ jobs:
 
     - name: Run single plugin instance on background as standalone
       run: |
-        sudo bash plugins/pdr_deterministic_plugin/.pytest/run_pdr_standalone_pytest.sh
+        sudo bash plugins/pdr_deterministic_plugin/.pytest/run_pdr_standalone_pytest.sh 2>/dev/null
         echo "Starting simulated test"
         python plugins/pdr_deterministic_plugin/tests/simulation_telemetry.py
         echo "Terminating standalone PDR process"
