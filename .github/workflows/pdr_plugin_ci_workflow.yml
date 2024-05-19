@@ -31,7 +31,9 @@ jobs:
 
     - name: Run single plugin instance on background as standalone
       run: |
-        python plugins/pdr_deterministic_plugin/ufm_sim_web_service/isolation_algo.py
+        bash plugins/pdr_deterministic_plugin/.pytest/run_simulation_pytest.sh
+#       cp -f plugins/pdr_deterministic_plugin/build/config/pdr_deterministic.conf /config/
+#       python plugins/pdr_deterministic_plugin/ufm_sim_web_service/isolation_algo.py
 #       pkill -9 -f isolation_algo.py
 #       sleep 10
 #       cp -r ./utils plugins/pdr_deterministic_plugin/ufm_sim_web_service
