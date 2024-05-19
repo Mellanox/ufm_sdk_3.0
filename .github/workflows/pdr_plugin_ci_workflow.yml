@@ -10,7 +10,7 @@ jobs:
     timeout-minutes: 10
 
     env:
-      PYTHONPATH: '.:plugins/pdr_deterministic_plugin/ufm_sim_web_service'
+      PYTHONPATH: '.:utils:plugins/pdr_deterministic_plugin/ufm_sim_web_service'
 
     steps:
     - name: Checkout code
