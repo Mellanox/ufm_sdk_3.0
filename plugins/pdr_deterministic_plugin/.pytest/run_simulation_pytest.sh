@@ -1,10 +1,10 @@
 #!/bin/bash -x
 #
 PLUGIN_DIR="plugins/pdr_deterministic_plugin"
-pip install -r $PLUGIN_DIR/requirements.txt
+sudo pip install -r $PLUGIN_DIR/requirements.txt
 
 start_simulation_server_pytest() {
-    # Init configuration file
+    echo "Init configuration file"
     CONFIG_FILE="/config/pdr_deterministic.conf"
     sudo mkdir -p /config
     sudo cp -f $PLUGIN_DIR/build/config/pdr_deterministic.conf "$CONFIG_FILE"
