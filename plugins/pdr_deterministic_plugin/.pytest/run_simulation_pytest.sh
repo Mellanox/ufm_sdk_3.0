@@ -2,6 +2,7 @@
 
 PLUGIN_DIR="plugins/pdr_deterministic_plugin"
 pip install -r $PLUGIN_DIR/requirements.txt
+cp -r utils $PLUGIN_DIR/tests
 cp -r utils $PLUGIN_DIR/ufm_sim_web_service
 
 CONFIG_FILE="/config/pdr_deterministic.conf"

@@ -7,10 +7,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
 
     env:
-      PYTHONPATH: '.:utils:plugins/pdr_deterministic_plugin/ufm_sim_web_service'
+      PYTHONPATH: '.:plugins/pdr_deterministic_plugin/ufm_sim_web_service'
 
     steps:
     - name: Checkout code
@@ -33,13 +32,6 @@ jobs:
     - name: Run single plugin instance on background as standalone
       run: |
         sudo bash plugins/pdr_deterministic_plugin/.pytest/run_simulation_pytest.sh
-#       cp -f plugins/pdr_deterministic_plugin/build/config/pdr_deterministic.conf /config/
-#       python plugins/pdr_deterministic_plugin/ufm_sim_web_service/isolation_algo.py
-#       pkill -9 -f isolation_algo.py
-#       sleep 10
-#       cp -r ./utils plugins/pdr_deterministic_plugin/ufm_sim_web_service
-#       cp -r ./utils plugins/pdr_deterministic_plugin/
-#       nohup python plugins/pdr_deterministic_plugin/ufm_sim_web_service/isolation_algo.py > /dev/null 2>&1 &
     
     - name: Test exclude list with pytest
       run: pytest plugins/pdr_deterministic_plugin/tests/exclude_list_tests.py #--doctest-modules --junitxml=junit/exclude_list_tests_results.xml --cov=com --cov-report=xml --cov-report=html
