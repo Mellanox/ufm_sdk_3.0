@@ -1,11 +1,8 @@
 requests
 configparser
+numpy
+pandas
 flask
 flask_restful
 twisted
 tzlocal<3.0
-jsonschema
-pandas
-numpy
-prometheus_client
-msgpack
