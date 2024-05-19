@@ -349,7 +349,7 @@ def check_logs(config):
 def main():
     print("SIMULATION TELEMETRY")
     time.sleep(5)
-    return 0
+    return 1
 
 # start a server which update the counters every time
 def main2():
