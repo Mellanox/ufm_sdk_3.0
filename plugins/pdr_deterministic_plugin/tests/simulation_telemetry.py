@@ -10,6 +10,7 @@
 # provided with the software product.
 #
 
+import sys
 import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
@@ -102,7 +103,7 @@ POSITIVE_DATA_TEST = {
     (9, 9, LINK_DOWN_COUNTER): 2,        # try trigger isolation issue
     # testing forced remove port from exclusion list
     (0, 1, EXCLUDE_PORT_LONG_TIME): 0,   # add to exclusion list forever
-    #(1, 1, INCLUDE_PORT): -1,            # remove port from exclusion list
+    (1, 1, INCLUDE_PORT): -1,            # remove port from exclusion list
     (2, 1, LINK_DOWN_COUNTER): 1,        # at this moment the port should be already removed from exclusion list
     (3, 1, LINK_DOWN_COUNTER): 2,        # try trigger isolation issue
 
@@ -282,15 +283,15 @@ def initialize_simulated_counters(endpoint_obj: dict):
 
 def assert_equal(message, left_expr, right_expr, test_name="positive"):
         if left_expr == right_expr:
-            print(f"    - {test_name} test: {message} -- PASS")
+            sys.stdout.write(f"    - {test_name} test: {message} -- PASS")
         else:
-            print(f"    - {test_name} test: {message} -- FAIL (expected: {right_expr}, actual: {left_expr})")
+            sys.stdout.write(f"    - {test_name} test: {message} -- FAIL (expected: {right_expr}, actual: {left_expr})")
 
 def validate_simulation_data():
     positive_test_port_indexes = set([x[1] for x in POSITIVE_DATA_TEST])
     negative_test_port_indexes = set([x[1] for x in NEGATIVE_DATA_TEST])
     if not positive_test_port_indexes.isdisjoint(negative_test_port_indexes):
-        print("ERROR: same port can't participate in both positive and negative tests")
+        sys.stdout.write("ERROR: same port can't participate in both positive and negative tests")
         return False
 
     return True
@@ -307,7 +308,7 @@ def check_logs(config):
                 lines=log_file.readlines()
             break
     if len(lines) == 0:
-        print("Could not find log file in " + str(location_logs_can_be))
+        sys.stdout.write("Could not find log file in " + str(location_logs_can_be))
         return 1        
     # if a you want to add more tests, please add more guids and test on other indices.
 
@@ -387,7 +388,7 @@ def main():
     
     port = args.endpoint_port
     url = f'http://0.0.0.0:{port}{args.url_suffix}'
-    print(f'---Starting endpoint {url}')
+    sys.stdout.write(f'---Starting endpoint {url}')
     start_server(port,args.changes_intervals,args.run_forever)
     if not args.run_forever:
         return check_logs(config)

@@ -14,6 +14,7 @@ import configparser
 import os
 import logging
 from logging.handlers import RotatingFileHandler
+import sys
 from constants import PDRConstants as Constants
 from isolation_mgr import IsolationMgr
 from ufm_communication_mgr import UFMCommunicator
@@ -96,7 +97,7 @@ def main():
         run_api(app=app, port_number=int(plugin_port))
 
     except Exception as ex:
-        print(f'Failed to run the app: {str(ex)}')
+        sys.stdout.write(f'Failed to run the app: {str(ex)}')
 
     
     #optional second phase
