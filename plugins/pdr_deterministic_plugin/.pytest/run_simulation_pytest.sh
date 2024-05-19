@@ -1,10 +1,10 @@
 #!/bin/bash -x
 
-sudo -s
 PLUGIN_DIR="plugins/pdr_deterministic_plugin"
 pip install -r $PLUGIN_DIR/requirements.txt
 
 start_simulation_server_pytest() {
+    sudo -s
     cp -r utils $PLUGIN_DIR/tests
     CONFIG_FILE="/config/pdr_deterministic.conf"
     mkdir -p /config
@@ -21,12 +21,14 @@ start_simulation_server_pytest() {
 }
 
 start_pdr_standalone_pytest() {
+    sudo -s
     cp -r utils $PLUGIN_DIR/ufm_sim_web_service
     echo "Starting 'simulation_telemetry.py'"
     python $PLUGIN_DIR/tests/simulation_telemetry.py
 }
 
 kill_simulation_server_pytest() {
+    sudo -s
     echo "Terminating 'isolation_algo.py'"
     pkill -9 -f isolation_algo.py 2>/dev/null || true
 }
