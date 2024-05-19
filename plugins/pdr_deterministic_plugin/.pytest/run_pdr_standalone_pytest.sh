@@ -1,5 +1,5 @@
 #!/bin/bash -x
-#
+
 PLUGIN_DIR="plugins/pdr_deterministic_plugin"
 pip install -r $PLUGIN_DIR/requirements.txt
 
@@ -17,5 +17,5 @@ sed -i -e 's/INTERVAL=300/INTERVAL=10/g' "$CONFIG_FILE"
 sed -i -e 's/CONFIGURED_TEMP_CHECK=False/CONFIGURED_TEMP_CHECK=True/g' "$CONFIG_FILE"
 sed -i -e 's/DEISOLATE_CONSIDER_TIME=5/DEISOLATE_CONSIDER_TIME=1/g' "$CONFIG_FILE"
 
-#echo "Starting standalone PDR process"
-#python $PLUGIN_DIR/ufm_sim_web_service/isolation_algo.py &
+echo "Starting standalone PDR process"
+python $PLUGIN_DIR/ufm_sim_web_service/isolation_algo.py &
