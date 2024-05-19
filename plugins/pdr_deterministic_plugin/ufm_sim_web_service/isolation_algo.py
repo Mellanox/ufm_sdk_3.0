@@ -97,7 +97,7 @@ def main():
         run_api(app=app, port_number=int(plugin_port))
 
     except Exception as ex:
-        sys.stdout.write(f'Failed to run the app: {str(ex)}')
+        print(f'Failed to run the app: {str(ex)}')
 
     
     #optional second phase

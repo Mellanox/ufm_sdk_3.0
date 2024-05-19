@@ -283,15 +283,15 @@ def initialize_simulated_counters(endpoint_obj: dict):
 
 def assert_equal(message, left_expr, right_expr, test_name="positive"):
         if left_expr == right_expr:
-            sys.stdout.write(f"    - {test_name} test: {message} -- PASS")
+            print(f"    - {test_name} test: {message} -- PASS")
         else:
-            sys.stdout.write(f"    - {test_name} test: {message} -- FAIL (expected: {right_expr}, actual: {left_expr})")
+            print(f"    - {test_name} test: {message} -- FAIL (expected: {right_expr}, actual: {left_expr})")
 
 def validate_simulation_data():
     positive_test_port_indexes = set([x[1] for x in POSITIVE_DATA_TEST])
     negative_test_port_indexes = set([x[1] for x in NEGATIVE_DATA_TEST])
     if not positive_test_port_indexes.isdisjoint(negative_test_port_indexes):
-        sys.stdout.write("ERROR: same port can't participate in both positive and negative tests")
+        print("ERROR: same port can't participate in both positive and negative tests")
         return False
 
     return True
@@ -308,7 +308,7 @@ def check_logs(config):
                 lines=log_file.readlines()
             break
     if len(lines) == 0:
-        sys.stdout.write("Could not find log file in " + str(location_logs_can_be))
+        print("Could not find log file in " + str(location_logs_can_be))
         return 1        
     # if a you want to add more tests, please add more guids and test on other indices.
 
@@ -388,7 +388,7 @@ def main():
     
     port = args.endpoint_port
     url = f'http://0.0.0.0:{port}{args.url_suffix}'
-    sys.stdout.write(f'---Starting endpoint {url}')
+    print(f'---Starting endpoint {url}')
     start_server(port,args.changes_intervals,args.run_forever)
     if not args.run_forever:
         return check_logs(config)
