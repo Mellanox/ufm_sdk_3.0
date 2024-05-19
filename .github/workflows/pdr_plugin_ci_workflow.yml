@@ -46,5 +46,5 @@ jobs:
 
     - name: Kill plugin process
       run: |
-        pkill -9 -f isolation_algo.py
+        pkill -9 -f isolation_algo.py 2>/dev/null || true
         sleep 10

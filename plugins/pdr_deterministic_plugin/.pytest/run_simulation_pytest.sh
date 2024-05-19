@@ -19,5 +19,5 @@ python $PLUGIN_DIR/ufm_sim_web_service/isolation_algo.py &
 echo "Starting 'simulation_telemetry.py'"
 python $PLUGIN_DIR/tests/simulation_telemetry.py
 echo "Terminating 'isolation_algo.py'"
-pkill -9 -f isolation_algo.py
+pkill -9 -f isolation_algo.py 2>/dev/null || true
 echo "Terminated 'isolation_algo.py'"
