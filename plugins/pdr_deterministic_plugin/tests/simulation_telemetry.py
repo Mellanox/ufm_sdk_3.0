@@ -21,6 +21,7 @@ import random
 from os import _exit
 from os.path import exists
 from collections import OrderedDict
+from typing import NoReturn
 import requests
 from utils.utils import Utils
 
@@ -397,6 +398,9 @@ def main2():
     start_server(port,args.changes_intervals,args.run_forever)
     if not args.run_forever:
         return check_logs(config)
+
+def _exit_print(status: int) -> NoReturn:
+    print(f"{status}")
 
 if __name__ == '__main__':
     result = main()
