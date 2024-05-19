@@ -31,11 +31,12 @@ jobs:
 
     - name: Run single plugin instance on background as standalone
       run: |
-        source plugins/pdr_deterministic_plugin/.pytest/run_simulation_pytest.sh
-        start_simulation_server_pytest
-        start_pdr_standalone_pytest
-        kill_simulation_server_pytest
-    
+        sudo bash plugins/pdr_deterministic_plugin/.pytest/run_pdr_standalone_pytest.sh
+        echo "Starting simulated test"
+        python plugins/pdr_deterministic_plugin/tests/simulation_telemetry.py
+        echo "Terminating standalone PDR process"
+        pkill -9 -f isolation_algo.py 2>/dev/null || true
+            
 #    - name: Test exclude list with pytest
 #      run: pytest plugins/pdr_deterministic_plugin/tests/exclude_list_tests.py #--doctest-modules --junitxml=junit/exclude_list_tests_results.xml --cov=com --cov-report=xml --cov-report=html
 
