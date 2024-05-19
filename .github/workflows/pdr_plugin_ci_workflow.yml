@@ -7,7 +7,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 5
 
     env:
       PYTHONPATH: '.:plugins/pdr_deterministic_plugin/ufm_sim_web_service'

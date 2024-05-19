@@ -14,4 +14,10 @@ sed -i -e 's/INTERVAL=300/INTERVAL=10/g' "$CONFIG_FILE"
 sed -i -e 's/CONFIGURED_TEMP_CHECK=False/CONFIGURED_TEMP_CHECK=True/g' "$CONFIG_FILE"
 sed -i -e 's/DEISOLATE_CONSIDER_TIME=5/DEISOLATE_CONSIDER_TIME=1/g' "$CONFIG_FILE"
 
-python $PLUGIN_DIR/ufm_sim_web_service/isolation_algo.py
+echo "Starting 'isolation_algo.py'"
+python $PLUGIN_DIR/ufm_sim_web_service/isolation_algo.py &
+echo "Started 'isolation_algo.py'"
+sleep 180
+echo "Terminating 'isolation_algo.py'"
+pkill -9 -f isolation_algo.py
+echo "Terminated 'isolation_algo.py'"
