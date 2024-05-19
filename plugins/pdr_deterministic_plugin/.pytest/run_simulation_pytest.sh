@@ -3,7 +3,7 @@
 PLUGIN_DIR="plugins/pdr_deterministic_plugin"
 pip install -r $PLUGIN_DIR/requirements.txt
 
-set_config_params() {
+start_simulation_server_pytest() {
     cp -r utils $PLUGIN_DIR/tests
     CONFIG_FILE="/config/pdr_deterministic.conf"
     mkdir -p /config
@@ -14,10 +14,7 @@ set_config_params() {
     sed -i -e 's/INTERVAL=300/INTERVAL=10/g' "$CONFIG_FILE"
     sed -i -e 's/CONFIGURED_TEMP_CHECK=False/CONFIGURED_TEMP_CHECK=True/g' "$CONFIG_FILE"
     sed -i -e 's/DEISOLATE_CONSIDER_TIME=5/DEISOLATE_CONSIDER_TIME=1/g' "$CONFIG_FILE"
-}
 
-start_simulation_server_pytest() {
-    set_config_params
     echo "Starting 'isolation_algo.py'"
     python $PLUGIN_DIR/ufm_sim_web_service/isolation_algo.py &
 }
