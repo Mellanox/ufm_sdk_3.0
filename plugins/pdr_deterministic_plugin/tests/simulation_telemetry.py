@@ -21,7 +21,6 @@ import random
 from os import _exit
 from os.path import exists
 from collections import OrderedDict
-from typing import NoReturn
 import requests
 from utils.utils import Utils
 
@@ -399,10 +398,8 @@ def main2():
     if not args.run_forever:
         return check_logs(config)
 
-def _exit_print(status: int) -> NoReturn:
-    print(f"{status}")
-
 if __name__ == '__main__':
-    result = main()
-    _exit_print(result)
+    #_exit(main())
+    assert main() == 0
+
 
