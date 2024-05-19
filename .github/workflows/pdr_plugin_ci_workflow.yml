@@ -31,7 +31,7 @@ jobs:
 
     - name: Run single plugin instance on background as standalone
       run: |
-        source run_simulation_pytest.sh
+        source plugins/pdr_deterministic_plugin/.pytest/run_simulation_pytest.sh
         start_simulation_server_pytest
         start_pdr_standalone_pytest
         kill_simulation_server_pytest

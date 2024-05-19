@@ -116,4 +116,4 @@ def no_test_exclude_list_rest_api():
 
 if __name__ == '__main__':
     test_exclude_list_class_methods()
-    #test_exclude_list_rest_api()
+    #no_test_exclude_list_rest_api()
