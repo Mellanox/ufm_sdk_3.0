@@ -1,0 +1,50 @@
+name: PDR Plugin CI Workflow
+
+on:
+  push:
+     paths:
+      - 'plugins/pdr_deterministic_plugin/**'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      PYTHONPATH: '.:plugins/pdr_deterministic_plugin/ufm_sim_web_service'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@main
+
+    - name: Set up Python
+      uses: actions/setup-python@main
+      with:
+        python-version: 3.9
+
+    - name: Install dependencies
+      run: |
+        pip install -r plugins/pdr_deterministic_plugin/requirements.txt
+        pip install pylint
+        pip install pytest pytest-cov
+    
+    - name: Run PyLint
+      run: pylint --rcfile=plugins/pdr_deterministic_plugin/.pylintrc plugins/pdr_deterministic_plugin
+
+    - name: Run single plugin instance on background as standalone
+      run: |
+        sudo bash plugins/pdr_deterministic_plugin/.pytest/run_simulation_pytest.sh
+#       cp -f plugins/pdr_deterministic_plugin/build/config/pdr_deterministic.conf /config/
+#       python plugins/pdr_deterministic_plugin/ufm_sim_web_service/isolation_algo.py
+#       pkill -9 -f isolation_algo.py
+#       sleep 10
+#       cp -r ./utils plugins/pdr_deterministic_plugin/ufm_sim_web_service
+#       cp -r ./utils plugins/pdr_deterministic_plugin/
+#       nohup python plugins/pdr_deterministic_plugin/ufm_sim_web_service/isolation_algo.py > /dev/null 2>&1 &
+    
+    - name: Test exclude list with pytest
+      run: pytest plugins/pdr_deterministic_plugin/tests/exclude_list_tests.py #--doctest-modules --junitxml=junit/exclude_list_tests_results.xml --cov=com --cov-report=xml --cov-report=html
+
+    - name: Kill plugin process
+      run: |
+        pkill -9 -f isolation_algo.py 2>/dev/null || true
+        sleep 10
