@@ -21,3 +21,4 @@ sleep 180
 echo "Terminating 'isolation_algo.py'"
 pkill -9 -f isolation_algo.py
 echo "Terminated 'isolation_algo.py'"
+exit 1
