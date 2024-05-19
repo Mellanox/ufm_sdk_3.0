@@ -72,6 +72,7 @@
 #       export SERVER_HOST=$SERVER_HOST
 #       scp $WORKSPACE/plugins/pdr_deterministic_plugin/tests/simulation_telemetry.py root@$SERVER_HOST:/tmp
 #       scp $WORKSPACE/plugins/pdr_deterministic_plugin/.ci/run_simulation_test.sh root@$SERVER_HOST:/tmp
+#       scp -r $WORKSPACE/utils root@$SERVER_HOST:/tmp
 #       env
 #       ssh root@$SERVER_HOST '/tmp/run_simulation_test.sh'
 #     parallel: false

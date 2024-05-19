@@ -199,6 +199,7 @@ class IsolationMgr:
         self.link_down_isolation = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.LINK_DOWN_ISOLATION)
         self.switch_hca_isolation = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.SWITCH_TO_HOST_ISOLATION)
         self.test_mode = pdr_config.getboolean(Constants.CONF_COMMON,Constants.TEST_MODE, fallback=False)
+        self.test_iteration = 0
         self.dynamic_unresponsive_limit = pdr_config.getint(Constants.CONF_ISOLATION,Constants.DYNAMIC_UNRESPONSIVE_LIMIT, fallback=3)
         # Take from Conf
         self.logger = logger
@@ -885,7 +886,11 @@ class IsolationMgr:
                 t_begin = time.time()
                 self.exclude_list.refresh()
                 self.get_isolation_state()
-                self.logger.info("Retrieving telemetry data to determine ports' states")
+                if not self.test_mode:
+                    self.logger.info("Retrieving telemetry data to determine ports' states")
+                else:
+                    self.logger.info(f"Retrieving test mode telemetry data to determine ports' states: iteration {self.test_iteration}")
+                    self.test_iteration += 1
                 try:
                     issues = self.read_next_set_of_high_ber_or_pdr_ports(endpoint_port)
                 except DynamicTelemetryUnresponsive:
@@ -894,6 +899,7 @@ class IsolationMgr:
                         self.logger.error(f"Dynamic telemetry is unresponsive for {dynamic_telemetry_unresponsive_count} times, restarting telemetry session...")
                         endpoint_port = self.restart_telemetry_session()
                         dynamic_telemetry_unresponsive_count = 0
+                        self.test_iteration = 0
                     continue
                 if len(issues) > self.max_num_isolate:
                     # UFM send external event
