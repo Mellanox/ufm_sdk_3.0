@@ -17,7 +17,7 @@ set_config_params() {
 }
 
 start_simulation_server_pytest() {
-    sudo set_config_params
+    set_config_params
     echo "Starting 'isolation_algo.py'"
     python $PLUGIN_DIR/ufm_sim_web_service/isolation_algo.py &
 }
