@@ -16,9 +16,8 @@ sed -i -e 's/DEISOLATE_CONSIDER_TIME=5/DEISOLATE_CONSIDER_TIME=1/g' "$CONFIG_FIL
 
 echo "Starting 'isolation_algo.py'"
 python $PLUGIN_DIR/ufm_sim_web_service/isolation_algo.py &
-echo "Started 'isolation_algo.py'"
-sleep 180
+echo "Starting 'simulation_telemetry.py'"
+python $PLUGIN_DIR/tests/simulation_telemetry.py
 echo "Terminating 'isolation_algo.py'"
 pkill -9 -f isolation_algo.py
 echo "Terminated 'isolation_algo.py'"
-exit 1
