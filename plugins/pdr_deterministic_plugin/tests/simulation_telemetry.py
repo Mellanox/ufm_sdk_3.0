@@ -61,9 +61,9 @@ class CsvEndpointHandler(BaseHTTPRequestHandler):
             return
 
         endpoint = ENDPOINT_CONFIG[path]
-        black_ports_simulation(endpoint)
+        excluded_ports_simulation(endpoint)
 
-        # Increase iteration counter AFTER black ports simulation
+        # Increase iteration counter AFTER excluded ports simulation
         ENDPOINT_CONFIG["ITERATION_TIME"] += 1
 
         data = endpoint['data']
@@ -96,14 +96,14 @@ POSITIVE_DATA_TEST = {
     (5, 2, LINK_DOWN_COUNTER): 3,
     (6, 2, LINK_DOWN_COUNTER): 4,
 
-    # testing auto remove port from blacklist
-    (0, 9, EXCLUDE_PORT_SHORT_TIME): 60, # add to blacklist for 60 seconds
-    (8, 9, LINK_DOWN_COUNTER): 1,        # at this moment the port should be already automatically removed from blacklist
+    # testing auto remove port from exclusion list
+    (0, 9, EXCLUDE_PORT_SHORT_TIME): 60, # add to exclusion list for 60 seconds
+    (8, 9, LINK_DOWN_COUNTER): 1,        # at this moment the port should be already automatically removed from exclusion list
     (9, 9, LINK_DOWN_COUNTER): 2,        # try trigger isolation issue
-    # testing forced remove port from blacklist
-    (0, 1, EXCLUDE_PORT_LONG_TIME): 0,   # add to blacklist forever
-    (1, 1, INCLUDE_PORT): -1,            # remove port from blacklist
-    (2, 1, LINK_DOWN_COUNTER): 1,        # at this moment the port should be already removed from blacklist
+    # testing forced remove port from exclusion list
+    (0, 1, EXCLUDE_PORT_LONG_TIME): 0,   # add to exclusion list forever
+    (1, 1, INCLUDE_PORT): -1,            # remove port from exclusion list
+    (2, 1, LINK_DOWN_COUNTER): 1,        # at this moment the port should be already removed from exclusion list
     (3, 1, LINK_DOWN_COUNTER): 2,        # try trigger isolation issue
 
     # testing ber calculation (should not pass as not all are not equal to 0)
@@ -115,8 +115,8 @@ NEGATIVE_DATA_TEST = {
     # example, also negative test
     (1, 0, PHY_SYMBOL_ERROR): 0,
     
-    # testing blacklist
-    (0, 5, EXCLUDE_PORT_LONG_TIME): 0, # add to blacklist forever
+    # testing exclusion list
+    (0, 5, EXCLUDE_PORT_LONG_TIME): 0, # add to exclusion list forever
     (1, 5, LINK_DOWN_COUNTER): 1,
     (2, 5, LINK_DOWN_COUNTER): 2,      # try trigger isolation issue (should be ignored)
     (3, 5, LINK_DOWN_COUNTER): 3,      # try trigger isolation issue (should be ignored)
@@ -207,7 +207,7 @@ def start_server(port:str,changes_intervals:int, run_forever:bool):
             return
         time.sleep(changes_intervals)
 
-def black_ports_simulation(endpoint):
+def excluded_ports_simulation(endpoint):
     added_ports = []
     removed_ports = []
     rows = endpoint['row']
@@ -217,7 +217,7 @@ def black_ports_simulation(endpoint):
         
         # Process remove operation
         if find_value(port_index, INCLUDE_PORT, iteration, None) is not None:
-            # Remove from blacklist
+            # Remove from exclusion list
             removed_ports.append(f"\"{port_name}\"")
 
         # Process add operation
@@ -226,7 +226,7 @@ def black_ports_simulation(endpoint):
             ttl_seconds = find_value(port_index, EXCLUDE_PORT_SHORT_TIME, iteration, None)
 
         if ttl_seconds is not None:
-            # Add to blacklist
+            # Add to exclusion list
             if ttl_seconds == 0:
                 # Test optional parameter for infinite TTL
                 added_ports.append(f"[\"{port_name}\"]")
