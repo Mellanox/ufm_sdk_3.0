@@ -404,5 +404,5 @@ def _exit_print(status: int) -> NoReturn:
 
 if __name__ == '__main__':
     result = main()
-    _exit(result)
+    _exit_print(result)
 
