@@ -1,5 +1,5 @@
 #!/bin/bash -x
-mkdir -p /config
+sudo mkdir -p /config
 CONFIG_FILE="/config/pdr_deterministic.conf"
 cp -f plugins/pdr_deterministic_plugin/build/config/pdr_deterministic.conf "$CONFIG_FILE"
 sed -i -e 's/\nTEST_MODE=True\n//g' "$CONFIG_FILE"
