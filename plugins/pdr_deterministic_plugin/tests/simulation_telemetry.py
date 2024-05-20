@@ -433,4 +433,4 @@ def test_main():
     assert main() == 0
 
 if __name__ == '__main__':
-    _exit(main())
+    test_main()
