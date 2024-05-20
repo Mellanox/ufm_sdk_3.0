@@ -103,7 +103,7 @@ POSITIVE_DATA_TEST = {
     (9, 9, LINK_DOWN_COUNTER): 2,        # try trigger isolation issue
     # testing forced remove port from exclusion list
     (0, 1, EXCLUDE_PORT_LONG_TIME): 0,   # add to exclusion list forever
-    #(1, 1, INCLUDE_PORT): -1,            # remove port from exclusion list
+    (1, 1, INCLUDE_PORT): -1,            # remove port from exclusion list
     (2, 1, LINK_DOWN_COUNTER): 1,        # at this moment the port should be already removed from exclusion list
     (3, 1, LINK_DOWN_COUNTER): 2,        # try trigger isolation issue
 
@@ -346,11 +346,6 @@ def check_logs(config):
     all_pass = number_of_failed_positive_tests == 0 and number_of_failed_negative_tests == 0
     return 0 if all_pass else 1
 
-def main_dummy():
-    print("SIMULATION TELEMETRY")
-    time.sleep(5)
-    return 1
-
 # start a server which update the counters every time
 def main():
     parser = argparse.ArgumentParser()
@@ -399,7 +394,4 @@ def main():
         return check_logs(config)
 
 if __name__ == '__main__':
-    #_exit(main())
     assert main() == 0
-
-
