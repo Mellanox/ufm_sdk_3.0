@@ -17,7 +17,6 @@ from threading import Lock
 import copy
 import argparse
 import random
-from os import _exit
 from os.path import exists
 from collections import OrderedDict
 import requests
@@ -261,7 +260,7 @@ def excluded_ports_simulation(endpoint):
             removed_ports_str = '[' + ','.join(removed_ports) + ']'
             requests.delete(url=url, data=removed_ports_str, timeout=5)
 
-def create_ports(config:dict,ports_num: int):
+def create_ports(config:dict, ports_num: int):
     """
     Create an array of ports in size of ports_num
     """

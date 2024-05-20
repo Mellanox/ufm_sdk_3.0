@@ -12,8 +12,18 @@
 
 import http
 import json
+import random
 import time
 import requests
+
+
+def generate_port_name():
+    """
+    Generate port name
+    """
+    port_guid = f'{random.randrange(16**16):016x}'
+    port_num = random.randint(10, 99)
+    return f'{port_guid}_{port_num}'
 
 
 def test_exclude_list_rest_api():
@@ -25,14 +35,15 @@ def test_exclude_list_rest_api():
     url = "http://127.0.0.1:8977/excluded"
 
     excluded_ports = [
-        ("0123456789aaabbb_1", 0),  # Add forever
-        ("9876543210cccddd_2", 30), # Add for 30 seconds
-        ("3456789012eeefff_3", 0)   # Add forever
+        (generate_port_name(), 0),  # Add forever
+        (generate_port_name(), 30), # Add for 30 seconds
+        (generate_port_name(), 0)   # Add forever
     ]
 
     # Get (empty) list content
     response = requests.get(url, timeout=5)
     assert response.status_code == http.client.OK
+    assert all(char.isspace() for char in response.text)
     print("    - test: get exclusion list and ensure it's empty -- PASS")
 
     # Add ports to excluded list
@@ -51,7 +62,7 @@ def test_exclude_list_rest_api():
         assert port_name in response.text
     print("    - test: get added ports from exclusion list -- PASS")
 
-    # Wait until 2nd port TTL is expired
+    # Wait until second port TTL is expired
     ttl_seconds = excluded_ports[1][1]
     time.sleep(ttl_seconds + 1)
 
@@ -60,11 +71,23 @@ def test_exclude_list_rest_api():
     assert response.status_code == http.client.OK
     for (index, pair) in enumerate(excluded_ports):
         port_name = pair[0]
-        if (index == 1):
+        if index == 1:
             assert port_name not in response.text
         else:
             assert port_name in response.text
     print("    - test: auto-remove of port from exclusion list after TTL is expired -- PASS")
+
+    # Test forced remove of third port
+    port_name = excluded_ports[2][1]
+    response = requests.put(url, data=json.dumps([port_name]), timeout=5)
+    assert response.status_code == http.client.OK
+    for (index, pair) in enumerate(excluded_ports):
+        if index == 1 or index == 2:
+            assert port_name not in response.text
+        else:
+            assert port_name in response.text
+    print("    - test: forced remove of port from exclusion list -- PASS")
+
 
 if __name__ == '__main__':
     test_exclude_list_rest_api()
