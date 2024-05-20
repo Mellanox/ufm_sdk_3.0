@@ -1,5 +1,5 @@
 #!/bin/bash -x
-#
+
 PLUGIN_DIR="plugins/pdr_deterministic_plugin"
 pip install -r $PLUGIN_DIR/requirements.txt >/dev/null 2>&1
 

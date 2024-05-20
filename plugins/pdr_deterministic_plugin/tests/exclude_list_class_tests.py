@@ -33,6 +33,8 @@ def test_exclude_list_class_methods():
     """
     Test exclude list class methods by direct calls
     """
+    print("\n") # Start tests output from new line
+
     excluded_ports = [
         ExcludeListItem("0123456789aaabbb_1", 0),  # Add forever
         ExcludeListItem("9876543210cccddd_2", 30), # Add for 30 seconds
