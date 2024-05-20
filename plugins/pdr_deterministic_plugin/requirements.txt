@@ -1,9 +1,10 @@
-requests
+flask==3.0.3
+numpy==1.26.4
+pandas==2.2.2
+pytest==8.2.0
+requests==2.31.0
+twisted==22.1.0
 configparser
-flask
 flask_restful
-twisted
 tzlocal<3.0
 jsonschema
-numpy
-pandas
