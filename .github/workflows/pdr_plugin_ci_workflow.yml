@@ -1,0 +1,54 @@
+name: PDR Plugin CI Workflow
+
+on:
+  push:
+     paths:
+      - 'plugins/pdr_deterministic_plugin/**'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      PYTHONPATH: '.:plugins/pdr_deterministic_plugin/ufm_sim_web_service'
+      PDRPATH: 'plugins/pdr_deterministic_plugin'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@main
+
+    - name: Set up Python
+      uses: actions/setup-python@main
+      with:
+        python-version: 3.9
+
+    - name: Install dependencies
+      run: |
+        pip install -r $PDRPATH/requirements.txt
+        pip install pylint
+        pip install pytest pytest-cov
+    
+    - name: Run PyLint
+      run: pylint --rcfile=$PDRPATH/.pylintrc $PDRPATH
+
+    - name: Run exclusion list class test
+      timeout-minutes: 5
+      run: pytest -s $PDRPATH/tests/exclude_list_class_tests.py --cov=$PDRPATH
+
+    - name: Test exclusion list REST API
+      timeout-minutes: 5
+      run: |
+        sudo bash $PDRPATH/.pytest/run_pdr_standalone_pytest.sh
+        echo "Test exclusion list REST API methods"
+        sleep 10
+        pytest -s $PDRPATH/tests/exclude_list_rest_api_tests.py --cov=$PDRPATH
+        echo "Terminating standalone PDR process"
+        pkill -9 -f isolation_algo.py 2>/dev/null || true
+
+    - name: Run full simulation test
+      timeout-minutes: 10
+      run: |
+        sudo bash $PDRPATH/.pytest/run_pdr_standalone_pytest.sh
+        echo "Starting simulated test"
+        python $PDRPATH/tests/simulation_telemetry.py
+        echo "Terminating standalone PDR process"
+        pkill -9 -f isolation_algo.py 2>/dev/null || true
