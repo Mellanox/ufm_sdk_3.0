@@ -49,6 +49,6 @@ jobs:
       run: |
         sudo bash $PLUGIN_RELATIVE_PATH/.pytest/run_pdr_standalone_pytest.sh
         echo "Starting simulated test"
-        python $PLUGIN_RELATIVE_PATH/tests/simulation_telemetry.py
+        pytest -s $PLUGIN_RELATIVE_PATH/tests/simulation_telemetry.py --cov=$PLUGIN_RELATIVE_PATH
         echo "Terminating standalone PDR process"
         pkill -9 -f isolation_algo.py 2>/dev/null || true
