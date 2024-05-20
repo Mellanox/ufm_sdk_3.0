@@ -17,6 +17,7 @@ from threading import Lock
 import copy
 import argparse
 import random
+from os import _exit
 from os.path import exists
 from collections import OrderedDict
 import requests
@@ -425,5 +426,11 @@ def main():
     if not args.run_forever:
         return check_logs(config)
 
-if __name__ == '__main__':
+def test_main():
+    """
+    To be called by pytest
+    """
     assert main() == 0
+
+if __name__ == '__main__':
+    _exit(main())
