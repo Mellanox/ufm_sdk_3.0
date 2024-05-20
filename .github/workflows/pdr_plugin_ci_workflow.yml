@@ -32,11 +32,11 @@ jobs:
     - name: Run exclusion list class test
       run: pytest -s plugins/pdr_deterministic_plugin/tests/exclude_list_class_tests.py
 
-    - name: Test exclusion list REST API of pytest
+    - name: Test exclusion list REST API
       run: |
         sudo bash plugins/pdr_deterministic_plugin/.pytest/run_pdr_standalone_pytest.sh
         echo "Test exclusion list REST API methods"
-        pytest plugins/pdr_deterministic_plugin/tests/exclude_list_rest_api_tests.py
+        pyton plugins/pdr_deterministic_plugin/tests/exclude_list_rest_api_tests.py
         echo "Terminating standalone PDR process"
         pkill -9 -f isolation_algo.py 2>/dev/null || true
 

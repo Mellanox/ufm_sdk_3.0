@@ -15,12 +15,12 @@ import json
 import os
 import tempfile
 import time
-import pytest
+#import pytest
 import requests
 from exclude_list import ExcludeListItem
 
 
-pytest.mark.run(order=0)
+#pytest.mark.run(order=0)
 def test_exclude_list_rest_api():
     """
     Test exclude list inside plugin via REST API
