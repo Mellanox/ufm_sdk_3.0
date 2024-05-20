@@ -43,6 +43,28 @@ def test_exclude_list_rest_api():
         assert port_name in response.text
     print("    - test: add ports to exclusion list -- PASS")
 
+    # Test exclusion list content
+    response = requests.get(url, timeout=5)
+    assert response.status_code == http.client.OK
+    for pair in excluded_ports:
+        port_name = pair[0]
+        assert port_name in response.text
+    print("    - test: get added ports from exclusion list -- PASS")
+
+    # Wait until 2nd port TTL is expired
+    ttl_seconds = excluded_ports[1][1]
+    time.sleep(ttl_seconds + 1)
+
+    # Test auto-remove of second port after TTL is expired
+    response = requests.get(url, timeout=5)
+    assert response.status_code == http.client.OK
+    for (index, pair) in enumerate(excluded_ports):
+        port_name = pair[0]
+        if (index == 1):
+            assert port_name not in response.text
+        else:
+            assert port_name in response.text
+    print("    - test: auto-remove of port from exclusion list after TTL is expired -- PASS")
 
 if __name__ == '__main__':
     test_exclude_list_rest_api()
