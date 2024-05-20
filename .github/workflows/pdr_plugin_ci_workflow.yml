@@ -36,7 +36,7 @@ jobs:
       run: |
         sudo bash plugins/pdr_deterministic_plugin/.pytest/run_pdr_standalone_pytest.sh
         echo "Test exclusion list REST API methods"
-        python plugins/pdr_deterministic_plugin/tests/exclude_list_rest_api_tests.py
+        sudo python plugins/pdr_deterministic_plugin/tests/exclude_list_rest_api_tests.py
         echo "Terminating standalone PDR process"
         pkill -9 -f isolation_algo.py 2>/dev/null || true
 
