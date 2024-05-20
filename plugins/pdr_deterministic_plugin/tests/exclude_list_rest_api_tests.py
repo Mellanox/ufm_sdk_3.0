@@ -34,7 +34,7 @@ def test_exclude_list_rest_api():
     ]
 
     # Add ports to excluded list
-    response = requests.put(url, data=json.dumps(excluded_ports), headers={'Content-Type': 'application/json'}, timeout=5, auth = None, verify = False)
+    response = requests.put(url, data=json.dumps(excluded_ports), timeout=5)
     assert response.status_code == http.client.OK
 
 
