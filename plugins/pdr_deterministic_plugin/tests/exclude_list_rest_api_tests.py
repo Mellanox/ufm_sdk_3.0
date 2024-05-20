@@ -25,6 +25,7 @@ def test_exclude_list_rest_api():
     """
     Test exclude list inside plugin via REST API
     """
+    #
     url = "http://127.0.0.1:8977/excluded"
 
     excluded_ports = [
