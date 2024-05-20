@@ -12,8 +12,6 @@
 
 import http
 import json
-import os
-import tempfile
 import time
 #import pytest
 import requests
@@ -25,6 +23,8 @@ def test_exclude_list_rest_api():
     Test exclude list inside plugin via REST API
     """
 
+    time.sleep(30)
+
     url = "http://127.0.0.1:8977/excluded"
 
     excluded_ports = [
@@ -32,6 +32,10 @@ def test_exclude_list_rest_api():
         ("9876543210cccddd_2", 30), # Add for 30 seconds
         ("3456789012eeefff_3", 0)   # Add forever
     ]
+
+    # Get (empty) list content
+    response = requests.get(url, timeout=5)
+    assert response.status_code == http.client.OK
 
     # Add ports to excluded list
     response = requests.put(url, data=json.dumps(excluded_ports), timeout=5)
