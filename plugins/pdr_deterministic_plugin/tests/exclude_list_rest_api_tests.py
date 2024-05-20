@@ -78,15 +78,21 @@ def test_exclude_list_rest_api():
     print("    - test: auto-remove of port from exclusion list after TTL is expired -- PASS")
 
     # Test forced remove of third port
-    port_name = excluded_ports[2][1]
-    response = requests.put(url, data=json.dumps([port_name]), timeout=5)
+    port_name = excluded_ports[2][0]
+    response = requests.delete(url, data=json.dumps([port_name]), timeout=5)
     assert response.status_code == http.client.OK
+    assert f'{port_name} removed' in response.text
+    print("    - test: forced remove of port from exclusion list -- PASS")
+
+    # Test exclusion list content
+    response = requests.get(url, timeout=5)
     for (index, pair) in enumerate(excluded_ports):
+        port_name = excluded_ports[index][0]
         if index == 1 or index == 2:
             assert port_name not in response.text
         else:
             assert port_name in response.text
-    print("    - test: forced remove of port from exclusion list -- PASS")
+    print("    - test: exclusion list content -- PASS")
 
 
 if __name__ == '__main__':
