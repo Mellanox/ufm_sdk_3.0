@@ -9,7 +9,8 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      PYTHONPATH: '.:plugins/pdr_deterministic_plugin/ufm_sim_web_service'
+      PLUGINPATH: 'plugins/pdr_deterministic_plugin'
+      PYTHONPATH: '.:$PLUGINPATH/ufm_sim_web_service'
 
     steps:
     - name: Checkout code
@@ -22,29 +23,32 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install -r plugins/pdr_deterministic_plugin/requirements.txt
+        pip install -r $PLUGINPATH/requirements.txt
         pip install pylint
         pip install pytest pytest-cov
     
     - name: Run PyLint
-      run: pylint --rcfile=plugins/pdr_deterministic_plugin/.pylintrc plugins/pdr_deterministic_plugin
+      run: pylint --rcfile=$PLUGINPATH/.pylintrc $PLUGINPATH
 
     - name: Run exclusion list class test
-      run: pytest -s plugins/pdr_deterministic_plugin/tests/exclude_list_class_tests.py --cov=plugins/pdr_deterministic_plugin
+      timeout-minutes: 5
+      run: pytest -s $PLUGINPATH/tests/exclude_list_class_tests.py --cov=$PLUGINPATH
 
     - name: Test exclusion list REST API
+      timeout-minutes: 5
       run: |
-        sudo bash plugins/pdr_deterministic_plugin/.pytest/run_pdr_standalone_pytest.sh
+        sudo bash $PLUGINPATH/.pytest/run_pdr_standalone_pytest.sh
         echo "Test exclusion list REST API methods"
         sleep 10
-        pytest -s plugins/pdr_deterministic_plugin/tests/exclude_list_rest_api_tests.py --cov=plugins/pdr_deterministic_plugin
+        pytest -s $PLUGINPATH/tests/exclude_list_rest_api_tests.py --cov=$PLUGINPATH
         echo "Terminating standalone PDR process"
         pkill -9 -f isolation_algo.py 2>/dev/null || true
 
     - name: Run full simulation test
+      timeout-minutes: 10
       run: |
-        sudo bash plugins/pdr_deterministic_plugin/.pytest/run_pdr_standalone_pytest.sh
+        sudo bash $PLUGINPATH/.pytest/run_pdr_standalone_pytest.sh
         echo "Starting simulated test"
-        python -s plugins/pdr_deterministic_plugin/tests/simulation_telemetry.py
+        python -s $PLUGINPATH/tests/simulation_telemetry.py
         echo "Terminating standalone PDR process"
         pkill -9 -f isolation_algo.py 2>/dev/null || true
