@@ -10,7 +10,7 @@ jobs:
 
     env:
       PYTHONPATH: '.:plugins/pdr_deterministic_plugin/ufm_sim_web_service'
-      PLUGIN_RELATIVE_PATH : plugins/pdr_deterministic_plugin
+      PLUGIN_RELATIVE_PATH : 'plugins/pdr_deterministic_plugin'
 
     steps:
     - name: Checkout code
