@@ -13,17 +13,15 @@
 import http
 import json
 import time
-#import pytest
+import pytest
 import requests
 
 
-#pytest.mark.run(order=0)
+pytest.mark.run(order=0)
 def test_exclude_list_rest_api():
     """
-    Test exclude list inside plugin via REST API
+    Test exclude list via plugin REST API
     """
-
-    time.sleep(30)
 
     url = "http://127.0.0.1:8977/excluded"
 
@@ -36,10 +34,15 @@ def test_exclude_list_rest_api():
     # Get (empty) list content
     response = requests.get(url, timeout=5)
     assert response.status_code == http.client.OK
+    print("    - test: get exclusion list and ensure it's empty -- PASS")
 
     # Add ports to excluded list
     response = requests.put(url, data=json.dumps(excluded_ports), timeout=5)
     assert response.status_code == http.client.OK
+    for pair in excluded_ports:
+        port_name = pair[0]
+        assert port_name in response.text
+    print("    - test: add ports to exclusion list -- PASS")
 
 
 if __name__ == '__main__':
