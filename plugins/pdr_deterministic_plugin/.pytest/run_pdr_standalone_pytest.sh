@@ -1,7 +1,7 @@
 #!/bin/bash -x
 
 PLUGIN_DIR="plugins/pdr_deterministic_plugin"
-pip install -r $PLUGIN_DIR/requirements.txt
+#pip install -r $PLUGIN_DIR/requirements.txt
 
 cp -r utils $PLUGIN_DIR/ufm_sim_web_service
 cp -r utils $PLUGIN_DIR/tests

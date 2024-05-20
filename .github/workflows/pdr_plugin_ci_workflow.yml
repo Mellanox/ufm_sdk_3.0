@@ -29,7 +29,7 @@ jobs:
     - name: Run PyLint
       run: pylint --rcfile=plugins/pdr_deterministic_plugin/.pylintrc plugins/pdr_deterministic_plugin
 
-    - name: Run single plugin instance on background as standalone
+    - name: Run full simulation test
       run: |
         sudo bash plugins/pdr_deterministic_plugin/.pytest/run_pdr_standalone_pytest.sh
         echo "Starting simulated test"
