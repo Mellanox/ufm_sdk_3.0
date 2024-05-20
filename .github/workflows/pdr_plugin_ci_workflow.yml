@@ -10,7 +10,7 @@ jobs:
 
     env:
       PYTHONPATH: '.:plugins/pdr_deterministic_plugin/ufm_sim_web_service'
-      PLUGIN_RELATIVE_PATH : 'plugins/pdr_deterministic_plugin'
+      PDRPATH: 'plugins/pdr_deterministic_plugin'
 
     steps:
     - name: Checkout code
@@ -23,32 +23,32 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install -r $PLUGIN_RELATIVE_PATH/requirements.txt
+        pip install -r $PDRPATH/requirements.txt
         pip install pylint
         pip install pytest pytest-cov
     
     - name: Run PyLint
-      run: pylint --rcfile=$PLUGIN_RELATIVE_PATH/.pylintrc $PLUGIN_RELATIVE_PATH
+      run: pylint --rcfile=$PDRPATH/.pylintrc $PDRPATH
 
     - name: Run exclusion list class test
       timeout-minutes: 5
-      run: pytest -s $PLUGIN_RELATIVE_PATH/tests/exclude_list_class_tests.py --cov=$PLUGIN_RELATIVE_PATH
+      run: pytest -s $PDRPATH/tests/exclude_list_class_tests.py --cov=$PDRPATH
 
     - name: Test exclusion list REST API
       timeout-minutes: 5
       run: |
-        sudo bash $PLUGIN_RELATIVE_PATH/.pytest/run_pdr_standalone_pytest.sh
+        sudo bash $PDRPATH/.pytest/run_pdr_standalone_pytest.sh
         echo "Test exclusion list REST API methods"
         sleep 10
-        pytest -s $PLUGIN_RELATIVE_PATH/tests/exclude_list_rest_api_tests.py --cov=$PLUGIN_RELATIVE_PATH
+        pytest -s $PDRPATH/tests/exclude_list_rest_api_tests.py --cov=$PDRPATH
         echo "Terminating standalone PDR process"
         pkill -9 -f isolation_algo.py 2>/dev/null || true
 
     - name: Run full simulation test
       timeout-minutes: 10
       run: |
-        sudo bash $PLUGIN_RELATIVE_PATH/.pytest/run_pdr_standalone_pytest.sh
+        sudo bash $PDRPATH/.pytest/run_pdr_standalone_pytest.sh
         echo "Starting simulated test"
-        pytest -s $PLUGIN_RELATIVE_PATH/tests/simulation_telemetry.py --cov=$PLUGIN_RELATIVE_PATH
+        python $PDRPATH/tests/simulation_telemetry.py
         echo "Terminating standalone PDR process"
         pkill -9 -f isolation_algo.py 2>/dev/null || true
