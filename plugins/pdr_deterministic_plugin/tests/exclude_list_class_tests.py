@@ -13,7 +13,6 @@
 import os
 import tempfile
 import time
-import pytest
 from constants import PDRConstants as Constants
 from exclude_list import ExcludeList, ExcludeListItem
 from isolation_algo import create_logger
@@ -28,7 +27,6 @@ def get_logger():
     return create_logger(log_path)
 
 
-pytest.mark.run(order=0)
 def test_exclude_list_class_methods():
     """
     Test exclude list class methods by direct calls

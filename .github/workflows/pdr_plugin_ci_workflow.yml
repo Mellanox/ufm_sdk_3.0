@@ -30,7 +30,7 @@ jobs:
       run: pylint --rcfile=plugins/pdr_deterministic_plugin/.pylintrc plugins/pdr_deterministic_plugin
 
     - name: Run exclusion list class test
-      run: pytest -s plugins/pdr_deterministic_plugin/tests/exclude_list_class_tests.py
+      run: pytest -s plugins/pdr_deterministic_plugin/tests/exclude_list_class_tests.py --cov=plugins/pdr_deterministic_plugin
 
     - name: Test exclusion list REST API
       run: |

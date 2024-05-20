@@ -13,15 +13,14 @@
 import http
 import json
 import time
-import pytest
 import requests
 
 
-pytest.mark.run(order=0)
 def test_exclude_list_rest_api():
     """
     Test exclude list via plugin REST API
     """
+    print("\n") # Start tests output from new line
 
     url = "http://127.0.0.1:8977/excluded"
 
