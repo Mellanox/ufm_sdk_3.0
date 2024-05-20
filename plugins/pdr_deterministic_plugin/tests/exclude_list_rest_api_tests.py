@@ -17,7 +17,6 @@ import tempfile
 import time
 #import pytest
 import requests
-from exclude_list import ExcludeListItem
 
 
 #pytest.mark.run(order=0)
@@ -29,18 +28,13 @@ def test_exclude_list_rest_api():
     url = "http://127.0.0.1:8977/excluded"
 
     excluded_ports = [
-        ExcludeListItem("0123456789aaabbb_1", 0),  # Add forever
-        ExcludeListItem("9876543210cccddd_2", 30), # Add for 30 seconds
-        ExcludeListItem("3456789012eeefff_3", 0)   # Add forever
+        ("0123456789aaabbb_1", 0),  # Add forever
+        ("9876543210cccddd_2", 30), # Add for 30 seconds
+        ("3456789012eeefff_3", 0)   # Add forever
     ]
 
-    # Prepare data for PUT HTTP request
-    data = []
-    for port in excluded_ports:
-        data.append([port.port_name, port.ttl_seconds])
-
     # Add ports to excluded list
-    response = requests.put(url, data=json.dumps(data), headers={'Content-Type': 'application/json'}, timeout=5, auth = None, verify = False)
+    response = requests.put(url, data=json.dumps(excluded_ports), headers={'Content-Type': 'application/json'}, timeout=5, auth = None, verify = False)
     assert response.status_code == http.client.OK
 
 
