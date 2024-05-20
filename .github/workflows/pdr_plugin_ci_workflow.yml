@@ -30,18 +30,21 @@ jobs:
       run: pylint --rcfile=plugins/pdr_deterministic_plugin/.pylintrc plugins/pdr_deterministic_plugin
 
     - name: Run exclusion list class test
-      run: pytest -s plugins/pdr_deterministic_plugin/tests/exclude_list_class_tests.py
+      timeout-minutes: 5
+      run: pytest -s plugins/pdr_deterministic_plugin/tests/exclude_list_class_tests.py --cov=plugins/pdr_deterministic_plugin
 
     - name: Test exclusion list REST API
+      timeout-minutes: 5
       run: |
         sudo bash plugins/pdr_deterministic_plugin/.pytest/run_pdr_standalone_pytest.sh
         echo "Test exclusion list REST API methods"
         sleep 10
-        pytest -s plugins/pdr_deterministic_plugin/tests/exclude_list_rest_api_tests.py
+        pytest -s plugins/pdr_deterministic_plugin/tests/exclude_list_rest_api_tests.py --cov=plugins/pdr_deterministic_plugin
         echo "Terminating standalone PDR process"
         pkill -9 -f isolation_algo.py 2>/dev/null || true
 
     - name: Run full simulation test
+      timeout-minutes: 10
       run: |
         sudo bash plugins/pdr_deterministic_plugin/.pytest/run_pdr_standalone_pytest.sh
         echo "Starting simulated test"
