@@ -17,18 +17,7 @@ import tempfile
 import time
 import pytest
 import requests
-from constants import PDRConstants as Constants
-from exclude_list import ExcludeList, ExcludeListItem
-from isolation_algo import create_logger
-
-
-def get_logger():
-    """
-    Return logger associated with log file in temporary directory
-    """
-    log_name = os.path.basename(Constants.LOG_FILE)
-    log_path = os.path.join(tempfile.gettempdir(), log_name)
-    return create_logger(log_path)
+from exclude_list import ExcludeListItem
 
 
 pytest.mark.run(order=0)
