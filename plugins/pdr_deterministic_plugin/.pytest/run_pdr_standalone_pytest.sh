@@ -25,6 +25,6 @@ ps -ef | grep isolation_algo.py | grep -v grep | awk '{print $2}' | xargs kill -
 #    echo "Failed to kill the process"
 #    exit 1
 #fi
-
+#
 echo "Starting standalone PDR process"
 python $PLUGIN_DIR/ufm_sim_web_service/isolation_algo.py >/dev/null 2>&1 &
