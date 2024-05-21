@@ -36,3 +36,4 @@ if ! ps aux | grep -q [i]solation_algo.py; then
     echo "Failed to start standalone PDR process"
     exit 1
 fi
+# PDR is up and ready for communication
