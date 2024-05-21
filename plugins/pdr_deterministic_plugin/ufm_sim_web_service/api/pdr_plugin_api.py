@@ -71,14 +71,16 @@ class PDRPluginAPI(BaseAPIApplication):
         response = ""
         for pair in pairs:
             if pair:
-                port_name = pair[0]
+                port_name = self.fix_port_name(pair[0])
                 ttl = 0 if len(pair) == 1 else int(pair[1])
                 self.isolation_mgr.exclude_list.add(port_name, ttl)
                 if ttl == 0:
-                    response += f"Port {port_name} added to exclude list forever{EOL}"
+                    response += f"Port {port_name} added to exclude list forever"
                 else:
-                    response += f"Port {port_name} added to exclude list for {ttl} seconds{EOL}"
+                    response += f"Port {port_name} added to exclude list for {ttl} seconds"
 
+                response += self.get_port_warning(port_name) + EOL
+    
         return response, HTTPStatus.OK
 
 
@@ -98,10 +100,13 @@ class PDRPluginAPI(BaseAPIApplication):
 
         response = ""
         for port_name in port_names:
+            port_name = self.fix_port_name(port_name)
             if self.isolation_mgr.exclude_list.remove(port_name):
-                response += f"Port {port_name} removed from exclude list{EOL}"
+                response += f"Port {port_name} removed from exclude list"
             else:
-                response += f"Port {port_name} is not in exclude list{EOL}"
+                response += f"Port {port_name} is not in exclude list"
+
+            response += self.get_port_warning(port_name) + EOL
 
         return response, HTTPStatus.OK
 
@@ -116,3 +121,27 @@ class PDRPluginAPI(BaseAPIApplication):
         else:
             # Attempt to load plain data text as JSON
             return json.loads(request.get_data(as_text=True))
+
+
+    def fix_port_name(self, port_name):
+        """
+        Try to fix common user mistakes for input port names
+        Return fixed port name
+        """
+        # Remove '0x' from the beginning
+        if port_name.startswith('0x'):
+            port_name = port_name[2:]
+
+        # Additional corrections can be added here upon request
+        return port_name
+
+    def get_port_warning(self, port_name):
+        """
+        Return warning text if port does not exist in ports data and update plugin logs
+        """
+        if not self.isolation_mgr.test_mode:
+            if not self.isolation_mgr.ports_data.get(port_name):
+                self.isolation_mgr.logger.warning(f"Port {port_name} is not found in ports data")
+                return " (WARNING: port is not found in ports data)"
+
+        return ""
