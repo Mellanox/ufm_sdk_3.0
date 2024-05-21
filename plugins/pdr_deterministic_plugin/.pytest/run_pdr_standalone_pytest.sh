@@ -17,8 +17,8 @@ sed -i -e 's/INTERVAL=300/INTERVAL=10/g' "$CONFIG_FILE"
 sed -i -e 's/CONFIGURED_TEMP_CHECK=False/CONFIGURED_TEMP_CHECK=True/g' "$CONFIG_FILE"
 sed -i -e 's/DEISOLATE_CONSIDER_TIME=5/DEISOLATE_CONSIDER_TIME=1/g' "$CONFIG_FILE"
 
-"Terminating standalone PDR process"
-pkill -9 -f isolation_algo.py 2>/dev/null || true
+"Terminating standalone PDR process if exists"
+pkill -0 isolation_algo.py && pkill -9 -f isolation_algo.py 2>/dev/null
 sleep 10
 
 echo "Starting standalone PDR process"
