@@ -23,7 +23,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install -r $PDRPATH/requirements.txt
+        sudo pip install -r $PDRPATH/requirements.txt
         pip install pylint
         pip install pytest pytest-cov
     
