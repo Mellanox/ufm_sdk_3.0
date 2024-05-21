@@ -32,7 +32,7 @@ bash $PLUGIN_DIR/.pytest/terminate_pdr_standalone_pytest.sh
 echo "Starting standalone PDR process"
 python $PLUGIN_DIR/ufm_sim_web_service/isolation_algo.py >/dev/null 2>&1 &
 sleep 10
-if ! pgrep -x isolation_algo.py> /dev/null; then
+if ! ps aux | grep -q [i]solation_algo.py; then
     echo "Failed to start standalone PDR process"
     exit 1
 fi
