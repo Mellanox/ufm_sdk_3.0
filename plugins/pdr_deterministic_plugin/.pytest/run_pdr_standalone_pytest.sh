@@ -20,7 +20,7 @@ sed -i -e 's/DEISOLATE_CONSIDER_TIME=5/DEISOLATE_CONSIDER_TIME=1/g' "$CONFIG_FIL
 echo "Terminating standalone PDR process"
 pkill -0 isolation_algo.py && pkill -9 -f isolation_algo.py 2>/dev/null
 sleep 10
-if pgrep -x "my_file.py" > /dev/null; then
+if pgrep -x isolation_algo.py> /dev/null; then
     echo "Failed to kill the process"
     exit 1
 fi
