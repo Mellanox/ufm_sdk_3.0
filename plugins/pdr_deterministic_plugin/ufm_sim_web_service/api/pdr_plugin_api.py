@@ -140,7 +140,7 @@ class PDRPluginAPI(BaseAPIApplication):
         Return warning text if port does not exist in ports data and update plugin logs
         """
         if not self.isolation_mgr.test_mode:
-            if self.isolation_mgr.ports_data.get(port_name) is None:
+            if not self.isolation_mgr.ports_data.get(port_name):
                 self.isolation_mgr.logger.warning(f"Port {port_name} is not found in ports data")
                 return " (WARNING: port is not found in ports data)"
 
