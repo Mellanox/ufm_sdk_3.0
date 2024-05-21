@@ -10,7 +10,7 @@ echo "Init PDR configuration file"
 CONFIG_FILE="/config/pdr_deterministic.conf"
 mkdir -p /config
 cp -f $PLUGIN_DIR/build/config/pdr_deterministic.conf "$CONFIG_FILE"
-sed -i -e 's/\nTEST_MODE=\n//g' "$CONFIG_FILE" # Remove any existing TEST_MODE lines from the file
+sed -i -e '/TEST_MODE=\(True\|False\)/d' "$CONFIG_FILE" # Remove any existing TEST_MODE lines from the file
 echo -e '\n[Common]\nTEST_MODE=True\n' >> "$CONFIG_FILE"
 sed -i -e 's/DRY_RUN=False/DRY_RUN=True/g' "$CONFIG_FILE"
 sed -i -e 's/INTERVAL=300/INTERVAL=10/g' "$CONFIG_FILE"
