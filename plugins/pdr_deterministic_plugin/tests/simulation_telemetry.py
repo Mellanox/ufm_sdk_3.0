@@ -325,7 +325,7 @@ def validate_simulation_data():
 
 def check_logs(config):
     """
-    Analize output log and create tests results
+    Analyze output log and create tests results
     """
     lines=[]
     location_logs_can_be = ["/log/pdr_deterministic_plugin.log",

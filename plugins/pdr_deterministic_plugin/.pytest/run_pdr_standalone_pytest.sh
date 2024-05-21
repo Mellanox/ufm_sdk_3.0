@@ -10,11 +10,12 @@ echo "Init PDR configuration file"
 CONFIG_FILE="/config/pdr_deterministic.conf"
 mkdir -p /config
 cp -f $PLUGIN_DIR/build/config/pdr_deterministic.conf "$CONFIG_FILE"
-sed -i -e 's/\nTEST_MODE=True\n//g' "$CONFIG_FILE"
+sed -i -e 's/\nTEST_MODE=\n//g' "$CONFIG_FILE" # Remove any existing TEST_MODE lines from the file
 echo -e '\n[Common]\nTEST_MODE=True\n' >> "$CONFIG_FILE"
 sed -i -e 's/DRY_RUN=False/DRY_RUN=True/g' "$CONFIG_FILE"
 sed -i -e 's/INTERVAL=300/INTERVAL=10/g' "$CONFIG_FILE"
 sed -i -e 's/CONFIGURED_TEMP_CHECK=False/CONFIGURED_TEMP_CHECK=True/g' "$CONFIG_FILE"
+sed -i -e 's/LINK_DOWN_ISOLATION=False/LINK_DOWN_ISOLATION=True/g' "$CONFIG_FILE"
 sed -i -e 's/DEISOLATE_CONSIDER_TIME=5/DEISOLATE_CONSIDER_TIME=1/g' "$CONFIG_FILE"
 
 "Terminating standalone PDR process"
