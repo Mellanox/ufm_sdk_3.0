@@ -42,7 +42,7 @@ jobs:
         sleep 10
         pytest -s $PDRPATH/tests/exclude_list_rest_api_tests.py --cov=$PDRPATH
         echo "Terminating standalone PDR process"
-        pkill -0 isolation_algo.py && pkill -9 -f isolation_algo.py 2>/dev/null
+        sudo pkill -0 isolation_algo.py && pkill -9 -f isolation_algo.py 2>/dev/null
 
     - name: Run full simulation test
       timeout-minutes: 10
@@ -51,4 +51,4 @@ jobs:
         echo "Starting simulated test"
         python $PDRPATH/tests/simulation_telemetry.py
         echo "Terminating standalone PDR process"
-        pkill -0 isolation_algo.py && pkill -9 -f isolation_algo.py 2>/dev/null
+        sudo pkill -0 isolation_algo.py && pkill -9 -f isolation_algo.py 2>/dev/null

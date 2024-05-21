@@ -23,4 +23,3 @@ sleep 10
 
 echo "Starting standalone PDR process"
 python $PLUGIN_DIR/ufm_sim_web_service/isolation_algo.py >/dev/null 2>&1 &
-#
