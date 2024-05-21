@@ -28,9 +28,11 @@ else
     echo -e '\n[Common]\nTEST_MODE=True\n' >> "$CONFIG_FILE"
 fi
 
-"Terminating standalone PDR process"
-pkill -9 -f isolation_algo.py 2>/dev/null || true
-sleep 10
-
+bash $PLUGIN_DIR/.pytest/terminate_pdr_standalone_pytest.sh
 echo "Starting standalone PDR process"
 python $PLUGIN_DIR/ufm_sim_web_service/isolation_algo.py >/dev/null 2>&1 &
+sleep 10
+if ! pgrep -x isolation_algo.py> /dev/null; then
+    echo "Failed to start standalone PDR process"
+    exit 1
+fi

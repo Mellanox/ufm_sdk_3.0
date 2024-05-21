@@ -26,7 +26,7 @@ jobs:
         pip install -r $PDRPATH/requirements.txt
         pip install pylint
         pip install pytest-cov
-    
+
     - name: Run PyLint
       run: pylint --rcfile=$PDRPATH/.pylintrc $PDRPATH
 
@@ -41,8 +41,7 @@ jobs:
         echo "Test exclusion list REST API methods"
         sleep 10
         pytest -s $PDRPATH/tests/exclude_list_rest_api_tests.py --cov=$PDRPATH
-        echo "Terminating standalone PDR process"
-        pkill -9 -f isolation_algo.py 2>/dev/null || true
+        sudo bash $PDRPATH/.pytest/terminate_pdr_standalone_pytest.sh
 
     - name: Run full simulation test
       timeout-minutes: 10
@@ -50,5 +49,4 @@ jobs:
         sudo bash $PDRPATH/.pytest/run_pdr_standalone_pytest.sh
         echo "Starting simulated test"
         python $PDRPATH/tests/simulation_telemetry.py
-        echo "Terminating standalone PDR process"
-        pkill -9 -f isolation_algo.py 2>/dev/null || true
+        sudo bash $PDRPATH/.pytest/terminate_pdr_standalone_pytest.sh
