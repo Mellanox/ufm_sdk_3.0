@@ -41,7 +41,6 @@ jobs:
         echo "Test exclusion list REST API methods"
         sleep 10
         pytest -s $PDRPATH/tests/exclude_list_rest_api_tests.py --cov=$PDRPATH
-        echo "Terminating standalone PDR process"
         sudo bash $PDRPATH/.pytest/terminate_pdr_standalone_pytest.sh
 
     - name: Run full simulation test
@@ -50,5 +49,4 @@ jobs:
         sudo bash $PDRPATH/.pytest/run_pdr_standalone_pytest.sh
         echo "Starting simulated test"
         python $PDRPATH/tests/simulation_telemetry.py
-        echo "Terminating standalone PDR process"
         sudo bash $PDRPATH/.pytest/terminate_pdr_standalone_pytest.sh
