@@ -17,7 +17,6 @@ from threading import Lock
 import copy
 import argparse
 import random
-from os import _exit
 from os.path import exists
 from collections import OrderedDict
 import requests
@@ -46,11 +45,13 @@ EXCLUDE_LIST_TEST_NAMES = [
 ]
 
 class CsvEndpointHandler(BaseHTTPRequestHandler):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def do_GET(self):
+    """
+    CsvEndpointHandler class
+    """
+    def do_GET(self): # pylint: disable=invalid-name
+        """
+        Response on simulated telemetry request
+        """
         self.send_response(200)
         self.send_header('Content-type', 'text/plain')
         self.end_headers()
@@ -114,7 +115,7 @@ POSITIVE_DATA_TEST = {
 NEGATIVE_DATA_TEST = {
     # example, also negative test
     (1, 0, PHY_SYMBOL_ERROR): 0,
-    
+
     # testing exclusion list
     (0, 5, EXCLUDE_PORT_LONG_TIME): 0, # add to exclusion list forever
     (1, 5, LINK_DOWN_COUNTER): 1,
@@ -129,15 +130,20 @@ NEGATIVE_DATA_TEST = {
 }
 
 def get_max_iteration_index(tests):
-   return max([test[0] for test in tests]) if tests else 0
+    """
+    Return largest iteration for given port index
+    """
+    return max([test[0] for test in tests]) if tests else 0
 
 # getting the max tests we test plus 2
 MAX_POSITIVE_ITERATION_INDEX = get_max_iteration_index(POSITIVE_DATA_TEST)
 MAX_NEGATIVE_ITERATION_INDEX = get_max_iteration_index(NEGATIVE_DATA_TEST)
 MAX_ITERATIONS = max(MAX_POSITIVE_ITERATION_INDEX, MAX_NEGATIVE_ITERATION_INDEX) + 2
 
-# return randomize value base on the counter name
-def randomize_values(counter_name:str,iteration:int):
+def randomize_values(counter_name:str, iteration:int):
+    """
+    Randomize value based on the counter name
+    """
     if counter_name == RCV_PACKETS_COUNTER:
         return 1000000 + iteration * 10
     if counter_name == TEMP_COUNTER:
@@ -149,8 +155,11 @@ def randomize_values(counter_name:str,iteration:int):
     if counter_name == FEC_MODE:
         return 0
 
-# return value if found on our testing telemetry simulation, else return default value for that telemetry.
 def find_value(row_index:int, counter_name:str, iteration:int, default=0):
+    """
+    Return value if found on our testing telemetry simulation, 
+    else return default value for that telemetry.
+    """
     if counter_name == RCV_PACKETS_COUNTER:
         return str(1000000 + iteration * 10)
     value = POSITIVE_DATA_TEST.get((iteration, row_index, counter_name), None)
@@ -161,6 +170,9 @@ def find_value(row_index:int, counter_name:str, iteration:int, default=0):
     return value
 
 def start_server(port:str,changes_intervals:int, run_forever:bool):
+    """
+    Start simulated telemetry server
+    """
     server_address = ('', int(port))
     httpd = HTTPServer(server_address, CsvEndpointHandler)
     handler_instance = httpd.RequestHandlerClass
@@ -208,6 +220,9 @@ def start_server(port:str,changes_intervals:int, run_forever:bool):
         time.sleep(changes_intervals)
 
 def excluded_ports_simulation(endpoint):
+    """
+    Perform operations on exclusion port for current iteration
+    """
     added_ports = []
     removed_ports = []
     rows = endpoint['row']
@@ -245,23 +260,27 @@ def excluded_ports_simulation(endpoint):
             removed_ports_str = '[' + ','.join(removed_ports) + ']'
             requests.delete(url=url, data=removed_ports_str, timeout=5)
 
-# create an array of ports in size of ports_num
-def create_ports(config:dict,ports_num: int):
+def create_ports(config:dict, ports_num: int):
+    """
+    Create an array of ports in size of ports_num
+    """
     ports_list = []
     ports_names = []
     for _ in range(ports_num):
         port_guid = f'0x{random.randrange(16**16):016x}'
         # holds the prefix of each simulated csv rows,
         # list of counters structures(will be filled further)
-        port_num = random.randint(1, 99)
+        port_num = random.randint(10, 99)
         ports_list.append([f"{port_guid},,{port_guid},{port_guid},{port_num}", []])
         ports_names.append(f"{port_guid[2:]}_{port_num}")
     config["Ports_names"] = ports_names
     return ports_list
 
 
-# create simulate counters base of list of string of the counters
 def simulate_counters(supported_counters: list):
+    """
+    Create simulate counters base of list of string of the counters
+    """
     counters = {}
     for counter in supported_counters:
         counters[counter] = {
@@ -271,6 +290,9 @@ def simulate_counters(supported_counters: list):
     return counters
 
 def initialize_simulated_counters(endpoint_obj: dict):
+    """
+    Initialize simulated counters
+    """
     counters = endpoint_obj['counters']
     rows = endpoint_obj['row']
     for row in rows:
@@ -280,13 +302,19 @@ def initialize_simulated_counters(endpoint_obj: dict):
             counter_obj['last_val'] = initial_val
             row[1].append(counter_obj)
 
-def assert_equal(message, left_expr, right_expr, test_name="positive"):
-        if left_expr == right_expr:
-            print(f"    - {test_name} test: {message} -- PASS")
-        else:
-            print(f"    - {test_name} test: {message} -- FAIL (expected: {right_expr}, actual: {left_expr})")
+def print_test_result(message, left_expr, right_expr, test_name="positive"):
+    """
+    Print test result
+    """
+    if left_expr == right_expr:
+        print(f"    - {test_name} test: {message} -- PASS")
+    else:
+        print(f"    - {test_name} test: {message} -- FAIL (expected: {right_expr}, actual: {left_expr})")
 
 def validate_simulation_data():
+    """
+    Validate simulation data for positive and negative tests
+    """
     positive_test_port_indexes = set([x[1] for x in POSITIVE_DATA_TEST])
     negative_test_port_indexes = set([x[1] for x in NEGATIVE_DATA_TEST])
     if not positive_test_port_indexes.isdisjoint(negative_test_port_indexes):
@@ -296,6 +324,9 @@ def validate_simulation_data():
     return True
 
 def check_logs(config):
+    """
+    Analyze output log and create tests results
+    """
     lines=[]
     location_logs_can_be = ["/log/pdr_deterministic_plugin.log",
                             "/tmp/pdr_deterministic_plugin.log",
@@ -303,7 +334,7 @@ def check_logs(config):
                             "/opt/ufm/log/plugins/pdr_deterministic/pdr_deterministic_plugin.log"]
     for log_location in location_logs_can_be:
         if exists(log_location):
-            with open(log_location,'r') as log_file:
+            with open(log_location,'r') as log_file: # pylint: disable=unspecified-encoding
                 lines=log_file.readlines()
             break
     if len(lines) == 0:
@@ -328,7 +359,7 @@ def check_logs(config):
                 break
         if not found:
             number_of_failed_positive_tests += 1
-        assert_equal(f"port {port_name} (index: {p}) which check {tested_counter} changed and should be in the logs", found, True)
+        print_test_result(f"port {port_name} (index: {p}) which check {tested_counter} changed and should be in the logs", found, True)
 
     for p in ports_should_not_be_isolated_indices:
         found=False
@@ -340,13 +371,15 @@ def check_logs(config):
                 found = True
                 number_of_failed_negative_tests += 1
                 break
-        assert_equal(f"port {port_name} (index: {p}) which check {tested_counter} should not be in the logs", found, False, "negative")
+        print_test_result(f"port {port_name} (index: {p}) which check {tested_counter} should not be in the logs", found, False, "negative")
 
     all_pass = number_of_failed_positive_tests == 0 and number_of_failed_negative_tests == 0
     return 0 if all_pass else 1
 
-# start a server which update the counters every time
 def main():
+    """
+    Start a server which update the counters every time
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('--num_simulated_ports', type=int, default=10,
         help="number of ports to simulate if set to 0 ports will be taken from the UFM REST server")
@@ -392,5 +425,11 @@ def main():
     if not args.run_forever:
         return check_logs(config)
 
+def test_main():
+    """
+    To be called by pytest
+    """
+    assert main() == 0
+
 if __name__ == '__main__':
-    _exit(main())
+    test_main()

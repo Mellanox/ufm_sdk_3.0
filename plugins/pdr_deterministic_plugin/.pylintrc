@@ -1,0 +1,17 @@
+[MASTER]
+init-hook="import os, sys; sys.path.append(os.path.join(os.getcwd(), 'plugins', 'pdr_deterministic_plugin', 'src')); sys.path.append(os.path.join(os.getcwd(), 'utils'))"
+
+[MAIN]
+max-public-methods=100
+
+[DESIGN]
+max-attributes=10
+
+[MESSAGES CONTROL]
+disable=missing-module-docstring,missing-function-docstring,fixme
+
+[FORMAT]
+max-line-length=140
+
+[BASIC]
+min-public-methods=0
