@@ -25,7 +25,7 @@ jobs:
       run: |
         pip install -r $PDRPATH/requirements.txt
         pip install pylint
-        pip install pytest pytest-cov
+        pip install pytest-cov
     
     - name: Run PyLint
       run: pylint --rcfile=$PDRPATH/.pylintrc $PDRPATH
