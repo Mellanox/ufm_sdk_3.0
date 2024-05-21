@@ -18,12 +18,13 @@ sed -i -e 's/CONFIGURED_TEMP_CHECK=False/CONFIGURED_TEMP_CHECK=True/g' "$CONFIG_
 sed -i -e 's/DEISOLATE_CONSIDER_TIME=5/DEISOLATE_CONSIDER_TIME=1/g' "$CONFIG_FILE"
 
 echo "Terminating standalone PDR process"
-pkill -0 isolation_algo.py && pkill -9 -f isolation_algo.py 2>/dev/null
-sleep 10
-if pgrep -x isolation_algo.py> /dev/null; then
-    echo "Failed to kill the process"
-    exit 1
-fi
+ps -ef | grep isolation_algo.py | grep -v grep | awk '{print $2}' | xargs kill -9 $1 >/dev/null 2>/dev/null
+#sudo pkill -0 isolation_algo.py && pkill -9 -f isolation_algo.py 2>/dev/null
+#sleep 10
+#if pgrep -x isolation_algo.py> /dev/null; then
+#    echo "Failed to kill the process"
+#    exit 1
+#fi
 
 echo "Starting standalone PDR process"
 python $PLUGIN_DIR/ufm_sim_web_service/isolation_algo.py >/dev/null 2>&1 &
