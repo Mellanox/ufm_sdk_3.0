@@ -61,6 +61,13 @@ steps:
     parallel: false
 
 
+  - name: Add plugin
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: |
+      bash -x plugins/pdr_deterministic_plugin/.ci/do_add_plugin.sh 
+    parallel: false
+
+
   - name: Set PDR plugin configuration to simulated mode
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
@@ -68,12 +75,6 @@ steps:
     parallel: false
 
 
-  - name: Add plugin
-    agentSelector: "{nodeLabel: 'UFM-POC'}"
-    run: |
-      bash -x plugins/pdr_deterministic_plugin/.ci/do_add_plugin.sh 
-    parallel: false
-  
   - name: Run simulation and tests on machine
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
