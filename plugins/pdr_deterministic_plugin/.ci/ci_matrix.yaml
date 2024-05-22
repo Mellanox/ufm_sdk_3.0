@@ -43,16 +43,6 @@ steps:
     parallel: false
     
 
-  - name: Set PDR plugin configuration to simulated mode
-    agentSelector: "{nodeLabel: 'UFM-POC'}"
-    run: |
-      export SERVER_HOST=$SERVER_HOST
-      scp $WORKSPACE/plugins/pdr_deterministic_plugin/.ci/set_simulation_test_config.sh root@$SERVER_HOST:/tmp
-      env
-      ssh root@$SERVER_HOST '/tmp/set_simulation_test_config.sh'
-    parallel: false
-
-
   - name: Install the new plugin on Server
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     credentialsId: '2c8fd3fe-df05-4f6f-9d1f-f1896d611434'
@@ -70,6 +60,17 @@ steps:
       bash -x plugins/pdr_deterministic_plugin/.ci/do_load_plugin.sh
     parallel: false
 
+
+  - name: Set PDR plugin configuration to simulated mode
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: |
+      export SERVER_HOST=$SERVER_HOST
+      scp $WORKSPACE/plugins/pdr_deterministic_plugin/.ci/set_simulation_test_config.sh root@$SERVER_HOST:/tmp
+      env
+      ssh root@$SERVER_HOST '/tmp/set_simulation_test_config.sh'
+    parallel: false
+
+    
   - name: Add plugin
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
