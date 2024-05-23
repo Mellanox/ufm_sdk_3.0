@@ -1,1 +1,2 @@
-# Trigger 4
+# Trigger
+print("Trigger 4")
