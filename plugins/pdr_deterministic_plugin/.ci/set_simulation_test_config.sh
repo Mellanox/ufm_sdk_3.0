@@ -1,6 +1,7 @@
 #!/bin/bash -x
 
-CONFIG_FILE="/opt/ufm/files/conf/plugins/pdr_deterministic/pdr_deterministic.conf"
+#CONFIG_FILE="/opt/ufm/files/conf/plugins/pdr_deterministic/pdr_deterministic.conf"
+CONFIG_FILE="plugins/pdr_deterministic_plugin/build/config/pdr_deterministic.conf"
 
 sed -i -e 's/DRY_RUN=False/DRY_RUN=True/g' "$CONFIG_FILE"
 sed -i -e 's/INTERVAL=300/INTERVAL=10/g' "$CONFIG_FILE"
