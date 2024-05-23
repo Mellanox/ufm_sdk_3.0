@@ -32,7 +32,7 @@ steps:
     parallel: false
 
 
-    - name: Build plugin
+  - name: Build plugin
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
       cd plugins/$plugin_dir/build
