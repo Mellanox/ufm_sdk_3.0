@@ -82,7 +82,10 @@ steps:
       scp $WORKSPACE/plugins/pdr_deterministic_plugin/.ci/run_plugin.sh root@$SERVER_HOST:/tmp
       ssh root@$SERVER_HOST 'chmod +x /tmp/run_plugin.sh'
       env
-      ssh root@$SERVER_HOST '/tmp/run_plugin.sh'
+      ssh root@$SERVER_HOST 'ls -l /tmp/run_plugin.sh'
+      echo "Executing run_plugin.sh..."
+      ssh root@$SERVER_HOST 'sh -x /tmp/run_plugin.sh'
+      echo "Execution completed"
     parallel: false
 
 
