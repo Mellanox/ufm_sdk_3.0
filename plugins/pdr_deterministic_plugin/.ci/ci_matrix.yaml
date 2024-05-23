@@ -75,6 +75,22 @@ steps:
     parallel: false
 
 
+  - name: Run plugin
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: |
+      export SERVER_HOST=$SERVER_HOST
+      scp $WORKSPACE/plugins/pdr_deterministic_plugin/.ci/run_plugin.sh root@$SERVER_HOST:/tmp
+      env
+      ssh root@$SERVER_HOST '/tmp/run_plugin.sh'
+    parallel: false
+
+
+  - name: Check plugin
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: |
+      bash -x plugins/pdr_deterministic_plugin/.ci/do_check_plugin.sh 
+    parallel: false
+
   - name: Run simulation and tests on machine
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |

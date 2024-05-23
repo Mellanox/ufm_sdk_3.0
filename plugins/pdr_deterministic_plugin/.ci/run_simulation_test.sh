@@ -18,11 +18,12 @@
 #     echo -e '\n[Common]\nTEST_MODE=True\n' >> "$CONFIG_FILE"
 # fi
 
-pid=$(ps -fade | grep /tmp/simulation_telemetry.py | egrep -v grep | awk '// { print $2 }')
-if [[ ! -z $pid ]]; then kill -9 $pid;fi
-cp /opt/ufm/files/conf/plugins/pdr_deterministic/pdr_deterministic.conf /config
-docker run --network=host -v /config:/config mellanox/ufm-plugin-pdr_deterministic >/tmp/pdr_deterministic_plugin.log 2>&1&
-sleep 5
+#pid=$(ps -fade | grep /tmp/simulation_telemetry.py | egrep -v grep | awk '// { print $2 }')
+#if [[ ! -z $pid ]]; then kill -9 $pid;fi
+#cp /opt/ufm/files/conf/plugins/pdr_deterministic/pdr_deterministic.conf /config
+#docker run --network=host -v /config:/config mellanox/ufm-plugin-pdr_deterministic >/tmp/pdr_deterministic_plugin.log 2>&1&
+#sleep 5
+
 container_pid=$(docker ps| grep pdr_ | egrep -v grep | awk '// { print $1 }')
 kill -9 $(lsof -t -i:9090)
 python3 /tmp/simulation_telemetry.py # > /tmp/log_of_simulation.log

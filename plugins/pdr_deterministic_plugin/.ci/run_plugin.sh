@@ -1,0 +1,8 @@
+#!/bin/bash -x
+
+pid=$(ps -fade | grep /tmp/simulation_telemetry.py | egrep -v grep | awk '// { print $2 }')
+if [[ ! -z $pid ]]; then kill -9 $pid;fi
+cp /opt/ufm/files/conf/plugins/pdr_deterministic/pdr_deterministic.conf /config
+docker run --network=host -v /config:/config mellanox/ufm-plugin-pdr_deterministic >/tmp/pdr_deterministic_plugin.log 2>&1&
+sleep 5
+
