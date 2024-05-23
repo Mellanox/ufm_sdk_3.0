@@ -25,7 +25,7 @@ docker run --network=host -v /config:/config mellanox/ufm-plugin-pdr_determinist
 sleep 5
 container_pid=$(docker ps| grep pdr_ | egrep -v grep | awk '// { print $1 }')
 kill -9 $(lsof -t -i:9090)
-python3 /tmp/simulation_telemetry.py > /tmp/log_of_simulation.log
+python3 /tmp/simulation_telemetry.py # > /tmp/log_of_simulation.log
 result=$?
 docker stop $container_pid
 exit $result

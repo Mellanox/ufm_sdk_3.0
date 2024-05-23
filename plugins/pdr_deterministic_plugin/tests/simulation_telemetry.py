@@ -182,7 +182,12 @@ def start_server(port:str,changes_intervals:int, run_forever:bool):
     counters_names = list(counters.keys())
     header = ['timestamp', 'source_id,tag,node_guid,port_guid,port_num'] + counters_names
     endpoint['data'] = ""
+    star_time = time.time();
     while True:
+        iteration = ENDPOINT_CONFIG["ITERATION_TIME"]
+        if (time.time() - star_time > 60):
+            if iteration == 0:
+                raise ValueError("PDR plugin did not start simulated telemetry session during 60 seconds!")
         # lock.acquire()
         data = []
         timestamp = str(int(time.time() * 1000000))
