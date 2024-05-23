@@ -80,7 +80,7 @@ steps:
     run: |
       export SERVER_HOST=$SERVER_HOST
       scp $WORKSPACE/plugins/pdr_deterministic_plugin/.ci/run_plugin.sh root@$SERVER_HOST:/tmp
-      sleep 10
+      ssh root@$SERVER_HOST 'chmod +x /tmp/run_plugin.sh'
       env
       ssh root@$SERVER_HOST '/tmp/run_plugin.sh'
     parallel: false
