@@ -513,8 +513,8 @@ class UFMTelemetryStreaming(Singleton):
                 key = modified_keys[i]
                 if value:
                     port_record[key] = self._convert_str_to_num(value)
-                    if is_meta_fields_available:
-                        port_record = self._append_meta_fields_to_dict(port_record)
+            if is_meta_fields_available:
+                port_record = self._append_meta_fields_to_dict(port_record)
             output.append(port_record)
         return output, None, keys_length
 
