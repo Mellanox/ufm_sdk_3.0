@@ -259,7 +259,7 @@ class IsolationMgr:
             return
 
         self.logger.info(f"Evaluating isolation of port {port_name} with cause {cause}")
-        if port_name in self.ufm_latest_isolation_state:
+        if self.is_port_isolated(port_name):
             self.logger.info("Port is already isolated. skipping...")
             return
         port_obj = self.ports_data.get(port_name)
@@ -306,7 +306,7 @@ class IsolationMgr:
 
         self.logger.info(f"Evaluating deisolation of port {port_name}")
         if not port_name in self.ufm_latest_isolation_state and not self.dry_run:
-            if self.isolated_ports.get(port_name):
+            if port_name in self.isolated_ports:
                 self.isolated_ports.pop(port_name)
             return
         # we dont return those out of NOC
@@ -774,17 +774,24 @@ class IsolationMgr:
                         self.ufm_client.send_event(event_msg, event_id=Constants.EXTERNAL_EVENT_ALERT, external_event_name="Skipping isolation")
 
                 # deal with reported new issues
-                else:
-                    for issue in issues.values():
+                for issue in issues.values():
+                    if len(self.isolated_ports) < self.max_num_isolate:
                         port = issue.port
                         cause = issue.cause # ber|pdr|oonoc|link_down
                         self.eval_isolation(port, cause)
+                    else:
+                        # UFM send external event and break
+                        event_msg = f"got too many ports detected as unhealthy: {en(self.isolated_ports)}, skipping isolation"
+                        self.logger.warning(event_msg)
+                        if not self.test_mode:
+                            self.ufm_client.send_event(event_msg, event_id=Constants.EXTERNAL_EVENT_ALERT, external_event_name="Skipping isolation")
+                        break
 
                 # deal with ports that with either cause = oonoc or fixed
                 if self.do_deisolate:
                     for isolated_port in list(self.isolated_ports.values()):
                         cause = isolated_port.get_cause()
-                        # EZ: it is a state that say that some maintenance was done to the link 
+                        # EZ: it is a state that say that some maintenance was done to the link
                         #     so need to re-evaluate if to return it to service
                         if self.automatic_deisolate or cause == Constants.ISSUE_OONOC:
                             self.eval_deisolate(isolated_port.name)
@@ -799,3 +806,12 @@ class IsolationMgr:
                 self.logger.warning(traceback_err)
                 t_end = time.time()
             time.sleep(max(1, self.interval - (t_end - t_begin)))
+
+    def is_port_isolated(self, port_name):
+        """
+        return True if port is isolated
+        """
+        if self.ufm_latest_isolation_state:
+            return port_name in self.ufm_latest_isolation_state
+        else:
+            return port_name in self.isolated_ports
