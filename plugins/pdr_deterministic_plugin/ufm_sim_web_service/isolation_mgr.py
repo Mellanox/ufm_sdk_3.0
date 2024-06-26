@@ -65,13 +65,12 @@ class PortData(object):
 
 
 
-class PortState(object):
+class IsolatedPort(object):
     """
-    Represents the state of a port.
+    Represents the isolated port info.
 
     Attributes:
         name (str): The name of the port.
-        state (str): The current state of the port (isolated or treated).
         cause (str): The cause of the state change (oonoc, pdr, ber).
         maybe_fixed (bool): Indicates if the port may have been fixed.
         change_time (datetime): The time of the last state change.
@@ -79,24 +78,21 @@ class PortState(object):
 
     def __init__(self, name):
         """
-        Initialize a new instance of the PortState class.
+        Initialize a new instance of the IsolatedPort class.
 
         :param name: The name of the port.
         """
         self.name = name
-        self.state = Constants.STATE_NORMAL # isolated | treated
         self.cause = Constants.ISSUE_INIT # oonoc, pdr, ber
         self.maybe_fixed = False
         self.change_time = datetime.now()
 
-    def update(self, state, cause):
+    def update(self, cause):
         """
         Update the state and cause of the port.
 
-        :param state: The new state of the port.
         :param cause: The cause of the state change.
         """
-        self.state = state
         self.cause = cause
         self.change_time = datetime.now()
 
@@ -108,19 +104,11 @@ class PortState(object):
         """
         return self.cause
 
-    def get_state(self):
-        """
-        Get the current state of the port.
-
-        :return: The current state of the port.
-        """
-        return self.state
-
     def get_change_time(self):
         """
-        Get the time of the last state change.
+        Get the time of the last change.
 
-        :return: The time of the last state change.
+        :return: The time of the last change.
         """
         return self.change_time
 
@@ -174,11 +162,11 @@ class IsolationMgr:
 
     def __init__(self, ufm_client: UFMCommunicator, logger):
         self.ufm_client = ufm_client
-        # {port_name: PortState}
-        self.ports_states = dict()
+        # {port_name: IsolatedPort}
+        self.isolated_ports = dict()
         # {port_name: telemetry_data}
         self.ports_data = dict()
-        self.ufm_latest_isolation_state = []
+        self.ufm_latest_isolation_state = set()
 
         pdr_config = configparser.ConfigParser()
         pdr_config.read(Constants.CONF_FILE)
@@ -308,10 +296,10 @@ class IsolationMgr:
             if not ret or ret.status_code != http.HTTPStatus.OK:
                 self.logger.warning("Failed isolating port: %s with cause: %s... status_code= %s", port_name, cause, ret.status_code)
                 return
-        port_state = self.ports_states.get(port_name)
-        if not port_state:
-            self.ports_states[port_name] = PortState(port_name)
-        self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
+        isolated_port = self.isolated_ports.get(port_name)
+        if not isolated_port:
+            self.isolated_ports[port_name] = IsolatedPort(port_name)
+        self.isolated_ports[port_name].update(cause)
 
         log_message = f"Isolated port: {port_name} cause: {cause}. dry_run: {self.dry_run}"
         self.logger.warning(log_message)
@@ -335,24 +323,24 @@ class IsolationMgr:
 
         self.logger.info(f"Evaluating deisolation of port {port_name}")
         if not port_name in self.ufm_latest_isolation_state and not self.dry_run:
-            if self.ports_states.get(port_name):
-                self.ports_states.pop(port_name)
+            if self.isolated_ports.get(port_name):
+                self.isolated_ports.pop(port_name)
             return
         # we dont return those out of NOC
         if self.is_out_of_operating_conf(port_name):
             cause = Constants.ISSUE_OONOC
-            self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
+            self.isolated_ports[port_name].update(cause)
             return
         # we need some time after the change in state
-        elif datetime.now() >= self.ports_states[port_name].get_change_time() + timedelta(seconds=self.deisolate_consider_time):
+        elif datetime.now() >= self.isolated_ports[port_name].get_change_time() + timedelta(seconds=self.deisolate_consider_time):
             port_obj = self.ports_data.get(port_name)
-            port_state = self.ports_states.get(port_name)
-            if port_state.cause == Constants.ISSUE_BER:
+            isolated_port = self.isolated_ports.get(port_name)
+            if isolated_port.cause == Constants.ISSUE_BER:
                 # check if we are still above the threshold
                 symbol_ber_rate = self.calc_ber_rates(port_name, port_obj.active_speed, port_obj.port_width, self.max_ber_wait_time + 1)
                 if symbol_ber_rate and symbol_ber_rate > self.max_ber_threshold:
                     cause = Constants.ISSUE_BER
-                    self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
+                    self.isolated_ports[port_name].update(cause)
                     return
         else:
             # too close to state change
@@ -369,9 +357,9 @@ class IsolationMgr:
         if not self.dry_run:
             ret = self.ufm_client.deisolate_port(port_name)
             if not ret or ret.status_code != http.HTTPStatus.OK:
-                self.logger.warning("Failed deisolating port: %s with cause: %s... status_code= %s", port_name, self.ports_states[port_name].cause, ret.status_code)        
+                self.logger.warning("Failed deisolating port: %s with cause: %s... status_code= %s", port_name, self.isolated_ports[port_name].cause, ret.status_code)        
                 return
-        self.ports_states.pop(port_name)
+        self.isolated_ports.pop(port_name)
         log_message = f"Deisolated port: {port_name}. dry_run: {self.dry_run}"
         self.logger.warning(log_message)
         if not self.test_mode:
@@ -726,22 +714,6 @@ class IsolationMgr:
             if port_width:
                 port_width = int(port_width.strip('x'))
             return port_speed, port_width
-
-
-    def set_ports_as_treated(self, ports_dict):
-        """
-        Sets the state of the specified ports as treated.
-
-        Args:
-            ports_dict (dict): A dictionary containing the ports and their desired state.
-
-        Returns:
-            None
-        """
-        for port, state in ports_dict.items():
-            port_state = self.ports_states.get(port)
-            if port_state and state == Constants.STATE_TREATED:
-                port_state.state = state
     
     def get_isolation_state(self):
         """
@@ -756,15 +728,13 @@ class IsolationMgr:
             # I don't want to get to the isolated ports because we simulating everything..
             return
         ports = self.ufm_client.get_isolated_ports()
-        if not ports:
-            self.ufm_latest_isolation_state = []
-        isolated_ports = [port.split('x')[-1] for port in ports.get(Constants.API_ISOLATED_PORTS, [])]
-        self.ufm_latest_isolation_state = isolated_ports
-        for port in isolated_ports:
-            if not self.ports_states.get(port):
-                port_state = PortState(port)
-                port_state.update(Constants.STATE_ISOLATED, Constants.ISSUE_OONOC)
-                self.ports_states[port] = port_state
+        isolated_port_names = [port.split('x')[-1] for port in ports.get(Constants.API_ISOLATED_PORTS, [])]
+        self.ufm_latest_isolation_state = set(isolated_port_names)
+        for port_name in isolated_port_names:
+            if not self.isolated_ports.get(port_name):
+                isolated_port = IsolatedPort(port_name)
+                isolated_port.update(Constants.ISSUE_OONOC)
+                self.isolated_ports[port_name] = isolated_port
 
     def start_telemetry_session(self):
         """
@@ -905,7 +875,7 @@ class IsolationMgr:
                     continue
                 if len(issues) > self.max_num_isolate:
                     # UFM send external event
-                    event_msg = "got too many ports detected as unhealthy: %d, skipping isolation" % len(issues)
+                    event_msg = f"got too many ports detected as unhealthy: {len(issues)}, skipping isolation"
                     self.logger.warning(event_msg)
                     if not self.test_mode:
                         self.ufm_client.send_event(event_msg, event_id=Constants.EXTERNAL_EVENT_ALERT, external_event_name="Skipping isolation")
@@ -919,13 +889,12 @@ class IsolationMgr:
 
                 # deal with ports that with either cause = oonoc or fixed
                 if self.do_deisolate:
-                    for port_state in list(self.ports_states.values()):
-                        state = port_state.get_state()
-                        cause = port_state.get_cause()
+                    for isolated_port in list(self.isolated_ports.values()):
+                        cause = isolated_port.get_cause()
                         # EZ: it is a state that say that some maintenance was done to the link 
                         #     so need to re-evaluate if to return it to service
-                        if self.automatic_deisolate or cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED:
-                            self.eval_deisolate(port_state.name)
+                        if self.automatic_deisolate or cause == Constants.ISSUE_OONOC:
+                            self.eval_deisolate(isolated_port.name)
                 ports_updated = self.update_ports_data()
                 if ports_updated:
                     self.update_telemetry_session()
@@ -935,9 +904,5 @@ class IsolationMgr:
                 self.logger.warning(e)
                 traceback_err = traceback.format_exc()
                 self.logger.warning(traceback_err)
-                t_end = time.time()      
+                t_end = time.time()
             time.sleep(max(1, self.interval - (t_end - t_begin)))
-
-# this is a callback for API exposed by this code - second phase
-# def work_reportingd(port):
-#     PORTS_STATE[port].update(Constants.STATE_TREATED, Constants.ISSUE_INIT)
