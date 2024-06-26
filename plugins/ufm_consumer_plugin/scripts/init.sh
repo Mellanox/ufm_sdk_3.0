@@ -21,9 +21,22 @@ PLUGIN_NAME=ufm_consumer
 SRC_DIR_PATH=/opt/ufm/ufm_plugin_${PLUGIN_NAME}/${PLUGIN_NAME}_plugin
 CONFIG_PATH=/config
 
+update_http_apache_port() {
+  # update the plugin http port in the apache configurations
+  port=8997 #default port
+  if [ -f ${CONFIG_PATH}/${PLUGIN_NAME}_httpd_proxy.conf ]; then
+    .  ${CONFIG_PATH}/${PLUGIN_NAME}_httpd_proxy.conf
+  else
+    echo "The file ${CONFIG_PATH}/${PLUGIN_NAME}_httpd_proxy.conf does not exist, setting the default port ${port}"
+  fi
+  sed -i "s/@@CONSUMER_REST_PORT@@/${port}/g" ${CONFIG_PATH}/ufm_plugin_${PLUGIN_NAME}_httpd.conf
+}
+
 echo /opt/ufm/files/licenses:/opt/ufm/files/licenses > /config/${PLUGIN_NAME}_shared_volumes.conf
 
-cp $SRC_DIR_PATH/conf/${PLUGIN_NAME}_httpd_proxy.conf $SRC_DIR_PATH/conf/${PLUGIN_NAME}_plugin.conf $SRC_DIR_PATH/conf/${PLUGIN_NAME}_ui_conf.json ${CONFIG_PATH}
+cp $SRC_DIR_PATH/conf/${PLUGIN_NAME}_httpd_proxy.conf $SRC_DIR_PATH/conf/${PLUGIN_NAME}_plugin.conf $SRC_DIR_PATH/conf/${PLUGIN_NAME}_ui_conf.json $SRC_DIR_PATH/conf/ufm_plugin_${PLUGIN_NAME}_httpd.conf ${CONFIG_PATH}
+
+update_http_apache_port
 
 # UFM version test
 required_ufm_version=(6 14 0)
