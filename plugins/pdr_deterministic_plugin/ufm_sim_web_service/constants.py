@@ -107,9 +107,5 @@ class PDRConstants(object):
     ISSUE_INIT = "init"
     ISSUE_LINK_DOWN = "link_down"
 
-    STATE_NORMAL = "normal"
-    STATE_ISOLATED = "isolated"
-    STATE_TREATED = "treated"
-
     # intervals in seconds for testing ber values and corresponding thresholds
     BER_THRESHOLDS_INTERVALS = [(125 * 60, 3), (12 * 60, 2.88)]
