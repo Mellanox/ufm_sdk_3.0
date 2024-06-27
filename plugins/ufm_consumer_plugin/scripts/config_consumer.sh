@@ -9,7 +9,8 @@ sqlite_conf=/config/sqlite
 sqlite_target=/opt/ufm/files/sqlite
 log_dir=/log
 auth_log_file_path=/opt/ufm/files/log/authentication_service.log
-
+ufm_media_original_path=/opt/ufm/media
+consumer_media_path=/data/media
 
 keep_config_file()
 {
@@ -118,5 +119,14 @@ fi
 
 chown -R ufmapp:ufmapp ${sqlite_target} ${sqlite_conf} ${log_dir}
 
-echo "Consumer configuration completed succesfully."
+# media directory of the UFM consumer should be shared with the host
+# it will be served by the Host's apache, it should be accessible via the host
+# /data default shared volume with the host's dir /opt/ufm/ufm_plugins_data/ufm_consumer/
+if [ ! -f ${consumer_media_path} ]; then
+    cp -r ${ufm_media_original_path} ${consumer_media_path}
+fi
+# update href base in the index.html of the UFM UI
+sed -i "s/ufm_web/ufm_consumer_web/g" ${consumer_media_path}/index.html
+
+echo "Consumer configuration completed successfully."
 exit 0

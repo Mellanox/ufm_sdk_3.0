@@ -5,7 +5,7 @@
       "type": "leftMenu",
       "label": "UFM Consumer",
       "key": "ufm_consumer",
-      "route": ":APACHE_PORT",
+      "route": "/ufm_consumer_web",
       "icon": "fas fa-network-wired",
       "external": true
     }
