@@ -24,11 +24,7 @@ CONFIG_PATH=/config
 update_http_apache_port() {
   # update the plugin http port in the apache configurations
   port=8997 #default port
-  if [ -f ${CONFIG_PATH}/${PLUGIN_NAME}_httpd_proxy.conf ]; then
-    .  ${CONFIG_PATH}/${PLUGIN_NAME}_httpd_proxy.conf
-  else
-    echo "The file ${CONFIG_PATH}/${PLUGIN_NAME}_httpd_proxy.conf does not exist, setting the default port ${port}"
-  fi
+  .  ${CONFIG_PATH}/${PLUGIN_NAME}_httpd_proxy.conf
   sed -i "s/@@CONSUMER_REST_PORT@@/${port}/g" ${CONFIG_PATH}/ufm_plugin_${PLUGIN_NAME}_httpd.conf
 }
 
