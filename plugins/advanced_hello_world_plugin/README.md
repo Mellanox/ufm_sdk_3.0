@@ -143,17 +143,16 @@ Currently, the UFM supports extending the following areas:
 |    hookInfo.icon     |  False   |                                                                                            Fontawsome class to menu icons                                                                                             |
 
 
-You can find [this sample json](https://github.com/Mellanox/ufm_sdk_3.0/blob/main/plugins/hello_world_plugin/conf/hello_world_ui_conf.json) that contains all the supported flows
+You can find [this sample json](./conf/advanced_hello_world_ui_conf.json) that contains all the supported flows
 
 ## Hello-world plugin examples
 
-We are providing basic-hello-world plugin example that contains a simple python flask server with simple API
+We are providing hello-world plugin example that contains E2E real examples about the configurations REST API that based on the python flask server and UI angular application with all the supported cases.
+and also it contains examples on the above configurations files.
 
 * To build the example plugin image, you can execute the _**build/docker_build.sh**_ script.
 * The output of the build script is the plugin's image.
 * You need to load the image:
-> docker load -i build/ufm-plugin-basic_hello_world_latest-docker.img.gz
+> docker load -i build/ufm-plugin-hello_world_latest-docker.img.gz
 * Once the image is loaded, it will be discovered by the UFM Plugins Manager and manage it either by [UFM Web GUI -> Settings -> Plugins Management](https://docs.nvidia.com/networking/display/UFMEnterpriseUMLatest/Plugin+Management) or by the Plugins UFM REST API
 * Once the plugin is added & started, the plugin's REST API will be accessible and also the configured UI views will be added to the UFM GUI.
-
-And also we are providing [an advanced hello-world plugin](https://github.com/Mellanox/ufm_sdk_3.0/tree/main/plugins/hello_world_plugin) example that contains an advanced python server with some Angular UI components.
