@@ -545,12 +545,12 @@ class IsolationMgr:
             port_obj.last_timestamp = timestamp
             if pdr_issue:
                 issues[port_name] = pdr_issue
-            elif temp_issue:
-                issues[port_name] = temp_issue
             elif link_downed_issue:
                 issues[port_name] = link_downed_issue
             elif ber_issue:
                 issues[port_name] = ber_issue
+            elif temp_issue: # must be the last check as soon as OONOC issue is a part of deisolation condition
+                issues[port_name] = temp_issue
         return issues
 
     def calc_symbol_ber_rate(self, port_name, port_speed, port_width, col_name, time_delta):
@@ -712,7 +712,7 @@ class IsolationMgr:
         isolated_port_names = [port.split('x')[-1] for port in ports.get(Constants.API_ISOLATED_PORTS, [])]
         self.ufm_latest_isolation_state = set(isolated_port_names)
         for port_name in isolated_port_names:
-            if not self.isolated_ports.get(port_name):
+            if port_name not in self.isolated_ports:
                 isolated_port = IsolatedPort(port_name)
                 isolated_port.update(Constants.ISSUE_OONOC)
                 self.isolated_ports[port_name] = isolated_port
@@ -781,7 +781,7 @@ class IsolationMgr:
                         self.eval_isolation(port, cause)
                     else:
                         # UFM send external event and break
-                        event_msg = f"got too many ports detected as unhealthy: {en(self.isolated_ports)}, skipping isolation"
+                        event_msg = f"got too many ports detected as unhealthy: {len(self.isolated_ports)}, skipping isolation"
                         self.logger.warning(event_msg)
                         if not self.test_mode:
                             self.ufm_client.send_event(event_msg, event_id=Constants.EXTERNAL_EVENT_ALERT, external_event_name="Skipping isolation")
