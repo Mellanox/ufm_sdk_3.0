@@ -1,0 +1,51 @@
+---
+job: ufm-plugins
+
+registry_host: harbor.mellanox.com
+registry_path: /swx-storage/ci-demo
+registry_auth: swx-storage
+step_allow_single_selector: true
+
+kubernetes:
+  cloud: il-ipp-blossom-prod
+  namespace: swx
+
+credentials:
+  # harbor login/password
+  - {credentialsId: '425bb907-c357-4fde-92e0-67854a857b4f', usernameVariable: 'UFM_USER', passwordVariable: 'UFM_PASS'}
+
+runs_on_agents:
+  - nodeLabel: 'SWX-CI-DOCKER'
+
+steps:
+  - name: Build Plugin
+    agentSelector: "{nodeLabel: 'SWX-CI-DOCKER'}"
+    run: |
+      if [ -e "/auto/mswg/release/ufm/plugins/${Plugin_name}/ufm-plugin-${Plugin_name}_${PLUGIN_VERSION}*" ];then 
+        echo -e "A path and plugin with this version already exist."
+        echo -e "Path: /auto/mswg/release/ufm/plugins/${Plugin_name}/ufm-plugin-${Plugin_name}_${PLUGIN_VERSION}*"
+        exit 1
+      fi
+      printenv
+      pwd
+      ls
+      whoami
+      mkdir -p /auto/mswg/release/ufm/plugins/${Plugin_name}
+      cd plugins/${Plugin_name}/build
+      bash -x ./docker_build.sh ${PLUGIN_VERSION} /auto/mswg/release/ufm/plugins/${Plugin_name} 
+      BUILD_EXIT_CODE=$?
+      ls /auto/mswg/release/ufm/plugins/${Plugin_name}
+      if [ $BUILD_EXIT_CODE -eq 1 ];then 
+        echo -e "Error: Docker build failed in ./docker_build.sh"
+      fi
+      exit ${BUILD_EXIT_CODE}
+
+    parallel: false
+
+
+pipeline_start:
+  run: echo "Build plugin"
+
+
+pipeline_stop:
+  run: echo All done
