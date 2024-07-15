@@ -69,6 +69,8 @@ function build_docker_image()
     image_with_prefix_and_version="${prefix}/${image_name}:${image_version}"
 
     pushd ${build_dir}
+    ls -la
+    docker --version
 
     echo "docker build --network host --no-cache --pull -t ${image_with_prefix_and_version} . --compress"
 
