@@ -40,7 +40,7 @@
             default: "{jjb_email}"
             description: "email notifications <br>"
         - choice:
-            name: "Plugin_name"
+            name: "PLUGIN_NAME"
             choices:
                 - SLURM-Integration
                 - UFM_NDT_Plugin
@@ -71,11 +71,13 @@
                 credentials-id: '0b0ea4b8-2b37-427b-bc3f-b68c41a341f7'
                 branches: ['$sha1']
                 shallow-clone: true
+                refspec: "+refs/pull/*:refs/remotes/origin/pr/*"
                 browser: githubweb
                 browser-url: "{jjb_git}"
                 submodule:
                     recursive: true
                     tracking: true
+                    parent-credentials: true
         script-path: ".ci/Jenkinsfile_nbuprod"
     wrappers:
       - timeout:
