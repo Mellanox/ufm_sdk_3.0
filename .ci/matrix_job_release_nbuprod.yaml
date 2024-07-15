@@ -17,15 +17,12 @@ steps:
   - name: Build Plugin
     agentSelector: "{nodeLabel: 'SWX-CI-DOCKER'}"
     run: |
+      set -x
       if [ -e "/auto/mswg/release/ufm/plugins/${PLUGIN_NAME}/ufm-plugin-${PLUGIN_NAME}_${PLUGIN_VERSION}*" ];then 
         echo -e "A path and plugin with this version already exist."
         echo -e "Path: /auto/mswg/release/ufm/plugins/${PLUGIN_NAME}/ufm-plugin-${PLUGIN_NAME}_${PLUGIN_VERSION}*"
         exit 1
       fi
-      printenv
-      pwd
-      ls
-      whoami
       mkdir -p /auto/mswg/release/ufm/plugins/${PLUGIN_NAME}
       cd plugins/${PLUGIN_NAME}/build
       bash -x ./docker_build.sh ${PLUGIN_VERSION} /auto/mswg/release/ufm/plugins/${PLUGIN_NAME} 
