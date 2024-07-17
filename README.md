@@ -83,3 +83,18 @@ If your plugin directory does not contain a `.ci` directory, the CI process will
 
 The CI pipeline gets triggered based on changes made to the plugins. If changes occur in multiple plugins, the pipeline will not trigger the individual `.ci` directories but instead trigger a default empty CI.
 
+
+# DRP Instructions:
+### UFM_PLUGINS_SDK_RELEASE:
+**Release job URL:** https://nbuprod.blsm.nvidia.com/swx-ufm/job/UFM_PLUGINS_SDK_RELEASE/.
+
+**Release job URL - DRP:** will be synced and updated soon.
+
+**Build instructions:**
+- Go to url.
+- Click on login (top right corner).
+- Login using corp username(without '@nvidia.com') and password.
+- Once logged in you now can build the job.
+- Click on "Build With Parameters"
+- Update the necessary parameter.
+- Click on "Build" and the job will be executed
