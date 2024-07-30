@@ -11,17 +11,16 @@ Prerequisites
 --------------------------------------------------------
 
 
-UFM 6.10 installed on a RH7x machine with sharp_enabled & enable_sharp_allocation true and running in management mode.
-python 2.7 on SLURM controller.
-UFM-SLURM Integration tar file.
-Generate token_auth
+UFM version installed and running on one of the nodes connected to the SLURM controller over TCP.
+Python 3 installed on the SLURM controller.
+Latest version of the UFM-SLURM Integration.
 
 
 Installing
 --------------------------------------------------------
 
 
-### 1) Using SLURM controller, extract UFM-SLURM Integration tar file:
+### 1) Using SLURM controller, extract the UFM-SLURM Integration tar file:
 	   tar -xf ufm_slurm_integration.tar.gz
 
 ### 2) Run the installation script.
@@ -38,7 +37,7 @@ If you set auth_type=token_auth in UFM SLURM’s config file, you must generate 
 
 curl -H "X-Remote-User:admin" -XPOST http://127.0.0.1:8000/app/tokens
 
-Then you must copy the generated token and paste it into the config file beside the token parameter.
+Then you must copy the generated token and paste it into the UFM SLURM’s config file beside the token parameter.
 
 
 
@@ -70,31 +69,31 @@ Deployment
 --------------------------------------------------------
 
 
-After installation, the configurations should be set and UFM machine should be running.
-Several configurable settings need to be set to make the integration run.
+After installation, the configurations should be set, and the UFM machine should be running. Several configurable
+settings need to be adjusted to make the UFM-SLURM Integration function properly.
 
-### 1) On SLURM controller open /etc/slurm/ufm_slurm.conf
+### 1) On the SLURM controller open /etc/slurm/ufm_slurm.conf
        sudo vim /etc/slurm/ufm_slurm.conf
 
 ### 2) Set the following keys, then save the file:
 	   ufm_server:       UFM server IP address to connect to
- 	   ufm_server_user:  Username of UFM server used to connect to UFM if you set 
-                             auth_type=basic_auth.
+ 	   ufm_server_user:  Username of UFM server used to connect to UFM if you set auth_type=basic_auth.
 	   ufm_server_pass:  UFM server user password.
 	   partially_alloc:  Whether to allow or not allow partial allocation of nodes
 	   pkey:             By default it will by default management Pkey 0x7fff
-	   auth_type:        One of (token_auth, basic_auth) by default it token_auth
+	   auth_type:        One of (token_auth, basic_auth, kerberos_auth) by default it token_auth
 	   token:            If you set auth_type to be token_auth you need to set 
-                             generated token. Please see Generate token_auth section.
-	   log_file_name:    The name of integration logging file
+                         generated token. Please see Generate token_auth section.
+       principal_nam:    principal name to be used in kerberos authentication when you set auth_type to be kerberos_auth.
+	   log_file_name:    The path of the UFM-SLURM integration logging file
 
 ### 3) Run UFM in 'Management' mode.
 	 - On UFM machine, open the ufm config file /opt/ufm/files/conf/gv.cfg
 	 - In section [Server], set the key: "monitoring_mode" to no and then save the file.
 	   monitoring_mode=no
 	 - Start UFM
-		* HA mode: /etc/init.d/ufmha start
-		* SA mode: /etc/init.d/ufmd start
+		* HA mode: ufm_ha_cluster start
+		* SA mode: systemctl start ufm-enterprise
 
 
 
@@ -102,18 +101,13 @@ Running
 --------------------------------------------------------
 
 
-After installation and deployment of UFM-SLURM integration, the integration should work for every submitted SLURM job automatically.
+After the installation and deployment of UFM-SLURM Integration, the integration should automatically handle every submitted SLURM job.
 
-    - Using the Slurm controller submit a new SLURM job.
-	  for example: # sbatch -N2 batch1.sh
-    - In UFM side, a new SHArP reservation will be created based on job_id,
-      job nodes and set pkey in ufm_slurm.conf file.
-    - A new pkey will be created contains all the ports of job nodes to
-      allow the SHArP nodes to be communicated on top of it.
-    - After the SLURM job is completed, UFM deletes the created SHArP 
-      reservation and pkey.
-    - From the time that a job is submitted by SLURM server until 
-      completion, a log file called /tmp/ufm_slurm.log logs all the 
-      actions and errors occurs during the execution. This log file 
-      could be changed by modify log_file_name parameter in UFM_SLURM
-      config file /etc/slurm/ufm_slurm.conf.
+    - Use the SLURM controller to submit a new SLURM job, for example: sbatch -N2 batch1.sh.
+    - On the UFM side, a new SHArP reservation will be created based on the job ID and the job nodes if the
+      sharp_allocation parameter in the ufm_slurm.conf file is set to true.
+    - A new pkey containing all the ports of the job nodes will be created to allow the SHArP nodes to communicate on top of it.
+    - After the SLURM job is completed, UFM deletes the created SHArP reservation and pkey.
+    - From the time a job is submitted by the SLURM server until its completion, a log file called /var/log/slurm/ufm_slurm.log
+      records all actions and errors that occur during execution. This log file location can be changed by modifying the
+      log_file_name parameter in the UFM_SLURM configuration file located at /etc/slurm/ufm_slurm.conf.
