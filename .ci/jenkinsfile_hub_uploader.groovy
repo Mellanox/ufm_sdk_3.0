@@ -18,7 +18,7 @@ pipeline{
                 withCredentials([usernamePassword(credentialsId: '0fbf63c0-4a61-4543-811d-a182df47711b', usernameVariable: 'DH_USER', passwordVariable: 'DH_TOKEN' )]){
                     wrap([$class: 'BuildUser']) {
                         sh '''#!/bin/bash
-                        authorized_users=( "bitkin" "afok" "kobib" "drorl" "tlerner" "omarj" "samerd" "atolikin" "atabachnik" "eylonk" "lennyv" )
+                        authorized_users=( "bitkin" "afok" "kobib" "drorl" "tlerner" "omarj" "samerd" "atolikin" "atabachnik" "eylonk" "lennyv" "asafb" "sspormas" "mkianovsky")
                         if [[ ! "${authorized_users[*]}" == *"${BUILD_USER_ID}"* ]]; then
                             echo "${BUILD_USER_ID} not authorized to upload images to docker hub"
                             echo "Please contact one of the approved users to upload a container: ${authorized_users[*]}"
