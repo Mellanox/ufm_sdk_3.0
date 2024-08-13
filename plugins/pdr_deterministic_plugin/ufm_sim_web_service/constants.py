@@ -43,6 +43,7 @@ class PDRConstants(object):
     SWITCH_TO_HOST_ISOLATION = "SWITCH_TO_HOST_ISOLATION"
     TEST_MODE = "TEST_MODE"
     TEST_MODE_PORT = 9090
+    SECONDARY_TELEMETRY_PORT = 9002
     DYNAMIC_UNRESPONSIVE_LIMIT = "DYNAMIC_UNRESPONSIVE_LIMIT"
 
     GET_SESSION_DATA_REST = "/monitoring/session/0/data"
@@ -55,6 +56,7 @@ class PDRConstants(object):
     API_ISOLATED_PORTS = "isolated_ports"
     DYNAMIC_SESSION_REST = "/app/telemetry/instances/%s"
     STATUS_DYNAMIC_SESSION_REST = "/app/telemetry/instances/status"
+    SECONDARY_INSTANCE = "low_freq_debug"
 
     EXTERNAL_EVENT_ERROR = 554
     EXTERNAL_EVENT_ALERT = 553
@@ -70,12 +72,12 @@ class PDRConstants(object):
     CONF_USERNAME = 'admin'
     CONF_PASSWORD = 'password'
 
-    TEMP_COUNTER = "CableInfo.Temperature"
-    ERRORS_COUNTER = "errors"
+    ERRORS_COUNTER = "Symbol_Errors"
     RCV_PACKETS_COUNTER = "PortRcvPktsExtended"
-    RCV_ERRORS_COUNTER = "PortRcvErrorsExtended"
-    RCV_REMOTE_PHY_ERROR_COUNTER = "PortRcvRemotePhysicalErrorsExtended"
-    LNK_DOWNED_COUNTER = "LinkDownedCounterExtended"
+    RCV_ERRORS_COUNTER = "PortRcvErrors"
+    RCV_REMOTE_PHY_ERROR_COUNTER = "PortRcvRemotePhysicalErrors"
+    TEMP_COUNTER = "Module_Temperature"
+    LNK_DOWNED_COUNTER = "Link_Down_IB"
 
     PHY_RAW_ERROR_LANE0 = "phy_raw_errors_lane0"
     PHY_RAW_ERROR_LANE1 = "phy_raw_errors_lane1"

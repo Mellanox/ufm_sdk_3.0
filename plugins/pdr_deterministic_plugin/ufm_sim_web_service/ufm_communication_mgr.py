@@ -18,14 +18,6 @@ import copy
 import http
 import pandas as pd
 
-class DynamicSessionState(Enum):
-    """
-    States of telemetry session instance
-    """
-    NONE     = 0
-    INACTIVE = 1
-    RUNNING  = 2
-
 class UFMCommunicator:
 
     def __init__(self, host='127.0.0.1', ufm_port=8000):
@@ -67,7 +59,7 @@ class UFMCommunicator:
             url = f"http://127.0.0.1:{port}/csv/xcset/{instance_name}"
         try:
             telemetry_data = pd.read_csv(url)
-        except Exception as e:
+        except (pd.errors.ParserError,pd.errors.EmptyDataError) as e:
             logging.error(f"Failed to get telemetry data from UFM, fetched url={url}. Error: {e}")
             telemetry_data = None
         return telemetry_data
@@ -119,41 +111,3 @@ class UFMCommunicator:
 
     def get_port_metadata(self, port_name):
         return self.get_request("%s/%s" % (Constants.GET_PORTS_REST, port_name))
-
-    def start_dynamic_session(self, instance_name, counters, sample_rate, guids, extra_configuration=None):
-        data = {
-            "counters": counters,
-            "sample_rate": sample_rate,
-            "requested_guids": guids,
-            "is_registered_discovery": False
-            }
-        if extra_configuration:
-            data["configuration"] = extra_configuration
-        return self.send_request(Constants.DYNAMIC_SESSION_REST % instance_name, data, method=Constants.POST_METHOD)
-
-    def update_dynamic_session(self, instance_name, sample_rate, guids):
-        data = {
-            "sample_rate": sample_rate,
-            "requested_guids": guids
-            }
-        return self.send_request(Constants.DYNAMIC_SESSION_REST % instance_name, data, method=Constants.PUT_METHOD)
-
-    def get_dynamic_session_state(self, instance_name):
-        response = self.get_request(Constants.STATUS_DYNAMIC_SESSION_REST)
-        if response:
-            instance_status = response.get(instance_name)
-            if instance_status:
-                if instance_status.get("status") == "running":
-                    return DynamicSessionState.RUNNING
-                else:
-                    return DynamicSessionState.INACTIVE
-        return DynamicSessionState.NONE
-
-    def stop_dynamic_session(self, instance_name):
-        data = {}
-        return self.send_request(Constants.DYNAMIC_SESSION_REST % instance_name, data, method=Constants.DELETE_METHOD)
-
-    def dynamic_session_get_port(self, instance_name):
-        data = self.get_request(Constants.DYNAMIC_SESSION_REST % instance_name)
-        if data:
-            return data.get("endpoint_port")
