@@ -25,12 +25,12 @@ from utils.utils import Utils
 lock = Lock()
 
 PHY_EFF_ERROR = "phy_effective_errors"
-PHY_SYMBOL_ERROR = "phy_symbol_errors"
+PHY_SYMBOL_ERROR = "Symbol_Errors"
 RCV_PACKETS_COUNTER = "PortRcvPktsExtended"
-RCV_ERRORS_COUNTER = "PortRcvErrorsExtended"
-LINK_DOWN_COUNTER = "LinkDownedCounterExtended"
-RCV_REMOTE_PHY_ERROR_COUNTER = "PortRcvRemotePhysicalErrorsExtended"
-TEMP_COUNTER = "CableInfo.Temperature"
+RCV_ERRORS_COUNTER = "PortRcvErrors"
+LINK_DOWN_COUNTER = "Link_Down_IB"
+RCV_REMOTE_PHY_ERROR_COUNTER = "PortRcvRemotePhysicalErrors"
+TEMP_COUNTER = "Module_Temperature"
 FEC_MODE = "fec_mode_active"
 ENDPOINT_CONFIG = {}
 
