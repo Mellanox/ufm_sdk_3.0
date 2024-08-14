@@ -11,10 +11,11 @@
 #
 
 from enum import Enum
+import urllib.error
 from constants import PDRConstants as Constants
 import requests
 import logging
-import copy
+import urllib
 import http
 import pandas as pd
 
@@ -32,12 +33,14 @@ class UFMCommunicator:
         request = self.ufm_protocol + '://' + self._host + uri
         if not headers:
             headers = self.headers
-        response = requests.get(request, verify=False, headers=headers)
-        logging.info("UFM API Request Status: {}, URL: {}".format(response.status_code, request))
-        if response.status_code == http.client.OK:
-            return response.json()
-        else:
-            return
+        try:
+            response = requests.get(request, verify=False, headers=headers)
+            logging.info("UFM API Request Status: {}, URL: {}".format(response.status_code, request))
+            if response.status_code == http.client.OK:
+                return response.json()
+        except ConnectionRefusedError as e:
+            logging.error(f"failed to get data from {request} with error {e}")
+        return
     
     def send_request(self, uri, data, method=Constants.POST_METHOD, headers=None):
         request = self.ufm_protocol + '://' + self._host + uri
@@ -59,7 +62,7 @@ class UFMCommunicator:
             url = f"http://127.0.0.1:{port}/csv/xcset/{instance_name}"
         try:
             telemetry_data = pd.read_csv(url)
-        except (pd.errors.ParserError, pd.errors.EmptyDataError) as e:
+        except (pd.errors.ParserError, pd.errors.EmptyDataError, urllib.error.URLError) as e:
             logging.error(f"Failed to get telemetry data from UFM, fetched url={url}. Error: {e}")
             telemetry_data = None
         return telemetry_data

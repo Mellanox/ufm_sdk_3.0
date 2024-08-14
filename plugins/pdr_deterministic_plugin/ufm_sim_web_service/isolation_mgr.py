@@ -531,6 +531,7 @@ class IsolationMgr:
         ports_counters = self.ufm_client.get_telemetry(Constants.SECONDARY_TELEMETRY_PORT, Constants.SECONDARY_INSTANCE, self.test_mode)
         if ports_counters is None:
             self.logger.error("Couldn't retrieve telemetry data")
+            return {}
         for _, row in ports_counters.iterrows():
             port_name = f"{row.get('Node_GUID', '').split('x')[-1]}_{row.get('Port_Number', '')}"
             if self.exclude_list.contains(port_name):
