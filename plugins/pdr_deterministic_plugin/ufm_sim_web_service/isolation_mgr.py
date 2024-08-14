@@ -23,7 +23,7 @@ from exclude_list import ExcludeList
 
 from constants import PDRConstants as Constants
 from ufm_communication_mgr import UFMCommunicator
-from collector import TelemetryCollector
+from telemetry_collector import TelemetryCollector
 # should actually be persistent and thread safe dictionary pf PortStates
 
 class PortData(object):
