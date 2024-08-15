@@ -1,0 +1,16 @@
+
+{
+
+"leaf_str" : "VEIBS0",
+"spine_str" :"VEIBS1",
+"core_spine" : "VEIBS2",
+"hca_str_list":["mlx","hca","connectx"],
+
+"raw_ber_th" : "1e-5",
+"Effective_ber_th" : "1e-10",
+"symbol_ber_threshold"  : "1e-15",
+
+"use_all_columns_flag" : "True",
+
+"file_type": "UFM"
+}
