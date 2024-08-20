@@ -28,7 +28,7 @@ jobs:
         pip install pytest-cov
 
     - name: Run PyLint
-      run: pylint --rcfile=$PDRPATH/.pylintrc $PDRPATH
+      run: pylint --rcfile=$PDRPATH/.pylintrc $PDRPATH/ufm_sim_web_service/
 
     - name: Run exclusion list class test
       timeout-minutes: 5
