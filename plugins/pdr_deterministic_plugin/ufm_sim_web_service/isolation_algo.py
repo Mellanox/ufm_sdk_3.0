@@ -18,9 +18,7 @@ from constants import PDRConstants as Constants
 from isolation_mgr import IsolationMgr
 from ufm_communication_mgr import UFMCommunicator
 from api.pdr_plugin_api import PDRPluginAPI
-from twisted.web.wsgi import WSGIResource
 from twisted.internet import reactor
-from twisted.web import server
 from utils.flask_server import run_api
 from utils.flask_server.base_flask_api_app import BaseFlaskAPIApp
 from utils.utils import Utils
@@ -32,7 +30,7 @@ def create_logger(log_file):
     :param file: name of the file
     :return:
     """
-    format_str = "%(asctime)-15s UFM-PDR_deterministic-plugin-{0} Machine: {1}     %(levelname)-7s: %(message)s".format(log_file,'localhost')
+    format_str = f"%(asctime)-15s UFM-PDR_deterministic-plugin-{log_file} Machine: localhost     %(levelname)-7s: %(message)s"
     if not os.path.exists(log_file):
         os.makedirs('/'.join(log_file.split('/')[:-1]), exist_ok=True)
     logger = logging.getLogger(log_file)
@@ -79,9 +77,9 @@ def main():
     ufm_port = config_parser.getint(Constants.CONF_LOGGING, Constants.CONF_INTERNAL_PORT)
     ufm_client = UFMCommunicator("127.0.0.1", ufm_port)
     logger = create_logger(Constants.LOG_FILE)
-    
+
     algo_loop = IsolationMgr(ufm_client, logger)
-    reactor.callInThread(algo_loop.main_flow)
+    reactor.callInThread(algo_loop.main_flow) # pylint: disable=no-member
 
     try:
         plugin_port = Utils.get_plugin_port(
@@ -95,10 +93,10 @@ def main():
         app = BaseFlaskAPIApp(routes)
         run_api(app=app, port_number=int(plugin_port))
 
-    except Exception as ex:
+    except Exception as ex: # pylint: disable=broad-except
         print(f'Failed to run the app: {str(ex)}')
 
-    
+
     #optional second phase
     # rest_server = RESTserver()
     # rest_server.serve()

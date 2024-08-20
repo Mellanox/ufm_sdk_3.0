@@ -12,7 +12,10 @@
 
 import logging
 
-class PDRConstants(object):
+class PDRConstants():
+    """
+    The constants of the PDR plugin.
+    """
 
     CONF_FILE = "/config/pdr_deterministic.conf"
     LOG_FILE = '/log/pdr_deterministic_plugin.log'

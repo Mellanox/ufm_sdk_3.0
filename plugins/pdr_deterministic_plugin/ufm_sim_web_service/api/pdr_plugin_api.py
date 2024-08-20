@@ -28,7 +28,7 @@ class PDRPluginAPI(BaseAPIApplication):
         """
         Initialize a new instance of the PDRPluginAPI class.
         """
-        super(PDRPluginAPI, self).__init__()
+        super().__init__()
         self.isolation_mgr = isolation_mgr
 
 
@@ -48,7 +48,8 @@ class PDRPluginAPI(BaseAPIApplication):
         Return ports from exclude list as comma separated port names
         """
         items = self.isolation_mgr.exclude_list.items()
-        formatted_items = [f"{item.port_name}: {'infinite' if item.ttl_seconds == 0 else int(max(0, item.remove_time - time.time()))}" for item in items]
+        formatted_items = [f"{item.port_name}: {'infinite' if item.ttl_seconds == 0 else int(max(0, item.remove_time - time.time()))}"
+                            for item in items]
         response = EOL.join(formatted_items) + ('' if not formatted_items else EOL)
         return response, HTTPStatus.OK
 
@@ -61,7 +62,7 @@ class PDRPluginAPI(BaseAPIApplication):
         """
 
         try:
-            pairs = self.get_request_data()
+            pairs = PDRPluginAPI.get_request_data()
         except (JSONDecodeError, ValueError):
             return ERROR_INCORRECT_INPUT_FORMAT + EOL, HTTPStatus.BAD_REQUEST
 
@@ -71,7 +72,7 @@ class PDRPluginAPI(BaseAPIApplication):
         response = ""
         for pair in pairs:
             if pair:
-                port_name = self.fix_port_name(pair[0])
+                port_name = PDRPluginAPI.fix_port_name(pair[0])
                 ttl = 0 if len(pair) == 1 else int(pair[1])
                 self.isolation_mgr.exclude_list.add(port_name, ttl)
                 if ttl == 0:
@@ -80,7 +81,7 @@ class PDRPluginAPI(BaseAPIApplication):
                     response += f"Port {port_name} added to exclude list for {ttl} seconds"
 
                 response += self.get_port_warning(port_name) + EOL
-    
+
         return response, HTTPStatus.OK
 
 
@@ -91,7 +92,7 @@ class PDRPluginAPI(BaseAPIApplication):
         Example: ["0c42a10300756a04_1","98039b03006c73ba_2"]
         """
         try:
-            port_names = self.get_request_data()
+            port_names = PDRPluginAPI.get_request_data()
         except (JSONDecodeError, ValueError):
             return ERROR_INCORRECT_INPUT_FORMAT + EOL, HTTPStatus.BAD_REQUEST
 
@@ -100,7 +101,7 @@ class PDRPluginAPI(BaseAPIApplication):
 
         response = ""
         for port_name in port_names:
-            port_name = self.fix_port_name(port_name)
+            port_name = PDRPluginAPI.fix_port_name(port_name)
             if self.isolation_mgr.exclude_list.remove(port_name):
                 response += f"Port {port_name} removed from exclude list"
             else:
@@ -110,20 +111,19 @@ class PDRPluginAPI(BaseAPIApplication):
 
         return response, HTTPStatus.OK
 
-
-    def get_request_data(self):
+    @staticmethod
+    def get_request_data():
         """
         Deserialize request json data into object
         """
         if request.is_json:
             # Directly convert JSON data into Python object
             return request.get_json()
-        else:
-            # Attempt to load plain data text as JSON
-            return json.loads(request.get_data(as_text=True))
+        # Attempt to load plain data text as JSON
+        return json.loads(request.get_data(as_text=True))
 
-
-    def fix_port_name(self, port_name):
+    @staticmethod
+    def fix_port_name(port_name):
         """
         Try to fix common user mistakes for input port names
         Return fixed port name
