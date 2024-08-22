@@ -32,6 +32,7 @@ steps:
       cp /ufm-plugin* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
     parallel: true
 
+
 pipeline_start:
   run: |
     mkdir -p /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
@@ -41,13 +42,6 @@ pipeline_stop:
   run: |
     echo 'All done';
     #sudo rm -rf /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
-
-
-
-
-
-
-
 
 
 # Fail job if one of the steps fails or continue

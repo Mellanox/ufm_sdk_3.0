@@ -20,7 +20,12 @@ CONFIG_PATH=/config
 cp -r ${SRC_DIR_PATH}/conf/* ${CONFIG_PATH}
 
 # UFM version test
-required_ufm_version=(6 12 0)
+required_ufm_version=${REQUIRED_UFM_VERSION}
+# Check if the environment variable is set
+if [ -z "${required_ufm_version}" ]; then
+  required_ufm_version=6.12.0
+fi
+required_ufm_version=(${required_ufm_version//./ })
 echo "Required UFM version: ${required_ufm_version[0]}.${required_ufm_version[1]}.${required_ufm_version[2]}"
 
 if [ "$1" == "-ufm_version" ]; then
