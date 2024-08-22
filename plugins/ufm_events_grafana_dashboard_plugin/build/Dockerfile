@@ -1,4 +1,3 @@
-# Use Ubuntu 22.04 as the base image
 FROM ubuntu:22.04
 
 LABEL maintainer="anana@nvidia.com"
@@ -21,7 +20,7 @@ RUN /install_grafana.sh
 RUN apt-get update && apt-get install -y supervisor vim tzdata
 
 # move /etc/supervisor from the /etc, /etc dir will be overridden by the shared volume
-RUN cp -r /etc/supervisor /
+RUN mv -r /etc/supervisor /
 
 RUN sed -i 's|/etc/supervisor/conf.d/\*.conf|/supervisor/conf.d/\*.conf|g' /supervisor/supervisord.conf
 
