@@ -42,7 +42,7 @@ RUN apt-get update && apt-get upgrade -y && \
 # move /etc/supervisor from the /etc, /etc dir will be overridden by the shared volume
 RUN mkdir -p ${ETC_ALTERNATIVE_PATH} && mv /etc/supervisor ${ETC_ALTERNATIVE_PATH}
 
-RUN sed -i 's|/etc/supervisor/conf.d/\*.conf|${SUPERVISOR_PATH}/conf.d/\*.conf|g' ${SUPERVISOR_PATH}/supervisord.conf
+RUN sed -i "s|/etc/supervisor/conf.d/\*.conf|${SUPERVISOR_PATH}/conf.d/\*.conf|g" ${SUPERVISOR_PATH}/supervisord.conf
 
 # Copy Supervisor configuration file
 COPY ${SRC_BASE_DIR}/conf/supervisord.conf ${SUPERVISOR_PATH}/conf.d/
