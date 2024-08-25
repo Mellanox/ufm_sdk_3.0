@@ -54,6 +54,18 @@ class UFMCommunicator:
             response = requests.delete(url=request, verify=False, headers=headers)
         logging.info("UFM API Request Status: {}, URL: {}".format(response.status_code, request))
         return response
+
+    def get_telemetry(self, port, instance_name,test_mode):
+        if test_mode:
+            url = f"http://127.0.0.1:9090/csv/xcset/simulated_telemetry"
+        else:
+            url = f"http://127.0.0.1:{port}/csv/xcset/{instance_name}"
+        try:
+            telemetry_data = pd.read_csv(url)
+        except (pd.errors.ParserError, pd.errors.EmptyDataError, urllib.error.URLError) as e:
+            logging.error(f"Failed to get telemetry data from UFM, fetched url={url}. Error: {e}")
+            telemetry_data = None
+        return telemetry_data
     
     def send_event(self, message, event_id=Constants.EXTERNAL_EVENT_NOTICE, external_event_name="PDR Plugin Event", external_event_type="PDR Plugin Event"):
         data = {
