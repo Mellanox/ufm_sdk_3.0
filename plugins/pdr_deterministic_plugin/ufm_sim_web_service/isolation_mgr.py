@@ -765,15 +765,10 @@ class IsolationMgr:
                 try:
                     issues = self.read_next_set_of_high_ber_or_pdr_ports()
                 except (KeyError,) as e:
-                    self.logger.error(f"failed to read information with error {e}")
-                if len(issues) > self.max_num_isolate:
-                    # UFM send external event
-                    event_msg = f"got too many ports detected as unhealthy: {len(issues)}, skipping isolation"
-                    self.logger.warning(event_msg)
-                    if not self.test_mode:
-                        self.ufm_client.send_event(event_msg, event_id=Constants.EXTERNAL_EVENT_ALERT, external_event_name="Skipping isolation")
+                    self.logger.error(f"Failed to read information with error {e}")
+                    continue
 
-                # deal with reported new issues
+                # Deal with reported new issues
                 for issue in issues.values():
                     if len(self.isolated_ports) < self.max_num_isolate:
                         port = issue.port
@@ -787,7 +782,7 @@ class IsolationMgr:
                             self.ufm_client.send_event(event_msg, event_id=Constants.EXTERNAL_EVENT_ALERT, external_event_name="Skipping isolation")
                         break
 
-                # deal with ports that with either cause = oonoc or fixed
+                # Deal with ports that with either cause = oonoc or fixed
                 if self.do_deisolate:
                     for isolated_port in list(self.isolated_ports.values()):
                         cause = isolated_port.get_cause()
