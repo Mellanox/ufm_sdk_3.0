@@ -776,7 +776,7 @@ class IsolationMgr:
                         self.eval_isolation(port, cause)
                     else:
                         # UFM send external event and break
-                        event_msg = f"got too many ports detected as unhealthy: {len(self.isolated_ports)}, skipping isolation"
+                        event_msg = f"Got too many ports detected as unhealthy: {len(self.isolated_ports)}, skipping isolation"
                         self.logger.warning(event_msg)
                         if not self.test_mode:
                             self.ufm_client.send_event(event_msg, event_id=Constants.EXTERNAL_EVENT_ALERT, external_event_name="Skipping isolation")
