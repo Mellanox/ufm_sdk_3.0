@@ -3,7 +3,6 @@ import urllib.error
 import logging
 from constants import PDRConstants
 
-
 class TelemetryCollector:
     """
     collecting data for the algorithm
