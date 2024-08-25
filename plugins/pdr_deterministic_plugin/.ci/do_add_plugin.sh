@@ -1,7 +1,7 @@
 #!/bin/bash -x
 export SERVER_HOST=$SERVER_HOST
 expect << EOF
-spawn ssh -o StrictHostKeyChecking=no admin@${SERVER_HOST}
+spawn ssh admin@${SERVER_HOST}
 expect "Password:*"
 send -- "admin\r"
 expect "> "
