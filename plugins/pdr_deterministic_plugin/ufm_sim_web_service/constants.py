@@ -97,9 +97,6 @@ class PDRConstants(object):
     NODE_TYPE_OTHER = "other"
     BER_TELEMETRY = "ber_telemetry"
 
-    NODE_GUID = "Node_GUID"
-    PORT_NUMBER = "Port_Number"
-
     ISSUE_PDR = "pdr"
     ISSUE_BER = "ber"
     ISSUE_PDR_BER = "pdr&ber"

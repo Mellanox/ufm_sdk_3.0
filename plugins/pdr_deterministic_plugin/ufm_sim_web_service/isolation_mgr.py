@@ -398,10 +398,10 @@ class IsolationMgr:
             return None
         peer_guid, peer_num = port_obj.peer.split('_')
         # Fix peer guid format for future search
-        if ports_counters[Constants.NODE_GUID].iloc[0].startswith('0x') and not peer_guid.startswith('0x'):
+        if ports_counters['port_guid'].iloc[0].startswith('0x') and not peer_guid.startswith('0x'):
             peer_guid = f'0x{peer_guid}'
         #TODO check for a way to save peer row in data structure for performance
-        peer_row_list = ports_counters.loc[(ports_counters[Constants.NODE_GUID] == peer_guid) & (ports_counters[Constants.PORT_NUMBER] == int(peer_num))]
+        peer_row_list = ports_counters.loc[(ports_counters['port_guid'] == peer_guid) & (ports_counters['port_num'] == int(peer_num))]
         if peer_row_list.empty:
             self.logger.warning(f"Peer port {port_obj.peer} not found in ports data")
             return None
@@ -533,7 +533,7 @@ class IsolationMgr:
             self.logger.error("Couldn't retrieve telemetry data")
             return {}
         for _, row in ports_counters.iterrows():
-            port_name = f"{row.get(Constants.NODE_GUID, '').split('x')[-1]}_{row.get(Constants.PORT_NUMBER, '')}"
+            port_name = f"{row.get('Node_GUID', '').split('x')[-1]}_{row.get('Port_Number', '')}"
             if self.exclude_list.contains(port_name):
                 # The port is excluded from analysis
                 continue
