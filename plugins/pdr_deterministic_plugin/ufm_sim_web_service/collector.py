@@ -2,18 +2,13 @@ import pandas as pd
 import urllib.error
 import logging
 from constants import PDRConstants
-
-class TelemetryCollector:
-    """
-    collecting data for the algorithm
-    """
+class Collector:
     def __init__(self,test_mode:bool) -> None:
         self.test_mode = test_mode
 
     def get_telemetry(self):
         """
         get the telemetry from secondary telemetry, if it in test mode it get from the simulation
-        return DataFrame of the telemetry
         """
         if self.test_mode:
             url = f"http://127.0.0.1:9090/csv/xcset/simulated_telemetry"

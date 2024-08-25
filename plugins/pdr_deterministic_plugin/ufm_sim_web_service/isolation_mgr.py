@@ -23,7 +23,7 @@ from exclude_list import ExcludeList
 
 from constants import PDRConstants as Constants
 from ufm_communication_mgr import UFMCommunicator
-from collector import TelemetryCollector
+from collector import Collector
 # should actually be persistent and thread safe dictionary pf PortStates
 
 class PortData(object):
@@ -202,7 +202,7 @@ class IsolationMgr:
 
         self.start_time = time.time()
         self.max_time = self.start_time
-        self.collector = TelemetryCollector(self.test_mode)
+        self.collector = Collector(self.test_mode)
         self.ber_tele_data = pd.DataFrame(columns=[Constants.TIMESTAMP, Constants.SYMBOL_BER, Constants.PORT_NAME])
         self.speed_types = {
             "FDR": 14,
