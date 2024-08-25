@@ -192,7 +192,7 @@ def start_server(port:str,changes_intervals:int, run_forever:bool):
     t.daemon = True
     t.start()
     counters_names = list(counters.keys())
-    header = ['timestamp', 'source_id,tag,node_guid,Node_GUID,Port_Number'] + counters_names
+    header = ['timestamp', 'source_id,tag,node_guid,port_guid,port_num'] + counters_names
     endpoint['data'] = ""
     while True:
         # lock.acquire()
