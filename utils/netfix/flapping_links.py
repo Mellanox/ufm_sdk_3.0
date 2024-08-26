@@ -16,11 +16,9 @@ import json
 import traceback
 
 import pandas as pd
-from utils import read_and_preprocessing_file, add_partner_info, add_link_hash_id
+from netfix_utils import read_and_preprocessing_file, add_partner_info, add_link_hash_id
 
-def fill_missing_partner(df1, df2):
-
-  
+def _fill_missing_partner(df1, df2):
     df2['link_partner_node_guid'] = df2['link_partner_node_guid'].replace('0x0000000000000000', '')
     df2['link_partner_port_num'] = df2['link_partner_port_num'].replace('0x0000000000000000', '')
     df2['link_partner_port_num'] = df2['link_partner_port_num'].replace('0', 0)
@@ -39,7 +37,7 @@ def fill_missing_partner(df1, df2):
 
     return df_join
 
-def get_suspected_real_linkdown(df1_with_partner, df2_with_partner,min_to_filter_reboot_threshold = 10, dispaly_all_col_flag = False): 
+def _get_suspected_real_linkdown(df1_with_partner, df2_with_partner,min_to_filter_reboot_threshold = 10, dispaly_all_col_flag = False): 
 
     func_summary_dict = dict()
     col4diff_calc = ['Effective_Errors','Symbol_Errors','PortRcvDataExtended','Link_Down',\
@@ -92,28 +90,13 @@ def get_suspected_real_linkdown(df1_with_partner, df2_with_partner,min_to_filter
                                                        'Time_since_last_clear_x': 'prev_Time_since_last_clear',
                                                        'Time_since_last_clear_partner_x': 'prev_Time_since_last_clear_partner'}, errors='ignore')
     
-    
-    # add link id hash  
-    # join_iteration ['link_hash_id']  = join_iteration.apply(lambda x: hash(min(x['Node_GUID'],x['link_partner_node_guid']) + \
-    #                                                                        max(x['Node_GUID'],x['link_partner_node_guid']) + \
-    #                                                                         min(str(int(x['Port_Number'])),str(int(x['link_partner_port_num'])))+\
-    #                                                                          max(str(int(x['Port_Number'])),str(int(x['link_partner_port_num']))) \
-    #                                                                             ), axis=1)
-    # add link id hash  as concat
-
-
-    
     join_iteration = add_link_hash_id(join_iteration)
-
-
     join_iteration1 = join_iteration
 
     # remove old link down by estimated time
-    # join_iteration1 ['estimated_time'] = join_iteration1['timestamp'] - 60*join_iteration1['Time_since_last_clear'] -- moved it to the preprocessing
     join_iteration1 = join_iteration1[join_iteration1.estimated_time>join_iteration1.prev_timestamp]
 
     join_iteration1['estimated_time'] = join_iteration1['estimated_time'].apply(lambda x: datetime.fromtimestamp(x).strftime('%Y-%m-%d %H:%M:%S')) 
-
 
     # add support of linkdown_diff<0 but linkdown value is >0
     df_linkdown = join_iteration1[((abs(join_iteration1.Time_since_last_clear - join_iteration1.Time_since_last_clear_partner)<10) & ((join_iteration1.diff_Link_Down>0) | ((join_iteration1.diff_Link_Down<0) & (join_iteration1.Link_Down>0))) & ((join_iteration1.diff_Link_Down_partner>0) | ((join_iteration1.diff_Link_Down_partner<0) & (join_iteration1.Link_Down_partner>0)))) | \
@@ -121,10 +104,7 @@ def get_suspected_real_linkdown(df1_with_partner, df2_with_partner,min_to_filter
                                   ((join_iteration1.local_reason_opcode==25) | (join_iteration1.remote_reason_opcode==25) )
                                   ]    
 
-
-
     if ('Device_ID' in df_linkdown.columns) & ('Device_ID_partner' in df_linkdown.columns):
-        # todo - for ethernet , need to use hostname convetion
         df_linkdown['link_type'] = 'other'
         mask = (df_linkdown.Device_ID.str.contains('Connect')) & (df_linkdown.Device_ID_partner.str.contains('Quantum'))
         df_linkdown.loc[mask,'link_type'] = 'switch-hca'
@@ -135,20 +115,13 @@ def get_suspected_real_linkdown(df1_with_partner, df2_with_partner,min_to_filter
         mask = (df_linkdown.Device_ID.str.contains('Quantum')) & (df_linkdown.Device_ID_partner.str.contains('Quantum'))
         df_linkdown.loc[mask,'link_type'] = 'switch-switch'
 
- 
-
     # use /2 because table have duplication A->B + B->A
-    # func_summary_dict['Number of links - diff linkdown>0'] = np.floor(join_iteration1[join_iteration1.diff_Link_Down>0].shape[0]/2)
-    # func_summary_dict['Number of links - suspected linkdown'] = np.floor(df_linkdown.shape[0]/2)
-        # 2407 - change to count unique link id
     func_summary_dict['Number of links - suspected linkdown switch-switch'] = df_linkdown[df_linkdown['link_type'] == 'switch-switch'].link_hash_id.drop_duplicates().shape[0]
     func_summary_dict['Number of links - suspected linkdown switch-hca'] = df_linkdown[df_linkdown['link_type'] == 'switch-hca'].link_hash_id.drop_duplicates().shape[0]
    
     number_active_links = df2_with_partner[df2_with_partner.Phy_Manager_State == 'Active'].shape[0]
     number_link_down  = df_linkdown.shape[0]
     func_summary_dict ['pct of link down'] = round( 100* number_link_down/number_active_links,2)
-
-
         # set_df_col_order 
     col_order =  ['link_hash_id','link_type']+list(df2_with_partner.columns) + ['diff_Link_Down', 'diff_Link_Down_partner', 'prev_Link_Down', 'prev_Link_Down_partner', \
                                                                                 'prev_Time_since_last_clear', 'prev_Time_since_last_clear_partner',\
@@ -165,12 +138,12 @@ def run_analysis(filename1,filename2):
         df2 = read_and_preprocessing_file(filename2)
         
         # complete missing partner in df2 based on df1
-        df2 = fill_missing_partner(df1, df2)
+        df2 = _fill_missing_partner(df1, df2)
         df1_with_partner = add_partner_info(df1)
         df2_with_partner = add_partner_info(df2)
 
         #linkdown both sides
-        linkdown_df1,linkdown_summary_dict = get_suspected_real_linkdown(df1_with_partner, df2_with_partner,min_to_filter_reboot_threshold=10)
+        linkdown_df1,linkdown_summary_dict = _get_suspected_real_linkdown(df1_with_partner, df2_with_partner,min_to_filter_reboot_threshold=10)
         return linkdown_df1
 
 def get_flapping_links(prev_counters_csv, cur_counters_csv):

@@ -16,10 +16,6 @@ from pandas.api.types import is_string_dtype
 from pandas.api.types import is_numeric_dtype
 
 
-class FileSource(Enum):
-    UFM  = "ufm"
-    collectx = "collectx"
-
 Phy_Manager_State_dict_str = {
                         'Active_or_Linkup': 'Active',                      
                         'Rx_disable': 'RX_DISABLE'                  ''
@@ -146,21 +142,9 @@ def read_and_preprocessing_file(file_path:str):
     else :
         df_file['timestamp'] = df_file['timestamp']/1000
 
+    df_file['timestamp'] = min(df_file.timestamp)
 
-    # check if a link appear more than once and need to take only one timestamp
-    num_iterations  = df_file.groupby(['Node_GUID','Port_Number']).agg({'timestamp':'nunique'}).reset_index().timestamp.max()
-    if num_iterations>1:
-        file_type = FileSource.collectx
-    else:
-        file_type = FileSource.UFM
-        df_file['timestamp'] = min(df_file.timestamp)
-
-    # select one timestamp from the file
-    if (file_type == FileSource.collectx) & (df_file.timestamp.drop_duplicates().shape[0] >1) :
-        date_to_use = np.sort(df_file['timestamp'].unique())[-2]
-        df_file = df_file[df_file.timestamp==date_to_use]
-
-    # features handeling
+    # features handling
     if ('Temperature' in df_file.columns):
         if (is_string_dtype(df_file['Temperature'])) & (len(pd.unique(df_file['Temperature']))>1):
             df_file.Temperature = df_file.Temperature.str.replace('C','').astype('float')
@@ -193,11 +177,6 @@ def read_and_preprocessing_file(file_path:str):
     df_file = df_file.replace({'local_reason_opcode':opcode_dict})
     df_file = df_file.replace({'remote_reason_opcode':opcode_dict})
 
-    # to add in the future - now will need change in other places
-    # if df_file.local_reason_opcode.str.is_numeric_dtype: 
-    #     df_file = df_file.replace({'local_reason_opcode':link_down_opcode_dict})
-    #     df_file = df_file.replace({'remote_reason_opcode':link_down_opcode_dict})
-    
     if 'time_to_link_up_ext_msec' in df_file.columns:
         df_file = df_file.rename(columns = {'time_to_link_up_ext_msec':'time_to_link_up_msec'})
 
@@ -220,7 +199,6 @@ def read_and_preprocessing_file(file_path:str):
     
     # drop columns that all is nan - relevant for meta which have 2 fw_version columns
     df_file.dropna(how='all', axis=1, inplace=True) 
-
 
     return df_file
 
@@ -279,25 +257,7 @@ def get_time_since_last_clear_per_groups (df):
     return df_join2
 
 def add_partner_info(df_file, use_all_columns_flag = False,ignore_server_list= []):
-
-
-    # filter out on purpose reboot 
-    # 15 Down_by_outband_command_with_healthy_link
-    # 17 Down_by_inband_command_with_healthy_link
-    # 22 Down_by_management_command
-    # 23 .Cable_was_unplugged
-
-    # df_link_down = sqldf("select * \
-    #     from df_file \
-    #     where link_partner_description <>''\
-    #      and remote_reason_opcode not in (15,17,22,23)\
-    #     and local_reason_opcode not in (15,17,22,23)" )
-    #    print ('Number of unique linkdown Node_GUID+Port_Number filterd by opcode ',df_link_down[df_link_down.Link_Down_diff>0][['Node_GUID','Port_Number']].drop_duplicates().shape[0])
-  
-    # dont ignore opcode
     df_link_down = df_file
-                         
- 
     if use_all_columns_flag :
         columns_to_display = df_link_down.columns
     else:
@@ -313,7 +273,7 @@ def add_partner_info(df_file, use_all_columns_flag = False,ignore_server_list= [
     columns_to_display1 = [col for col in columns_to_display0 if col not in ['layer_partner']]
     columns_to_display1 = list(set(columns_to_display1))
 
-        # add number of link down to the partner to maybe the partner is problematic
+    # add number of link down to the partner to maybe the partner is problematic
     df_link_down_with_partner_link_rows = pd.merge(df_link_down[columns_to_display1 ], \
                                                 df_link_down[columns_to_display1],  \
                                                 how='inner', left_on=['link_partner_node_guid','link_partner_port_num'], right_on = ['Node_GUID','Port_Number'])
@@ -329,16 +289,12 @@ def add_partner_info(df_file, use_all_columns_flag = False,ignore_server_list= [
 
     df_link_down_with_partner_link_rows = df_link_down_with_partner_link_rows.rename(columns = col_naming_dict)
 
-    # col_x = [col+'_x' for col in columns_to_display1]
-    # col_y = [col+'_y' for col in columns_to_display1]
-
     df_link_down_with_partner_link_rows = df_link_down_with_partner_link_rows.rename(columns = col_naming_dict)
     df_link_down_with_partner_link_rows1 = df_link_down_with_partner_link_rows
 
     if len(ignore_server_list)>0:
         df_link_down_with_partner_link_rows1 = df_link_down_with_partner_link_rows1[~df_link_down_with_partner_link_rows1.server_name_partner.isin(ignore_server_list)]
 
-    # set_df_col_order 
     col_order = list(df_file.columns) + [col +'_partner' for col in df_file]
     
     col_order1 = [col for col in col_order if col in df_link_down_with_partner_link_rows1.columns]
@@ -353,18 +309,3 @@ def add_link_hash_id(join_iteration):
                                                                         max(str(int(x['Port_Number'])),str(int(x['link_partner_port_num']))) \
                                                                             , axis=1)
     return join_iteration   
-
-def save_results_in_sheet (df, sheet_name,writer):
-
-    if isinstance(df,pd.DataFrame) == False:
-        return
-
-    if df.shape[0]==0:
-        print ('No data for ',sheet_name, 'sheet')
-
-        # --- don't save data if there is no results
-        # df_msg = pd.DataFrame(["No results"], columns = ['msg'])
-        # df_msg.to_excel(writer, sheet_name=sheet_name)
-
-    else:
-        df.to_excel(writer, sheet_name=sheet_name, index = False)
