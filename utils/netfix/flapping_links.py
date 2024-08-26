@@ -16,7 +16,12 @@ import json
 import traceback
 
 import pandas as pd
+import warnings
 from netfix_utils import read_and_preprocessing_file, add_partner_info, add_link_hash_id
+warnings.filterwarnings("ignore", category=pd.errors.DtypeWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=pd.errors.SettingWithCopyWarning)
+
 
 def _fill_missing_partner(df1, df2):
     df2['link_partner_node_guid'] = df2['link_partner_node_guid'].replace('0x0000000000000000', '')
@@ -147,7 +152,6 @@ def run_analysis(filename1,filename2):
         return linkdown_df1
 
 def get_flapping_links(prev_counters_csv, cur_counters_csv):
-    print('start run_analysis_and_report',prev_counters_csv, cur_counters_csv)
     try:
         return run_analysis(prev_counters_csv,cur_counters_csv)
     except Exception as e: 
