@@ -43,7 +43,7 @@ Functions commonly added by optional UFM plugins include:
         * The following folders are shared between the host and the container by default: 
             1. **{UFM files path}/conf/plugins/{plugin name}:/config** : This folder should contain the plugin’s configuration files. It is managed by DRBD (in case of HA) and thus, it is replicated between master and standby nodes. 
             2. **{UFM files path}/log/plugins/{plugin name}:/log** : This folder should contain the plugin’s log files. It is managed by DRBD (in case of HA) and thus, it is replicated between master and standby nodes.
-            3. **/opt/ufm/ufm_plugins_data/{plugin name}:/data** : This folder may contain the plugin’s data files that should be persistent
+            3. **/opt/ufm/ufm_plugins_data/{plugin name}:/data** : This folder may contain the plugin’s data files that should be persistent. Please note that this folder is not managed by DRBD (in case of HA) and thus, it will not be replicated between the master and standby nodes on the failover.
 
         * **Note**: The default folders are being removed by the UFM plugin manager upon plugin’s removal, while the plugin is responsible to remove all the files and folders which are mapped to host and are listed in shared volumes configuration file (e.g., logs files that were written to /log folder in the container which is mapped to /opt/ufm/files/log folder on the host)
     

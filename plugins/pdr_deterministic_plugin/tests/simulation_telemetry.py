@@ -25,12 +25,12 @@ from utils.utils import Utils
 lock = Lock()
 
 PHY_EFF_ERROR = "phy_effective_errors"
-PHY_SYMBOL_ERROR = "phy_symbol_errors"
+PHY_SYMBOL_ERROR = "Symbol_Errors"
 RCV_PACKETS_COUNTER = "PortRcvPktsExtended"
-RCV_ERRORS_COUNTER = "PortRcvErrorsExtended"
-LINK_DOWN_COUNTER = "LinkDownedCounterExtended"
-RCV_REMOTE_PHY_ERROR_COUNTER = "PortRcvRemotePhysicalErrorsExtended"
-TEMP_COUNTER = "CableInfo.Temperature"
+RCV_ERRORS_COUNTER = "PortRcvErrors"
+LINK_DOWN_COUNTER = "Link_Down_IB"
+RCV_REMOTE_PHY_ERROR_COUNTER = "PortRcvRemotePhysicalErrors"
+TEMP_COUNTER = "Module_Temperature"
 FEC_MODE = "fec_mode_active"
 ENDPOINT_CONFIG = {}
 
@@ -192,7 +192,7 @@ def start_server(port:str,changes_intervals:int, run_forever:bool):
     t.daemon = True
     t.start()
     counters_names = list(counters.keys())
-    header = ['timestamp', 'source_id,tag,node_guid,port_guid,port_num'] + counters_names
+    header = ['timestamp', 'source_id,tag,Node_GUID,port_guid,Port_Number'] + counters_names
     endpoint['data'] = ""
     while True:
         # lock.acquire()

@@ -31,20 +31,27 @@ Functions commonly added by optional UFM plugins include:
 
 * Each plugin should consist of the following files:
 
-    1. _**init.sh**_ : Initialize script that should be placed in the root folder _**(/init.sh)**_ and have execute permission. It is being invoked by the UFM plugin manager upon plugin deployment (when adding a new plugin). The developer may copy the plugins configuration files to _**/config**_ folder which is mapped to the DRBD partition on the host (location on host: _/opt/ufm/files/plugins/{plugin name}_)
+    1. **init.sh** : Initialize script that should be placed in the root folder **(/init.sh)** and have execute permission. It is being invoked by the UFM plugin manager upon plugin deployment (when adding a new plugin). The developer may copy the plugins configuration files to **/config** folder which is mapped to the DRBD partition on the host (location on host: _/opt/ufm/files/conf/plugins/{plugin name}_)
 
-    2. _**deinit.sh**_ : De-initialize script that should be placed in the root folder _**(/deinit.sh)**_, have execute permission and return zero. It is being invoked by the UFM plugin manager upon plugin removal. The developer may clear files and folders that are placed on the host (e.g., log files) 
+    2. **deinit.sh** : De-initialize script that should be placed in the root folder **(/deinit.sh)**, have execute permission and return zero. It is being invoked by the UFM plugin manager upon plugin removal. The developer may clear files and folders that are placed on the host (e.g., log files)
+    
+    3. **upgrade.sh** : This is the upgrade script, which should be placed in the root folder **(/upgrade.sh)** and granted execute permission. It is invoked by the UFM plugin manager upon plugin upgrade. During the upgrade stage, the developer may handle the upgrade of the plugin's configuration files. If the upgrade is successful (i.e., exits with zero), the new plugin's TAG (version) will be updated in the plugins' configuration file located at _/opt/ufm/files/conf/ufm_plugins.conf_.
 
 * Each plugin may have the following files:
 
-    1. _**{plugin name}_shared_volumes.conf**_ : Contains a list of folders that are mapped between the host and the container. It consists of multiple lines in format “<host path>:<container path>” (e.g., /opt/ufm/files/log:/log). 
+    1. _**{plugin name}_shared_volumes.conf**_ : Contains a list of folders that are mapped between the host and the container. It consists of multiple lines in format “<host path>:<container path>” (e.g., /opt/ufm/files/conf:/opt/ufm/files/conf). 
         * The following folders are shared between the host and the container by default: 
-            1. _**{UFM files path}/conf/plugins/{plugin name}:/config**_ : This folder should contain the plugin’s configuration files. It is managed by DRBD (in case of HA) and thus, it is replicated between master and standby nodes. 
-            2. _**/opt/ufm/ufm_plugins_data/{plugin name}:/data**_ : This folder may contain the plugin’s data files that should be persistent 
+            1. **{UFM files path}/conf/plugins/{plugin name}:/config** : This folder should contain the plugin’s configuration files. It is managed by DRBD (in case of HA) and thus, it is replicated between master and standby nodes. 
+            2. **{UFM files path}/log/plugins/{plugin name}:/log** : This folder should contain the plugin’s log files. It is managed by DRBD (in case of HA) and thus, it is replicated between master and standby nodes.
+            3. **/opt/ufm/ufm_plugins_data/{plugin name}:/data** : This folder may contain the plugin’s data files that should be persistent. Please note that this folder is not managed by DRBD (in case of HA) and thus, it will not be replicated between the master and standby nodes on the failover.
 
         * **Note**: The default folders are being removed by the UFM plugin manager upon plugin’s removal, while the plugin is responsible to remove all the files and folders which are mapped to host and are listed in shared volumes configuration file (e.g., logs files that were written to /log folder in the container which is mapped to /opt/ufm/files/log folder on the host)
     
-    2. _**{plugin name}_httpd_proxy.conf**_ : Contains the port that UFM may use to forward the plugin’s HTTP request. It consists of one line in format _“port={port number}”_. All the HTTP requests to the plugin are being forwarded by the UFM server (authentication is handled by UFM). 
+    2. **{plugin name}_httpd_proxy.conf** : Contains the port that UFM may use to forward the plugin’s HTTP request. It consists of one line in format _“port={port number}”_. All the HTTP requests to the plugin are being forwarded by the UFM server (authentication is handled by UFM).
+    
+    3. **ufm_plugin_{plugin name}_httpd.conf** : This file contains the Apache configuration for the plugin, redirecting HTTP requests from Apache directly to the plugin's web server. These requests are not authenticated by UFM.
+    
+    4. **{plugin name}_runtime_args.conf** : This file serves as the configuration file for the runtime plugin's resources. It consists of key-value arguments (e.g., cpus=1.5). Currently, only CPU limits are supported.
 
 * **Note**: The configuration files _{plugin name}_shared_volumes.conf_ , _{plugin name}_httpd_proxy.conf_ and any custom configurations files must be copied to  _/config_ folder upon plugin deployment for UFM to manage the plugin (the plugins configuration is written to **{UFM files path}/conf/ufm_plugins.conf**
 
@@ -84,13 +91,15 @@ Functions commonly added by optional UFM plugins include:
 ## Lifecycle
 The UFM plugins lifecycle is managed by UFM. Currently, It is the user responsibility to pull/load the plugin’s Docker container image on both master and standby nodes.
 
-* **Add** : Upon addition, the plugin’s Docker container is started, and the _**/init.sh**_ script is invoked. Its configuration files must be copied to _**/config**_ folder. The container will exit once the init stage is done and it will be re-started upon UFM startup. In case UFM is already running when the plugin is deployed, it will be started automatically.
+* **Add** : Upon addition, the plugin’s Docker container is started, and the **_/init.sh_** script is invoked. Its configuration files must be copied to **_/config_** folder. The container will exit once the init stage is done and it will be re-started upon UFM startup. In case UFM is already running when the plugin is deployed, it will be started automatically.
 
 * **Disable** : The plugin’s Docker container is stopped. However, its data is still accessible via the host. 
 
 * **Enable** : The plugin’s Docker container is re-started. 
 
-* **Remove** : The plugin’s Docker container is stopped, and the _**/deinit.sh**_ script is being invoked. In this stage, all the plugin’s data is removed. 
+* **Remove** : The plugin’s Docker container is stopped, and the **_/deinit.sh_** script is being invoked. In this stage, all the plugin’s data is removed.
+
+* **Upgrade** : The plugin's **_/upgrade.sh_** script is invoked once the plugin is stopped, either manually before the upgrade or via the optional "force" flag. In this stage, all the plugin's data may be upgraded. It is up to the developer to decide whether the data needs to be upgraded. The **_upgrade.sh_** script receives the plugin's new TAG (version) as an argument ("-to_version {TAG}"). If the upgrade is successful (i.e., exits with zero), the new plugin's TAG (version) will be updated in the plugins' configuration file located at _/opt/ufm/files/conf/ufm_plugins.conf_. The developer should decide how to proceed in case the upgrade has failed (e.g., revert to the old configuration and return a non-zero value, or reset to the new configuration with default values and return zero).
 
 **Note**: The plugin’s Docker container is started/stopped upon UFM start/stop. In case UFM is already running when the plugin is added/enabled, it will be started. While, in case it is disabled/removed, it will be stopped 
 
@@ -133,9 +142,10 @@ Currently, the UFM supports extending the following areas:
 |    hookInfo.order    |  False   |                                                                                       The order of the added menu's item / tab                                                                                        |
 |    hookInfo.icon     |  False   |                                                                                            Fontawsome class to menu icons                                                                                             |
 
+
 You can find [this sample json](./conf/advanced_hello_world_ui_conf.json) that contains all the supported flows
 
-## Hello-world plugin example
+## Hello-world plugin examples
 
 We are providing hello-world plugin example that contains E2E real examples about the configurations REST API that based on the python flask server and UI angular application with all the supported cases.
 and also it contains examples on the above configurations files.
