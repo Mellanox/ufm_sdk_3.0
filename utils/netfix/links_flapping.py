@@ -176,7 +176,7 @@ def run_analysis(filename1,filename2):
 def get_flapping_links(prev_counters_csv, cur_counters_csv):
     print('start run_analysis_and_report',prev_counters_csv, cur_counters_csv)
     try:
-            return run_analysis(prev_counters_csv,cur_counters_csv)
+        return run_analysis(prev_counters_csv,cur_counters_csv)
     except Exception as e: 
         print(e)
         traceback.print_exc()

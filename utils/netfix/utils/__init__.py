@@ -122,20 +122,9 @@ hca_dict = {4099: "ConnectX-3",
             53001: "Aggregation Node"
         }
 
-def read_and_preprocessing_file(file_path:str, leaf_str:str,spine_str:str,core_spine:str,hca_str_list:list[str], control_port = 65):
-    # The function gets file path and prepare the file to analysis: column renaming, replace values by dictionary (phy status/device id/..) ,
-    # Returns : pandas data  frame for analysis
-
-
-    # Type checking
-    # if not isinstance(file_type, FileSource):
-    #     raise TypeError('file type must be an instance of FileSource Enum: "ufm" or "collectx"')
+def read_and_preprocessing_file(file_path:str):
     
-    
-    # read file
-    # set global df_file as this file
     df_file = pd.read_csv(file_path, encoding = "ISO-8859-1")
-    # df_file = df_file.astype(str)
 
     if df_file.shape[0]==0:
         print (' ERROR: empty file - ',file_path)
@@ -168,28 +157,8 @@ def read_and_preprocessing_file(file_path:str, leaf_str:str,spine_str:str,core_s
 
     # select one timestamp from the file
     if (file_type == FileSource.collectx) & (df_file.timestamp.drop_duplicates().shape[0] >1) :
-        # select one timestamp
-        # ---old version
-        # dates_df = sqldf("select distinct timestamp \
-        # from df_file \
-        # order by date ")
-        # date_to_use = dates_df.iloc[[max(0,dates_df.shape[0]-2)]].values[0][0]
-
-        # string_query = "select *\
-        #       from df_file \
-        #       where date = '{0}' ".format(date_to_use)      
-
-        # df_file = sqldf(string_query)
-
         date_to_use = np.sort(df_file['timestamp'].unique())[-2]
         df_file = df_file[df_file.timestamp==date_to_use]
-
-
-
-
-    # drop columns - 1006
-    # candidates=['fw_version']
-    # df_file = df_file.drop([x for x in candidates if x in df_file.columns], axis=1)
 
     # features handeling
     if ('Temperature' in df_file.columns):
@@ -209,27 +178,8 @@ def read_and_preprocessing_file(file_path:str, leaf_str:str,spine_str:str,core_s
         if (col in df_file.columns) ==False:
             print (col, ' is missing in data !!!')
 
-
-    # remove port 65
     df_file = df_file[df_file.Port_Number != 65]
 
-
-
-
-    # Anat - 2105 - decide to use only linkdown column, for diff use 2 files input
-    # if not 'Link_Down_diff' in df_file.columns:    
-    #     if  ((file_type == FileSource.collectx) & (df_file.timestamp.drop_duplicates().shape[0] >1)):
-    #         df_file.sort_values('timestamp', inplace = True)
-    #         df_file['Link_Down_diff'] = df_file['Link_Down'] - df_file.groupby(['Node_GUID', 'node_description' ,'Port_Number',\
-    #                                                          'link_partner_description',\
-    #                                                         'link_partner_node_guid','link_partner_lid',\
-    #                                                          'link_partner_port_num']).Link_Down.shift()
-    #         print ('Link_Down_diff was added')
-    #     if (file_type == FileSource.UFM) | (df_file.timestamp.drop_duplicates().shape[0] ==1):
-    #         df_file['Link_Down_diff'] = df_file['Link_Down'].astype('float')
-    #         print ('Link_Down_diff was added')
-
-    # print (switch_dict)
     switch_dict1 = {int(k,16): v for k, v in switch_dict.items()}
     hca_dict1 = {k: v for k, v in hca_dict.items()}
     df_file = df_file.replace({'Device_ID':hca_dict1})
@@ -257,13 +207,8 @@ def read_and_preprocessing_file(file_path:str, leaf_str:str,spine_str:str,core_s
 
     for col in   col_to_convert_to_float:
         if col in df_file.columns:
-            org_size = df_file.shape[0]
             df_file[col] = pd.to_numeric(df_file[col], errors="coerce")
-
-           
             df_file.dropna(subset=[col], inplace=True)
-            # print (col, '- removed rows non numeric', str( org_size- df_file.shape[0]))
-
         else:
             print (col, ' not exists in dataframe') 
 
@@ -273,71 +218,11 @@ def read_and_preprocessing_file(file_path:str, leaf_str:str,spine_str:str,core_s
     df_file = df_file.replace({'Phy_Manager_State':{'0':'Disabled', '2':'Polling','3':'Active',
                                           '4':'Close', '5':'ETH_PHY_UP','7':'RX_DISABLE'}})
     
-
-      
-    df_file = add_layer_info(df_file,leaf_str,spine_str,core_spine,hca_str_list)
-
     # drop columns that all is nan - relevant for meta which have 2 fw_version columns
     df_file.dropna(how='all', axis=1, inplace=True) 
 
 
-
     return df_file
-
-
-def add_layer_info(df_file,leaf_str,spine_str,core_spine, hca_str_list):
-    
-    # print ('start add_layer_info')
-    # print (leaf_str, spine_str,core_spine)
-    df_file['layer'] = 'unknown'
-    df_file['layer_partner'] = 'unknown'
-
-
-
-    if leaf_str !=spine_str:
-
-
-
-        mask = (df_file.node_description.str.lower().str.contains(leaf_str.lower(),na=False, regex=False))
-        df_file.loc[mask,'layer'] = 'leaf'
-
-        mask = (df_file.node_description.str.lower().str.contains(spine_str.lower(),na=False, regex=False))
-        df_file.loc[mask,'layer'] = 'spine'
-
-        mask = (df_file.node_description.str.lower().str.contains(core_spine.lower(),na=False, regex=False))
-        df_file.loc[mask,'layer'] = 'core_spine'
-   
-
-        if 'link_partner_description' in df_file.columns:
-
-            mask = (df_file.link_partner_description.str.lower().str.contains(leaf_str.lower(),na=False, regex=False))
-            df_file.loc[mask,'layer_partner'] = 'leaf'
-
-            mask = (df_file.link_partner_description.str.lower().str.contains(spine_str.lower(),na=False, regex=False))
-            df_file.loc[mask,'layer_partner'] = 'spine'
-
-            mask = (df_file.link_partner_description.str.lower().str.contains(core_spine.lower(),na=False, regex=False))
-            df_file.loc[mask,'layer_partner'] = 'core_spine'
-
-        if is_numeric_dtype(df_file.Device_ID.dtype):
-            mask = (df_file.Device_ID.astype(float).astype('Int64').isin(list(hca_dict.keys()))) 
-            if 'Device_ID_partner' in df_file.columns:
-                mask_partner = (df_file.Device_ID_partner.astype(float).astype('Int64').isin(list(hca_dict.keys()))) 
-        else:
-            mask = df_file['node_description'].str.lower().apply(lambda x: any(i in str(x).lower() for i in hca_str_list))
-            if 'link_partner_description' in df_file.columns:
-                mask_partner =  df_file['link_partner_description'].str.lower().apply(lambda x: any(i in str(x).lower() for i in hca_str_list))
-
-        df_file.loc[mask,'layer'] = 'hca'
-        if 'link_partner_description' in df_file.columns:
-            df_file.loc[mask_partner,'layer_partner'] = 'hca'
-
- 
-
-    # print (df_file.layer.value_counts())
-    return df_file
-
-
 
 def get_time_since_last_clear_per_groups (df):
 
