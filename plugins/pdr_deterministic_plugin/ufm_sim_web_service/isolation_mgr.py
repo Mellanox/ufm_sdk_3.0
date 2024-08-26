@@ -22,7 +22,6 @@ import numpy
 from exclude_list import ExcludeList
 
 from constants import PDRConstants as Constants
-from telemetry_collector import TelemetryCollector
 from ufm_communication_mgr import UFMCommunicator
 # should actually be persistent and thread safe dictionary pf PortStates
 
@@ -194,7 +193,6 @@ class IsolationMgr:
         self.test_iteration = 0
         # Take from Conf
         self.logger = logger
-        self.telemetry_collector = TelemetryCollector(self.test_mode)
         self.ber_intervals = Constants.BER_THRESHOLDS_INTERVALS if not self.test_mode else [[0.5 * 60, 3]]
         intervals = [x[0] for x in self.ber_intervals]
         self.min_ber_wait_time = min(intervals)
@@ -530,7 +528,7 @@ class IsolationMgr:
         Read the next set of ports and check if they have high BER, PDR, temperature or link downed issues
         """
         issues = {}
-        ports_counters = self.telemetry_collector.get_telemetry()
+        ports_counters = self.ufm_client.get_telemetry(self.test_mode)
         if ports_counters is None:
             self.logger.error("Couldn't retrieve telemetry data")
             return {}
