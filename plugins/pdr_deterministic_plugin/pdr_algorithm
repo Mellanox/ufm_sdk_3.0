@@ -159,11 +159,10 @@ def get_timestamp_seconds(row):
     '''
     return row.get(Constants.TIMESTAMP) / 1000.0 / 1000.0
 
-class IsolationMgr:
-    '''
-    This class is responsible for managing the isolation of ports based on the telemetry data
-    '''
-
+class PDRAlgorithm:
+    """
+    This class is responsible for detection of ports that should be isolated or deisolated based on the telemetry data
+    """
     def __init__(self, ufm_client: UFMCommunicator, logger):
         self.ufm_client = ufm_client
         # {port_name: PortState}
@@ -523,15 +522,11 @@ class IsolationMgr:
                     return Issue(port_obj.port_name, Constants.ISSUE_BER)
         return None
 
-    def read_next_set_of_high_ber_or_pdr_ports(self):
+    def detect_isolation_issues(self, ports_counters):
         """
         Read the next set of ports and check if they have high BER, PDR, temperature or link downed issues
         """
         issues = {}
-        ports_counters = self.ufm_client.get_telemetry(self.test_mode)
-        if ports_counters is None:
-            self.logger.error("Couldn't retrieve telemetry data")
-            return {}
         for _, row in ports_counters.iterrows():
             port_name = f"{row.get(Constants.NODE_GUID, '').split('x')[-1]}_{row.get(Constants.PORT_NUMBER, '')}"
             if self.exclude_list.contains(port_name):
@@ -748,69 +743,34 @@ class IsolationMgr:
         requested_guids = [{"guid": sys_guid, "ports": ports} for sys_guid, ports in guids.items()]
         return requested_guids
 
-    def main_flow(self):
+    def apply_algorithm(self, ports_data, ports_states, ports_counters):
         """
-        Executes the main flow of the Isolation Manager.
-
-        This method synchronizes with the telemetry clock, retrieves ports metadata,
-        continuously retrieves telemetry data from secondary telemetry to
-        determine the states of the ports. skips isolation if too many ports are detected as unhealthy, and evaluates
-        isolation and deisolation for reported issues and ports with specific causes.
-
-        Args:
-            None
-
-        Returns:
-            None
+        Main function of the PDRAlgorithm.
+        Receives: detected ports, isolated ports and telemetry data
+        Returns: lists of isolated ports and lists of deisolated ports
         """
-        self.logger.info("Isolation Manager initialized, starting isolation loop")
-        self.get_ports_metadata()
-        self.logger.info("Retrieved ports metadata")
-        while(True):
-            try:
-                t_begin = time.time()
-                self.exclude_list.refresh()
-                self.get_isolation_state()
-                if not self.test_mode:
-                    self.logger.info("Retrieving telemetry data to determine ports' states")
-                else:
-                    self.logger.info(f"Retrieving test mode telemetry data to determine ports' states: iteration {self.test_iteration}")
-                    self.test_iteration += 1
-                try:
-                    issues = self.read_next_set_of_high_ber_or_pdr_ports()
-                except (KeyError,) as e:
-                    self.logger.error(f"failed to read information with error {e}")
-                if len(issues) > self.max_num_isolate:
-                    # UFM send external event
-                    event_msg = "got too many ports detected as unhealthy: %d, skipping isolation" % len(issues)
-                    self.logger.warning(event_msg)
-                    if not self.test_mode:
-                        self.ufm_client.send_event(event_msg, event_id=Constants.EXTERNAL_EVENT_ALERT, external_event_name="Skipping isolation")
+        self.ports_data = ports_data
+        self.ports_states = ports_states
+        issues = self.detect_isolation_issues(ports_counters)
 
-                # deal with reported new issues
-                else:
-                    for issue in issues.values():
-                        port = issue.port
-                        cause = issue.cause # ber|pdr|oonoc|link_down
-                        self.eval_isolation(port, cause)
+        # Deal with reported new issues
+        isolated_ports = []
+        for issue in issues.values():
+            port = issue.port
+            cause = issue.cause # ber|pdr|oonoc|link_down
+            if self.eval_isolation(port, cause):
+                isolated_ports.append(port);
 
-                # deal with ports that with either cause = oonoc or fixed
-                if self.do_deisolate:
-                    for port_state in list(self.ports_states.values()):
-                        state = port_state.get_state()
-                        cause = port_state.get_cause()
-                        # EZ: it is a state that say that some maintenance was done to the link 
-                        #     so need to re-evaluate if to return it to service
-                        if self.automatic_deisolate or cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED:
-                            self.eval_deisolate(port_state.name)
-                ports_updated = self.update_ports_data()
-                if ports_updated:
-                    self.update_telemetry_session()
-                t_end = time.time()
-            except Exception as e:
-                self.logger.warning("Error in main loop")
-                self.logger.warning(e)
-                traceback_err = traceback.format_exc()
-                self.logger.warning(traceback_err)
-                t_end = time.time()      
-            time.sleep(max(1, self.interval - (t_end - t_begin)))
+        # Deal with ports that with either cause = oonoc or fixed
+        deisolated_ports = []
+        if self.do_deisolate:
+            for port_state in list(self.ports_states.values()):
+                state = port_state.get_state()
+                cause = port_state.get_cause()
+                # EZ: it is a state that say that some maintenance was done to the link 
+                #     so need to re-evaluate if to return it to service
+                if self.automatic_deisolate or cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED:
+                    if self.eval_deisolate(port_state.name):
+                        deisolated_ports.append(port);
+
+        return isolated_ports, deisolated_ports
