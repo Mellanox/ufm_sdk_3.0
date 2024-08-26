@@ -745,24 +745,24 @@ class PDRAlgorithm:
 
     def apply_algorithm(self, ports_data, ports_states, ports_counters):
         """
-        Main function of the PDRAlgorithm.
+        Detects isolation issues
         Receives: detected ports, isolated ports and telemetry data
-        Returns: lists of isolated ports and lists of deisolated ports
+        Returns: lists of ports to isolate and lists of ports to deisolate
         """
         self.ports_data = ports_data
         self.ports_states = ports_states
         issues = self.detect_isolation_issues(ports_counters)
 
         # Deal with reported new issues
-        isolated_ports = []
+        isolate_ports = []
         for issue in issues.values():
             port = issue.port
             cause = issue.cause # ber|pdr|oonoc|link_down
             if self.eval_isolation(port, cause):
-                isolated_ports.append(port);
+                isolate_ports.append(port);
 
         # Deal with ports that with either cause = oonoc or fixed
-        deisolated_ports = []
+        deisolate_ports = []
         if self.do_deisolate:
             for port_state in list(self.ports_states.values()):
                 state = port_state.get_state()
@@ -771,6 +771,6 @@ class PDRAlgorithm:
                 #     so need to re-evaluate if to return it to service
                 if self.automatic_deisolate or cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED:
                     if self.eval_deisolate(port_state.name):
-                        deisolated_ports.append(port);
+                        deisolate_ports.append(port);
 
-        return isolated_ports, deisolated_ports
+        return isolate_ports, deisolate_ports
