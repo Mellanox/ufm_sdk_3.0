@@ -190,25 +190,25 @@ def wait_for_ports_to_be_healthy(host, authorization_header, switch_port_ids, nu
 
 
 def main():
-    # args = parse_args()
-    # # Validating that the input CSV is valid and getting a list of all the items in it,
-    # # Including the batch delimiter.
-    # switches_info = validate_csv_file_and_get_list_of_items(args.file)
-    # authorization_header = get_authorization_header(args.user, args.password)
-    # # Getting the next batch of switches to work with, and a list of switch_port for the make port healthy.
-    # switches, switches_ports = get_next_batch(switches_info)
-    # while len(switches) > 0:
-    #     input("Press Enter key to start the operation on the next batch: {}".format(switches))
-    #     print('Performing operations on {} switches'.format(len(switches)))
-    #     job_id = mark_switches_as_unhealthy(args.host, authorization_header, switches)
-    #     status = wait_for_job_done(args.host, authorization_header, job_id, args.num_retries, args.sleep_time)
-    #     if not status:
-    #         print(f'Error waiting for job {job_id} to be done')
-    #         exit(1)
-    #     print('{} switches ports were isolated'.format(str(switches)))
-    #     mark_switches_and_port_as_healthy(args.host, authorization_header, switches_ports)
-    #     wait_for_ports_to_be_healthy(args.host, authorization_header, switches_ports, args.num_retries, args.sleep_time)
-    #     switches, switches_ports = get_next_batch(switches_info)
+    args = parse_args()
+    # Validating that the input CSV is valid and getting a list of all the items in it,
+    # Including the batch delimiter.
+    switches_info = validate_csv_file_and_get_list_of_items(args.file)
+    authorization_header = get_authorization_header(args.user, args.password)
+    # Getting the next batch of switches to work with, and a list of switch_port for the make port healthy.
+    switches, switches_ports = get_next_batch(switches_info)
+    while len(switches) > 0:
+        input("Press Enter key to start the operation on the next batch: {}".format(switches))
+        print('Performing operations on {} switches'.format(len(switches)))
+        job_id = mark_switches_as_unhealthy(args.host, authorization_header, switches)
+        status = wait_for_job_done(args.host, authorization_header, job_id, args.num_retries, args.sleep_time)
+        if not status:
+            print(f'Error waiting for job {job_id} to be done')
+            exit(1)
+        print('{} switches ports were isolated'.format(str(switches)))
+        mark_switches_and_port_as_healthy(args.host, authorization_header, switches_ports)
+        wait_for_ports_to_be_healthy(args.host, authorization_header, switches_ports, args.num_retries, args.sleep_time)
+        switches, switches_ports = get_next_batch(switches_info)
 
 if __name__ == "__main__":
     main()

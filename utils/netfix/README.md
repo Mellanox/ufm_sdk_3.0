@@ -5,8 +5,15 @@ This path holds a copy of the logic original logic
 For now, we are taking only the link down logic (Flapping links)
 
 The current way to run it is:
+1. Install the python requirements
+2. Load Python and import the function using
 ```
-python3 utils/netfix/two_files_analysis_template_IB.py --earlier_file /Users/bhaim/workspace/ufm_sdk_3.0/boaz-tmp/telemetry_samples/secondary_1d_20240604055416 --latest_file /Users/bhaim/workspace/ufm_sdk_3.0/boaz-tmp/telemetry_samples/secondary_1d_20240605055518 --config utils/netfix/config/example --report bob.xls
+ from flapping_links import get_flapping_links
+```
+3. Call the function with two second telemetry samples
+```
+get_flapping_links(prev_second_telemetry_samples, older_second_telemetry_samples)
+
 ```
 
-This will output a csv file with one sheet of links down logic
+This will output a datafram with all the flapping links info
