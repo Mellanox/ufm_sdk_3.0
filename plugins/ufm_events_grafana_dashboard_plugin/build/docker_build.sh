@@ -115,6 +115,7 @@ echo ${IMAGE_VERSION} > ../../${PLUGIN_NAME}_plugin/version
 
 BUILD_DIR=$(create_out_dir)
 cp Dockerfile ${BUILD_DIR}
+cp -r ../../../utils ${BUILD_DIR}
 cp -r ../../${PLUGIN_NAME}_plugin ${BUILD_DIR}
 
 echo "BUILD_DIR    : [${BUILD_DIR}]"
