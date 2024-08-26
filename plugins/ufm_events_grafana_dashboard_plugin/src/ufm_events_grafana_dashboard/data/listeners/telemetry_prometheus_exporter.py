@@ -39,7 +39,7 @@ class TelemetryPrometheusExporter(BaseListener):
             prometheus_metrics = self.telemetry_prometheus_metrics
             data = telemetry_model.last_metrics_csv
             df = pd.read_csv(StringIO(data))
-            # df = df.fillna('', inplace=True)
+            df.fillna('', inplace=True)
             data_dict = df.to_dict(orient='records')
             metrics = []
             for row in data_dict:

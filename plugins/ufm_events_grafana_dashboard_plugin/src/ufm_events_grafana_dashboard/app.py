@@ -9,6 +9,10 @@
 # This software product is governed by the End User License Agreement
 # provided with the software product.
 #
+import os
+import sys
+sys.path.append(os.getcwd())
+
 import time
 
 import data.manager as dm
