@@ -11,20 +11,13 @@
 #
 
 from enum import Enum
+import urllib.error
 from constants import PDRConstants as Constants
 import requests
 import logging
-import copy
+import urllib
 import http
 import pandas as pd
-
-class DynamicSessionState(Enum):
-    """
-    States of telemetry session instance
-    """
-    NONE     = 0
-    INACTIVE = 1
-    RUNNING  = 2
 
 class UFMCommunicator:
 
@@ -40,12 +33,14 @@ class UFMCommunicator:
         request = self.ufm_protocol + '://' + self._host + uri
         if not headers:
             headers = self.headers
-        response = requests.get(request, verify=False, headers=headers)
-        logging.info("UFM API Request Status: {}, URL: {}".format(response.status_code, request))
-        if response.status_code == http.client.OK:
-            return response.json()
-        else:
-            return
+        try:
+            response = requests.get(request, verify=False, headers=headers)
+            logging.info("UFM API Request Status: {}, URL: {}".format(response.status_code, request))
+            if response.status_code == http.client.OK:
+                return response.json()
+        except ConnectionRefusedError as e:
+            logging.error(f"failed to get data from {request} with error {e}")
+        return
     
     def send_request(self, uri, data, method=Constants.POST_METHOD, headers=None):
         request = self.ufm_protocol + '://' + self._host + uri
@@ -59,19 +54,7 @@ class UFMCommunicator:
             response = requests.delete(url=request, verify=False, headers=headers)
         logging.info("UFM API Request Status: {}, URL: {}".format(response.status_code, request))
         return response
-
-    def get_telemetry(self, port, instance_name,test_mode):
-        if test_mode:
-            url = f"http://127.0.0.1:9090/csv/xcset/simulated_telemetry"
-        else:
-            url = f"http://127.0.0.1:{port}/csv/xcset/{instance_name}"
-        try:
-            telemetry_data = pd.read_csv(url)
-        except Exception as e:
-            logging.error(f"Failed to get telemetry data from UFM, fetched url={url}. Error: {e}")
-            telemetry_data = None
-        return telemetry_data
-    
+        
     def send_event(self, message, event_id=Constants.EXTERNAL_EVENT_NOTICE, external_event_name="PDR Plugin Event", external_event_type="PDR Plugin Event"):
         data = {
             "event_id": event_id,
@@ -119,41 +102,3 @@ class UFMCommunicator:
 
     def get_port_metadata(self, port_name):
         return self.get_request("%s/%s" % (Constants.GET_PORTS_REST, port_name))
-
-    def start_dynamic_session(self, instance_name, counters, sample_rate, guids, extra_configuration=None):
-        data = {
-            "counters": counters,
-            "sample_rate": sample_rate,
-            "requested_guids": guids,
-            "is_registered_discovery": False
-            }
-        if extra_configuration:
-            data["configuration"] = extra_configuration
-        return self.send_request(Constants.DYNAMIC_SESSION_REST % instance_name, data, method=Constants.POST_METHOD)
-
-    def update_dynamic_session(self, instance_name, sample_rate, guids):
-        data = {
-            "sample_rate": sample_rate,
-            "requested_guids": guids
-            }
-        return self.send_request(Constants.DYNAMIC_SESSION_REST % instance_name, data, method=Constants.PUT_METHOD)
-
-    def get_dynamic_session_state(self, instance_name):
-        response = self.get_request(Constants.STATUS_DYNAMIC_SESSION_REST)
-        if response:
-            instance_status = response.get(instance_name)
-            if instance_status:
-                if instance_status.get("status") == "running":
-                    return DynamicSessionState.RUNNING
-                else:
-                    return DynamicSessionState.INACTIVE
-        return DynamicSessionState.NONE
-
-    def stop_dynamic_session(self, instance_name):
-        data = {}
-        return self.send_request(Constants.DYNAMIC_SESSION_REST % instance_name, data, method=Constants.DELETE_METHOD)
-
-    def dynamic_session_get_port(self, instance_name):
-        data = self.get_request(Constants.DYNAMIC_SESSION_REST % instance_name)
-        if data:
-            return data.get("endpoint_port")
