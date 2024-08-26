@@ -254,111 +254,6 @@ class PDRAlgorithm:
             return True
         return False
 
-    def eval_isolation(self, port_name, cause):
-        """
-        Evaluates the isolation of a port based on the given port name and cause.
-
-        Args:
-            port_name (str): The name of the port to evaluate isolation for.
-            cause (str): The cause of the isolation.
-
-        Returns:
-            None
-        """
-        if self.exclude_list.contains(port_name):
-            self.logger.info(f"Skipping isolation of port {port_name}")
-            return
-
-        self.logger.info(f"Evaluating isolation of port {port_name} with cause {cause}")
-        if port_name in self.ufm_latest_isolation_state:
-            self.logger.info("Port is already isolated. skipping...")
-            return
-        port_obj = self.ports_data.get(port_name)
-        if not port_obj:
-            self.logger.warning(f"Port {port_name} not found in ports data")
-            return
-        # TODO: check if we need to check the peer as well
-        if port_obj.node_type == Constants.NODE_TYPE_COMPUTER and not self.switch_hca_isolation:
-            self.logger.info(f"Port {port_name} is a computer port. skipping...")
-            return
-        # if out of operating conditions we ignore the cause
-        if self.temp_check and self.is_out_of_operating_conf(port_name):
-            cause = Constants.ISSUE_OONOC
-
-        if not self.dry_run:
-            ret = self.ufm_client.isolate_port(port_name)
-            if not ret or ret.status_code != http.HTTPStatus.OK:
-                self.logger.warning("Failed isolating port: %s with cause: %s... status_code= %s", port_name, cause, ret.status_code)
-                return
-        port_state = self.ports_states.get(port_name)
-        if not port_state:
-            self.ports_states[port_name] = PortState(port_name)
-        self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
-
-        log_message = f"Isolated port: {port_name} cause: {cause}. dry_run: {self.dry_run}"
-        self.logger.warning(log_message)
-        if not self.test_mode:
-            self.ufm_client.send_event(log_message, event_id=Constants.EXTERNAL_EVENT_ALERT, external_event_name="Isolating Port")
-
-
-    def eval_deisolate(self, port_name):
-        """
-        Evaluates the deisolation of a port.
-
-        Args:
-            port_name (str): The name of the port to evaluate.
-
-        Returns:
-            None
-        """
-        if self.exclude_list.contains(port_name):
-            self.logger.info(f"Skipping deisolation of port {port_name}")
-            return
-
-        self.logger.info(f"Evaluating deisolation of port {port_name}")
-        if not port_name in self.ufm_latest_isolation_state and not self.dry_run:
-            if self.ports_states.get(port_name):
-                self.ports_states.pop(port_name)
-            return
-        # we dont return those out of NOC
-        if self.is_out_of_operating_conf(port_name):
-            cause = Constants.ISSUE_OONOC
-            self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
-            return
-        # we need some time after the change in state
-        elif datetime.now() >= self.ports_states[port_name].get_change_time() + timedelta(seconds=self.deisolate_consider_time):
-            port_obj = self.ports_data.get(port_name)
-            port_state = self.ports_states.get(port_name)
-            if port_state.cause == Constants.ISSUE_BER:
-                # check if we are still above the threshold
-                symbol_ber_rate = self.calc_ber_rates(port_name, port_obj.active_speed, port_obj.port_width, self.max_ber_wait_time + 1)
-                if symbol_ber_rate and symbol_ber_rate > self.max_ber_threshold:
-                    cause = Constants.ISSUE_BER
-                    self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
-                    return
-        else:
-            # too close to state change
-            return
-
-        # port is clean now - de-isolate it
-        # using UFM "mark as healthy" API - PUT /ufmRestV2/app/unhealthy_ports 
-            # {
-            # "ports": [
-            #     "e41d2d0300062380_3"
-            # ],
-            # "ports_policy": "HEALTHY"
-            # }
-        if not self.dry_run:
-            ret = self.ufm_client.deisolate_port(port_name)
-            if not ret or ret.status_code != http.HTTPStatus.OK:
-                self.logger.warning("Failed deisolating port: %s with cause: %s... status_code= %s", port_name, self.ports_states[port_name].cause, ret.status_code)        
-                return
-        self.ports_states.pop(port_name)
-        log_message = f"Deisolated port: {port_name}. dry_run: {self.dry_run}"
-        self.logger.warning(log_message)
-        if not self.test_mode:
-            self.ufm_client.send_event(log_message, event_id=Constants.EXTERNAL_EVENT_NOTICE, external_event_name="Deisolating Port")
-
     def get_rate(self, port_obj, counter_name, new_val, timestamp):
         """
         Calculate the rate of the counter
@@ -747,19 +642,14 @@ class PDRAlgorithm:
         """
         Detects isolation issues
         Receives: detected ports, isolated ports and telemetry data
-        Returns: lists of ports to isolate and lists of ports to deisolate
+        Returns: lists of issues to isolate and lists of ports to deisolate
         """
         self.ports_data = ports_data
         self.ports_states = ports_states
         issues = self.detect_isolation_issues(ports_counters)
 
         # Deal with reported new issues
-        isolate_ports = []
-        for issue in issues.values():
-            port = issue.port
-            cause = issue.cause # ber|pdr|oonoc|link_down
-            if self.eval_isolation(port, cause):
-                isolate_ports.append(port);
+        isolate_issues = issues.values()
 
         # Deal with ports that with either cause = oonoc or fixed
         deisolate_ports = []
@@ -770,7 +660,6 @@ class PDRAlgorithm:
                 # EZ: it is a state that say that some maintenance was done to the link 
                 #     so need to re-evaluate if to return it to service
                 if self.automatic_deisolate or cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED:
-                    if self.eval_deisolate(port_state.name):
-                        deisolate_ports.append(port);
+                    deisolate_ports.append(port_state.name);
 
-        return isolate_ports, deisolate_ports
+        return isolate_issues, deisolate_ports
