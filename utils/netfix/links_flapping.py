@@ -11,25 +11,12 @@
 #
 
 
-
-import argparse
 from datetime import datetime
 import json
 import traceback
-from openpyxl import Workbook
+
 import pandas as pd
-
-
-from utils import FileSource, \
-    read_and_preprocessing_file, \
-    add_partner_info 
-from utils import add_link_hash_id, save_results_in_sheet
-
-def create_workbook(path):
-    workbook = Workbook()
-    workbook.save(path) 
-    writer = pd.ExcelWriter(path, engine = 'xlsxwriter')
-    return writer
+from utils import read_and_preprocessing_file, add_partner_info, add_link_hash_id
 
 def fill_missing_partner(df1, df2):
 
@@ -51,70 +38,6 @@ def fill_missing_partner(df1, df2):
     df_join = df_join.drop(columns = ['link_partner_node_guid_y','link_partner_port_num_y'])
 
     return df_join
-
-def run_analysis(filename1,filename2,raw_ber_th,Effective_ber_th,symbol_ber_threshold,
-                  leaf_str, spine_str, core_spine,hca_str_list ,use_all_columns_flag, writer, file_type,ignore_server_list=[]
-                  ):
-
-
-
-        df1 = read_and_preprocessing_file(filename1, leaf_str,spine_str,core_spine,hca_str_list)
-        df2 = read_and_preprocessing_file(filename2, leaf_str,spine_str,core_spine,hca_str_list)
-        
-        # complete missing partner in df2 based on df1
-        df2 = fill_missing_partner(df1, df2)
-        df1_with_partner = add_partner_info(df1,use_all_columns_flag,ignore_server_list=ignore_server_list)
-        df2_with_partner = add_partner_info(df2,use_all_columns_flag,ignore_server_list=ignore_server_list)
-
-        #linkdown both sides
-        linkdown_df1,linkdown_summary_dict = get_suspected_real_linkdown (df1_with_partner, df2_with_partner,min_to_filter_reboot_threshold=10,dispaly_all_col_flag=use_all_columns_flag)
-
-        save_results_in_sheet(linkdown_df1, 'Suspected real linkdown',writer)
-
-
-def run_analysis_and_report(p_config_file,report_file, filename1,filename2):
-    print('start run_analysis_and_report',filename1,filename2 )
-    writer = None
-    try:
-            #load config - todo move to input
-        with open(p_config_file) as config_file:
-            data = json.load(config_file)
-            
-            leaf_str = data ['leaf_str']
-            spine_str = data ['spine_str']
-            core_spine = data['core_spine']
-            hca_str_list = data ['hca_str_list']
-            raw_ber_th = data['raw_ber_th']
-            Effective_ber_th = data['Effective_ber_th']
-            symbol_ber_threshold = data['symbol_ber_threshold']
-            use_all_columns_flag = data['use_all_columns_flag']
-            file_type_str = data ['file_type']
-            if file_type_str == 'UFM':
-                file_type = FileSource.UFM
-            elif file_type_str=='COLLECTX':
-                file_type = FileSource.collectx
-            
-            ignore_server_list = data.get('ignore_server_list',[])
-
-            
-            writer = create_workbook(report_file) 
-
-          
-            run_analysis(filename1,filename2,raw_ber_th,Effective_ber_th,symbol_ber_threshold,
-                        leaf_str, spine_str, core_spine,hca_str_list,
-                        use_all_columns_flag,writer, file_type,ignore_server_list=ignore_server_list)
-            
-            print('End Phy layer files analysis')
-            print('Final report:',report_file)
-
-    except Exception as e: 
-        print(e)
-        traceback.print_exc()
-    finally :
-        if writer:
-            writer.close()
-
-
 
 def get_suspected_real_linkdown(df1_with_partner, df2_with_partner,min_to_filter_reboot_threshold = 10, dispaly_all_col_flag = False): 
 
@@ -234,23 +157,26 @@ def get_suspected_real_linkdown(df1_with_partner, df2_with_partner,min_to_filter
     col_order1 = [col for col in col_order if col in df_linkdown.columns]
     df_linkdown = df_linkdown[col_order1]
     
-
     return df_linkdown, func_summary_dict
 
+def run_analysis(filename1,filename2):
 
-if __name__ == "__main__":
+        df1 = read_and_preprocessing_file(filename1)
+        df2 = read_and_preprocessing_file(filename2)
+        
+        # complete missing partner in df2 based on df1
+        df2 = fill_missing_partner(df1, df2)
+        df1_with_partner = add_partner_info(df1)
+        df2_with_partner = add_partner_info(df2)
 
-    parser = argparse.ArgumentParser(description='The code analyze 2 collectx/UFM file - one iteration in every file')
-    parser.add_argument('-f1','--earlier_file', help='Earlier file name path', required=True)
-    parser.add_argument('-f2','--latest_file', help='Latest file name path', required=True)
-    parser.add_argument('-c','--config', help='config file', required=True)
-    parser.add_argument('-r','--report_file', help='output report file', required=True)
-    args = vars(parser.parse_args())
+        #linkdown both sides
+        linkdown_df1,linkdown_summary_dict = get_suspected_real_linkdown(df1_with_partner, df2_with_partner,min_to_filter_reboot_threshold=10)
+        return linkdown_df1
 
-    filename1 = args['earlier_file'] 
-    filename2 = args['latest_file'] 
-    config_file = args['config']
-    report_file =args['report_file']
-
-    # moved all logic to a function
-    run_analysis_and_report(config_file,report_file, filename1,filename2)
+def get_flapping_links(prev_counters_csv, cur_counters_csv):
+    print('start run_analysis_and_report',prev_counters_csv, cur_counters_csv)
+    try:
+            run_analysis(prev_counters_csv,cur_counters_csv)
+    except Exception as e: 
+        print(e)
+        traceback.print_exc()

@@ -270,10 +270,6 @@ def read_and_preprocessing_file(file_path:str, leaf_str:str,spine_str:str,core_s
     # add to df min /max/std of time since lase clear per switch/host name + add 'server_name' col
     df_file = get_time_since_last_clear_per_groups(df_file)
 
-    
-    
-
-
     df_file = df_file.replace({'Phy_Manager_State':{'0':'Disabled', '2':'Polling','3':'Active',
                                           '4':'Close', '5':'ETH_PHY_UP','7':'RX_DISABLE'}})
     

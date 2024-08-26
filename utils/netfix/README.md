@@ -1,8 +1,8 @@
-This path holds a copy of the logic from [url](https://gitlab-master.nvidia.com/ae_networking/phy_layer_utils)
+This path holds a copy of the logic original logic
 
 # This logic is still under development and should not be used
 
-For now, we are taking only the link down logic.
+For now, we are taking only the link down logic (Flapping links)
 
 The current way to run it is:
 ```
