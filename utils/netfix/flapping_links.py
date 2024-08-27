@@ -18,7 +18,7 @@ import traceback
 import warnings
 
 import pandas as pd
-from netfix_utils import read_and_preprocessing_file, add_partner_info, add_link_hash_id
+from utils.netfix.netfix_utils import read_and_preprocessing_file, add_partner_info, add_link_hash_id
 
 warnings.filterwarnings("ignore", category=pd.errors.DtypeWarning)
 warnings.filterwarnings("ignore", category=FutureWarning)

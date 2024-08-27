@@ -1,8 +1,1 @@
-openpyxl
-xlsxwriter
-databricks.connect
-databricks
-openpyxl
-python-docx
 pandas
-pandasql
