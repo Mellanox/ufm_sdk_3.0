@@ -200,7 +200,7 @@ class PDRAlgorithm:
         issues = self.detect_isolation_issues(ports_counters)
 
         # Deal with reported new issues
-        isolate_issues = issues.values()
+        isolate_issues = list(issues.values())
 
         # Deal with ports that with either cause = oonoc or fixed
         deisolate_ports = []
