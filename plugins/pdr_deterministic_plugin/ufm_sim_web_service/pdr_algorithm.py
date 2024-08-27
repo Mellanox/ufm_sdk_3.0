@@ -136,29 +136,6 @@ class Issue(object):
         self.cause = cause
         self.port = port
 
-def get_counter(counter_name, row, default=0):
-    """
-    Get the value of a specific counter from a row of data. If the counter is not present 
-    or its value is NaN, return a default value.
-
-    :param counter_name: The name of the counter to get.
-    :param row: The row of data from which to get the counter.
-    :param default: The default value to return if the counter is not present or its value is NaN.
-    :return: The value of the counter, or the default value if the counter is not present
-     or its value is NaN.
-    """
-    try:
-        val = row.get(counter_name) if (row.get(counter_name) is not None and not pd.isna(row.get(counter_name))) else default
-    except Exception as e:
-        return default
-    return val
-
-def get_timestamp_seconds(row):
-    '''
-    Converting from micro seconds to seconds as float
-    '''
-    return row.get(Constants.TIMESTAMP) / 1000.0 / 1000.0
-
 class PDRAlgorithm:
     """
     This class is responsible for detection of ports that should be isolated or deisolated based on the telemetry data
@@ -217,6 +194,32 @@ class PDRAlgorithm:
         ]
 
         self.exclude_list = ExcludeList(self.logger)
+
+    def apply_algorithm(self, ports_data, ports_states, ports_counters):
+        """
+        Detects isolation issues
+        Receives: detected ports, isolated ports and telemetry data
+        Returns: lists of issues to isolate and lists of ports to deisolate
+        """
+        self.ports_data = ports_data
+        self.ports_states = ports_states
+        issues = self.detect_isolation_issues(ports_counters)
+
+        # Deal with reported new issues
+        isolate_issues = issues.values()
+
+        # Deal with ports that with either cause = oonoc or fixed
+        deisolate_ports = []
+        if self.do_deisolate:
+            for port_state in list(self.ports_states.values()):
+                state = port_state.get_state()
+                cause = port_state.get_cause()
+                # EZ: it is a state that say that some maintenance was done to the link 
+                #     so need to re-evaluate if to return it to service
+                if self.automatic_deisolate or cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED:
+                    deisolate_ports.append(port_state.name);
+
+        return isolate_issues, deisolate_ports
 
     def calc_max_ber_wait_time(self, min_threshold):
             """
@@ -287,8 +290,8 @@ class PDRAlgorithm:
         """
         Calculate the error rate of the port and update the counters_values
         """
-        rcv_error = get_counter(Constants.RCV_ERRORS_COUNTER, row)
-        rcv_remote_phy_error = get_counter(Constants.RCV_REMOTE_PHY_ERROR_COUNTER, row)
+        rcv_error = self.get_counter(Constants.RCV_ERRORS_COUNTER, row)
+        rcv_remote_phy_error = self.get_counter(Constants.RCV_REMOTE_PHY_ERROR_COUNTER, row)
         errors = rcv_error + rcv_remote_phy_error
         error_rate = self.get_rate_and_update(port_obj, Constants.ERRORS_COUNTER, errors, timestamp)
         return error_rate        
@@ -297,7 +300,7 @@ class PDRAlgorithm:
         """
         Check if the port passed the PacketDropRate threshold and return an issue
         """
-        rcv_pkts = get_counter(Constants.RCV_PACKETS_COUNTER, row)
+        rcv_pkts = self.get_counter(Constants.RCV_PACKETS_COUNTER, row)
         rcv_pkt_rate = self.get_rate_and_update(port_obj, Constants.RCV_PACKETS_COUNTER, rcv_pkts, timestamp)
         error_rate = self.calc_error_rate(port_obj, row, timestamp)
         if rcv_pkt_rate and error_rate / rcv_pkt_rate > self.max_pdr:
@@ -313,7 +316,7 @@ class PDRAlgorithm:
         """
         if not self.temp_check:
             return None
-        cable_temp = get_counter(Constants.TEMP_COUNTER, row, default=None)
+        cable_temp = self.get_counter(Constants.TEMP_COUNTER, row, default=None)
         if cable_temp is not None and not pd.isna(cable_temp):
             if cable_temp in ["NA", "N/A", "", "0C", "0"]:
                 return None
@@ -342,7 +345,7 @@ class PDRAlgorithm:
         if not self.link_down_isolation:
             return None
         old_link_downed = port_obj.counters_values.get(Constants.LNK_DOWNED_COUNTER)
-        link_downed = get_counter(Constants.LNK_DOWNED_COUNTER, row)
+        link_downed = self.get_counter(Constants.LNK_DOWNED_COUNTER, row)
         link_downed_rate = self.get_rate_and_update(port_obj, Constants.LNK_DOWNED_COUNTER, link_downed, timestamp)
         if link_downed_rate > 0:
             # Check if the peer port link downed was raised
@@ -352,8 +355,8 @@ class PDRAlgorithm:
             if self.exclude_list.contains(port_obj.peer):
                 # The peer is excluded from analysis
                 return None
-            peer_row_timestamp = get_timestamp_seconds(peer_row)
-            peer_link_downed = get_counter(Constants.LNK_DOWNED_COUNTER, peer_row)
+            peer_row_timestamp = self.get_timestamp_seconds(peer_row)
+            peer_link_downed = self.get_counter(Constants.LNK_DOWNED_COUNTER, peer_row)
             peer_obj = self.ports_data.get(port_obj.peer)
             if self.test_mode:
                 peer_obj = port_obj
@@ -376,7 +379,7 @@ class PDRAlgorithm:
         """
         if not self.configured_ber_check:
             return None
-        symbol_ber_val = get_counter(Constants.PHY_SYMBOL_ERROR, row, default=None)
+        symbol_ber_val = self.get_counter(Constants.PHY_SYMBOL_ERROR, row, default=None)
         if symbol_ber_val is not None:
             ber_data = {
                 Constants.TIMESTAMP : timestamp,
@@ -414,12 +417,12 @@ class PDRAlgorithm:
                     self.ports_data[port_name] = PortData(port_name=port_name,peer="0x"+port_name)
             port_obj = self.ports_data.get(port_name)
             if not port_obj:
-                if get_counter(Constants.RCV_PACKETS_COUNTER,row,0) == 0: # meaning it is down port
+                if self.get_counter(Constants.RCV_PACKETS_COUNTER,row,0) == 0: # meaning it is down port
                     continue
                 self.logger.warning("Port {0} not found in ports data".format(port_name))
                 continue
             # Converting from micro seconds to seconds.
-            timestamp = get_timestamp_seconds(row)
+            timestamp = self.get_timestamp_seconds(row)
             #TODO add logs regarding the exact telemetry value leading to the decision
             pdr_issue = self.check_pdr_issue(port_obj, row, timestamp)
             temp_issue = self.check_temp_issue(port_obj, row, timestamp)
@@ -511,28 +514,27 @@ class PDRAlgorithm:
                 port_width = int(port_width.strip('x'))
             return port_speed, port_width
 
-    def apply_algorithm(self, ports_data, ports_states, ports_counters):
+    @staticmethod
+    def get_counter(counter_name, row, default=0):
         """
-        Detects isolation issues
-        Receives: detected ports, isolated ports and telemetry data
-        Returns: lists of issues to isolate and lists of ports to deisolate
+        Get the value of a specific counter from a row of data. If the counter is not present 
+        or its value is NaN, return a default value.
+
+        :param counter_name: The name of the counter to get.
+        :param row: The row of data from which to get the counter.
+        :param default: The default value to return if the counter is not present or its value is NaN.
+        :return: The value of the counter, or the default value if the counter is not present
+        or its value is NaN.
         """
-        self.ports_data = ports_data
-        self.ports_states = ports_states
-        issues = self.detect_isolation_issues(ports_counters)
+        try:
+            val = row.get(counter_name) if (row.get(counter_name) is not None and not pd.isna(row.get(counter_name))) else default
+        except Exception as e:
+            return default
+        return val
 
-        # Deal with reported new issues
-        isolate_issues = issues.values()
-
-        # Deal with ports that with either cause = oonoc or fixed
-        deisolate_ports = []
-        if self.do_deisolate:
-            for port_state in list(self.ports_states.values()):
-                state = port_state.get_state()
-                cause = port_state.get_cause()
-                # EZ: it is a state that say that some maintenance was done to the link 
-                #     so need to re-evaluate if to return it to service
-                if self.automatic_deisolate or cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED:
-                    deisolate_ports.append(port_state.name);
-
-        return isolate_issues, deisolate_ports
+    @staticmethod
+    def get_timestamp_seconds(row):
+        '''
+        Converting from micro seconds to seconds as float
+        '''
+        return row.get(Constants.TIMESTAMP) / 1000.0 / 1000.0

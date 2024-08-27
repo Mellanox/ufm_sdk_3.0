@@ -137,29 +137,6 @@ class Issue(object):
         self.cause = cause
         self.port = port
 
-def get_counter(counter_name, row, default=0):
-    """
-    Get the value of a specific counter from a row of data. If the counter is not present 
-    or its value is NaN, return a default value.
-
-    :param counter_name: The name of the counter to get.
-    :param row: The row of data from which to get the counter.
-    :param default: The default value to return if the counter is not present or its value is NaN.
-    :return: The value of the counter, or the default value if the counter is not present
-     or its value is NaN.
-    """
-    try:
-        val = row.get(counter_name) if (row.get(counter_name) is not None and not pd.isna(row.get(counter_name))) else default
-    except Exception as e:
-        return default
-    return val
-
-def get_timestamp_seconds(row):
-    '''
-    Converting from micro seconds to seconds as float
-    '''
-    return row.get(Constants.TIMESTAMP) / 1000.0 / 1000.0
-
 class IsolationMgr:
     '''
     This class is responsible for managing the isolation of ports based on the telemetry data
