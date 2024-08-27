@@ -235,25 +235,6 @@ class PDRAlgorithm:
             min_sec_to_wait = min_bits / min_port_rate
             return min_sec_to_wait
 
-    def is_out_of_operating_conf(self, port_name):
-        """
-        Checks if a port is out of operating configuration based on its temperature.
-
-        Args:
-            port_name (str): The name of the port to check.
-
-        Returns:
-            bool: True if the port is out of operating configuration, False otherwise.
-        """
-        port_obj = self.ports_data.get(port_name)
-        if not port_obj:
-            self.logger.warning(f"Port {port_name} not found in ports data in calculation of oonoc port")
-            return
-        temp = port_obj.counters_values.get(Constants.TEMP_COUNTER)
-        if temp and temp > self.tmax:
-            return True
-        return False
-
     def get_rate(self, port_obj, counter_name, new_val, timestamp):
         """
         Calculate the rate of the counter
@@ -505,26 +486,6 @@ class PDRAlgorithm:
         symbol_rate = self.calc_symbol_ber_rate(port_name, port_speed, port_width, Constants.SYMBOL_BER, time_delta)
         return symbol_rate
 
-    # called first time to get all the metadata of the telemetry.
-    def get_ports_metadata(self):
-        """
-        Retrieves the metadata for all ports.
-
-        Returns:
-            None: If test mode is enabled.
-            dict: A dictionary containing the metadata for each port.
-        """
-        if self.test_mode:
-            # we need to skip this check and put the data on the telemetry side.
-            return
-        meta_data = self.ufm_client.get_ports_metadata()
-        if meta_data and len(meta_data) > 0:
-            for port in meta_data:
-                port_name = port.get(Constants.PORT_NAME)
-                if not self.ports_data.get(port_name):
-                    self.ports_data[port_name] = PortData(port_name)
-                self.update_port_metadata(port_name, port)
-
     def update_port_metadata(self, port_name, port):
         """
         Update the metadata of a port.
@@ -552,27 +513,6 @@ class PDRAlgorithm:
             port_width = int(port_width.strip('x'))
         port_obj.port_width = port_width
 
-
-    def update_ports_data(self):
-        """
-        Updates the ports data by retrieving metadata from the UFM client.
-        
-        Returns:
-            bool: True if ports data is updated, False otherwise.
-        """
-        if self.test_mode:
-            return False
-        meta_data = self.ufm_client.get_ports_metadata()
-        ports_updated = False
-        if meta_data and len(meta_data) > 0:
-            for port in meta_data:
-                port_name = port.get(Constants.PORT_NAME)
-                if not self.ports_data.get(port_name):
-                    self.ports_data[port_name] = {}
-                    self.update_port_metadata(port_name, port)
-                    ports_updated = True
-        return ports_updated
-
     def get_port_metadata(self, port_name):
         """
         Retrieves the metadata for a given port.
@@ -597,29 +537,6 @@ class PDRAlgorithm:
             if port_width:
                 port_width = int(port_width.strip('x'))
             return port_speed, port_width
-    
-    def get_isolation_state(self):
-        """
-        Retrieves the isolation state of the ports.
-
-        Returns:
-            None: If the test mode is enabled.
-            List[str]: A list of isolated ports if available.
-        """
-        
-        if self.test_mode:
-            # I don't want to get to the isolated ports because we simulating everything..
-            return
-        ports = self.ufm_client.get_isolated_ports()
-        if not ports:
-            self.ufm_latest_isolation_state = []
-        isolated_ports = [port.split('x')[-1] for port in ports.get(Constants.API_ISOLATED_PORTS, [])]
-        self.ufm_latest_isolation_state = isolated_ports
-        for port in isolated_ports:
-            if not self.ports_states.get(port):
-                port_state = PortState(port)
-                port_state.update(Constants.STATE_ISOLATED, Constants.ISSUE_OONOC)
-                self.ports_states[port] = port_state
 
     def get_requested_guids(self):
         """
