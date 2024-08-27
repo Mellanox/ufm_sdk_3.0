@@ -138,6 +138,7 @@ class PDRAlgorithm:
     def __init__(self, ufm_client: UFMCommunicator, exclude_list: ExcludeList, logger):
         self.ufm_client = ufm_client
         self.exclude_list = exclude_list
+        self.logger = logger
         # {port_name: PortState}
         self.ports_states = dict()
         # {port_name: telemetry_data}
@@ -149,30 +150,23 @@ class PDRAlgorithm:
 
         # Take from Conf
         self.interval = pdr_config.getint(Constants.CONF_SAMPLING, Constants.INTERVAL)
-        self.max_num_isolate = pdr_config.getint(Constants.CONF_ISOLATION, Constants.MAX_NUM_ISOLATE)
         self.tmax = pdr_config.getint(Constants.CONF_METRICS, Constants.TMAX)
         self.d_tmax = pdr_config.getint(Constants.CONF_METRICS, Constants.D_TMAX)
         self.max_pdr = pdr_config.getfloat(Constants.CONF_METRICS, Constants.MAX_PDR)
         self.configured_ber_check = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.CONFIGURED_BER_CHECK)
-        self.dry_run = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.DRY_RUN)
         self.do_deisolate = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.DO_DEISOLATION)
         self.deisolate_consider_time = pdr_config.getint(Constants.CONF_ISOLATION,Constants.DEISOLATE_CONSIDER_TIME)
         self.automatic_deisolate = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.AUTOMATIC_DEISOLATE)
         self.temp_check = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.CONFIGURED_TEMP_CHECK)
         self.link_down_isolation = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.LINK_DOWN_ISOLATION)
-        self.switch_hca_isolation = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.SWITCH_TO_HOST_ISOLATION)
         self.test_mode = pdr_config.getboolean(Constants.CONF_COMMON,Constants.TEST_MODE, fallback=False)
-        self.test_iteration = 0
         # Take from Conf
-        self.logger = logger
         self.ber_intervals = Constants.BER_THRESHOLDS_INTERVALS if not self.test_mode else [[0.5 * 60, 3]]
         intervals = [x[0] for x in self.ber_intervals]
         self.min_ber_wait_time = min(intervals)
         self.max_ber_wait_time = max(intervals)
         self.max_ber_threshold = max([x[1] for x in self.ber_intervals])
 
-        self.start_time = time.time()
-        self.max_time = self.start_time
         self.ber_tele_data = pd.DataFrame(columns=[Constants.TIMESTAMP, Constants.SYMBOL_BER, Constants.PORT_NAME])
         self.speed_types = {
             "FDR": 14,
@@ -180,6 +174,7 @@ class PDRAlgorithm:
             "HDR": 50,
             "NDR": 100,
             }
+        """
         self.telemetry_counters = [
             Constants.PHY_SYMBOL_ERROR,
             Constants.RCV_PACKETS_COUNTER,
@@ -188,7 +183,7 @@ class PDRAlgorithm:
             Constants.TEMP_COUNTER,
             Constants.LNK_DOWNED_COUNTER,
         ]
-
+        """
     def apply_algorithm(self, ports_data, ports_states, ports_counters):
         """
         Detects isolation issues

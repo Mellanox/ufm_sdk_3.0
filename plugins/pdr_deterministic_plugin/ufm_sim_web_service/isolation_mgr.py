@@ -43,15 +43,10 @@ class IsolationMgr:
         self.interval = pdr_config.getint(Constants.CONF_SAMPLING, Constants.INTERVAL)
         self.max_num_isolate = pdr_config.getint(Constants.CONF_ISOLATION, Constants.MAX_NUM_ISOLATE)
         self.tmax = pdr_config.getint(Constants.CONF_METRICS, Constants.TMAX)
-        self.d_tmax = pdr_config.getint(Constants.CONF_METRICS, Constants.D_TMAX)
-        self.max_pdr = pdr_config.getfloat(Constants.CONF_METRICS, Constants.MAX_PDR)
-        self.configured_ber_check = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.CONFIGURED_BER_CHECK)
         self.dry_run = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.DRY_RUN)
         self.do_deisolate = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.DO_DEISOLATION)
         self.deisolate_consider_time = pdr_config.getint(Constants.CONF_ISOLATION,Constants.DEISOLATE_CONSIDER_TIME)
-        self.automatic_deisolate = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.AUTOMATIC_DEISOLATE)
         self.temp_check = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.CONFIGURED_TEMP_CHECK)
-        self.link_down_isolation = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.LINK_DOWN_ISOLATION)
         self.switch_hca_isolation = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.SWITCH_TO_HOST_ISOLATION)
         self.test_mode = pdr_config.getboolean(Constants.CONF_COMMON,Constants.TEST_MODE, fallback=False)
         self.test_iteration = 0
@@ -72,14 +67,6 @@ class IsolationMgr:
             "HDR": 50,
             "NDR": 100,
             }
-        self.telemetry_counters = [
-            Constants.PHY_SYMBOL_ERROR,
-            Constants.RCV_PACKETS_COUNTER,
-            Constants.RCV_ERRORS_COUNTER,
-            Constants.RCV_REMOTE_PHY_ERROR_COUNTER,
-            Constants.TEMP_COUNTER,
-            Constants.LNK_DOWNED_COUNTER,
-        ]
 
         self.exclude_list = ExcludeList(self.logger)
 
