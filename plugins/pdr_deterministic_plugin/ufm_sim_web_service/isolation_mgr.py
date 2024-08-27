@@ -414,18 +414,22 @@ class IsolationMgr:
                 t_begin = time.time()
                 self.exclude_list.refresh()
                 self.get_isolation_state()
-                if not self.test_mode:
-                    self.logger.info("Retrieving telemetry data to determine ports' states")
-                else:
-                    self.logger.info(f"Retrieving test mode telemetry data to determine ports' states: iteration {self.test_iteration}")
-                    self.test_iteration += 1
 
                 issues = None
                 try:
+                    # Get telemetry data
+                    if not self.test_mode:
+                        self.logger.info("Retrieving telemetry data to determine ports' states")
+                    else:
+                        self.logger.info(f"Retrieving test mode telemetry data to determine ports' states: iteration {self.test_iteration}")
+                        self.test_iteration += 1
+
                     ports_counters = self.ufm_client.get_telemetry(self.test_mode)
+
                     if ports_counters is None:
                         self.logger.error("Couldn't retrieve telemetry data")
                     else:
+                        # Detect ports to be isolated or deisolated
                         issues, deisolate_ports = pdr_alg.apply_algorithm(self.ports_data, self.ports_states, ports_counters)
                 except (KeyError,) as e:
                     self.logger.error(f"Failed to read information with error {e}")
@@ -447,13 +451,9 @@ class IsolationMgr:
 
                     # deal with ports that with either cause = oonoc or fixed
                     if self.do_deisolate:
-                        for port_state in list(self.ports_states.values()):
-                            state = port_state.get_state()
-                            cause = port_state.get_cause()
-                            # EZ: it is a state that say that some maintenance was done to the link 
-                            #     so need to re-evaluate if to return it to service
-                            if self.automatic_deisolate or cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED:
-                                self.eval_deisolate(port_state.name)
+                        for port_name in deisolate_ports:
+                            # TODO: deisolation logic must be reviewed
+                            self.eval_deisolate(port_name)
                     ports_updated = self.update_ports_data()
                     if ports_updated:
                         self.update_telemetry_session()

@@ -204,14 +204,14 @@ class PDRAlgorithm:
 
         # Deal with ports that with either cause = oonoc or fixed
         deisolate_ports = []
-        if self.do_deisolate:
-            for port_state in list(self.ports_states.values()):
-                state = port_state.get_state()
-                cause = port_state.get_cause()
-                # EZ: it is a state that say that some maintenance was done to the link 
-                #     so need to re-evaluate if to return it to service
-                if self.automatic_deisolate or cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED:
-                    deisolate_ports.append(port_state.name);
+        # TODO: deisolation logic must be reviewed
+        for port_state in list(self.ports_states.values()):
+            state = port_state.get_state()
+            cause = port_state.get_cause()
+            # EZ: it is a state that say that some maintenance was done to the link 
+            #     so need to re-evaluate if to return it to service
+            if self.automatic_deisolate or cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED:
+                deisolate_ports.append(port_state.name);
 
         return isolate_issues, deisolate_ports
 
