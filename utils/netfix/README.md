@@ -8,7 +8,7 @@ The current way to run it is:
 1. Install the python requirements
 2. Load Python and import the function using
 ```
- from flapping_links import get_flapping_links
+ from link_flapping import get_link_flapping
 ```
 3. Call the function with two second telemetry samples
 ```
