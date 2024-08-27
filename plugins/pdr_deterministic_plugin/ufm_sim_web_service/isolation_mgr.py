@@ -344,54 +344,6 @@ class IsolationMgr:
         if not self.test_mode:
             self.ufm_client.send_event(log_message, event_id=Constants.EXTERNAL_EVENT_NOTICE, external_event_name="Deisolating Port")
 
-    def get_rate(self, port_obj, counter_name, new_val, timestamp):
-        """
-        Calculate the rate of the counter
-        """
-        counter_delta = 0
-        if math.isclose(timestamp, port_obj.last_timestamp):
-            # Return last saved value
-            counter_delta = port_obj.counters_values.get(counter_name + "_rate", 0)
-        else:
-            old_val = port_obj.counters_values.get(counter_name)
-            if old_val and new_val > old_val:
-                counter_delta = (new_val - old_val) / (timestamp - port_obj.last_timestamp)
-
-        if math.isclose(0, counter_delta):
-            counter_delta = 0
-
-        return counter_delta
-
-    def get_rate_and_update(self, port_obj, counter_name, new_val, timestamp):
-        """
-        Calculate the rate of the counter and update the counters_values dictionary with the new value
-        """
-        # Calculate the rate
-        counter_delta = self.get_rate(port_obj, counter_name, new_val, timestamp)
-        # Update counters_values
-        port_obj.counters_values[counter_name] = new_val
-        port_obj.counters_values[counter_name + "_rate"] = counter_delta
-        port_obj.counters_values[Constants.LAST_TIMESTAMP] = timestamp
-        return counter_delta
-
-    def find_peer_row_for_port(self, port_obj, ports_counters):
-        """
-        Retrieves peer row for given port
-        """
-        if not port_obj.peer or port_obj.peer == 'N/A':
-            return None
-        peer_guid, peer_num = port_obj.peer.split('_')
-        # Fix peer guid format for future search
-        if ports_counters[Constants.NODE_GUID].iloc[0].startswith('0x') and not peer_guid.startswith('0x'):
-            peer_guid = f'0x{peer_guid}'
-        #TODO check for a way to save peer row in data structure for performance
-        peer_row_list = ports_counters.loc[(ports_counters[Constants.NODE_GUID] == peer_guid) & (ports_counters[Constants.PORT_NUMBER] == int(peer_num))]
-        if peer_row_list.empty:
-            self.logger.warning(f"Peer port {port_obj.peer} not found in ports data")
-            return None
-        peer_row = peer_row_list.iloc[0]
-        return peer_row
-
     def calc_symbol_ber_rate(self, port_name, port_speed, port_width, col_name, time_delta):
         """
         calculate the symbol BER rate for a given port given the time delta

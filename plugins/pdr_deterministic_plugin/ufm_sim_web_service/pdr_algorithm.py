@@ -486,33 +486,6 @@ class PDRAlgorithm:
         symbol_rate = self.calc_symbol_ber_rate(port_name, port_speed, port_width, Constants.SYMBOL_BER, time_delta)
         return symbol_rate
 
-    def update_port_metadata(self, port_name, port):
-        """
-        Update the metadata of a port.
-
-        Args:
-            port_name (str): The name of the port.
-            port (dict): The port information.
-
-        Returns:
-            None
-        """
-        port_obj = self.ports_data[port_name]
-        port_obj.active_speed = port.get(Constants.ACTIVE_SPEED)
-        port_obj.port_guid = port.get(Constants.SYSTEM_ID)
-        port_obj.peer = port.get(Constants.PEER)
-        port_obj.ber_tele_data = pd.DataFrame(columns=[Constants.TIMESTAMP, Constants.SYMBOL_BER])
-        if "Computer IB Port" in port.get(Constants.DESCRIPTION):
-            port_obj.port_num = 1
-            port_obj.node_type = Constants.NODE_TYPE_COMPUTER
-        else:
-            port_obj.port_num = port.get(Constants.EXTERNAL_NUMBER)
-            port_obj.node_type = Constants.NODE_TYPE_OTHER
-        port_width = port.get(Constants.WIDTH)
-        if port_width:
-            port_width = int(port_width.strip('x'))
-        port_obj.port_width = port_width
-
     def get_port_metadata(self, port_name):
         """
         Retrieves the metadata for a given port.
@@ -537,23 +510,6 @@ class PDRAlgorithm:
             if port_width:
                 port_width = int(port_width.strip('x'))
             return port_speed, port_width
-
-    def get_requested_guids(self):
-        """
-        Get the requested GUIDs and their corresponding ports.
-
-        Returns:
-            list: A list of dictionaries, where each dictionary contains the GUID and its associated ports.
-        """
-        guids = {}
-        for port in self.ports_data.values():
-            sys_guid = port.port_guid
-            if sys_guid in guids:
-                guids[sys_guid].append(port.port_num)
-            else:
-                guids[sys_guid] = [port.port_num]
-        requested_guids = [{"guid": sys_guid, "ports": ports} for sys_guid, ports in guids.items()]
-        return requested_guids
 
     def apply_algorithm(self, ports_data, ports_states, ports_counters):
         """
