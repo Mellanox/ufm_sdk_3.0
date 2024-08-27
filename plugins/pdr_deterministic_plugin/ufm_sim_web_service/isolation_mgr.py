@@ -10,132 +10,18 @@
 # provided with the software product.
 #
 import traceback
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 import time
 import http
 import configparser
-import math
-import json
 import pandas as pd
 import numpy
 from exclude_list import ExcludeList
-from plugins.pdr_deterministic_plugin.ufm_sim_web_service.pdr_algorithm import PDRAlgorithm
+from pdr_algorithm import PortData, PortState, PDRAlgorithm
 
 from constants import PDRConstants as Constants
 from ufm_communication_mgr import UFMCommunicator
 # should actually be persistent and thread safe dictionary pf PortStates
-
-class PortData(object):
-    """
-    Represents the port data.
-    """
-    def __init__(self, port_name=None, port_num=None, peer=None, node_type=None, active_speed=None, port_width=None, port_guid=None):
-        """
-        Initialize a new instance of the PortData class.
-
-        Args:
-            port_name (str): The name of the port.
-            port_num (int): The number of the port.
-            peer (str): The peer of the port.
-            node_type (str): The type of the node.
-            active_speed (str): The active speed of the port.
-            port_width (int): The width of the port.
-            port_guid (str): The GUID of the port.
-        """
-        self.counters_values = {}
-        self.node_type = node_type
-        self.peer = peer
-        self.port_name = port_name
-        self.port_num = port_num
-        self.last_timestamp = 0.0 # seconds as float
-        self.active_speed = active_speed
-        self.port_width = port_width
-        self.port_guid = port_guid
-        self.ber_tele_data = pd.DataFrame(columns=[Constants.TIMESTAMP, Constants.SYMBOL_BER])
-        self.last_symbol_ber_timestamp = None
-        self.last_symbol_ber_val = None
-
-
-
-class PortState(object):
-    """
-    Represents the state of a port.
-
-    Attributes:
-        name (str): The name of the port.
-        state (str): The current state of the port (isolated or treated).
-        cause (str): The cause of the state change (oonoc, pdr, ber).
-        maybe_fixed (bool): Indicates if the port may have been fixed.
-        change_time (datetime): The time of the last state change.
-    """
-
-    def __init__(self, name):
-        """
-        Initialize a new instance of the PortState class.
-
-        :param name: The name of the port.
-        """
-        self.name = name
-        self.state = Constants.STATE_NORMAL # isolated | treated
-        self.cause = Constants.ISSUE_INIT # oonoc, pdr, ber
-        self.maybe_fixed = False
-        self.change_time = datetime.now()
-
-    def update(self, state, cause):
-        """
-        Update the state and cause of the port.
-
-        :param state: The new state of the port.
-        :param cause: The cause of the state change.
-        """
-        self.state = state
-        self.cause = cause
-        self.change_time = datetime.now()
-
-    def get_cause(self):
-        """
-        Get the cause of the state change.
-
-        :return: The cause of the state change.
-        """
-        return self.cause
-
-    def get_state(self):
-        """
-        Get the current state of the port.
-
-        :return: The current state of the port.
-        """
-        return self.state
-
-    def get_change_time(self):
-        """
-        Get the time of the last state change.
-
-        :return: The time of the last state change.
-        """
-        return self.change_time
-
-
-class Issue(object):
-    """
-    Represents an issue that occurred on a specific port.
-
-    Attributes:
-        port (int): The port where the issue occurred.
-        cause (str): The cause of the issue.
-    """
-
-    def __init__(self, port, cause):
-        """
-        Initialize a new instance of the Issue class.
-
-        :param port: The port where the issue occurred.
-        :param cause: The cause of the issue.
-        """
-        self.cause = cause
-        self.port = port
 
 class IsolationMgr:
     '''

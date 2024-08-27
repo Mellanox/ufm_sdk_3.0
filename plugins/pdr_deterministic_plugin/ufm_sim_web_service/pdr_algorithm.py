@@ -9,14 +9,10 @@
 # This software product is governed by the End User License Agreement
 # provided with the software product.
 #
-import traceback
 from datetime import datetime
-from datetime import timedelta
 import time
-import http
 import configparser
 import math
-import json
 import pandas as pd
 import numpy
 from exclude_list import ExcludeList
@@ -54,7 +50,6 @@ class PortData(object):
         self.ber_tele_data = pd.DataFrame(columns=[Constants.TIMESTAMP, Constants.SYMBOL_BER])
         self.last_symbol_ber_timestamp = None
         self.last_symbol_ber_val = None
-
 
 
 class PortState(object):
@@ -125,7 +120,6 @@ class Issue(object):
         port (int): The port where the issue occurred.
         cause (str): The cause of the issue.
     """
-
     def __init__(self, port, cause):
         """
         Initialize a new instance of the Issue class.
@@ -135,6 +129,7 @@ class Issue(object):
         """
         self.cause = cause
         self.port = port
+
 
 class PDRAlgorithm:
     """
