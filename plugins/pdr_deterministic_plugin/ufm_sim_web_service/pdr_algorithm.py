@@ -135,8 +135,9 @@ class PDRAlgorithm:
     """
     This class is responsible for detection of ports that should be isolated or deisolated based on the telemetry data
     """
-    def __init__(self, ufm_client: UFMCommunicator, logger):
+    def __init__(self, ufm_client: UFMCommunicator, exclude_list: ExcludeList, logger):
         self.ufm_client = ufm_client
+        self.exclude_list = exclude_list
         # {port_name: PortState}
         self.ports_states = dict()
         # {port_name: telemetry_data}
@@ -187,8 +188,6 @@ class PDRAlgorithm:
             Constants.TEMP_COUNTER,
             Constants.LNK_DOWNED_COUNTER,
         ]
-
-        self.exclude_list = ExcludeList(self.logger)
 
     def apply_algorithm(self, ports_data, ports_states, ports_counters):
         """

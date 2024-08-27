@@ -408,7 +408,7 @@ class IsolationMgr:
         self.logger.info("Isolation Manager initialized, starting isolation loop")
         self.get_ports_metadata()
         self.logger.info("Retrieved ports metadata")
-        pdr_alg = PDRAlgorithm(self.ufm_client, self.logger)
+        pdr_alg = PDRAlgorithm(self.ufm_client, self.exclude_list, self.logger)
         while(True):
             try:
                 t_begin = time.time()
