@@ -274,7 +274,7 @@ def _get_suspected_real_linkdown(
     return df_linkdown, func_summary_dict
 
 
-def get_flapping_links(prev_counters_csv, cur_counters_csv):
+def get_link_flapping(prev_counters_csv, cur_counters_csv):
     """
     Entry point to the flapping links logic.
     Gets 2 telemetry sampling and returns a dataframe

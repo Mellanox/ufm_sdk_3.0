@@ -12,7 +12,7 @@ The current way to run it is:
 ```
 3. Call the function with two second telemetry samples
 ```
-get_flapping_links(prev_second_telemetry_samples, older_second_telemetry_samples)
+get_link_flapping(prev_second_telemetry_samples, older_second_telemetry_samples)
 
 ```
 
