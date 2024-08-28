@@ -14,7 +14,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV REQUIRED_UFM_VERSION=6.12.0
 
 COPY ${SRC_BASE_DIR}/ ${BASE_PATH}/${SRC_BASE_DIR}/
-COPY utils/ ${BASE_PATH}/utils/
+COPY utils/config_parser.py utils/singleton.py utils/logger.py  ${BASE_PATH}/utils/
 COPY ${SRC_BASE_DIR}/scripts/ /
 
 RUN apt-get update && apt-get upgrade -y && \
