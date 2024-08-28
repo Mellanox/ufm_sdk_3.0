@@ -10,16 +10,16 @@
 # provided with the software product.
 #
 
+import json
 import time
 from http import HTTPStatus
 from json import JSONDecodeError
-from flask import json, request
-from utils.flask_server.base_flask_api_server import BaseAPIApplication
+from api.base_aiohttp_api import BaseAiohttpAPI
 
 ERROR_INCORRECT_INPUT_FORMAT = "Incorrect input format"
 EOL = '\n'
 
-class PDRPluginAPI(BaseAPIApplication):
+class PDRPluginAPI(BaseAiohttpAPI):
     '''
     class PDRPluginAPI
     '''
@@ -31,19 +31,13 @@ class PDRPluginAPI(BaseAPIApplication):
         super(PDRPluginAPI, self).__init__()
         self.isolation_mgr = isolation_mgr
 
-
-    def _get_routes(self):
-        """
-        Map URLs to function calls
-        """
-        return {
-            self.get_excluded_ports: dict(urls=["/excluded"], methods=["GET"]),
-            self.exclude_ports: dict(urls=["/excluded"], methods=["PUT"]),
-            self.include_ports: dict(urls=["/excluded"], methods=["DELETE"])
-        }
+        # Define routes using the base class's method
+        self.add_route("GET",    "/excluded", self.get_excluded_ports)
+        self.add_route("POST",   "/excluded", self.exclude_ports)
+        self.add_route("DELETE", "/excluded", self.include_ports)
 
 
-    def get_excluded_ports(self):
+    async def get_excluded_ports(self, request):
         """
         Return ports from exclude list as comma separated port names
         """
@@ -53,7 +47,7 @@ class PDRPluginAPI(BaseAPIApplication):
         return response, HTTPStatus.OK
 
 
-    def exclude_ports(self):
+    async def exclude_ports(self, request):
         """
         Parse input ports and add them to exclude list (or just update TTL)
         Input string example: [["0c42a10300756a04_1"],["98039b03006c73ba_2",300]]
@@ -61,7 +55,7 @@ class PDRPluginAPI(BaseAPIApplication):
         """
 
         try:
-            pairs = self.get_request_data()
+            pairs = self.get_request_data(request)
         except (JSONDecodeError, ValueError):
             return ERROR_INCORRECT_INPUT_FORMAT + EOL, HTTPStatus.BAD_REQUEST
 
@@ -84,14 +78,14 @@ class PDRPluginAPI(BaseAPIApplication):
         return response, HTTPStatus.OK
 
 
-    def include_ports(self):
+    async def include_ports(self, request):
         """
         Remove ports from exclude list
         Input string: comma separated port names list
         Example: ["0c42a10300756a04_1","98039b03006c73ba_2"]
         """
         try:
-            port_names = self.get_request_data()
+            port_names = self.get_request_data(request)
         except (JSONDecodeError, ValueError):
             return ERROR_INCORRECT_INPUT_FORMAT + EOL, HTTPStatus.BAD_REQUEST
 
@@ -111,7 +105,7 @@ class PDRPluginAPI(BaseAPIApplication):
         return response, HTTPStatus.OK
 
 
-    def get_request_data(self):
+    def get_request_data(self, request):
         """
         Deserialize request json data into object
         """
