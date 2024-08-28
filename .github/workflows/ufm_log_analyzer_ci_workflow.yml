@@ -1,0 +1,24 @@
+name: Ufm log analyzer CI Workflow
+
+on: 
+  push:
+     paths:
+      - 'plugins/ufm_log_analyzer_plugin/**'
+jobs:
+  pylint:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@main
+    
+    - name: Set up Python
+      uses: actions/setup-python@main
+      with:
+        python-version: 3.9  # Specify the Python version you want to use
+    
+    - name: Install dependencies
+      run: |
+        pip install -r plugins/ufm_log_analyzer_plugin/src/loganalyze/requirements.txt
+        pip install pylint
+    - name: Run PyLint
+      run: pylint --rcfile=plugins/ufm_log_analyzer_plugin/loganalyze/.pylintrc plugins/ufm_log_analyzer_plugin/src/loganalyze
