@@ -7,3 +7,4 @@ twisted<=22.1.0
 flask_restful<=0.3.10
 tzlocal<=4.2
 jsonschema<=4.5.1
+aiohttp<=3.9.1
