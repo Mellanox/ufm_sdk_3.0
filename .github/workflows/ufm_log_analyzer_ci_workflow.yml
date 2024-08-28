@@ -21,4 +21,4 @@ jobs:
         pip install -r plugins/ufm_log_analyzer_plugin/src/loganalyze/requirements.txt
         pip install pylint
     - name: Run PyLint
-      run: pylint --rcfile=plugins/ufm_log_analyzer_plugin/loganalyze/.pylintrc plugins/ufm_log_analyzer_plugin/src/loganalyze
+      run: pylint --rcfile=plugins/ufm_log_analyzer_plugin/src/loganalyze/.pylintrc plugins/ufm_log_analyzer_plugin/src/loganalyze
