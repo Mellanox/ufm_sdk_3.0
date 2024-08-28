@@ -24,8 +24,8 @@ class BaseCollector(ABC):
     """Base class for a collector that collects data at a given interval"""
 
     def __init__(self, model: BaseModel, is_enabled: bool, interval: int):
-        if interval < 0:
-            raise RuntimeError(f"Invalid interval value {interval}. Please use non-negative values")
+        if not isinstance(interval, int) or interval < 0:
+            raise RuntimeError(f"Invalid interval value {interval}. Please use non-negative int values")
         self.model = model
         self.interval = interval
         self.is_enabled = is_enabled

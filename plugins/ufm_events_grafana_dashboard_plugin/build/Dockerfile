@@ -59,4 +59,4 @@ RUN mkdir -p ${ETC_ALTERNATIVE_PATH} && \
 # Copy Supervisor configuration file
 COPY ${SRC_BASE_DIR}/conf/supervisord.conf ${SUPERVISOR_PATH}/conf.d/
 
-CMD ["/bin/bash", "-c", "/entrypoint.sh "]
+CMD ["/bin/bash", "-c", "/entrypoint.sh"]

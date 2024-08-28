@@ -19,6 +19,7 @@ from data.listeners.base_listener import BaseListener
 from data.models.telemetry_metrics_model import TelemetryMetricsModel
 from constants import DataType, Prometheus
 from prometheus.remote_write_utils import write_from_list_metrics_in_chunks
+from utils.logger import Logger, LOG_LEVELS
 
 
 class TelemetryPrometheusExporter(BaseListener):
@@ -35,29 +36,39 @@ class TelemetryPrometheusExporter(BaseListener):
     def update_data(self):
         telemetry_model: TelemetryMetricsModel = self.data_manager.get_model_by_data_type(DataType.TELEMETRY)
         with telemetry_model.lock:
-            prometheus_labels = self.telemetry_prometheus_labels
-            prometheus_metrics = self.telemetry_prometheus_metrics
-            data = telemetry_model.last_metrics_csv
-            df = pd.read_csv(StringIO(data))
-            df.fillna('', inplace=True)
-            data_dict = df.to_dict(orient='records')
-            metrics = []
-            for row in data_dict:
-                metrics_dict = {}
-                basic_metric = {
-                    Prometheus.TIMESTAMP: int(round(row.get('timestamp', time.time() * 1000))),
-                    Prometheus.LABELS: {label: str(row.get(label, '')) for label in prometheus_labels}
-                }
-                for metric in prometheus_metrics:
-                    value = row.get(metric, None)
-                    if value is not None:
-                        metrics_dict[metric] = {
-                            **basic_metric,
-                            Prometheus.COUNTER_VALUE: value
-                        }
-                metrics.append(metrics_dict)
-
-            write_from_list_metrics_in_chunks(metrics_data=metrics,
-                                              target_id=self.prometheus_ip,
-                                              target_port=self.prometheus_port,
-                                              max_chunk_size=self.prometheus_max_chunk_size)
+            try:
+                prometheus_labels = self.telemetry_prometheus_labels
+                prometheus_metrics = self.telemetry_prometheus_metrics
+                data = telemetry_model.last_metrics_csv
+                Logger.log_message('Start processing telemetry metrics csv for export to Prometheus DB')
+                pst = time.time()
+                df = pd.read_csv(StringIO(data))
+                df.fillna('', inplace=True)
+                data_dict = df.to_dict(orient='records')
+                metrics = []
+                for row in data_dict:
+                    metrics_dict = {}
+                    basic_metric = {
+                        Prometheus.TIMESTAMP: int(round(row.get('timestamp', time.time() * 1000))),
+                        Prometheus.LABELS: {label: str(row.get(label, '')) for label in prometheus_labels}
+                    }
+                    for metric in prometheus_metrics:
+                        value = row.get(metric, None)
+                        if value is not None:
+                            metrics_dict[metric] = {
+                                **basic_metric,
+                                Prometheus.COUNTER_VALUE: value
+                            }
+                    metrics.append(metrics_dict)
+                pet = time.time()
+                proc_time = round((pet - pst), 2)
+                Logger.log_message(f'Processing telemetry metrics csv for export to '
+                                   f'Prometheus DB for {len(metrics)} ports'
+                                   f' completed successfully in {proc_time}')
+                write_from_list_metrics_in_chunks(metrics_data=metrics,
+                                                  target_id=self.prometheus_ip,
+                                                  target_port=self.prometheus_port,
+                                                  max_chunk_size=self.prometheus_max_chunk_size)
+            except Exception as ex:
+                Logger.log_message(f'Failed to export telemetry metrics csv to Prometheus DB: {str(ex)}',
+                                   LOG_LEVELS.ERROR)
