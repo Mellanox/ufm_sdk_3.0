@@ -36,6 +36,12 @@ class BaseAiohttpAPI:
         """
         self.app.router.add_route(method, path, handler)
 
+    def create_response(self, data):
+        """
+        Create response object.
+        """
+        return web.json_response(data)
+
 
 class BaseAiohttpServer:
     """

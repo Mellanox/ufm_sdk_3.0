@@ -44,7 +44,7 @@ class PDRPluginAPI(BaseAiohttpAPI):
         items = self.isolation_mgr.exclude_list.items()
         formatted_items = [f"{item.port_name}: {'infinite' if item.ttl_seconds == 0 else int(max(0, item.remove_time - time.time()))}" for item in items]
         response = EOL.join(formatted_items) + ('' if not formatted_items else EOL)
-        return response, HTTPStatus.OK
+        return self.create_response(response)
 
 
     async def exclude_ports(self, request):
@@ -74,8 +74,8 @@ class PDRPluginAPI(BaseAiohttpAPI):
                     response += f"Port {port_name} added to exclude list for {ttl} seconds"
 
                 response += self.get_port_warning(port_name) + EOL
-    
-        return response, HTTPStatus.OK
+
+        return self.create_response(response)
 
 
     async def include_ports(self, request):
@@ -102,7 +102,7 @@ class PDRPluginAPI(BaseAiohttpAPI):
 
             response += self.get_port_warning(port_name) + EOL
 
-        return response, HTTPStatus.OK
+        return self.create_response(response)
 
 
     def get_request_data(self, request):
