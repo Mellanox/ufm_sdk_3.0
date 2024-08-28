@@ -55,4 +55,3 @@ def delete_files_by_types(folder:str, file_types:set[str]):
                 os.remove(cur_file)
             except Exception as e:
                 log.LOGGER.debug(f"Error deleting SVG files: {e}")
-
