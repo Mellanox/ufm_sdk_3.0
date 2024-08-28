@@ -33,7 +33,7 @@ class PDRPluginAPI(BaseAiohttpAPI):
 
         # Define routes using the base class's method
         self.add_route("GET",    "/excluded", self.get_excluded_ports)
-        self.add_route("POST",   "/excluded", self.exclude_ports)
+        self.add_route("PUT",    "/excluded", self.exclude_ports)
         self.add_route("DELETE", "/excluded", self.include_ports)
 
 
@@ -44,7 +44,7 @@ class PDRPluginAPI(BaseAiohttpAPI):
         items = self.isolation_mgr.exclude_list.items()
         formatted_items = [f"{item.port_name}: {'infinite' if item.ttl_seconds == 0 else int(max(0, item.remove_time - time.time()))}" for item in items]
         response = EOL.join(formatted_items) + ('' if not formatted_items else EOL)
-        return self.create_response(response)
+        return self.web_response(response, HTTPStatus.OK)
 
 
     async def exclude_ports(self, request):
@@ -55,12 +55,12 @@ class PDRPluginAPI(BaseAiohttpAPI):
         """
 
         try:
-            pairs = self.get_request_data(request)
+            pairs = await self.get_request_data(request)
         except (JSONDecodeError, ValueError):
-            return ERROR_INCORRECT_INPUT_FORMAT + EOL, HTTPStatus.BAD_REQUEST
+            return self.web_response(ERROR_INCORRECT_INPUT_FORMAT + EOL, HTTPStatus.BAD_REQUEST)
 
         if not isinstance(pairs, list) or not all(isinstance(pair, list) for pair in pairs):
-            return ERROR_INCORRECT_INPUT_FORMAT + EOL, HTTPStatus.BAD_REQUEST
+            return self.web_response(ERROR_INCORRECT_INPUT_FORMAT + EOL, HTTPStatus.BAD_REQUEST)
 
         response = ""
         for pair in pairs:
@@ -75,7 +75,7 @@ class PDRPluginAPI(BaseAiohttpAPI):
 
                 response += self.get_port_warning(port_name) + EOL
 
-        return self.create_response(response)
+        return self.web_response(response, HTTPStatus.OK)
 
 
     async def include_ports(self, request):
@@ -85,12 +85,12 @@ class PDRPluginAPI(BaseAiohttpAPI):
         Example: ["0c42a10300756a04_1","98039b03006c73ba_2"]
         """
         try:
-            port_names = self.get_request_data(request)
+            port_names = await self.get_request_data(request)
         except (JSONDecodeError, ValueError):
-            return ERROR_INCORRECT_INPUT_FORMAT + EOL, HTTPStatus.BAD_REQUEST
+            return self.web_response(ERROR_INCORRECT_INPUT_FORMAT + EOL, HTTPStatus.BAD_REQUEST)
 
         if not isinstance(port_names, list):
-            return ERROR_INCORRECT_INPUT_FORMAT + EOL, HTTPStatus.BAD_REQUEST
+            return self.web_response(ERROR_INCORRECT_INPUT_FORMAT + EOL, HTTPStatus.BAD_REQUEST)
 
         response = ""
         for port_name in port_names:
@@ -102,19 +102,25 @@ class PDRPluginAPI(BaseAiohttpAPI):
 
             response += self.get_port_warning(port_name) + EOL
 
-        return self.create_response(response)
+        return self.web_response(response, HTTPStatus.OK)
 
 
-    def get_request_data(self, request):
+    async def get_request_data(self, request):
         """
-        Deserialize request json data into object
+        Deserialize request data into object for aiohttp
         """
-        if request.is_json:
-            # Directly convert JSON data into Python object
-            return request.get_json()
-        else:
-            # Attempt to load plain data text as JSON
-            return json.loads(request.get_data(as_text=True))
+        try:
+            # Try to get JSON data
+            return await request.json()
+        except json.JSONDecodeError:
+            # Try to get plain text data
+            text = await request.text()
+            try:
+                # Try to parse the text as JSON
+                return json.loads(text)
+            except json.JSONDecodeError:
+                # Return the raw text data
+                return text
 
 
     def fix_port_name(self, port_name):
