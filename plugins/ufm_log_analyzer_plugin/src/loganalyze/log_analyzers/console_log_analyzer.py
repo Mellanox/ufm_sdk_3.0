@@ -25,6 +25,7 @@ class ConsoleLogAnalyzer(BaseAnalyzer):
         self.fix_lines_with_no_timestamp(logs_csvs)
         super().__init__(logs_csvs, hours, dest_image_path, sort_timestamp)
         self._log_data_sorted.dropna(subset=["data"], inplace=True)
+        self._funcs_for_analysis = {self.print_exceptions_per_time_count}
 
     def _get_exceptions(self):
         error_data = self._log_data_sorted[self._log_data_sorted["type"] == "Error"][
@@ -53,18 +54,16 @@ class ConsoleLogAnalyzer(BaseAnalyzer):
     def print_exceptions_per_time_count(self):
         error_data = self._log_data_sorted[self._log_data_sorted["type"] == "Error"]
         errors_per_hour = error_data.groupby(DataConstants.AGGREGATIONTIME).size()
-        images_created = self._plot_and_save_data_based_on_timestamp(
+        self._plot_and_save_data_based_on_timestamp(
             errors_per_hour,
             "Time",
             "Amount of exceptions",
             "Exceptions count",
         )
-        return images_created
 
     def full_analysis(self):
         """
         Returns a list of all the graphs created and their title
         """
-        created_images = self.print_exceptions_per_time_count()
         self.print_exceptions()
-        return created_images if len(created_images) > 0 else []
+        return super().full_analysis()

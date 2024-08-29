@@ -26,6 +26,7 @@ class RestApiAnalyzer(BaseAnalyzer):
             .apply(self.split_url_to_uri_and_query_params).apply(pd.Series)
         self._have_duration = self._have_data_in_column('duration')
         self._have_user = self._have_data_in_column('user')
+        self._funcs_for_analysis = {self.analyze_endpoints_freq}
 
     @staticmethod
     def split_url_to_uri_and_query_params(url):
@@ -58,13 +59,9 @@ class RestApiAnalyzer(BaseAnalyzer):
                                              values='amount_per_uri').fillna(0)
         data_to_show = data_to_show[top_x_uris]
 
-        return self._plot_and_save_pivot_data_in_bars(data_to_show,
+        self._plot_and_save_pivot_data_in_bars(data_to_show,
                                                       "time",
                                                       "requests count",
                                                       f"Top {endpoints_count_to_show} "\
                                                         "requests count over time",
                                                       "legend")
-
-    def full_analysis(self):
-        created_images = self.analyze_endpoints_freq()
-        return created_images if len(created_images) > 0 else []

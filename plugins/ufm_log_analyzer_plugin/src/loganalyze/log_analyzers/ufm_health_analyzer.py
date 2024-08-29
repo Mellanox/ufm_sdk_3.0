@@ -24,6 +24,7 @@ class UFMHealthAnalyzer(BaseAnalyzer):
         self._failed_tests_data = self._log_data_sorted[
             self._log_data_sorted["test_status"] != "succeeded"
         ]
+        self._funcs_for_analysis={self.print_failed_tests_per_hour}
 
     def top_failed_tests_during_dates(self):
         data = (
@@ -58,18 +59,10 @@ class UFMHealthAnalyzer(BaseAnalyzer):
         pivot_failed_by_time = grouped_failed_only_relevant_by_time.pivot(
             index=DataConstants.AGGREGATIONTIME, columns="test_name", values="count"
         ).fillna(0)
-        graph_images = self._plot_and_save_pivot_data_in_bars(
+        self._plot_and_save_pivot_data_in_bars(
             pivot_failed_by_time,
             "Time",
             "Number of failures",
             "UFM Health failed tests",
             "test_name",
         )
-        return graph_images
-
-    def full_analysis(self):
-        """
-        Returns a list of all the graphs created and their title
-        """
-        created_images = self.print_failed_tests_per_hour()
-        return created_images if len(created_images) > 0 else []
