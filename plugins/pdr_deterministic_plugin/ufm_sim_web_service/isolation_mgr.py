@@ -134,7 +134,7 @@ class IsolationMgr:
                 self.ports_states.pop(port_name)
             return
         # we need some time after the change in state
-        elif datetime.now() >= self.ports_states[port_name].get_change_time() + timedelta(seconds=self.deisolate_consider_time):
+        if datetime.now() >= self.ports_states[port_name].get_change_time() + timedelta(seconds=self.deisolate_consider_time):
             port_obj = self.ports_data.get(port_name)
             port_state = self.ports_states.get(port_name)
             if port_state.cause == Constants.ISSUE_BER:
