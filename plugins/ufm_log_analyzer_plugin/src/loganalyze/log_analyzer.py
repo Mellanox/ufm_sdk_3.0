@@ -58,7 +58,12 @@ LOGS_TO_EXTRACT = [
     "ufm.log",
     "ibdiagnet2.log",
     "console.log",
-    "rest_api.log"
+    # "rest_api.log"
+    "secondary_1w_20240604055416.gz"
+]
+
+DIRECTORIES_TO_EXTRACT = [
+    "telemetry_samples"
 ]
 
 def run_both_functions(parser_func, action_func, save_func):
@@ -275,7 +280,7 @@ if __name__ == "__main__":
             extractor = DumpFilesExtractor(args.location)
 
         logs_to_work_with, failed_extract = extractor.extract_files(
-            full_logs_list, args.destination
+            full_logs_list, DIRECTORIES_TO_EXTRACT, args.destination
         )
 
         if len(failed_extract) > 0:
@@ -351,7 +356,6 @@ if __name__ == "__main__":
         files_types_to_delete = set()
         files_types_to_delete.add("png") #png images created for PDF report
         files_types_to_delete.add("log") #logs taken from the logs
-        files_types_to_delete.add("gz") # Zipped logs taken from the logs
         delete_files_by_types(args.destination, files_types_to_delete)
         if args.show_output:
             if platform.system() == "Windows":
