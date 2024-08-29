@@ -10,12 +10,10 @@
 # provided with the software product.
 #
 import traceback
-from datetime import datetime, timedelta
 import time
 import http
 import configparser
 import pandas as pd
-import numpy
 from exclude_list import ExcludeList
 from pdr_algorithm import PortData, PortState, PDRAlgorithm
 
@@ -42,31 +40,13 @@ class IsolationMgr:
         # Take from Conf
         self.interval = pdr_config.getint(Constants.CONF_SAMPLING, Constants.INTERVAL)
         self.max_num_isolate = pdr_config.getint(Constants.CONF_ISOLATION, Constants.MAX_NUM_ISOLATE)
-        self.tmax = pdr_config.getint(Constants.CONF_METRICS, Constants.TMAX)
-        self.dry_run = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.DRY_RUN)
-        self.do_deisolate = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.DO_DEISOLATION)
-        self.deisolate_consider_time = pdr_config.getint(Constants.CONF_ISOLATION,Constants.DEISOLATE_CONSIDER_TIME)
-        self.temp_check = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.CONFIGURED_TEMP_CHECK)
-        self.switch_hca_isolation = pdr_config.getboolean(Constants.CONF_ISOLATION,Constants.SWITCH_TO_HOST_ISOLATION)
-        self.test_mode = pdr_config.getboolean(Constants.CONF_COMMON,Constants.TEST_MODE, fallback=False)
-        self.test_iteration = 0
-        # Take from Conf
-        self.logger = logger
-        self.ber_intervals = Constants.BER_THRESHOLDS_INTERVALS if not self.test_mode else [[0.5 * 60, 3]]
-        intervals = [x[0] for x in self.ber_intervals]
-        self.min_ber_wait_time = min(intervals)
-        self.max_ber_wait_time = max(intervals)
-        self.max_ber_threshold = max([x[1] for x in self.ber_intervals])
+        self.dry_run = pdr_config.getboolean(Constants.CONF_ISOLATION, Constants.DRY_RUN)
+        self.do_deisolate = pdr_config.getboolean(Constants.CONF_ISOLATION, Constants.DO_DEISOLATION)
+        self.switch_hca_isolation = pdr_config.getboolean(Constants.CONF_ISOLATION, Constants.SWITCH_TO_HOST_ISOLATION)
+        self.test_mode = pdr_config.getboolean(Constants.CONF_COMMON, Constants.TEST_MODE, fallback=False)
 
-        self.start_time = time.time()
-        self.max_time = self.start_time
-        self.ber_tele_data = pd.DataFrame(columns=[Constants.TIMESTAMP, Constants.SYMBOL_BER, Constants.PORT_NAME])
-        self.speed_types = {
-            "FDR": 14,
-            "EDR": 25,
-            "HDR": 50,
-            "NDR": 100,
-            }
+        self.test_iteration = 0
+        self.logger = logger
 
         self.exclude_list = ExcludeList(self.logger)
 
@@ -133,20 +113,6 @@ class IsolationMgr:
             if self.ports_states.get(port_name):
                 self.ports_states.pop(port_name)
             return
-        # we need some time after the change in state
-        if datetime.now() >= self.ports_states[port_name].get_change_time() + timedelta(seconds=self.deisolate_consider_time):
-            port_obj = self.ports_data.get(port_name)
-            port_state = self.ports_states.get(port_name)
-            if port_state.cause == Constants.ISSUE_BER:
-                # check if we are still above the threshold
-                symbol_ber_rate = self.calc_ber_rates(port_name, port_obj.active_speed, port_obj.port_width, self.max_ber_wait_time + 1)
-                if symbol_ber_rate and symbol_ber_rate > self.max_ber_threshold:
-                    cause = Constants.ISSUE_BER
-                    self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
-                    return
-        else:
-            # too close to state change
-            return
 
         # port is clean now - de-isolate it
         # using UFM "mark as healthy" API - PUT /ufmRestV2/app/unhealthy_ports 
@@ -166,56 +132,6 @@ class IsolationMgr:
         self.logger.warning(log_message)
         if not self.test_mode:
             self.ufm_client.send_event(log_message, event_id=Constants.EXTERNAL_EVENT_NOTICE, external_event_name="Deisolating Port")
-
-    def calc_symbol_ber_rate(self, port_name, port_speed, port_width, col_name, time_delta):
-        """
-        calculate the symbol BER rate for a given port given the time delta
-        """
-        try:
-            if port_speed != "NDR":
-                # BER calculations is only relevant for NDR
-                return 0
-            port_obj  = self.ports_data.get(port_name)
-            ber_data = port_obj.ber_tele_data
-            if not port_obj.last_symbol_ber_val or ber_data.empty:
-                return 0
-            # Calculate the adjusted time delta, rounded up to the nearest sample interval
-            adjusted_time_delta = numpy.ceil(time_delta / self.interval) * self.interval
-
-            compare_timestamp = port_obj.last_symbol_ber_timestamp - adjusted_time_delta
-            # Find the sample closest to, but not less than, the calculated compare_timestamp
-            comparison_df = ber_data[ber_data[Constants.TIMESTAMP] <= compare_timestamp]
-            if comparison_df.empty:
-                return 0
-
-            comparison_idx = comparison_df[Constants.TIMESTAMP].idxmax()
-            comparison_sample = comparison_df.loc[comparison_idx]
-
-            # Calculate the delta of 'symbol_ber'
-            delta = port_obj.last_symbol_ber_val - comparison_sample[Constants.SYMBOL_BER]
-            actual_speed = self.speed_types.get(port_speed, 100000)
-            return delta / ((port_obj.last_symbol_ber_timestamp - comparison_df.loc[comparison_idx][Constants.TIMESTAMP]) * actual_speed * port_width * 1024 * 1024 * 1024)
-
-        except Exception as e:
-            self.logger.error(f"Error calculating {col_name}, error: {e}")
-            return 0
-
-    def calc_ber_rates(self, port_name, port_speed, port_width, time_delta):
-        """
-        Calculate the Bit Error Rate (BER) rates for a given port.
-
-        Args:
-            port_name (str): The name of the port.
-            port_speed (int): The speed of the port in Gbps.
-            port_width (int): The width of the port in bits.
-            time_delta (float): The time difference for calculating the BER rates.
-
-        Returns:
-            float: The symbol rate.
-
-        """
-        symbol_rate = self.calc_symbol_ber_rate(port_name, port_speed, port_width, Constants.SYMBOL_BER, time_delta)
-        return symbol_rate
 
     # called first time to get all the metadata of the telemetry.
     def get_ports_metadata(self):
@@ -284,31 +200,6 @@ class IsolationMgr:
                     self.update_port_metadata(port_name, port)
                     ports_updated = True
         return ports_updated
-
-    def get_port_metadata(self, port_name):
-        """
-        Retrieves the metadata for a given port.
-
-        Args:
-            port_name (str): The name of the port.
-
-        Returns:
-            tuple: A tuple containing the port speed and width.
-
-        Raises:
-            None
-        """
-        if self.test_mode:
-            # all the switches have the same data for the testing
-            return "NDR", 4
-        meta_data = self.ufm_client.get_port_metadata(port_name)
-        if meta_data and len(meta_data) > 0:
-            port_data = meta_data[0]
-            port_speed = port_data.get(Constants.ACTIVE_SPEED)
-            port_width = port_data.get(Constants.WIDTH)
-            if port_width:
-                port_width = int(port_width.strip('x'))
-            return port_speed, port_width
     
     def get_isolation_state(self):
         """

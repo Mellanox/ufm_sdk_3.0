@@ -9,12 +9,11 @@
 # This software product is governed by the End User License Agreement
 # provided with the software product.
 #
-from datetime import datetime
-import time
 import configparser
 import math
 import pandas as pd
 import numpy
+from datetime import datetime, timedelta
 from exclude_list import ExcludeList
 
 from constants import PDRConstants as Constants
@@ -200,37 +199,58 @@ class PDRAlgorithm:
 
         # Deal with ports that with either cause = oonoc or fixed
         deisolate_ports = []
-        # TODO: deisolation logic must be reviewed
         for port_state in list(self.ports_states.values()):
-            port_name = port_state.name
-            # We don't deisolate those out of NOC
-            if self.is_out_of_operating_conf(port_name):
-                continue
-            state = port_state.get_state()
-            cause = port_state.get_cause()
-            # EZ: it is a state that say that some maintenance was done to the link 
-            #     so need to re-evaluate if to return it to service
-            if self.automatic_deisolate or cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED:
-                deisolate_ports.append(port_name);
+            if self.should_deisolate(port_state):
+                deisolate_ports.append(port_state.name);
 
         return isolate_issues, deisolate_ports
 
+    def should_deisolate(self, port_state):
+        state = port_state.get_state()
+        cause = port_state.get_cause()
+        # EZ: it is a state that say that some maintenance was done to the link 
+        #     so need to re-evaluate if to return it to service
+        if not (self.automatic_deisolate or cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED):
+            return False
+        
+        # We don't deisolate those out of NOC
+        port_name = port_state.name
+        if self.is_out_of_operating_conf(port_name):
+            return False
+
+        if datetime.now() < self.ports_states[port_name].get_change_time() + timedelta(seconds=self.deisolate_consider_time):
+            # Too close to state change
+            return False
+
+        # TODO: check if it can be moved into BER issue detection
+        port_obj = self.ports_data.get(port_name)
+        port_state = self.ports_states.get(port_name)
+        if port_state.cause == Constants.ISSUE_BER:
+            # Check if we are still above the threshold
+            symbol_ber_rate = self.calc_ber_rates(port_name, port_obj.active_speed, port_obj.port_width, self.max_ber_wait_time + 1)
+            if symbol_ber_rate and symbol_ber_rate > self.max_ber_threshold:
+                cause = Constants.ISSUE_BER
+                self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
+                return False
+
+        return True
+
     def calc_max_ber_wait_time(self, min_threshold):
-            """
-            Calculates the maximum wait time for Bit Error Rate (BER) based on the given minimum threshold.
+        """
+        Calculates the maximum wait time for Bit Error Rate (BER) based on the given minimum threshold.
 
-            Args:
-                min_threshold (float): The minimum threshold for BER.
+        Args:
+            min_threshold (float): The minimum threshold for BER.
 
-            Returns:
-                float: The maximum wait time in seconds.
-            """
-            # min speed EDR = 32 Gb/s
-            min_speed, min_width = 32 * 1024 * 1024 * 1024, 1
-            min_port_rate = min_speed * min_width
-            min_bits = float(format(float(min_threshold), '.0e').replace('-', ''))
-            min_sec_to_wait = min_bits / min_port_rate
-            return min_sec_to_wait
+        Returns:
+            float: The maximum wait time in seconds.
+        """
+        # min speed EDR = 32 Gb/s
+        min_speed, min_width = 32 * 1024 * 1024 * 1024, 1
+        min_port_rate = min_speed * min_width
+        min_bits = float(format(float(min_threshold), '.0e').replace('-', ''))
+        min_sec_to_wait = min_bits / min_port_rate
+        return min_sec_to_wait
 
     def get_rate(self, port_obj, counter_name, new_val, timestamp):
         """
