@@ -184,6 +184,7 @@ class PDRAlgorithm:
             Constants.LNK_DOWNED_COUNTER,
         ]
         """
+
     def apply_algorithm(self, ports_data, ports_states, ports_counters):
         """
         Detects isolation issues
@@ -201,12 +202,16 @@ class PDRAlgorithm:
         deisolate_ports = []
         # TODO: deisolation logic must be reviewed
         for port_state in list(self.ports_states.values()):
+            port_name = port_state.name
+            # We don't deisolate those out of NOC
+            if self.is_out_of_operating_conf(port_name):
+                continue
             state = port_state.get_state()
             cause = port_state.get_cause()
             # EZ: it is a state that say that some maintenance was done to the link 
             #     so need to re-evaluate if to return it to service
             if self.automatic_deisolate or cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED:
-                deisolate_ports.append(port_state.name);
+                deisolate_ports.append(port_name);
 
         return isolate_issues, deisolate_ports
 
@@ -426,6 +431,9 @@ class PDRAlgorithm:
                 issues[port_name] = link_downed_issue
             elif ber_issue:
                 issues[port_name] = ber_issue
+            # If out of operating conditions we'll overwrite the cause
+            if self.temp_check and self.is_out_of_operating_conf(port_name):
+                issues[port_name] = Constants.ISSUE_OONOC
         return issues
 
     def calc_symbol_ber_rate(self, port_name, port_speed, port_width, col_name, time_delta):
@@ -477,6 +485,25 @@ class PDRAlgorithm:
         """
         symbol_rate = self.calc_symbol_ber_rate(port_name, port_speed, port_width, Constants.SYMBOL_BER, time_delta)
         return symbol_rate
+
+    def is_out_of_operating_conf(self, port_name):
+        """
+        Checks if a port is out of operating configuration based on its temperature.
+
+        Args:
+            port_name (str): The name of the port to check.
+
+        Returns:
+            bool: True if the port is out of operating configuration, False otherwise.
+        """
+        port_obj = self.ports_data.get(port_name)
+        if not port_obj:
+            self.logger.warning(f"Port {port_name} not found in ports data in calculation of oonoc port")
+            return
+        temp = port_obj.counters_values.get(Constants.TEMP_COUNTER)
+        if temp and temp > self.tmax:
+            return True
+        return False
 
     def get_port_metadata(self, port_name):
         """

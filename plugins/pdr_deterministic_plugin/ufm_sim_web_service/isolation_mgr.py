@@ -70,25 +70,6 @@ class IsolationMgr:
 
         self.exclude_list = ExcludeList(self.logger)
 
-    def is_out_of_operating_conf(self, port_name):
-        """
-        Checks if a port is out of operating configuration based on its temperature.
-
-        Args:
-            port_name (str): The name of the port to check.
-
-        Returns:
-            bool: True if the port is out of operating configuration, False otherwise.
-        """
-        port_obj = self.ports_data.get(port_name)
-        if not port_obj:
-            self.logger.warning(f"Port {port_name} not found in ports data in calculation of oonoc port")
-            return
-        temp = port_obj.counters_values.get(Constants.TEMP_COUNTER)
-        if temp and temp > self.tmax:
-            return True
-        return False
-
     def eval_isolation(self, port_name, cause):
         """
         Evaluates the isolation of a port based on the given port name and cause.
@@ -116,9 +97,6 @@ class IsolationMgr:
         if port_obj.node_type == Constants.NODE_TYPE_COMPUTER and not self.switch_hca_isolation:
             self.logger.info(f"Port {port_name} is a computer port. skipping...")
             return
-        # if out of operating conditions we ignore the cause
-        if self.temp_check and self.is_out_of_operating_conf(port_name):
-            cause = Constants.ISSUE_OONOC
 
         if not self.dry_run:
             ret = self.ufm_client.isolate_port(port_name)
@@ -154,11 +132,6 @@ class IsolationMgr:
         if not port_name in self.ufm_latest_isolation_state and not self.dry_run:
             if self.ports_states.get(port_name):
                 self.ports_states.pop(port_name)
-            return
-        # we dont return those out of NOC
-        if self.is_out_of_operating_conf(port_name):
-            cause = Constants.ISSUE_OONOC
-            self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
             return
         # we need some time after the change in state
         elif datetime.now() >= self.ports_states[port_name].get_change_time() + timedelta(seconds=self.deisolate_consider_time):
