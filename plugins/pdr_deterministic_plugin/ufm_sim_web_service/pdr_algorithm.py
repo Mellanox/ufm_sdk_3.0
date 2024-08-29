@@ -218,19 +218,18 @@ class PDRAlgorithm:
         if self.is_out_of_operating_conf(port_name):
             return False
 
-        if datetime.now() < self.ports_states[port_name].get_change_time() + timedelta(seconds=self.deisolate_consider_time):
+        if datetime.now() < port_state.get_change_time() + timedelta(seconds=self.deisolate_consider_time):
             # Too close to state change
             return False
 
         # TODO: check if it can be moved into BER issue detection
         port_obj = self.ports_data.get(port_name)
-        port_state = self.ports_states.get(port_name)
         if port_state.cause == Constants.ISSUE_BER:
             # Check if we are still above the threshold
             symbol_ber_rate = self.calc_ber_rates(port_name, port_obj.active_speed, port_obj.port_width, self.max_ber_wait_time + 1)
             if symbol_ber_rate and symbol_ber_rate > self.max_ber_threshold:
                 cause = Constants.ISSUE_BER
-                self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
+                port_state.update(Constants.STATE_ISOLATED, cause)
                 return False
 
         return True
