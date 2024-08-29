@@ -46,6 +46,7 @@ from loganalyze.log_analyzers.ibdiagnet_log_analyzer import IBDIAGNETLogAnalyzer
 from loganalyze.log_analyzers.events_log_analyzer import EventsLogAnalyzer
 from loganalyze.log_analyzers.console_log_analyzer import ConsoleLogAnalyzer
 from loganalyze.log_analyzers.rest_api_log_analyzer import RestApiAnalyzer
+from loganalyze.log_analyzers.link_flapping_analyzer import LinkFlappingAnalyzer
 
 from loganalyze.pdf_creator import PDFCreator
 from loganalyze.utils.common import delete_files_by_types
@@ -144,17 +145,17 @@ def sorting_logs(log_path):
     return count
 
 
-def get_csvs_in_dest(location: str, base_name: str, extraction_level: int):
+def get_files_in_dest_by_type(location: str, base_name: str, extraction_level: int, type="csv"):
     """
     Return a list of all the CSV files that were parsed and part of the current
     extraction level requested
     """
-    csv_files = glob.glob(os.path.join(location, "*.csv"))
-    matched_files = [file for file in csv_files if base_name in os.path.basename(file)]
+    files_by_type = glob.glob(os.path.join(location, f"*.{type}"))
+    matched_files = [file for file in files_by_type if base_name in os.path.basename(file)]
     full_paths = [os.path.abspath(file) for file in matched_files]
-    sorted_csvs = sorted(full_paths, key=sorting_logs)
-    sliced_csvs = sorted_csvs[: (extraction_level + 1)]
-    return sliced_csvs
+    sorted_files = sorted(full_paths, key=sorting_logs)
+    sliced_files = sorted_files[: (extraction_level + 1)]
+    return sliced_files
 
 
 def parse_args():
@@ -252,7 +253,7 @@ def create_analyzer(parsed_args, full_extracted_logs_list,
     Returns the created analyzer
     """
     if log_name in full_extracted_logs_list:
-        log_csvs = get_csvs_in_dest(parsed_args.destination, log_name, parsed_args.extract_level)
+        log_csvs = get_files_in_dest_by_type(parsed_args.destination, log_name, parsed_args.extract_level)
         analyzer = analyzer_clc(log_csvs, parsed_args.hours, parsed_args.destination)
         ufm_top_analyzer_obj.add_analyzer(analyzer)
         return analyzer
@@ -325,6 +326,10 @@ if __name__ == "__main__":
 
         rest_api_log_analyzer = partial_create_analyzer(log_name="rest_api.log",
                                                         analyzer_clc=RestApiAnalyzer)
+        sampled_csv = get_files_in_dest_by_type(args.destination, "secondary_", 1000, "gz")
+        print(f"sampled csv {sampled_csv}")
+        links_flapping_analyzer = LinkFlappingAnalyzer(sampled_csv, args.destination)
+        ufm_top_analyzer.add_analyzer(links_flapping_analyzer)
         end = time.perf_counter()
         log.LOGGER.debug(f"Took {end-start:.3f} to load the parsed data")
 
