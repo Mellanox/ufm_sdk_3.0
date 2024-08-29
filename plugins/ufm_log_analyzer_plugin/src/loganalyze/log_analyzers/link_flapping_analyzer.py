@@ -37,22 +37,29 @@ class LinkFlappingAnalyzer(BaseImageCreator):
                 if match:
                     interval_time = match.group(1)
                     date_time_str = match.group(2)
-    
+
                     # Convert the date_time string to a datetime object
                     date_time = datetime.strptime(date_time_str, TIME_PATTERN)
                     self._mapped_samples[interval_time][date_time] = sample_file
                 else:
                     log.LOGGER.debug(f"File {file_name} cannot be used for links flapping")
-            except Exception as e:
-                log.LOGGER.debug(f"Error while working file {file_name} for links flapping")
+            except FileNotFoundError:
+                log.LOGGER.debug(f"File {sample_file} does not exist")
+            except re.error:
+                log.LOGGER.debug(f"Invalid regular expression pattern {FILE_NAME_PATTERN}")
+            except ValueError:
+                log.LOGGER.debug(f"Invalid date/time format {date_time_str}")
+            except KeyError:
+                log.LOGGER.debug(f"Invalid interval time {interval_time}")
         #Sorting the inner dict so the first item would be the last timestamp
-        sorted_data = {key: sorted(value.items(), key=lambda x: x[0], reverse=True) for key, value in self._mapped_samples.items()}
+        sorted_data = {key: sorted(value.items(),
+                                   key=lambda x: x[0],
+                                   reverse=True) for key, value in self._mapped_samples.items()}
         self._mapped_samples = {key: dict(value) for key, value in sorted_data.items()}
 
     def ungz_to_csv(self, file_path):
         # Ensure the input file has a .gz extension
         if not file_path.endswith('.gz'):
-            print(f"Error: {file_path} is not a .gz file.")
             return ""
 
         # Create the output file path by replacing .gz with .csv
@@ -68,15 +75,16 @@ class LinkFlappingAnalyzer(BaseImageCreator):
     def get_link_flapping_per_interval(self, interval='1d'):
         telemetry_sample_files = self._mapped_samples.get(interval)
         if len(telemetry_sample_files) < 2:
-            log.LOGGER.warn(f"Can't run link flapping logic for {interval}, not enoght samples")
+            log.LOGGER.error(f"Can't run link flapping logic for {interval}, not enoght samples")
             return
         print(f"ALLLLL {telemetry_sample_files}")
         first_two_items = list(islice(telemetry_sample_files.items(), 2))
         t1, latest_sample_gz = first_two_items[0]
         t2, older_sample_gz = first_two_items[1]
-        print(f"BOAZ TIME {t1} vs {t2}")
+        print(f"BOAZ TIME {t1}vs {t2}")
         # Now that we know which files to use, un gz them
-        link_flapping = get_link_flapping(self.ungz_to_csv(older_sample_gz), self.ungz_to_csv(latest_sample_gz))
+        link_flapping = get_link_flapping(self.ungz_to_csv(older_sample_gz),
+                                          self.ungz_to_csv(latest_sample_gz))
         columns_to_keep =['link_hash_id', 'estimated_time']
         link_flapping = link_flapping.loc[:, columns_to_keep]
         # Drop duplicate columns

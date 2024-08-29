@@ -24,7 +24,8 @@ class EventsLogAnalyzer(BaseAnalyzer):
     def __init__(self, logs_csvs: List[str], hours: int, dest_image_path):
         super().__init__(logs_csvs, hours, dest_image_path)
         self._supported_log_levels = ["CRITICAL", "WARNING", "INFO", "MINOR"]
-        self._funcs_for_analysis = {self.print_critical_events_per_hour, self.print_link_up_down_count_per_hour}
+        self._funcs_for_analysis = {self.print_critical_events_per_hour,
+                                    self.print_link_up_down_count_per_hour}
 
     # Function to split "object_id" into "device" and "description"
     def _split_switch_object_id(self, row):
@@ -73,7 +74,8 @@ class EventsLogAnalyzer(BaseAnalyzer):
     def print_critical_events_per_hour(self):
         critical_events = self.get_events_by_log_level("CRITICAL")
         critical_events_grouped_by_time = (
-            critical_events.groupby([DataConstants.AGGREGATIONTIME, "event"]).size().reset_index(name="count")
+            critical_events.groupby([DataConstants.AGGREGATIONTIME, "event"])\
+                .size().reset_index(name="count")
         )
 
         pivot_critical_events_by_hour = critical_events_grouped_by_time.pivot(

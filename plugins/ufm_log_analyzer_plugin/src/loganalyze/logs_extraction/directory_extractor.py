@@ -24,7 +24,9 @@ class DirectoryExtractor(BaseExtractor):
             raise FileNotFoundError(f"Could not use {dir_path}, "
                                     "make sure it exists and is a directory")
 
-    def extract_files(self, files_to_extract: List[str], directories_to_extract: List[str], destination: str):
+    def extract_files(self, files_to_extract: List[str],
+                      directories_to_extract: List[str],
+                      destination: str):
         if not os.path.exists(destination):
             os.makedirs(destination)
 

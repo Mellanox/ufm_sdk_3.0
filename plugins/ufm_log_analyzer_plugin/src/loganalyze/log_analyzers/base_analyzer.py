@@ -77,7 +77,7 @@ class BaseImageCreator:
         self, pivoted_data, x_label, y_label, title, legend_title
     ):
         if pivoted_data.empty:
-            return []
+            return
         pivoted_data.plot(kind="bar", figsize=(14, 7))
         # This allows for the image to keep open when we create another one
         with plt.ion():
@@ -106,7 +106,7 @@ class BaseImageCreator:
         for func in self._funcs_for_analysis:
             func()
         return self._images_created if len(self._images_created) > 0 else []
-    
+
 
 class BaseAnalyzer(BaseImageCreator):
     """

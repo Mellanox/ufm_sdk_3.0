@@ -60,7 +60,6 @@ LOGS_TO_EXTRACT = [
     "ibdiagnet2.log",
     "console.log",
     # "rest_api.log"
-    "secondary_1w_20240604055416.gz"
 ]
 
 DIRECTORIES_TO_EXTRACT = [
@@ -145,12 +144,15 @@ def sorting_logs(log_path):
     return count
 
 
-def get_files_in_dest_by_type(location: str, base_name: str, extraction_level: int, type="csv"):
+def get_files_in_dest_by_type(location: str,
+                              base_name: str,
+                              extraction_level: int,
+                              file_type="csv"):
     """
     Return a list of all the CSV files that were parsed and part of the current
     extraction level requested
     """
-    files_by_type = glob.glob(os.path.join(location, f"*.{type}"))
+    files_by_type = glob.glob(os.path.join(location, f"*.{file_type}"))
     matched_files = [file for file in files_by_type if base_name in os.path.basename(file)]
     full_paths = [os.path.abspath(file) for file in matched_files]
     sorted_files = sorted(full_paths, key=sorting_logs)
@@ -253,7 +255,9 @@ def create_analyzer(parsed_args, full_extracted_logs_list,
     Returns the created analyzer
     """
     if log_name in full_extracted_logs_list:
-        log_csvs = get_files_in_dest_by_type(parsed_args.destination, log_name, parsed_args.extract_level)
+        log_csvs = get_files_in_dest_by_type(parsed_args.destination,
+                                             log_name,
+                                             parsed_args.extract_level)
         analyzer = analyzer_clc(log_csvs, parsed_args.hours, parsed_args.destination)
         ufm_top_analyzer_obj.add_analyzer(analyzer)
         return analyzer
