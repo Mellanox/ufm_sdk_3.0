@@ -2,7 +2,6 @@ numpy<=1.26.4
 pandas<=2.2.2
 pytest<=8.2.0
 requests<=2.31.0
-twisted<=22.1.0
 tzlocal<=4.2
 jsonschema<=4.5.1
 aiohttp<=3.9.1

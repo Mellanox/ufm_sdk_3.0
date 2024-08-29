@@ -21,7 +21,7 @@ EXPOSE 9007
 
 RUN apt-get update && apt-get -y install supervisor python3 python3-pip rsyslog vim curl sudo
 
-RUN python3 -m pip install requests twisted jsonschema pandas numpy aiohttp
+RUN python3 -m pip install requests jsonschema pandas numpy aiohttp
 
 # remove an unused library that caused a high CVE vulnerability issue https://redmine.mellanox.com/issues/3837452
 RUN apt-get remove -y linux-libc-dev
