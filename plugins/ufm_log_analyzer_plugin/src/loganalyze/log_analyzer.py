@@ -59,7 +59,7 @@ LOGS_TO_EXTRACT = [
     "ufm.log",
     "ibdiagnet2.log",
     "console.log",
-    # "rest_api.log"
+    "rest_api.log"
 ]
 
 DIRECTORIES_TO_EXTRACT = [
@@ -149,7 +149,7 @@ def get_files_in_dest_by_type(location: str,
                               extraction_level: int,
                               file_type="csv"):
     """
-    Return a list of all the CSV files that were parsed and part of the current
+    Return a list of all the files by type that were parsed and part of the current
     extraction level requested
     """
     files_by_type = glob.glob(os.path.join(location, f"*.{file_type}"))
@@ -330,9 +330,8 @@ if __name__ == "__main__":
 
         rest_api_log_analyzer = partial_create_analyzer(log_name="rest_api.log",
                                                         analyzer_clc=RestApiAnalyzer)
-        sampled_csv = get_files_in_dest_by_type(args.destination, "secondary_", 1000, "gz")
-        print(f"sampled csv {sampled_csv}")
-        links_flapping_analyzer = LinkFlappingAnalyzer(sampled_csv, args.destination)
+        second_telemetry_sampled_csv = get_files_in_dest_by_type(args.destination, "secondary_", 1000, "gz")
+        links_flapping_analyzer = LinkFlappingAnalyzer(second_telemetry_sampled_csv, args.destination)
         ufm_top_analyzer.add_analyzer(links_flapping_analyzer)
         end = time.perf_counter()
         log.LOGGER.debug(f"Took {end-start:.3f} to load the parsed data")

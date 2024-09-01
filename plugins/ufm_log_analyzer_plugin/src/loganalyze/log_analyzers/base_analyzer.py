@@ -129,7 +129,6 @@ class BaseAnalyzer(BaseImageCreator):
         sort_timestamp=True
 
     ):
-        # self._dest_image_path = dest_image_path
         super().__init__(dest_image_path)
         dataframes = [pd.read_csv(ufm_log) for ufm_log in logs_csvs]
         df = pd.concat(dataframes, ignore_index=True)
