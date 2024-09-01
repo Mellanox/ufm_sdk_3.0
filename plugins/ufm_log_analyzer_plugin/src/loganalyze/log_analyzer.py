@@ -330,8 +330,12 @@ if __name__ == "__main__":
 
         rest_api_log_analyzer = partial_create_analyzer(log_name="rest_api.log",
                                                         analyzer_clc=RestApiAnalyzer)
-        second_telemetry_sampled_csv = get_files_in_dest_by_type(args.destination, "secondary_", 1000, "gz")
-        links_flapping_analyzer = LinkFlappingAnalyzer(second_telemetry_sampled_csv, args.destination)
+        second_telemetry_sampled_csv = get_files_in_dest_by_type(args.destination,
+                                                                 "secondary_",
+                                                                 1000,
+                                                                 "gz")
+        links_flapping_analyzer = LinkFlappingAnalyzer(second_telemetry_sampled_csv,
+                                                       args.destination)
         ufm_top_analyzer.add_analyzer(links_flapping_analyzer)
         end = time.perf_counter()
         log.LOGGER.debug(f"Took {end-start:.3f} to load the parsed data")

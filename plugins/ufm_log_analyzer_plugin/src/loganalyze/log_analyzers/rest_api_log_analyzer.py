@@ -10,9 +10,9 @@
 #
 from typing import List
 from urllib.parse import urlparse
-from loganalyze.log_analyzers.base_analyzer import BaseAnalyzer
 import pandas as pd
 import numpy as np
+from loganalyze.log_analyzers.base_analyzer import BaseAnalyzer
 
 class RestApiAnalyzer(BaseAnalyzer):
 
