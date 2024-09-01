@@ -8,11 +8,16 @@ jobs:
   pylint:
     runs-on: ubuntu-latest
     env:
-      PYTHONPATH: utils:.
+      SCRIPT_DIR: "plugins/ufm_log_analyzer_plugin"
+      src_dir: "$(realpath ${{ env.SCRIPT_DIR }}/src)"
+      PYTHONPATH: "${src_dir}:${{ env.SCRIPT_DIR }}/../../"
+
     steps:
-    - name: Checkout code
+    - name: Checkout code and cd to dir
       uses: actions/checkout@main
-    
+      run: |
+        cd plugins/ufm_log_analyzer_plugin
+
     - name: Set up Python
       uses: actions/setup-python@main
       with:
