@@ -22,8 +22,11 @@ jobs:
     - name: Install dependencies and run PyLint
       run: |
         SCRIPT_DIR="plugins/ufm_log_analyzer_plugin"
-        PYTHONPATH="$SCRIPT_DIR/src:$SCRIPT_DIR/../../"
+        # Set PYTHONPATH to include src directory and two levels up for utils
+        PYTHONPATH="$(realpath $SCRIPT_DIR/src):$(realpath $SCRIPT_DIR/../../)"
         export PYTHONPATH
+
+        echo "PYTHONPATH is set to $PYTHONPATH"  # Debugging line to verify PYTHONPATH
 
         cd $SCRIPT_DIR
 
