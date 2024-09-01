@@ -73,7 +73,7 @@ class PDFCreator(FPDF):
         fabric_size = """Fabric size:
         """
         output = StringIO()
-        pprint(self._fabric_stats_list, stream=output)
+        print(self._fabric_stats_list, file=output)
         fabric_size += (
             output.getvalue().strip()
         )  # .strip() to remove any leading/trailing whitespace

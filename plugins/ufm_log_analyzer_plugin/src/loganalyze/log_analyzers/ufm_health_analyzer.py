@@ -26,26 +26,6 @@ class UFMHealthAnalyzer(BaseAnalyzer):
         ]
         self._funcs_for_analysis={self.print_failed_tests_per_hour}
 
-    def top_failed_tests_during_dates(self):
-        data = (
-            self._failed_tests_data.groupby(["test_class", "test_name", "reason"])
-            .size()
-            .reset_index(name="count")
-            .sort_values(by="count", ascending=False)
-            .head()
-        )
-        log.LOGGER.debug(data)
-
-    def full_analyze_failed_tests(self):
-        data = (
-            self._log_data_sorted.groupby(["test_name"])
-            .size()
-            .reset_index(name="count")
-            .sort_values(by="count", ascending=False)
-        )
-
-        log.LOGGER.debug(data)
-
     def print_failed_tests_per_hour(self):
         grouped_failed_by_time = (
             self._failed_tests_data.groupby([DataConstants.AGGREGATIONTIME, "test_name"])

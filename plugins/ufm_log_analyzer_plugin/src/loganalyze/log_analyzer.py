@@ -32,7 +32,7 @@ import platform
 import matplotlib.pyplot as plt
 
 
-from loganalyze.log_analyzers.base_analyzer import BaseAnalyzer
+from loganalyze.log_analyzers.base_analyzer import BaseImageCreator
 from loganalyze.logs_extraction.directory_extractor import DirectoryExtractor
 from loganalyze.log_analyzers.ufm_top_analyzer import UFMTopAnalyzer
 from loganalyze.logs_extraction.tar_extractor import DumpFilesExtractor
@@ -300,7 +300,7 @@ if __name__ == "__main__":
 
 
         # Setting the time granularity for the graphs
-        BaseAnalyzer.time_interval = args.interval
+        BaseImageCreator.time_interval = args.interval
 
         # Analyze the CSV and be able to query the data
         start = time.perf_counter()
@@ -351,10 +351,13 @@ if __name__ == "__main__":
         pdf_header = (
             f"Dump analysis for {os.path.basename(args.location)}, hours={args.hours}"
         )
-        fabric_info = ibdiagnet_analyzer.get_fabric_size() \
-                        if ibdiagnet_analyzer else "No Fabric Info found"
+        fabric_info = str(ibdiagnet_analyzer.get_fabric_size() \
+                        if ibdiagnet_analyzer else "No Fabric Info found")
+        
+        link_flapping = str(links_flapping_analyzer.get_link_flapping_last_week() if links_flapping_analyzer else "No link flapping info")
         # PDF creator gets all the images and to add to the report
-        pdf = PDFCreator(pdf_path, pdf_header, png_images, fabric_info)
+        txt = fabric_info + os.linesep + "Link Flapping:" + os.linesep + link_flapping
+        pdf = PDFCreator(pdf_path, pdf_header, png_images, txt)
         pdf.created_pdf()
         # Generated a report that can be located in the destination
         log.LOGGER.info("Analysis is done, please see the following outputs:")
@@ -365,6 +368,8 @@ if __name__ == "__main__":
         files_types_to_delete = set()
         files_types_to_delete.add("png") #png images created for PDF report
         files_types_to_delete.add("log") #logs taken from the logs
+        files_types_to_delete.add("csv") #tmp csv + telemetery samples
+        files_types_to_delete.add("gz") #gz files of logs and samples
         delete_files_by_types(args.destination, files_types_to_delete)
         if args.show_output:
             if platform.system() == "Windows":

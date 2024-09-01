@@ -269,6 +269,7 @@ class UFMLogAnalyzer(BaseAnalyzer):
 
         # Plot the data within the filtered time range
         title = "Telemetry processing time"
+
         self._plot_and_save_data_based_on_timestamp(
             minutely_mean_processing_time,
             "Time",

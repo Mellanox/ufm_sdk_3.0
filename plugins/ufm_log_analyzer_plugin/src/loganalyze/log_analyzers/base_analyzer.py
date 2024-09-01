@@ -30,6 +30,12 @@ warnings.filterwarnings("ignore")
 
 
 class BaseImageCreator:
+    # Setting the graph time interval to 1 hour
+    # This is out side of the constructor since
+    # It is defined once for all graphic options
+    # Per call/run.
+
+    time_interval = "h"
     _images_type = {"svg", "png"}
     def __init__(self, dest_image_path):
         self._dest_image_path = dest_image_path
@@ -113,12 +119,6 @@ class BaseAnalyzer(BaseImageCreator):
     Analyzer class that gives all the logs the
     ability to print/save images and filter data
     """
-
-    # Setting the graph time interval to 1 hour
-    # This is out side of the constructor since
-    # It is defined once for all graphic options
-    # Per call/run.
-    time_interval = "h"
 
 
     def __init__(
