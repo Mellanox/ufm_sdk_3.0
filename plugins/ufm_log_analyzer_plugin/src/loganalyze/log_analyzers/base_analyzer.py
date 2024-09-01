@@ -120,7 +120,6 @@ class BaseAnalyzer(BaseImageCreator):
     ability to print/save images and filter data
     """
 
-
     def __init__(
         self,
         logs_csvs: List[str],
