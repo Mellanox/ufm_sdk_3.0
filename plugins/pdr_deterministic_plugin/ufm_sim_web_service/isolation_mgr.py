@@ -93,7 +93,6 @@ class IsolationMgr:
         if not self.test_mode:
             self.ufm_client.send_event(log_message, event_id=Constants.EXTERNAL_EVENT_ALERT, external_event_name="Isolating Port")
 
-
     def eval_deisolate(self, port_name):
         """
         Evaluates the deisolation of a port.
@@ -180,7 +179,6 @@ class IsolationMgr:
             port_width = int(port_width.strip('x'))
         port_obj.port_width = port_width
 
-
     def update_ports_data(self):
         """
         Updates the ports data by retrieving metadata from the UFM client.
@@ -200,7 +198,7 @@ class IsolationMgr:
                     self.update_port_metadata(port_name, port)
                     ports_updated = True
         return ports_updated
-    
+
     def get_isolation_state(self):
         """
         Retrieves the isolation state of the ports.
@@ -209,7 +207,6 @@ class IsolationMgr:
             None: If the test mode is enabled.
             List[str]: A list of isolated ports if available.
         """
-        
         if self.test_mode:
             # I don't want to get to the isolated ports because we simulating everything..
             return
