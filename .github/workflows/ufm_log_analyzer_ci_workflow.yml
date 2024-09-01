@@ -4,13 +4,11 @@ on:
   push:
     paths:
       - 'plugins/ufm_log_analyzer_plugin/**'
+      - '.github/workflows/ufm_log_analyzer_ci_workflow.yml'
 
 jobs:
   pylint:
     runs-on: ubuntu-latest
-    env:
-      SCRIPT_DIR: "plugins/ufm_log_analyzer_plugin"
-      PYTHONPATH: "${{ env.SCRIPT_DIR }}/src:${{ env.SCRIPT_DIR }}/../../"
 
     steps:
     - name: Checkout code
@@ -19,11 +17,19 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
-        python-version: '3.9' 
+        python-version: '3.9'
 
     - name: Install dependencies and run PyLint
       run: |
-        cd ${{ env.SCRIPT_DIR }}
+        SCRIPT_DIR="plugins/ufm_log_analyzer_plugin"
+        PYTHONPATH="$SCRIPT_DIR/src:$SCRIPT_DIR/../../"
+        export PYTHONPATH
+
+        cd $SCRIPT_DIR
+
+        # Install dependencies
         pip install -r src/loganalyze/requirements.txt
         pip install pylint
+
+        # Run PyLint
         pylint --rcfile=src/loganalyze/.pylintrc src/loganalyze
