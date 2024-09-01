@@ -13,10 +13,11 @@ jobs:
       PYTHONPATH: "${src_dir}:${{ env.SCRIPT_DIR }}/../../"
 
     steps:
-    - name: Checkout code and cd to dir
+    - name: Checkout code
       uses: actions/checkout@main
-      run: |
-        cd plugins/ufm_log_analyzer_plugin
+
+    - name: Change directory
+      run: cd ${{ env.SCRIPT_DIR }}
 
     - name: Set up Python
       uses: actions/setup-python@main
