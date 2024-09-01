@@ -14,7 +14,6 @@
 from typing import List
 from loganalyze.log_analyzers.constants import DataConstants
 from loganalyze.log_analyzers.base_analyzer import BaseAnalyzer
-import loganalyze.logger as log
 
 
 class UFMHealthAnalyzer(BaseAnalyzer):

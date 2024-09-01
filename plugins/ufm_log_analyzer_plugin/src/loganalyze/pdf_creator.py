@@ -16,7 +16,6 @@
 
 import os
 from io import StringIO
-from pprint import pprint
 from fpdf import FPDF  # Import FPDF from fpdf module
 
 

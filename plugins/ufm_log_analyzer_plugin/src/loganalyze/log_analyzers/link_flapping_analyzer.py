@@ -12,14 +12,13 @@
 from datetime import datetime
 import gzip
 from itertools import islice
-import pandas as pd
 import os
 import re
 import shutil
 from typing import List
+import pandas as pd
 from loganalyze.log_analyzers.base_analyzer import BaseImageCreator
 import loganalyze.logger as log
-from plugins.ufm_log_analyzer_plugin.src.loganalyze.log_analyzers.constants import DataConstants
 from utils.netfix.link_flapping import get_link_flapping
 FILE_NAME_PATTERN=r"^secondary_(5m|1h|1d|1w)_(\d{14})\.gz$"
 TIME_PATTERN="%Y%m%d%H%M%S"
@@ -90,7 +89,7 @@ class LinkFlappingAnalyzer(BaseImageCreator):
         five_m_samples = self._mapped_samples.get('5m')
         week_samples = self._mapped_samples.get('1w')
         if len(five_m_samples) <= 0 or len(week_samples) <= 0:
-            return
+            return pd.DataFrame()
         _, latest_sample_gz = list(islice(five_m_samples.items(), 1))[0]
         _, older_sample_gz = list(islice(week_samples.items(), 1))[0]
         link_flapping = self._get_link_flapping_by_gz_files(older_sample_gz, latest_sample_gz)
@@ -101,17 +100,23 @@ class LinkFlappingAnalyzer(BaseImageCreator):
         link_flapping = self.get_link_flapping_last_week()
         # Convert "estimated_time" column to datetime object
         link_flapping['estimated_time'] = pd.to_datetime(link_flapping['estimated_time'])
-        link_flapping['aggregated_by_time'] = link_flapping['estimated_time'].dt.floor(self.time_interval)
+        link_flapping['aggregated_by_time'] = link_flapping['estimated_time'].\
+            dt.floor(self.time_interval)
 
         # Create pivot table with 'aggregated_by_time' as index and count of records as value
         pivot_table = link_flapping.groupby('aggregated_by_time').size().reset_index(name='counts')
         pivot_table['aggregated_by_time'] = pd.to_datetime(pivot_table['aggregated_by_time'])
 
         # Reset index to create a new column for time intervals
-        pivot_table = pivot_table.set_index('aggregated_by_time').rename_axis(None).rename(columns={'counts': 'Count'})
+        pivot_table = pivot_table.set_index('aggregated_by_time').\
+            rename_axis(None).rename(columns={'counts': 'Count'})
 
         # Plot pivot table using _plot_and_save_pivot_data_in_bars method
-        self._plot_and_save_pivot_data_in_bars(pivot_table, 'Time', 'Count', 'Link Flapping Count', None)
+        self._plot_and_save_pivot_data_in_bars(pivot_table,
+                                               'Time',
+                                               'Count',
+                                               'Link Flapping Count',
+                                               None)
 
 
     def full_analysis(self):
