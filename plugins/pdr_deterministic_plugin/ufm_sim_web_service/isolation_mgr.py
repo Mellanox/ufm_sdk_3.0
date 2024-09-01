@@ -281,7 +281,7 @@ class IsolationMgr:
                         self.logger.error("Couldn't retrieve telemetry data")
                     else:
                         # Detect ports to be isolated or deisolated
-                        issues, deisolate_ports = pdr_alg.apply_algorithm(self.ports_data, self.ports_states, ports_counters)
+                        issues = pdr_alg.detect_isolation_issues(self.ports_data, ports_counters)
                 except (KeyError,) as e:
                     self.logger.error(f"Failed to read information with error {e}")
 
@@ -300,11 +300,11 @@ class IsolationMgr:
                             cause = issue.cause # ber|pdr|oonoc|link_down
                             self.eval_isolation(port, cause)
 
-                    # deal with ports that with either cause = oonoc or fixed
+                    # deisolate ports
                     if self.do_deisolate:
-                        for port_name in deisolate_ports:
-                            # TODO: deisolation logic must be reviewed
-                            self.eval_deisolate(port_name)
+                        for port_state in list(self.ports_states.values()):
+                            if pdr_alg.should_deisolate(port_state):
+                                self.eval_deisolate(port_state.name)
                     ports_updated = self.update_ports_data()
                     if ports_updated:
                         self.update_telemetry_session()

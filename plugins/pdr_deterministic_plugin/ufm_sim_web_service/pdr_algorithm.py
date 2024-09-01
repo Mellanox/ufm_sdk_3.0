@@ -138,8 +138,6 @@ class PDRAlgorithm:
         self.ufm_client = ufm_client
         self.exclude_list = exclude_list
         self.logger = logger
-        # {port_name: PortState}
-        self.ports_states = dict()
         # {port_name: telemetry_data}
         self.ports_data = dict()
         self.ufm_latest_isolation_state = []
@@ -184,32 +182,15 @@ class PDRAlgorithm:
         ]
         """
 
-    def apply_algorithm(self, ports_data, ports_states, ports_counters):
-        """
-        Detects isolation issues
-        Receives: detected ports, isolated ports and telemetry data
-        Returns: lists of issues to isolate and lists of ports to deisolate
-        """
-        self.ports_data = ports_data
-        self.ports_states = ports_states
-        issues = self.detect_isolation_issues(ports_counters)
-
-        # Deal with reported new issues
-        isolate_issues = list(issues.values())
-
-        # Deal with ports that with either cause = oonoc or fixed
-        deisolate_ports = []
-        for port_state in list(self.ports_states.values()):
-            if self.should_deisolate(port_state):
-                deisolate_ports.append(port_state.name);
-
-        return isolate_issues, deisolate_ports
-
     def should_deisolate(self, port_state):
+        """
+        Return True if given port should be deisolated
+        """
         state = port_state.get_state()
         cause = port_state.get_cause()
         # EZ: it is a state that say that some maintenance was done to the link 
         #     so need to re-evaluate if to return it to service
+        # Deal with ports that with either cause = oonoc or fixed
         if not (self.automatic_deisolate or cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED):
             return False
         
@@ -414,10 +395,14 @@ class PDRAlgorithm:
                     return Issue(port_obj.port_name, Constants.ISSUE_BER)
         return None
 
-    def detect_isolation_issues(self, ports_counters):
+    def detect_isolation_issues(self, ports_data, ports_counters):
         """
         Read the next set of ports and check if they have high BER, PDR, temperature or link downed issues
+        Receives: detected ports, isolated ports and telemetry data
+        Returns: lists of isolation issues
         """
+        self.ports_data = ports_data
+
         issues = {}
         for _, row in ports_counters.iterrows():
             port_name = f"{row.get(Constants.NODE_GUID, '').split('x')[-1]}_{row.get(Constants.PORT_NUMBER, '')}"
@@ -453,7 +438,7 @@ class PDRAlgorithm:
             # If out of operating conditions we'll overwrite the cause
             if self.temp_check and self.is_out_of_operating_conf(port_name):
                 issues[port_name] = Constants.ISSUE_OONOC
-        return issues
+        return list(issues.values())
 
     def calc_symbol_ber_rate(self, port_name, port_speed, port_width, col_name, time_delta):
         """
