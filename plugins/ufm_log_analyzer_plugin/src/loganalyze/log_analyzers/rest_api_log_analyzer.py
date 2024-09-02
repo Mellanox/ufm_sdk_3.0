@@ -22,11 +22,12 @@ class RestApiAnalyzer(BaseAnalyzer):
         self._log_data_sorted = self._log_data_sorted.loc\
             [self._log_data_sorted['user'] != 'ufmsystem']
         #Splitting the URL for better analysis
-        self._log_data_sorted[['uri', 'query_params']] = self._log_data_sorted['url']\
-            .apply(self.split_url_to_uri_and_query_params).apply(pd.Series)
-        self._have_duration = self._have_data_in_column('duration')
-        self._have_user = self._have_data_in_column('user')
-        self._funcs_for_analysis = {self.analyze_endpoints_freq}
+        if not self._log_data_sorted.empty:
+            self._log_data_sorted[['uri', 'query_params']] = self._log_data_sorted['url']\
+                .apply(self.split_url_to_uri_and_query_params).apply(pd.Series)
+            self._have_duration = self._have_data_in_column('duration')
+            self._have_user = self._have_data_in_column('user')
+            self._funcs_for_analysis = {self.analyze_endpoints_freq}
 
     @staticmethod
     def split_url_to_uri_and_query_params(url):
