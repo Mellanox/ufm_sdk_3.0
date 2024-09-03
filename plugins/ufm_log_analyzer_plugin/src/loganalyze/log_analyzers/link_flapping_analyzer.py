@@ -17,9 +17,9 @@ import re
 import shutil
 from typing import List
 import pandas as pd
+from utils.netfix.link_flapping import get_link_flapping
 from loganalyze.log_analyzers.base_analyzer import BaseImageCreator
 import loganalyze.logger as log
-from utils.netfix.link_flapping import get_link_flapping
 FILE_NAME_PATTERN=r"^secondary_(5m|1h|1d|1w)_(\d{14})\.gz$"
 TIME_PATTERN="%Y%m%d%H%M%S"
 
