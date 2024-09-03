@@ -9,14 +9,9 @@
 # This software product is governed by the End User License Agreement
 # provided with the software product.
 #
-import traceback
-from datetime import datetime
-from datetime import timedelta
-import time
-import http
+from datetime import datetime, timedelta
 import configparser
 import math
-import json
 import pandas as pd
 import numpy
 from exclude_list import ExcludeList

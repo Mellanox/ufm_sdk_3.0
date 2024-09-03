@@ -10,15 +10,10 @@
 # provided with the software product.
 #
 import traceback
-from datetime import datetime
-from datetime import timedelta
 import time
 import http
 import configparser
-import math
-import json
 import pandas as pd
-import numpy
 from exclude_list import ExcludeList
 from pdr_algorithm import PortData, PortState, PDRAlgorithm
 
