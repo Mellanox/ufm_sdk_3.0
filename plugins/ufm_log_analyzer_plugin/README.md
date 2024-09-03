@@ -68,8 +68,8 @@ options:
 What is mandatory:
 1. `--location`.
 
-## Which logs are taken from the dump
-The following list: `event.log, ufmhealth.log, ufm.log, ibdiagnet2.log, console.log`
+## Which files are taken from the dump
+The following list: `event.log, ufmhealth.log, ufm.log, ibdiagnet2.log, console.log, rest_api.log and second telemetry samples`
 
 Also, each log `tar` is taken, according to the `extract-level` flag.
 ## How it works
@@ -81,4 +81,16 @@ Also, each log `tar` is taken, according to the `extract-level` flag.
 6. A PDF file is created with the summary of the images and the fabric size.
 7. We are starting an interactive Python session, where the user can run pre-defined analysis function on the parsed data, or do personal data query/manipulation to find the needed data
 
+## Link flapping
+This logic uses second telemetry counters to identify if links are flapping due to real issues.
+The input is the telemetry sample from last week and last 5 minutes.
+Output is a list of links to check.
+This logic will show links that:
+1. Both sides of the link went down together.
+2. Thermal shut down.
+3. If one side went down and the other side was not rebooted.
+
+
 ![Tool flow](img/loganalzer.png)
+
+

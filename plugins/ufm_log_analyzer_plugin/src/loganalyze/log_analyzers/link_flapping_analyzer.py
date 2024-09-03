@@ -17,9 +17,9 @@ import re
 import shutil
 from typing import List
 import pandas as pd
-from utils.netfix.link_flapping import get_link_flapping
 from loganalyze.log_analyzers.base_analyzer import BaseImageCreator
 import loganalyze.logger as log
+from utils.netfix.link_flapping import get_link_flapping
 FILE_NAME_PATTERN=r"^secondary_(5m|1h|1d|1w)_(\d{14})\.gz$"
 TIME_PATTERN="%Y%m%d%H%M%S"
 
@@ -90,8 +90,8 @@ class LinkFlappingAnalyzer(BaseImageCreator):
         week_samples = self._mapped_samples.get('1w')
         if len(five_m_samples) <= 0 or len(week_samples) <= 0:
             return pd.DataFrame()
-        _, latest_sample_gz = list(islice(five_m_samples.items(), 1))[0]
-        _, older_sample_gz = list(islice(week_samples.items(), 1))[0]
+        latest_sample_gz = list(islice(five_m_samples.values(), 1))[0]
+        older_sample_gz = list(islice(week_samples.values(), 1))[0]
         link_flapping = self._get_link_flapping_by_gz_files(older_sample_gz, latest_sample_gz)
         data_sorted = link_flapping.sort_values(by='estimated_time').reset_index(drop=True)
         return data_sorted
