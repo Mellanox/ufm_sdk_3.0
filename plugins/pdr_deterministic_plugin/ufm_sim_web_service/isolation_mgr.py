@@ -478,15 +478,15 @@ class IsolationMgr:
                         return Issue(port_obj.port_name, Constants.ISSUE_BER)
             return None
 
-        def read_next_set_of_high_ber_or_pdr_ports(self):
+        def read_next_set_of_high_ber_or_pdr_ports(self, ports_data, ports_counters):
             """
             Read the next set of ports and check if they have high BER, PDR, temperature or link downed issues
+            Receives: detected ports, isolated ports and telemetry data
+            Returns: lists of isolation issues
             """
+            self.ports_data = ports_data
+
             issues = {}
-            ports_counters = self.ufm_client.get_telemetry(self.test_mode)
-            if ports_counters is None:
-                self.logger.error("Couldn't retrieve telemetry data")
-                return {}
             for _, row in ports_counters.iterrows():
                 port_name = f"{row.get(Constants.NODE_GUID, '').split('x')[-1]}_{row.get(Constants.PORT_NUMBER, '')}"
                 if self.exclude_list.contains(port_name):
@@ -518,7 +518,43 @@ class IsolationMgr:
                     issues[port_name] = link_downed_issue
                 elif ber_issue:
                     issues[port_name] = ber_issue
-            return issues
+                # If out of operating conditions we'll overwrite the cause
+                if self.temp_check and self.is_out_of_operating_conf(port_name):
+                    issues[port_name] = Constants.ISSUE_OONOC
+            return list(issues.values())
+
+        def should_deisolate(self, port_state):
+            """
+            Return True if given port should be deisolated
+            """
+            state = port_state.get_state()
+            cause = port_state.get_cause()
+            # EZ: it is a state that say that some maintenance was done to the link 
+            #     so need to re-evaluate if to return it to service
+            # Deal with ports that with either cause = oonoc or fixed
+            if not (self.automatic_deisolate or cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED):
+                return False
+            
+            # We don't deisolate those out of NOC
+            port_name = port_state.name
+            if self.is_out_of_operating_conf(port_name):
+                return False
+
+            if datetime.now() < port_state.get_change_time() + timedelta(seconds=self.deisolate_consider_time):
+                # Too close to state change
+                return False
+
+            # TODO: check if it can be moved into BER issue detection
+            port_obj = self.ports_data.get(port_name)
+            if port_state.cause == Constants.ISSUE_BER:
+                # Check if we are still above the threshold
+                symbol_ber_rate = self.calc_ber_rates(port_name, port_obj.active_speed, port_obj.port_width, self.max_ber_wait_time + 1)
+                if symbol_ber_rate and symbol_ber_rate > self.max_ber_threshold:
+                    cause = Constants.ISSUE_BER
+                    port_state.update(Constants.STATE_ISOLATED, cause)
+                    return False
+
+            return True
 
         def calc_symbol_ber_rate(self, port_name, port_speed, port_width, col_name, time_delta):
             """
@@ -622,9 +658,6 @@ class IsolationMgr:
         if port_obj.node_type == Constants.NODE_TYPE_COMPUTER and not self.switch_hca_isolation:
             self.logger.info(f"Port {port_name} is a computer port. skipping...")
             return
-        # if out of operating conditions we ignore the cause
-        if self.temp_check and self.is_out_of_operating_conf(port_name):
-            cause = Constants.ISSUE_OONOC
 
         if not self.dry_run:
             ret = self.ufm_client.isolate_port(port_name)
@@ -660,25 +693,6 @@ class IsolationMgr:
         if not port_name in self.ufm_latest_isolation_state and not self.dry_run:
             if self.ports_states.get(port_name):
                 self.ports_states.pop(port_name)
-            return
-        # we dont return those out of NOC
-        if self.is_out_of_operating_conf(port_name):
-            cause = Constants.ISSUE_OONOC
-            self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
-            return
-        # we need some time after the change in state
-        elif datetime.now() >= self.ports_states[port_name].get_change_time() + timedelta(seconds=self.deisolate_consider_time):
-            port_obj = self.ports_data.get(port_name)
-            port_state = self.ports_states.get(port_name)
-            if port_state.cause == Constants.ISSUE_BER:
-                # check if we are still above the threshold
-                symbol_ber_rate = self.calc_ber_rates(port_name, port_obj.active_speed, port_obj.port_width, self.max_ber_wait_time + 1)
-                if symbol_ber_rate and symbol_ber_rate > self.max_ber_threshold:
-                    cause = Constants.ISSUE_BER
-                    self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
-                    return
-        else:
-            # too close to state change
             return
 
         # port is clean now - de-isolate it
@@ -841,46 +855,53 @@ class IsolationMgr:
         self.logger.info("Isolation Manager initialized, starting isolation loop")
         self.get_ports_metadata()
         self.logger.info("Retrieved ports metadata")
+        pdr_alg = IsolationMgr.PDRAlgorithm(self.ufm_client, self.exclude_list, self.logger)
         while(True):
             try:
                 t_begin = time.time()
                 self.exclude_list.refresh()
                 self.get_isolation_state()
+
+                issues = None
+                # Get telemetry data
                 if not self.test_mode:
                     self.logger.info("Retrieving telemetry data to determine ports' states")
                 else:
                     self.logger.info(f"Retrieving test mode telemetry data to determine ports' states: iteration {self.test_iteration}")
                     self.test_iteration += 1
                 try:
-                    issues = self.read_next_set_of_high_ber_or_pdr_ports()
+                    ports_counters = self.ufm_client.get_telemetry(self.test_mode)
+                    if ports_counters is None:
+                        self.logger.error("Couldn't retrieve telemetry data")
+                    else:
+                        # Detect ports to be isolated or deisolated
+                        issues = pdr_alg.read_next_set_of_high_ber_or_pdr_ports(self.ports_data, ports_counters)
                 except (KeyError,) as e:
-                    self.logger.error(f"failed to read information with error {e}")
-                if len(issues) > self.max_num_isolate:
-                    # UFM send external event
-                    event_msg = "got too many ports detected as unhealthy: %d, skipping isolation" % len(issues)
-                    self.logger.warning(event_msg)
-                    if not self.test_mode:
-                        self.ufm_client.send_event(event_msg, event_id=Constants.EXTERNAL_EVENT_ALERT, external_event_name="Skipping isolation")
+                    self.logger.error(f"Failed to read information with error {e}")
 
-                # deal with reported new issues
-                else:
-                    for issue in issues.values():
-                        port = issue.port
-                        cause = issue.cause # ber|pdr|oonoc|link_down
-                        self.eval_isolation(port, cause)
+                if issues:
+                    if len(issues) > self.max_num_isolate:
+                        # UFM send external event
+                        event_msg = "got too many ports detected as unhealthy: %d, skipping isolation" % len(issues)
+                        self.logger.warning(event_msg)
+                        if not self.test_mode:
+                            self.ufm_client.send_event(event_msg, event_id=Constants.EXTERNAL_EVENT_ALERT, external_event_name="Skipping isolation")
 
-                # deal with ports that with either cause = oonoc or fixed
-                if self.do_deisolate:
-                    for port_state in list(self.ports_states.values()):
-                        state = port_state.get_state()
-                        cause = port_state.get_cause()
-                        # EZ: it is a state that say that some maintenance was done to the link 
-                        #     so need to re-evaluate if to return it to service
-                        if self.automatic_deisolate or cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED:
-                            self.eval_deisolate(port_state.name)
-                ports_updated = self.update_ports_data()
-                if ports_updated:
-                    self.update_telemetry_session()
+                    # deal with reported new issues
+                    else:
+                        for issue in issues:
+                            port = issue.port
+                            cause = issue.cause # ber|pdr|oonoc|link_down
+                            self.eval_isolation(port, cause)
+
+                    # deisolate ports
+                    if self.do_deisolate:
+                        for port_state in list(self.ports_states.values()):
+                            if pdr_alg.should_deisolate(port_state):
+                                self.eval_deisolate(port_state.name)
+                    ports_updated = self.update_ports_data()
+                    if ports_updated:
+                        self.update_telemetry_session()
                 t_end = time.time()
             except Exception as e:
                 self.logger.warning("Error in main loop")
