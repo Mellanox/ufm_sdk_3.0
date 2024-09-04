@@ -10,7 +10,6 @@
 # provided with the software product.
 #
 from datetime import datetime, timedelta
-import configparser
 import math
 import pandas as pd
 import numpy
@@ -462,7 +461,7 @@ class PDRAlgorithm:
         # Deal with ports that with either cause = oonoc or fixed
         if not (self.automatic_deisolate or cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED):
             return False
-        
+
         # We don't deisolate those out of NOC
         port_name = port_state.name
         if self.is_out_of_operating_conf(port_name):

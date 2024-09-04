@@ -21,6 +21,7 @@ from constants import PDRConstants as Constants
 from ufm_communication_mgr import UFMCommunicator
 # should actually be persistent and thread safe dictionary pf PortStates
 
+#pylint: disable=too-many-instance-attributes
 class IsolationMgr:
     '''
     This class is responsible for managing the isolation of ports based on the telemetry data
@@ -276,6 +277,7 @@ class IsolationMgr:
         self.logger.info("Isolation Manager initialized, starting isolation loop")
         self.get_ports_metadata()
         self.logger.info("Retrieved ports metadata")
+        #pylint: disable=too-many-nested-blocks
         while True:
             try:
                 t_begin = time.time()
