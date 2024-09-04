@@ -277,7 +277,7 @@ class IsolationMgr:
         self.get_ports_metadata()
         self.logger.info("Retrieved ports metadata")
         pdr_alg = PDRAlgorithm(self.ufm_client, self.exclude_list, self.logger)
-        while(True):
+        while True:
             try:
                 t_begin = time.time()
                 self.exclude_list.refresh()
@@ -297,16 +297,17 @@ class IsolationMgr:
                     else:
                         # Detect ports to be isolated or deisolated
                         issues = pdr_alg.analyze_telemetry_data(self.ports_data, ports_counters)
-                except (KeyError,) as e:
-                    self.logger.error(f"Failed to read information with error {e}")
+                except (KeyError, TypeError, ValueError) as exception_error:
+                    self.logger.error(f"failed to read information with error {exception_error}")
 
                 if issues:
                     if len(issues) > self.max_num_isolate:
                         # UFM send external event
-                        event_msg = "got too many ports detected as unhealthy: %d, skipping isolation" % len(issues)
+                        event_msg = f"got too many ports detected as unhealthy: {len(issues)}, skipping isolation"
                         self.logger.warning(event_msg)
                         if not self.test_mode:
-                            self.ufm_client.send_event(event_msg, event_id=Constants.EXTERNAL_EVENT_ALERT, external_event_name="Skipping isolation")
+                            self.ufm_client.send_event(event_msg, event_id=Constants.EXTERNAL_EVENT_ALERT,
+                                                       external_event_name="Skipping isolation")
 
                     # deal with reported new issues
                     else:
@@ -324,7 +325,6 @@ class IsolationMgr:
                     if ports_updated:
                         self.update_telemetry_session()
                 t_end = time.time()
-               
             #pylint: disable=broad-except
             except Exception as exception:
                 self.logger.warning("Error in main loop")

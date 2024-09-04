@@ -20,10 +20,12 @@ from constants import PDRConstants as Constants
 from ufm_communication_mgr import UFMCommunicator
 # should actually be persistent and thread safe dictionary pf PortStates
 
-class PortData(object):
+#pylint: disable=too-many-instance-attributes
+class PortData:
     """
     Represents the port data.
     """
+    #pylint: disable=too-many-arguments
     def __init__(self, port_name=None, port_num=None, peer=None, node_type=None, active_speed=None, port_width=None, port_guid=None):
         """
         Initialize a new instance of the PortData class.
@@ -52,7 +54,7 @@ class PortData(object):
 
 
 
-class PortState(object):
+class PortState:
     """
     Represents the state of a port.
 
@@ -112,7 +114,7 @@ class PortState(object):
         return self.change_time
 
 
-class Issue(object):
+class Issue:
     """
     Represents an issue that occurred on a specific port.
 
@@ -133,7 +135,7 @@ class Issue(object):
 
 def get_counter(counter_name, row, default=0):
     """
-    Get the value of a specific counter from a row of data. If the counter is not present 
+    Get the value of a specific counter from a row of data. If the counter is not present
     or its value is NaN, return a default value.
 
     :param counter_name: The name of the counter to get.
@@ -144,7 +146,7 @@ def get_counter(counter_name, row, default=0):
     """
     try:
         val = row.get(counter_name) if (row.get(counter_name) is not None and not pd.isna(row.get(counter_name))) else default
-    except Exception as e:
+    except (KeyError, ValueError, TypeError):
         return default
     return val
 
@@ -154,6 +156,7 @@ def get_timestamp_seconds(row):
     '''
     return row.get(Constants.TIMESTAMP) / 1000.0 / 1000.0
 
+#pylint: disable=too-many-instance-attributes,too-many-public-methods
 class PDRAlgorithm:
     """
     This class is responsible for detection of ports that should be isolated or deisolated based on the telemetry data
@@ -161,7 +164,7 @@ class PDRAlgorithm:
     def __init__(self, ufm_client: UFMCommunicator, exclude_list: ExcludeList, logger):
         self.ufm_client = ufm_client
         # {port_name: telemetry_data}
-        self.ports_data = dict()
+        self.ports_data = {}
         self.ufm_latest_isolation_state = []
 
         pdr_config = configparser.ConfigParser()
@@ -184,7 +187,7 @@ class PDRAlgorithm:
         intervals = [x[0] for x in self.ber_intervals]
         self.min_ber_wait_time = min(intervals)
         self.max_ber_wait_time = max(intervals)
-        self.max_ber_threshold = max([x[1] for x in self.ber_intervals])
+        self.max_ber_threshold = max(x[1] for x in self.ber_intervals)
 
         self.ber_tele_data = pd.DataFrame(columns=[Constants.TIMESTAMP, Constants.SYMBOL_BER, Constants.PORT_NAME])
         self.speed_types = {
@@ -205,21 +208,21 @@ class PDRAlgorithm:
         self.exclude_list = exclude_list
 
     def calc_max_ber_wait_time(self, min_threshold):
-            """
-            Calculates the maximum wait time for Bit Error Rate (BER) based on the given minimum threshold.
+        """
+        Calculates the maximum wait time for Bit Error Rate (BER) based on the given minimum threshold.
 
-            Args:
-                min_threshold (float): The minimum threshold for BER.
+        Args:
+            min_threshold (float): The minimum threshold for BER.
 
-            Returns:
-                float: The maximum wait time in seconds.
-            """
-            # min speed EDR = 32 Gb/s
-            min_speed, min_width = 32 * 1024 * 1024 * 1024, 1
-            min_port_rate = min_speed * min_width
-            min_bits = float(format(float(min_threshold), '.0e').replace('-', ''))
-            min_sec_to_wait = min_bits / min_port_rate
-            return min_sec_to_wait
+        Returns:
+            float: The maximum wait time in seconds.
+        """
+        # min speed EDR = 32 Gb/s
+        min_speed, min_width = 32 * 1024 * 1024 * 1024, 1
+        min_port_rate = min_speed * min_width
+        min_bits = float(format(float(min_threshold), '.0e').replace('-', ''))
+        min_sec_to_wait = min_bits / min_port_rate
+        return min_sec_to_wait
 
     def is_out_of_operating_conf(self, port_name):
         """
@@ -234,7 +237,7 @@ class PDRAlgorithm:
         port_obj = self.ports_data.get(port_name)
         if not port_obj:
             self.logger.warning(f"Port {port_name} not found in ports data in calculation of oonoc port")
-            return
+            return False
         temp = port_obj.counters_values.get(Constants.TEMP_COUNTER)
         if temp and temp > self.tmax:
             return True
@@ -281,7 +284,8 @@ class PDRAlgorithm:
         if ports_counters[Constants.NODE_GUID].iloc[0].startswith('0x') and not peer_guid.startswith('0x'):
             peer_guid = f'0x{peer_guid}'
         #TODO check for a way to save peer row in data structure for performance
-        peer_row_list = ports_counters.loc[(ports_counters[Constants.NODE_GUID] == peer_guid) & (ports_counters[Constants.PORT_NUMBER] == int(peer_num))]
+        peer_row_list = ports_counters.loc[(ports_counters[Constants.NODE_GUID] == peer_guid) &\
+                                            (ports_counters[Constants.PORT_NUMBER] == int(peer_num))]
         if peer_row_list.empty:
             self.logger.warning(f"Peer port {port_obj.peer} not found in ports data")
             return None
@@ -296,7 +300,7 @@ class PDRAlgorithm:
         rcv_remote_phy_error = get_counter(Constants.RCV_REMOTE_PHY_ERROR_COUNTER, row)
         errors = rcv_error + rcv_remote_phy_error
         error_rate = self.get_rate_and_update(port_obj, Constants.ERRORS_COUNTER, errors, timestamp)
-        return error_rate        
+        return error_rate
 
     def check_pdr_issue(self, port_obj, row, timestamp):
         """
@@ -312,7 +316,7 @@ class PDRAlgorithm:
             return Issue(port_obj.port_name, Constants.ISSUE_PDR)
         return None
 
-    def check_temp_issue(self, port_obj, row, timestamp):
+    def check_temp_issue(self, port_obj, row):
         """
         Check if the port passed the temperature threshold and return an issue
         """
@@ -322,7 +326,7 @@ class PDRAlgorithm:
         if cable_temp is not None and not pd.isna(cable_temp):
             if cable_temp in ["NA", "N/A", "", "0C", "0"]:
                 return None
-            cable_temp = int(cable_temp.split("C")[0]) if type(cable_temp) == str else cable_temp
+            cable_temp = int(cable_temp.split("C")[0]) if isinstance(cable_temp, str) else cable_temp
             old_cable_temp = port_obj.counters_values.get(Constants.TEMP_COUNTER, 0)
             port_obj.counters_values[Constants.TEMP_COUNTER] = cable_temp
             # Check temperature condition
@@ -385,7 +389,7 @@ class PDRAlgorithm:
         if symbol_ber_val is not None:
             ber_data = {
                 Constants.TIMESTAMP : timestamp,
-                Constants.SYMBOL_BER : symbol_ber_val, 
+                Constants.SYMBOL_BER : symbol_ber_val,
             }
             port_obj.ber_tele_data.loc[len(port_obj.ber_tele_data)] = ber_data
             port_obj.last_symbol_ber_timestamp = timestamp
@@ -398,8 +402,9 @@ class PDRAlgorithm:
             for (interval, threshold) in self.ber_intervals:
                 symbol_ber_rate = self.calc_ber_rates(port_obj.port_name, port_obj.active_speed, port_obj.port_width, interval)
                 if symbol_ber_rate and symbol_ber_rate > threshold:
-                    self.logger.info(f"Isolation issue ({Constants.ISSUE_BER}) detected for port {port_obj.port_name} (speed: {port_obj.active_speed}, width: {port_obj.port_width}): "
-                                    f"symbol ber rate ({symbol_ber_rate}) is higher than threshold ({threshold})")
+                    self.logger.info(f"Isolation issue ({Constants.ISSUE_BER}) detected for port {port_obj.port_name} "
+                                     f"(speed: {port_obj.active_speed}, width: {port_obj.port_width}): "
+                                     f"symbol ber rate ({symbol_ber_rate}) is higher than threshold ({threshold})")
                     return Issue(port_obj.port_name, Constants.ISSUE_BER)
         return None
 
@@ -425,13 +430,13 @@ class PDRAlgorithm:
             if not port_obj:
                 if get_counter(Constants.RCV_PACKETS_COUNTER,row,0) == 0: # meaning it is down port
                     continue
-                self.logger.warning("Port {0} not found in ports data".format(port_name))
+                self.logger.warning("Port %s not found in ports data", port_name)
                 continue
             # Converting from micro seconds to seconds.
             timestamp = get_timestamp_seconds(row)
             #TODO add logs regarding the exact telemetry value leading to the decision
             pdr_issue = self.check_pdr_issue(port_obj, row, timestamp)
-            temp_issue = self.check_temp_issue(port_obj, row, timestamp)
+            temp_issue = self.check_temp_issue(port_obj, row)
             link_downed_issue = self.check_link_down_issue(port_obj, row, timestamp, ports_counters)
             ber_issue = self.check_ber_issue(port_obj, row, timestamp)
             port_obj.last_timestamp = timestamp
@@ -456,7 +461,7 @@ class PDRAlgorithm:
         """
         state = port_state.get_state()
         cause = port_state.get_cause()
-        # EZ: it is a state that say that some maintenance was done to the link 
+        # EZ: it is a state that say that some maintenance was done to the link
         #     so need to re-evaluate if to return it to service
         # Deal with ports that with either cause = oonoc or fixed
         if not (self.automatic_deisolate or cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED):
@@ -483,6 +488,7 @@ class PDRAlgorithm:
 
         return True
 
+    #pylint: disable=too-many-arguments,too-many-locals
     def calc_symbol_ber_rate(self, port_name, port_speed, port_width, col_name, time_delta):
         """
         calculate the symbol BER rate for a given port given the time delta
@@ -510,10 +516,12 @@ class PDRAlgorithm:
             # Calculate the delta of 'symbol_ber'
             delta = port_obj.last_symbol_ber_val - comparison_sample[Constants.SYMBOL_BER]
             actual_speed = self.speed_types.get(port_speed, 100000)
-            return delta / ((port_obj.last_symbol_ber_timestamp - comparison_df.loc[comparison_idx][Constants.TIMESTAMP]) * actual_speed * port_width * 1024 * 1024 * 1024)
+            return delta / ((port_obj.last_symbol_ber_timestamp -
+                             comparison_df.loc[comparison_idx][Constants.TIMESTAMP]) *
+                             actual_speed * port_width * 1024 * 1024 * 1024)
 
-        except Exception as e:
-            self.logger.error(f"Error calculating {col_name}, error: {e}")
+        except (KeyError, ValueError, TypeError) as exception_error:
+            self.logger.error(f"Error calculating {col_name}, error: {exception_error}")
             return 0
 
     def calc_ber_rates(self, port_name, port_speed, port_width, time_delta):
@@ -557,3 +565,4 @@ class PDRAlgorithm:
             if port_width:
                 port_width = int(port_width.strip('x'))
             return port_speed, port_width
+        return None, None
