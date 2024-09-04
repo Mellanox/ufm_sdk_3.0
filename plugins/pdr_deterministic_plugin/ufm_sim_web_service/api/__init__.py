@@ -12,7 +12,7 @@
 
 class InvalidRequest(Exception):
     """
-    and exception of invalid request
+    exception of invalid request
     """
 
     def __init__(self, message):
