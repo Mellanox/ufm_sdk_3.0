@@ -47,8 +47,8 @@ class IsolationMgr:
 
         self.test_iteration = 0
         self.logger = logger
-
         self.exclude_list = ExcludeList(self.logger)
+        self.pdr_alg = PDRAlgorithm(self.ufm_client, self.exclude_list, self.logger, pdr_config)
 
     def eval_isolation(self, port_name, cause):
         """
@@ -276,7 +276,6 @@ class IsolationMgr:
         self.logger.info("Isolation Manager initialized, starting isolation loop")
         self.get_ports_metadata()
         self.logger.info("Retrieved ports metadata")
-        pdr_alg = PDRAlgorithm(self.ufm_client, self.exclude_list, self.logger)
         while True:
             try:
                 t_begin = time.time()
@@ -296,7 +295,7 @@ class IsolationMgr:
                         self.logger.error("Couldn't retrieve telemetry data")
                     else:
                         # Detect ports to be isolated or deisolated
-                        issues = pdr_alg.analyze_telemetry_data(self.ports_data, ports_counters)
+                        issues = self.pdr_alg.analyze_telemetry_data(self.ports_data, ports_counters)
                 except (KeyError, TypeError, ValueError) as exception_error:
                     self.logger.error(f"failed to read information with error {exception_error}")
 
@@ -319,7 +318,7 @@ class IsolationMgr:
                     # deisolate ports
                     if self.do_deisolate:
                         for port_state in list(self.ports_states.values()):
-                            if pdr_alg.check_deisolation_conditions(port_state):
+                            if self.pdr_alg.check_deisolation_conditions(port_state):
                                 self.eval_deisolate(port_state.name)
                     ports_updated = self.update_ports_data()
                     if ports_updated:

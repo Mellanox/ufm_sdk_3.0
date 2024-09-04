@@ -161,14 +161,10 @@ class PDRAlgorithm:
     """
     This class is responsible for detection of ports that should be isolated or deisolated based on the telemetry data
     """
-    def __init__(self, ufm_client: UFMCommunicator, exclude_list: ExcludeList, logger):
+    def __init__(self, ufm_client: UFMCommunicator, exclude_list: ExcludeList, logger, pdr_config):
         self.ufm_client = ufm_client
         # {port_name: telemetry_data}
         self.ports_data = {}
-        self.ufm_latest_isolation_state = []
-
-        pdr_config = configparser.ConfigParser()
-        pdr_config.read(Constants.CONF_FILE)
 
         # Take from Conf
         self.interval = pdr_config.getint(Constants.CONF_SAMPLING, Constants.INTERVAL)
