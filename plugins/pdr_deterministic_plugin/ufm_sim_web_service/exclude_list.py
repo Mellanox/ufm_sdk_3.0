@@ -13,7 +13,7 @@
 import time
 import threading
 
-class ExcludeListItem():
+class ExcludeListItem:
     """
     Represents details of excluded port.
 
@@ -33,7 +33,7 @@ class ExcludeListItem():
         self.remove_time = 0 if ttl_seconds == 0 else time.time() + ttl_seconds
 
 
-class ExcludeList():
+class ExcludeList:
     """
     Implements list for excluded ports.
 
