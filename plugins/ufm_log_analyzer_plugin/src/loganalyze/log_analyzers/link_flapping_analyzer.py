@@ -16,6 +16,7 @@ import os
 import re
 import shutil
 from typing import List
+from pathlib import Path
 import pandas as pd
 from utils.netfix.link_flapping import get_link_flapping
 from loganalyze.log_analyzers.base_analyzer import BaseImageCreator
@@ -65,7 +66,7 @@ class LinkFlappingAnalyzer(BaseImageCreator):
             return ""
 
         # Create the output file path by replacing .gz with .csv
-        output_file_path = file_path[:-3] + '.csv'
+        output_file_path = f"{Path(file_path).stem}.csv"
 
         # Open the .gz file and write its content to a new .csv file
         with gzip.open(file_path, 'rb') as f_in:
