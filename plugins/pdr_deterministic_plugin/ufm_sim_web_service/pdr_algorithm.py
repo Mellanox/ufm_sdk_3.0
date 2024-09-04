@@ -403,11 +403,11 @@ class PDRAlgorithm:
                     return Issue(port_obj.port_name, Constants.ISSUE_BER)
         return None
 
-    def read_next_set_of_high_ber_or_pdr_ports(self, ports_data, ports_counters):
+    def analyze_telemetry_data(self, ports_data, ports_counters):
         """
         Read the next set of ports and check if they have high BER, PDR, temperature or link downed issues
         Receives: detected ports, isolated ports and telemetry data
-        Returns: lists of isolation issues
+        Returns: lists of isolation candidates
         """
         self.ports_data = ports_data
 
@@ -448,8 +448,10 @@ class PDRAlgorithm:
                 issues[port_name] = Constants.ISSUE_OONOC
         return list(issues.values())
 
-    def should_deisolate(self, port_state):
+    def check_deisolation_conditions(self, port_state):
         """
+        Check if given port should be deisolated
+        Function doesn't perform deisolation itself, just checks deisolation conditions only
         Return True if given port should be deisolated
         """
         state = port_state.get_state()
