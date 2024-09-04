@@ -66,7 +66,7 @@ class PDRPluginAPI(BaseAiohttpAPI):
         response = ""
         for pair in pairs:
             if pair:
-                port_name = PDRPluginAPI.fix_port_name(pair[0])
+                port_name = self.fix_port_name(pair[0])
                 ttl = 0 if len(pair) == 1 else int(pair[1])
                 self.isolation_mgr.exclude_list.add(port_name, ttl)
                 if ttl == 0:
@@ -95,7 +95,7 @@ class PDRPluginAPI(BaseAiohttpAPI):
 
         response = ""
         for port_name in port_names:
-            port_name = PDRPluginAPI.fix_port_name(port_name)
+            port_name = self.fix_port_name(port_name)
             if self.isolation_mgr.exclude_list.remove(port_name):
                 response += f"Port {port_name} removed from exclude list"
             else:
@@ -122,8 +122,7 @@ class PDRPluginAPI(BaseAiohttpAPI):
                 # Return the raw text data
                 return text
 
-    @staticmethod
-    def fix_port_name(port_name):
+    def fix_port_name(self,port_name):
         """
         Try to fix common user mistakes for input port names
         Return fixed port name

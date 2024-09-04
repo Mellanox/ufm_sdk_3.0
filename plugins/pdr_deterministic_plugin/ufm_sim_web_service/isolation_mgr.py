@@ -24,12 +24,14 @@ from constants import PDRConstants as Constants
 from ufm_communication_mgr import UFMCommunicator
 # should actually be persistent and thread safe dictionary pf PortStates
 
-class PortData(): #pylint: disable=too-many-instance-attributes
+#pylint: disable=too-many-instance-attributes
+class PortData():
 
     """
     Represents the port data.
     """
-    def __init__(self, port_name=None, port_num=None, peer=None, node_type=None, active_speed=None, port_width=None, port_guid=None): #pylint: disable=too-many-arguments
+    #pylint: disable=too-many-arguments
+    def __init__(self, port_name=None, port_num=None, peer=None, node_type=None, active_speed=None, port_width=None, port_guid=None): 
         """
         Initialize a new instance of the PortData class.
 
@@ -159,7 +161,8 @@ def get_timestamp_seconds(row):
     '''
     return row.get(Constants.TIMESTAMP) / 1000.0 / 1000.0
 
-class IsolationMgr:#pylint: disable=too-many-instance-attributes,too-many-public-methods
+#pylint: disable=too-many-instance-attributes,too-many-public-methods
+class IsolationMgr:
     '''
     This class is responsible for managing the isolation of ports based on the telemetry data
     '''
@@ -569,7 +572,8 @@ class IsolationMgr:#pylint: disable=too-many-instance-attributes,too-many-public
                 issues[port_name] = ber_issue
         return issues
 
-    def calc_symbol_ber_rate(self, port_name, port_speed, port_width, col_name, time_delta):#pylint: disable=too-many-arguments,too-many-locals
+    #pylint: disable=too-many-arguments,too-many-locals
+    def calc_symbol_ber_rate(self, port_name, port_speed, port_width, col_name, time_delta):
         """
         calculate the symbol BER rate for a given port given the time delta
         """
@@ -771,7 +775,8 @@ class IsolationMgr:#pylint: disable=too-many-instance-attributes,too-many-public
         requested_guids = [{"guid": sys_guid, "ports": ports} for sys_guid, ports in guids.items()]
         return requested_guids
 
-    def main_flow(self): #pylint: disable=too-many-branches
+    #pylint: disable=too-many-branches
+    def main_flow(self):
         """
         Executes the main flow of the Isolation Manager.
 
@@ -831,7 +836,8 @@ class IsolationMgr:#pylint: disable=too-many-instance-attributes,too-many-public
                 if ports_updated:
                     self.update_telemetry_session()
                 t_end = time.time()
-            except Exception as exception: #pylint: disable=broad-except
+            #pylint: disable=broad-except
+            except Exception as exception:
                 self.logger.warning("Error in main loop")
                 self.logger.warning(exception)
                 traceback_err = traceback.format_exc()

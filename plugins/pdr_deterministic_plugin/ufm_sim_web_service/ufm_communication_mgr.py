@@ -10,10 +10,13 @@
 # provided with the software product.
 #
 
+import urllib.error
+import urllib
 import logging
 import http
 from constants import PDRConstants as Constants
 import requests
+import pandas as pd
 
 class UFMCommunicator:
     """
@@ -55,6 +58,22 @@ class UFMCommunicator:
             return None
         logging.info("UFM API Request Status: %s, URL: %s",response.status_code, request)
         return response
+
+    def get_telemetry(self,test_mode):
+        """
+        get the telemetry from secondary telemetry, if it in test mode it get from the simulation
+        return DataFrame of the telemetry
+        """
+        if test_mode:
+            url = "http://127.0.0.1:9090/csv/xcset/simulated_telemetry"
+        else:
+            url = f"http://127.0.0.1:{Constants.SECONDARY_TELEMETRY_PORT}/csv/xcset/{Constants.SECONDARY_INSTANCE}"
+        try:
+            telemetry_data = pd.read_csv(url)
+        except (pd.errors.ParserError, pd.errors.EmptyDataError, urllib.error.URLError) as error:
+            logging.error("Failed to get telemetry data from UFM, fetched url=%s. Error: %s",url,error)
+            telemetry_data = None
+        return telemetry_data
 
     def send_event(self, message, event_id=Constants.EXTERNAL_EVENT_NOTICE,
                     external_event_name="PDR Plugin Event", external_event_type="PDR Plugin Event"):
