@@ -17,12 +17,17 @@ class TelemetryCollector:
         return DataFrame of the telemetry
         """
         if self.test_mode:
-            url = f"http://127.0.0.1:9090/csv/xcset/simulated_telemetry"
+            url = "http://127.0.0.1:9090/csv/xcset/simulated_telemetry"
         else:
             url = f"http://127.0.0.1:{Constants.SECONDARY_TELEMETRY_PORT}/csv/xcset/{Constants.SECONDARY_INSTANCE}"
         try:
             telemetry_data = pd.read_csv(url)
-        except (pd.errors.ParserError, pd.errors.EmptyDataError, urllib.error.URLError) as e:
-            logging.error(f"Failed to get telemetry data from UFM, fetched url={url}. Error: {e}")
+        except (pd.errors.ParserError, pd.errors.EmptyDataError, urllib.error.URLError) as connection_error:
+            logging.error("Failed to get telemetry data from UFM, fetched url=%s. Error: %s",url,connection_error)
             telemetry_data = None
+        self.data = telemetry_data
         return telemetry_data
+
+    def save_data(self):
+        self.data.to_csv(Constants.CSV_LOCATION)
+

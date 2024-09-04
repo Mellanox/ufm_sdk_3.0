@@ -60,6 +60,8 @@ class PDRConstants():
 
     TIMEOUT = 60
 
+    CSV_LOCATION = "/data"
+
     EXTERNAL_EVENT_ERROR = 554
     EXTERNAL_EVENT_ALERT = 553
     EXTERNAL_EVENT_NOTICE = 552
