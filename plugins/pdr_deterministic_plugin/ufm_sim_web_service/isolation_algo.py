@@ -14,13 +14,12 @@ import configparser
 import os
 import logging
 from logging.handlers import RotatingFileHandler
+import threading
 from constants import PDRConstants as Constants
 from isolation_mgr import IsolationMgr
+from api.base_aiohttp_api import BaseAiohttpServer
 from ufm_communication_mgr import UFMCommunicator
 from api.pdr_plugin_api import PDRPluginAPI
-from twisted.internet import reactor
-from utils.flask_server import run_api
-from utils.flask_server.base_flask_api_app import BaseFlaskAPIApp
 from utils.utils import Utils
 
 
@@ -79,19 +78,16 @@ def main():
     logger = create_logger(Constants.LOG_FILE)
 
     algo_loop = IsolationMgr(ufm_client, logger)
-    reactor.callInThread(algo_loop.main_flow) # pylint: disable=no-member
+    threading.Thread(target=algo_loop.main_flow).start()
 
     try:
         plugin_port = Utils.get_plugin_port(
             port_conf_file='/config/pdr_deterministic_httpd_proxy.conf',
             default_port_value=8977)
 
-        routes = {
-            "": PDRPluginAPI(algo_loop).application
-        }
-
-        app = BaseFlaskAPIApp(routes)
-        run_api(app=app, port_number=int(plugin_port))
+        api = PDRPluginAPI(algo_loop)
+        server = BaseAiohttpServer(logger)
+        server.run(api.application, "127.0.0.1", int(plugin_port))
 
     except Exception as ex: # pylint: disable=broad-except
         print(f'Failed to run the app: {str(ex)}')

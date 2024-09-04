@@ -25,6 +25,7 @@ from ufm_communication_mgr import UFMCommunicator
 # should actually be persistent and thread safe dictionary pf PortStates
 
 class PortData(): #pylint: disable=too-many-instance-attributes
+
     """
     Represents the port data.
     """
