@@ -29,9 +29,9 @@ class IsolationMgr:
     def __init__(self, ufm_client: UFMCommunicator, logger):
         self.ufm_client = ufm_client
         # {port_name: PortState}
-        self.ports_states = dict()
+        self.ports_states = {}
         # {port_name: telemetry_data}
-        self.ports_data = dict()
+        self.ports_data = {}
         self.ufm_latest_isolation_state = []
 
         pdr_config = configparser.ConfigParser()
@@ -115,7 +115,7 @@ class IsolationMgr:
             return
 
         # port is clean now - de-isolate it
-        # using UFM "mark as healthy" API - PUT /ufmRestV2/app/unhealthy_ports 
+        # using UFM "mark as healthy" API - PUT /ufmRestV2/app/unhealthy_ports
             # {
             # "ports": [
             #     "e41d2d0300062380_3"
@@ -125,7 +125,8 @@ class IsolationMgr:
         if not self.dry_run:
             ret = self.ufm_client.deisolate_port(port_name)
             if not ret or ret.status_code != http.HTTPStatus.OK:
-                self.logger.warning("Failed deisolating port: %s with cause: %s... status_code= %s", port_name, self.ports_states[port_name].cause, ret.status_code)        
+                self.logger.warning("Failed deisolating port: %s with cause: %s... status_code= %s",\
+                                     port_name, self.ports_states[port_name].cause, ret.status_code)
                 return
         self.ports_states.pop(port_name)
         log_message = f"Deisolated port: {port_name}. dry_run: {self.dry_run}"
@@ -184,7 +185,7 @@ class IsolationMgr:
     def update_ports_data(self):
         """
         Updates the ports data by retrieving metadata from the UFM client.
-        
+
         Returns:
             bool: True if ports data is updated, False otherwise.
         """
@@ -215,7 +216,7 @@ class IsolationMgr:
             port_state = self.ports_states.get(port)
             if port_state and state == Constants.STATE_TREATED:
                 port_state.state = state
-    
+
     def get_isolation_state(self):
         """
         Retrieves the isolation state of the ports.
@@ -224,7 +225,7 @@ class IsolationMgr:
             None: If the test mode is enabled.
             List[str]: A list of isolated ports if available.
         """
-        
+
         if self.test_mode:
             # I don't want to get to the isolated ports because we simulating everything..
             return
@@ -256,6 +257,7 @@ class IsolationMgr:
         requested_guids = [{"guid": sys_guid, "ports": ports} for sys_guid, ports in guids.items()]
         return requested_guids
 
+    #pylint: disable=too-many-branches
     def main_flow(self):
         """
         Executes the main flow of the Isolation Manager.
@@ -322,10 +324,12 @@ class IsolationMgr:
                     if ports_updated:
                         self.update_telemetry_session()
                 t_end = time.time()
-            except Exception as e:
+               
+            #pylint: disable=broad-except
+            except Exception as exception:
                 self.logger.warning("Error in main loop")
-                self.logger.warning(e)
+                self.logger.warning(exception)
                 traceback_err = traceback.format_exc()
                 self.logger.warning(traceback_err)
-                t_end = time.time()      
+                t_end = time.time()
             time.sleep(max(1, self.interval - (t_end - t_begin)))

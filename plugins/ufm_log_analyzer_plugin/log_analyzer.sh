@@ -1,5 +1,6 @@
+#!/bin/bash
 #
-# Copyright © 2013-2023 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright © 2013-2024 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -9,11 +10,12 @@
 # This software product is governed by the End User License Agreement
 # provided with the software product.
 #
+# author: Samer Deeb
+# date:   Mar 02, 2024
+#
 
-class InvalidRequest(Exception):
-    """
-    exception of invalid request
-    """
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+src_dir=$( realpath "${SCRIPT_DIR}/src" )
+export PYTHONPATH="${src_dir}"
 
-    def __init__(self, message):
-        Exception.__init__(self,message)
+python3 "${src_dir}/loganalyze/log_analyzer.py" "$@"

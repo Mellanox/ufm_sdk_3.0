@@ -13,7 +13,7 @@
 import time
 import threading
 
-class ExcludeListItem(object):
+class ExcludeListItem():
     """
     Represents details of excluded port.
 
@@ -33,7 +33,7 @@ class ExcludeListItem(object):
         self.remove_time = 0 if ttl_seconds == 0 else time.time() + ttl_seconds
 
 
-class ExcludeList(object):
+class ExcludeList():
     """
     Implements list for excluded ports.
 
@@ -71,7 +71,7 @@ class ExcludeList(object):
     def contains(self, port_name):
         """
         Check if port exists.
-        Remove the port if its remove time is reached. 
+        Remove the port if its remove time is reached.
         :param port_name: The name of the port.
         :return: True if the port still exists, False otherwise.
         """
@@ -81,10 +81,10 @@ class ExcludeList(object):
                 if data.remove_time == 0 or time.time() < data.remove_time:
                     # Excluded port
                     return True
-                else:
-                    # The time is expired, so remove port from the list
-                    self.__dict.pop(port_name)
-                    self.__logger.info(f"Port {port_name} automatically removed from exclude list after {data.ttl_seconds} seconds")
+
+                # The time is expired, so remove port from the list
+                self.__dict.pop(port_name)
+                self.__logger.info(f"Port {port_name} automatically removed from exclude list after {data.ttl_seconds} seconds")
         return False
 
 
@@ -98,8 +98,7 @@ class ExcludeList(object):
                 self.__dict.pop(port_name)
                 self.__logger.info(f"Port {port_name} removed from exclude list")
                 return True
-            else:
-                return False
+            return False
 
 
     def refresh(self):

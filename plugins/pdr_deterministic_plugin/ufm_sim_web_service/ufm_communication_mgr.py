@@ -10,16 +10,18 @@
 # provided with the software product.
 #
 
-from enum import Enum
 import urllib.error
+import urllib
+import logging
+import http
 from constants import PDRConstants as Constants
 import requests
-import logging
-import urllib
-import http
 import pandas as pd
 
 class UFMCommunicator:
+    """
+    communicate with the UFM, send actions to the UFM, see that ports isolated.
+    """
 
     def __init__(self, host='127.0.0.1', ufm_port=8000):
         #TODO: read from conf
@@ -27,52 +29,54 @@ class UFMCommunicator:
         self.ufm_protocol = "http"
         self.headers = {"X-Remote-User": "ufmsystem"}
         #self.suffix = None
-        self._host = "{0}:{1}".format(host, self.internal_port)
-    
+        self._host = f"{host}:{self.internal_port}"
+
     def get_request(self, uri, headers=None):
         request = self.ufm_protocol + '://' + self._host + uri
         if not headers:
             headers = self.headers
         try:
-            response = requests.get(request, verify=False, headers=headers)
-            logging.info("UFM API Request Status: {}, URL: {}".format(response.status_code, request))
+            response = requests.get(request, verify=False, headers=headers,timeout=Constants.TIMEOUT)
+            logging.info("UFM API Request Status: %s, URL: %s",response.status_code, request)
             if response.status_code == http.client.OK:
                 return response.json()
-        except ConnectionRefusedError as e:
-            logging.error(f"failed to get data from {request} with error {e}")
-        return
-    
+        except ConnectionRefusedError as connection_error:
+            logging.error("failed to get data from %s with error %s",request,connection_error)
+        return None
+
     def send_request(self, uri, data, method=Constants.POST_METHOD, headers=None):
         request = self.ufm_protocol + '://' + self._host + uri
         if not headers:
             headers = self.headers
         if method == Constants.POST_METHOD:
-            response = requests.post(url=request, json=data, verify=False, headers=headers)
+            response = requests.post(url=request, json=data, verify=False, headers=headers,timeout=Constants.TIMEOUT)
         elif method == Constants.PUT_METHOD:
-            response = requests.put(url=request, json=data, verify=False, headers=headers)
+            response = requests.put(url=request, json=data, verify=False, headers=headers,timeout=Constants.TIMEOUT)
         elif method == Constants.DELETE_METHOD:
-            response = requests.delete(url=request, verify=False, headers=headers)
-        logging.info("UFM API Request Status: {}, URL: {}".format(response.status_code, request))
+            response = requests.delete(url=request, verify=False, headers=headers,timeout=Constants.TIMEOUT)
+        else:
+            return None
+        logging.info("UFM API Request Status: %s, URL: %s",response.status_code, request)
         return response
-        
+
     def get_telemetry(self,test_mode):
         """
         get the telemetry from secondary telemetry, if it in test mode it get from the simulation
         return DataFrame of the telemetry
         """
         if test_mode:
-            url = f"http://127.0.0.1:9090/csv/xcset/simulated_telemetry"
+            url = "http://127.0.0.1:9090/csv/xcset/simulated_telemetry"
         else:
             url = f"http://127.0.0.1:{Constants.SECONDARY_TELEMETRY_PORT}/csv/xcset/{Constants.SECONDARY_INSTANCE}"
         try:
             telemetry_data = pd.read_csv(url)
-        except (pd.errors.ParserError, pd.errors.EmptyDataError, urllib.error.URLError) as e:
-            logging.error(f"Failed to get telemetry data from UFM, fetched url={url}. Error: {e}")
+        except (pd.errors.ParserError, pd.errors.EmptyDataError, urllib.error.URLError) as error:
+            logging.error("Failed to get telemetry data from UFM, fetched url=%s. Error: %s",url,error)
             telemetry_data = None
         return telemetry_data
 
-    
-    def send_event(self, message, event_id=Constants.EXTERNAL_EVENT_NOTICE, external_event_name="PDR Plugin Event", external_event_type="PDR Plugin Event"):
+    def send_event(self, message, event_id=Constants.EXTERNAL_EVENT_NOTICE,
+                    external_event_name="PDR Plugin Event", external_event_type="PDR Plugin Event"):
         data = {
             "event_id": event_id,
             "description": message,
@@ -82,8 +86,8 @@ class UFMCommunicator:
 
         }
         ret = self.send_request(Constants.POST_EVENT_REST, data)
-        if ret: 
-            return True 
+        if ret:
+            return True
         return False
 
     def get_isolated_ports(self):
@@ -113,9 +117,9 @@ class UFMCommunicator:
             "ports_policy": "HEALTHY",
             }
         return self.send_request(Constants.ISOLATION_REST, data, method=Constants.PUT_METHOD)
-    
+
     def get_ports_metadata(self):
         return self.get_request(Constants.GET_ACTIVE_PORTS_REST)
 
     def get_port_metadata(self, port_name):
-        return self.get_request("%s/%s" % (Constants.GET_PORTS_REST, port_name))
+        return self.get_request(f"{Constants.GET_PORTS_REST}/ {port_name}")
