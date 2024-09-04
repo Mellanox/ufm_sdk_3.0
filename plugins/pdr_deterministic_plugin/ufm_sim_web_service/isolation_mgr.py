@@ -31,7 +31,7 @@ class PortData():
     Represents the port data.
     """
     #pylint: disable=too-many-arguments
-    def __init__(self, port_name=None, port_num=None, peer=None, node_type=None, active_speed=None, port_width=None, port_guid=None): 
+    def __init__(self, port_name=None, port_num=None, peer=None, node_type=None, active_speed=None, port_width=None, port_guid=None):
         """
         Initialize a new instance of the PortData class.
 
