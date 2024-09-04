@@ -16,7 +16,6 @@ import time
 import http
 import configparser
 import math
-import json
 import pandas as pd
 import numpy
 from exclude_list import ExcludeList
@@ -25,10 +24,13 @@ from constants import PDRConstants as Constants
 from ufm_communication_mgr import UFMCommunicator
 # should actually be persistent and thread safe dictionary pf PortStates
 
-class PortData(object):
+#pylint: disable=too-many-instance-attributes
+class PortData():
+
     """
     Represents the port data.
     """
+    #pylint: disable=too-many-arguments
     def __init__(self, port_name=None, port_num=None, peer=None, node_type=None, active_speed=None, port_width=None, port_guid=None):
         """
         Initialize a new instance of the PortData class.
@@ -57,7 +59,7 @@ class PortData(object):
 
 
 
-class PortState(object):
+class PortState():
     """
     Represents the state of a port.
 
@@ -117,7 +119,7 @@ class PortState(object):
         return self.change_time
 
 
-class Issue(object):
+class Issue():
     """
     Represents an issue that occurred on a specific port.
 
@@ -138,7 +140,7 @@ class Issue(object):
 
 def get_counter(counter_name, row, default=0):
     """
-    Get the value of a specific counter from a row of data. If the counter is not present 
+    Get the value of a specific counter from a row of data. If the counter is not present
     or its value is NaN, return a default value.
 
     :param counter_name: The name of the counter to get.
@@ -149,7 +151,7 @@ def get_counter(counter_name, row, default=0):
     """
     try:
         val = row.get(counter_name) if (row.get(counter_name) is not None and not pd.isna(row.get(counter_name))) else default
-    except Exception as e:
+    except (KeyError,ValueError,TypeError):
         return default
     return val
 
@@ -159,6 +161,7 @@ def get_timestamp_seconds(row):
     '''
     return row.get(Constants.TIMESTAMP) / 1000.0 / 1000.0
 
+#pylint: disable=too-many-instance-attributes,too-many-public-methods
 class IsolationMgr:
     '''
     This class is responsible for managing the isolation of ports based on the telemetry data
@@ -167,9 +170,9 @@ class IsolationMgr:
     def __init__(self, ufm_client: UFMCommunicator, logger):
         self.ufm_client = ufm_client
         # {port_name: PortState}
-        self.ports_states = dict()
+        self.ports_states = {}
         # {port_name: telemetry_data}
-        self.ports_data = dict()
+        self.ports_data = {}
         self.ufm_latest_isolation_state = []
 
         pdr_config = configparser.ConfigParser()
@@ -197,7 +200,7 @@ class IsolationMgr:
         intervals = [x[0] for x in self.ber_intervals]
         self.min_ber_wait_time = min(intervals)
         self.max_ber_wait_time = max(intervals)
-        self.max_ber_threshold = max([x[1] for x in self.ber_intervals])
+        self.max_ber_threshold = max(x[1] for x in self.ber_intervals)
 
         self.start_time = time.time()
         self.max_time = self.start_time
@@ -219,22 +222,23 @@ class IsolationMgr:
 
         self.exclude_list = ExcludeList(self.logger)
 
-    def calc_max_ber_wait_time(self, min_threshold):
-            """
-            Calculates the maximum wait time for Bit Error Rate (BER) based on the given minimum threshold.
+    @staticmethod
+    def calc_max_ber_wait_time(min_threshold):
+        """
+        Calculates the maximum wait time for Bit Error Rate (BER) based on the given minimum threshold.
 
-            Args:
-                min_threshold (float): The minimum threshold for BER.
+        Args:
+            min_threshold (float): The minimum threshold for BER.
 
-            Returns:
-                float: The maximum wait time in seconds.
-            """
-            # min speed EDR = 32 Gb/s
-            min_speed, min_width = 32 * 1024 * 1024 * 1024, 1
-            min_port_rate = min_speed * min_width
-            min_bits = float(format(float(min_threshold), '.0e').replace('-', ''))
-            min_sec_to_wait = min_bits / min_port_rate
-            return min_sec_to_wait
+        Returns:
+            float: The maximum wait time in seconds.
+        """
+        # min speed EDR = 32 Gb/s
+        min_speed, min_width = 32 * 1024 * 1024 * 1024, 1
+        min_port_rate = min_speed * min_width
+        min_bits = float(format(float(min_threshold), '.0e').replace('-', ''))
+        min_sec_to_wait = min_bits / min_port_rate
+        return min_sec_to_wait
 
     def is_out_of_operating_conf(self, port_name):
         """
@@ -249,7 +253,7 @@ class IsolationMgr:
         port_obj = self.ports_data.get(port_name)
         if not port_obj:
             self.logger.warning(f"Port {port_name} not found in ports data in calculation of oonoc port")
-            return
+            return False
         temp = port_obj.counters_values.get(Constants.TEMP_COUNTER)
         if temp and temp > self.tmax:
             return True
@@ -327,7 +331,7 @@ class IsolationMgr:
             self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
             return
         # we need some time after the change in state
-        elif datetime.now() >= self.ports_states[port_name].get_change_time() + timedelta(seconds=self.deisolate_consider_time):
+        if datetime.now() >= self.ports_states[port_name].get_change_time() + timedelta(seconds=self.deisolate_consider_time):
             port_obj = self.ports_data.get(port_name)
             port_state = self.ports_states.get(port_name)
             if port_state.cause == Constants.ISSUE_BER:
@@ -342,7 +346,7 @@ class IsolationMgr:
             return
 
         # port is clean now - de-isolate it
-        # using UFM "mark as healthy" API - PUT /ufmRestV2/app/unhealthy_ports 
+        # using UFM "mark as healthy" API - PUT /ufmRestV2/app/unhealthy_ports
             # {
             # "ports": [
             #     "e41d2d0300062380_3"
@@ -352,7 +356,8 @@ class IsolationMgr:
         if not self.dry_run:
             ret = self.ufm_client.deisolate_port(port_name)
             if not ret or ret.status_code != http.HTTPStatus.OK:
-                self.logger.warning("Failed deisolating port: %s with cause: %s... status_code= %s", port_name, self.ports_states[port_name].cause, ret.status_code)        
+                self.logger.warning("Failed deisolating port: %s with cause: %s... status_code= %s",\
+                                     port_name, self.ports_states[port_name].cause, ret.status_code)
                 return
         self.ports_states.pop(port_name)
         log_message = f"Deisolated port: {port_name}. dry_run: {self.dry_run}"
@@ -360,7 +365,7 @@ class IsolationMgr:
         if not self.test_mode:
             self.ufm_client.send_event(log_message, event_id=Constants.EXTERNAL_EVENT_NOTICE, external_event_name="Deisolating Port")
 
-    def get_rate(self, port_obj, counter_name, new_val, timestamp):
+    def get_rate(self,port_obj, counter_name, new_val, timestamp):
         """
         Calculate the rate of the counter
         """
@@ -401,7 +406,8 @@ class IsolationMgr:
         if ports_counters[Constants.NODE_GUID].iloc[0].startswith('0x') and not peer_guid.startswith('0x'):
             peer_guid = f'0x{peer_guid}'
         #TODO check for a way to save peer row in data structure for performance
-        peer_row_list = ports_counters.loc[(ports_counters[Constants.NODE_GUID] == peer_guid) & (ports_counters[Constants.PORT_NUMBER] == int(peer_num))]
+        peer_row_list = ports_counters.loc[(ports_counters[Constants.NODE_GUID] == peer_guid) &\
+                                            (ports_counters[Constants.PORT_NUMBER] == int(peer_num))]
         if peer_row_list.empty:
             self.logger.warning(f"Peer port {port_obj.peer} not found in ports data")
             return None
@@ -416,7 +422,7 @@ class IsolationMgr:
         rcv_remote_phy_error = get_counter(Constants.RCV_REMOTE_PHY_ERROR_COUNTER, row)
         errors = rcv_error + rcv_remote_phy_error
         error_rate = self.get_rate_and_update(port_obj, Constants.ERRORS_COUNTER, errors, timestamp)
-        return error_rate        
+        return error_rate
 
     def check_pdr_issue(self, port_obj, row, timestamp):
         """
@@ -432,7 +438,7 @@ class IsolationMgr:
             return Issue(port_obj.port_name, Constants.ISSUE_PDR)
         return None
 
-    def check_temp_issue(self, port_obj, row, timestamp):
+    def check_temp_issue(self, port_obj, row):
         """
         Check if the port passed the temperature threshold and return an issue
         """
@@ -442,7 +448,7 @@ class IsolationMgr:
         if cable_temp is not None and not pd.isna(cable_temp):
             if cable_temp in ["NA", "N/A", "", "0C", "0"]:
                 return None
-            cable_temp = int(cable_temp.split("C")[0]) if type(cable_temp) == str else cable_temp
+            cable_temp = int(cable_temp.split("C")[0]) if isinstance(cable_temp,str) else cable_temp
             old_cable_temp = port_obj.counters_values.get(Constants.TEMP_COUNTER, 0)
             port_obj.counters_values[Constants.TEMP_COUNTER] = cable_temp
             # Check temperature condition
@@ -505,7 +511,7 @@ class IsolationMgr:
         if symbol_ber_val is not None:
             ber_data = {
                 Constants.TIMESTAMP : timestamp,
-                Constants.SYMBOL_BER : symbol_ber_val, 
+                Constants.SYMBOL_BER : symbol_ber_val,
             }
             port_obj.ber_tele_data.loc[len(port_obj.ber_tele_data)] = ber_data
             port_obj.last_symbol_ber_timestamp = timestamp
@@ -518,7 +524,8 @@ class IsolationMgr:
             for (interval, threshold) in self.ber_intervals:
                 symbol_ber_rate = self.calc_ber_rates(port_obj.port_name, port_obj.active_speed, port_obj.port_width, interval)
                 if symbol_ber_rate and symbol_ber_rate > threshold:
-                    self.logger.info(f"Isolation issue ({Constants.ISSUE_BER}) detected for port {port_obj.port_name} (speed: {port_obj.active_speed}, width: {port_obj.port_width}): "
+                    self.logger.info(f"Isolation issue ({Constants.ISSUE_BER}) detected for port {port_obj.port_name}"
+                                      f"(speed: {port_obj.active_speed}, width: {port_obj.port_width}): "
                                      f"symbol ber rate ({symbol_ber_rate}) is higher than threshold ({threshold})")
                     return Issue(port_obj.port_name, Constants.ISSUE_BER)
         return None
@@ -545,13 +552,13 @@ class IsolationMgr:
             if not port_obj:
                 if get_counter(Constants.RCV_PACKETS_COUNTER,row,0) == 0: # meaning it is down port
                     continue
-                self.logger.warning("Port {0} not found in ports data".format(port_name))
+                self.logger.warning("Port %s not found in ports data",port_name)
                 continue
             # Converting from micro seconds to seconds.
             timestamp = get_timestamp_seconds(row)
             #TODO add logs regarding the exact telemetry value leading to the decision
             pdr_issue = self.check_pdr_issue(port_obj, row, timestamp)
-            temp_issue = self.check_temp_issue(port_obj, row, timestamp)
+            temp_issue = self.check_temp_issue(port_obj, row)
             link_downed_issue = self.check_link_down_issue(port_obj, row, timestamp, ports_counters)
             ber_issue = self.check_ber_issue(port_obj, row, timestamp)
             port_obj.last_timestamp = timestamp
@@ -565,6 +572,7 @@ class IsolationMgr:
                 issues[port_name] = ber_issue
         return issues
 
+    #pylint: disable=too-many-arguments,too-many-locals
     def calc_symbol_ber_rate(self, port_name, port_speed, port_width, col_name, time_delta):
         """
         calculate the symbol BER rate for a given port given the time delta
@@ -592,10 +600,12 @@ class IsolationMgr:
             # Calculate the delta of 'symbol_ber'
             delta = port_obj.last_symbol_ber_val - comparison_sample[Constants.SYMBOL_BER]
             actual_speed = self.speed_types.get(port_speed, 100000)
-            return delta / ((port_obj.last_symbol_ber_timestamp - comparison_df.loc[comparison_idx][Constants.TIMESTAMP]) * actual_speed * port_width * 1024 * 1024 * 1024)
+            return delta / ((port_obj.last_symbol_ber_timestamp -
+                             comparison_df.loc[comparison_idx][Constants.TIMESTAMP]) *
+                               actual_speed * port_width * 1024 * 1024 * 1024)
 
-        except Exception as e:
-            self.logger.error(f"Error calculating {col_name}, error: {e}")
+        except (KeyError,ValueError,TypeError) as exception_error:
+            self.logger.error(f"Error calculating {col_name}, error: {exception_error}")
             return 0
 
     def calc_ber_rates(self, port_name, port_speed, port_width, time_delta):
@@ -666,7 +676,7 @@ class IsolationMgr:
     def update_ports_data(self):
         """
         Updates the ports data by retrieving metadata from the UFM client.
-        
+
         Returns:
             bool: True if ports data is updated, False otherwise.
         """
@@ -707,6 +717,7 @@ class IsolationMgr:
             if port_width:
                 port_width = int(port_width.strip('x'))
             return port_speed, port_width
+        return None, None
 
 
     def set_ports_as_treated(self, ports_dict):
@@ -723,7 +734,7 @@ class IsolationMgr:
             port_state = self.ports_states.get(port)
             if port_state and state == Constants.STATE_TREATED:
                 port_state.state = state
-    
+
     def get_isolation_state(self):
         """
         Retrieves the isolation state of the ports.
@@ -732,7 +743,7 @@ class IsolationMgr:
             None: If the test mode is enabled.
             List[str]: A list of isolated ports if available.
         """
-        
+
         if self.test_mode:
             # I don't want to get to the isolated ports because we simulating everything..
             return
@@ -764,6 +775,7 @@ class IsolationMgr:
         requested_guids = [{"guid": sys_guid, "ports": ports} for sys_guid, ports in guids.items()]
         return requested_guids
 
+    #pylint: disable=too-many-branches
     def main_flow(self):
         """
         Executes the main flow of the Isolation Manager.
@@ -782,7 +794,7 @@ class IsolationMgr:
         self.logger.info("Isolation Manager initialized, starting isolation loop")
         self.get_ports_metadata()
         self.logger.info("Retrieved ports metadata")
-        while(True):
+        while True:
             try:
                 t_begin = time.time()
                 self.exclude_list.refresh()
@@ -794,14 +806,15 @@ class IsolationMgr:
                     self.test_iteration += 1
                 try:
                     issues = self.read_next_set_of_high_ber_or_pdr_ports()
-                except (KeyError,) as e:
-                    self.logger.error(f"failed to read information with error {e}")
+                except (KeyError,TypeError,ValueError) as exception_error:
+                    self.logger.error(f"failed to read information with error {exception_error}")
                 if len(issues) > self.max_num_isolate:
                     # UFM send external event
-                    event_msg = "got too many ports detected as unhealthy: %d, skipping isolation" % len(issues)
+                    event_msg = f"got too many ports detected as unhealthy: {len(issues)}, skipping isolation"
                     self.logger.warning(event_msg)
                     if not self.test_mode:
-                        self.ufm_client.send_event(event_msg, event_id=Constants.EXTERNAL_EVENT_ALERT, external_event_name="Skipping isolation")
+                        self.ufm_client.send_event(event_msg, event_id=Constants.EXTERNAL_EVENT_ALERT,
+                                                   external_event_name="Skipping isolation")
 
                 # deal with reported new issues
                 else:
@@ -815,7 +828,7 @@ class IsolationMgr:
                     for port_state in list(self.ports_states.values()):
                         state = port_state.get_state()
                         cause = port_state.get_cause()
-                        # EZ: it is a state that say that some maintenance was done to the link 
+                        # EZ: it is a state that say that some maintenance was done to the link
                         #     so need to re-evaluate if to return it to service
                         if self.automatic_deisolate or cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED:
                             self.eval_deisolate(port_state.name)
@@ -823,10 +836,11 @@ class IsolationMgr:
                 if ports_updated:
                     self.update_telemetry_session()
                 t_end = time.time()
-            except Exception as e:
+            #pylint: disable=broad-except
+            except Exception as exception:
                 self.logger.warning("Error in main loop")
-                self.logger.warning(e)
+                self.logger.warning(exception)
                 traceback_err = traceback.format_exc()
                 self.logger.warning(traceback_err)
-                t_end = time.time()      
+                t_end = time.time()
             time.sleep(max(1, self.interval - (t_end - t_begin)))
