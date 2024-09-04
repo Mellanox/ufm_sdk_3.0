@@ -18,8 +18,8 @@ import threading
 from constants import PDRConstants as Constants
 from isolation_mgr import IsolationMgr
 from api.base_aiohttp_api import BaseAiohttpServer
-from ufm_communication_mgr import UFMCommunicator
 from api.pdr_plugin_api import PDRPluginAPI
+from ufm_communication_mgr import UFMCommunicator
 from utils.utils import Utils
 
 

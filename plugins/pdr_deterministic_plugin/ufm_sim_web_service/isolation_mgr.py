@@ -197,7 +197,7 @@ class IsolationMgr:#pylint: disable=too-many-instance-attributes,too-many-public
         intervals = [x[0] for x in self.ber_intervals]
         self.min_ber_wait_time = min(intervals)
         self.max_ber_wait_time = max(intervals)
-        self.max_ber_threshold = max([x[1] for x in self.ber_intervals])
+        self.max_ber_threshold = max(x[1] for x in self.ber_intervals)
 
         self.start_time = time.time()
         self.max_time = self.start_time
@@ -362,7 +362,7 @@ class IsolationMgr:#pylint: disable=too-many-instance-attributes,too-many-public
         if not self.test_mode:
             self.ufm_client.send_event(log_message, event_id=Constants.EXTERNAL_EVENT_NOTICE, external_event_name="Deisolating Port")
 
-    def get_rate(self,port_obj, counter_name, new_val, timestamp): #pylint: disable=no-self-use
+    def get_rate(self,port_obj, counter_name, new_val, timestamp):
         """
         Calculate the rate of the counter
         """

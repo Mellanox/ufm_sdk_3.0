@@ -37,7 +37,7 @@ class PDRPluginAPI(BaseAiohttpAPI):
         self.add_route("DELETE", "/excluded", self.include_ports)
 
 
-    async def get_excluded_ports(self, request):
+    async def get_excluded_ports(self, request): # pylint: disable=unused-argument
         """
         Return ports from exclude list as comma separated port names
         """

@@ -58,6 +58,8 @@ class PDRConstants():
     API_ISOLATED_PORTS = "isolated_ports"
     SECONDARY_INSTANCE = "low_freq_debug"
 
+    TIMEOUT = 60
+
     EXTERNAL_EVENT_ERROR = 554
     EXTERNAL_EVENT_ALERT = 553
     EXTERNAL_EVENT_NOTICE = 552
