@@ -15,11 +15,11 @@ import http
 import configparser
 import pandas as pd
 from exclude_list import ExcludeList
-from pdr_algorithm import PortData, PortState, PDRAlgorithm
+from pdr_algorithm import PortData, IsolatedPort, PDRAlgorithm
 
 from constants import PDRConstants as Constants
 from ufm_communication_mgr import UFMCommunicator
-# should actually be persistent and thread safe dictionary pf PortStates
+# should actually be persistent and thread safe dictionary pf IsolatedPorts
 
 #pylint: disable=too-many-instance-attributes
 class IsolationMgr:
@@ -29,7 +29,7 @@ class IsolationMgr:
 
     def __init__(self, ufm_client: UFMCommunicator, logger):
         self.ufm_client = ufm_client
-        # {port_name: PortState}
+        # {port_name: IsolatedPort}
         self.ports_states = {}
         # {port_name: telemetry_data}
         self.ports_data = {}
@@ -86,8 +86,8 @@ class IsolationMgr:
                 return
         port_state = self.ports_states.get(port_name)
         if not port_state:
-            self.ports_states[port_name] = PortState(port_name)
-        self.ports_states[port_name].update(Constants.STATE_ISOLATED, cause)
+            self.ports_states[port_name] = IsolatedPort(port_name)
+        self.ports_states[port_name].update(cause)
 
         log_message = f"Isolated port: {port_name} cause: {cause}. dry_run: {self.dry_run}"
         self.logger.warning(log_message)
@@ -203,21 +203,6 @@ class IsolationMgr:
                     ports_updated = True
         return ports_updated
 
-    def set_ports_as_treated(self, ports_dict):
-        """
-        Sets the state of the specified ports as treated.
-
-        Args:
-            ports_dict (dict): A dictionary containing the ports and their desired state.
-
-        Returns:
-            None
-        """
-        for port, state in ports_dict.items():
-            port_state = self.ports_states.get(port)
-            if port_state and state == Constants.STATE_TREATED:
-                port_state.state = state
-
     def get_isolation_state(self):
         """
         Retrieves the isolation state of the ports.
@@ -237,8 +222,8 @@ class IsolationMgr:
         self.ufm_latest_isolation_state = isolated_ports
         for port in isolated_ports:
             if not self.ports_states.get(port):
-                port_state = PortState(port)
-                port_state.update(Constants.STATE_ISOLATED, Constants.ISSUE_OONOC)
+                port_state = IsolatedPort(port)
+                port_state.update(Constants.ISSUE_OONOC)
                 self.ports_states[port] = port_state
 
     def get_requested_guids(self):

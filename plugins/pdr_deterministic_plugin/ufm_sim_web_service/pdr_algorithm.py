@@ -17,7 +17,7 @@ from exclude_list import ExcludeList
 
 from constants import PDRConstants as Constants
 from ufm_communication_mgr import UFMCommunicator
-# should actually be persistent and thread safe dictionary pf PortStates
+# should actually be persistent and thread safe dictionary pf IsolatedPorts
 
 #pylint: disable=too-many-instance-attributes
 class PortData:
@@ -53,13 +53,12 @@ class PortData:
 
 
 
-class PortState:
+class IsolatedPort:
     """
-    Represents the state of a port.
+    Represents the isolated port info.
 
     Attributes:
         name (str): The name of the port.
-        state (str): The current state of the port (isolated or treated).
         cause (str): The cause of the state change (oonoc, pdr, ber).
         maybe_fixed (bool): Indicates if the port may have been fixed.
         change_time (datetime): The time of the last state change.
@@ -67,48 +66,37 @@ class PortState:
 
     def __init__(self, name):
         """
-        Initialize a new instance of the PortState class.
+        Initialize a new instance of the IsolatedPort class.
 
         :param name: The name of the port.
         """
         self.name = name
-        self.state = Constants.STATE_NORMAL # isolated | treated
         self.cause = Constants.ISSUE_INIT # oonoc, pdr, ber
         self.maybe_fixed = False
         self.change_time = datetime.now()
 
-    def update(self, state, cause):
+    def update(self, cause):
         """
-        Update the state and cause of the port.
+        Update the cause of the isolation.
 
-        :param state: The new state of the port.
-        :param cause: The cause of the state change.
+        :param cause: The cause of the isolation.
         """
-        self.state = state
         self.cause = cause
         self.change_time = datetime.now()
 
     def get_cause(self):
         """
-        Get the cause of the state change.
+        Get the cause of the isolation.
 
-        :return: The cause of the state change.
+        :return: The cause of the isolation.
         """
         return self.cause
 
-    def get_state(self):
-        """
-        Get the current state of the port.
-
-        :return: The current state of the port.
-        """
-        return self.state
-
     def get_change_time(self):
         """
-        Get the time of the last state change.
+        Get the time of the last change.
 
-        :return: The time of the last state change.
+        :return: The time of the last change.
         """
         return self.change_time
 
@@ -454,12 +442,11 @@ class PDRAlgorithm:
         Function doesn't perform deisolation itself, just checks deisolation conditions only
         Return True if given port should be deisolated
         """
-        state = port_state.get_state()
         cause = port_state.get_cause()
         # EZ: it is a state that say that some maintenance was done to the link
         #     so need to re-evaluate if to return it to service
         # Deal with ports that with either cause = oonoc or fixed
-        if not (self.automatic_deisolate or cause == Constants.ISSUE_OONOC or state == Constants.STATE_TREATED):
+        if not (self.automatic_deisolate or cause == Constants.ISSUE_OONOC):
             return False
 
         # We don't deisolate those out of NOC
@@ -478,7 +465,7 @@ class PDRAlgorithm:
             symbol_ber_rate = self.calc_ber_rates(port_name, port_obj.active_speed, port_obj.port_width, self.max_ber_wait_time + 1)
             if symbol_ber_rate and symbol_ber_rate > self.max_ber_threshold:
                 cause = Constants.ISSUE_BER
-                port_state.update(Constants.STATE_ISOLATED, cause)
+                port_state.update(cause)
                 return False
 
         return True
