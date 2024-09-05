@@ -30,7 +30,7 @@ class IsolationMgr:
     def __init__(self, ufm_client: UFMCommunicator, logger):
         self.ufm_client = ufm_client
         # {port_name: IsolatedPort}
-        self.ports_states = {}
+        self.isolated_ports = {}
         # {port_name: telemetry_data}
         self.ports_data = {}
         self.ufm_latest_isolation_state = []
@@ -84,10 +84,10 @@ class IsolationMgr:
             if not ret or ret.status_code != http.HTTPStatus.OK:
                 self.logger.warning("Failed isolating port: %s with cause: %s... status_code= %s", port_name, cause, ret.status_code)
                 return
-        port_state = self.ports_states.get(port_name)
-        if not port_state:
-            self.ports_states[port_name] = IsolatedPort(port_name)
-        self.ports_states[port_name].update(cause)
+        isolated_port = self.isolated_ports.get(port_name)
+        if not isolated_port:
+            self.isolated_ports[port_name] = IsolatedPort(port_name)
+        self.isolated_ports[port_name].update(cause)
 
         log_message = f"Isolated port: {port_name} cause: {cause}. dry_run: {self.dry_run}"
         self.logger.warning(log_message)
@@ -111,8 +111,8 @@ class IsolationMgr:
 
         self.logger.info(f"Evaluating deisolation of port {port_name}")
         if not port_name in self.ufm_latest_isolation_state and not self.dry_run:
-            if self.ports_states.get(port_name):
-                self.ports_states.pop(port_name)
+            if self.isolated_ports.get(port_name):
+                self.isolated_ports.pop(port_name)
             return
 
         # port is clean now - de-isolate it
@@ -127,9 +127,9 @@ class IsolationMgr:
             ret = self.ufm_client.deisolate_port(port_name)
             if not ret or ret.status_code != http.HTTPStatus.OK:
                 self.logger.warning("Failed deisolating port: %s with cause: %s... status_code= %s",\
-                                     port_name, self.ports_states[port_name].cause, ret.status_code)
+                                     port_name, self.isolated_ports[port_name].cause, ret.status_code)
                 return
-        self.ports_states.pop(port_name)
+        self.isolated_ports.pop(port_name)
         log_message = f"Deisolated port: {port_name}. dry_run: {self.dry_run}"
         self.logger.warning(log_message)
         if not self.test_mode:
@@ -218,13 +218,13 @@ class IsolationMgr:
         ports = self.ufm_client.get_isolated_ports()
         if not ports:
             self.ufm_latest_isolation_state = []
-        isolated_ports = [port.split('x')[-1] for port in ports.get(Constants.API_ISOLATED_PORTS, [])]
-        self.ufm_latest_isolation_state = isolated_ports
-        for port in isolated_ports:
-            if not self.ports_states.get(port):
-                port_state = IsolatedPort(port)
-                port_state.update(Constants.ISSUE_OONOC)
-                self.ports_states[port] = port_state
+        isolated_port_names = [port.split('x')[-1] for port in ports.get(Constants.API_ISOLATED_PORTS, [])]
+        self.ufm_latest_isolation_state = isolated_port_names
+        for port_name in isolated_port_names:
+            if not self.isolated_ports.get(port_name):
+                isolated_port = IsolatedPort(port_name)
+                isolated_port.update(Constants.ISSUE_OONOC)
+                self.isolated_ports[port_name] = isolated_port
 
     def get_requested_guids(self):
         """
@@ -304,9 +304,9 @@ class IsolationMgr:
 
                     # deisolate ports
                     if self.do_deisolate:
-                        for port_state in list(self.ports_states.values()):
-                            if self.pdr_alg.check_deisolation_conditions(port_state):
-                                self.eval_deisolate(port_state.name)
+                        for isolated_port in list(self.isolated_ports.values()):
+                            if self.pdr_alg.check_deisolation_conditions(isolated_port):
+                                self.eval_deisolate(isolated_port.name)
                     ports_updated = self.update_ports_data()
                     if ports_updated:
                         self.update_telemetry_session()

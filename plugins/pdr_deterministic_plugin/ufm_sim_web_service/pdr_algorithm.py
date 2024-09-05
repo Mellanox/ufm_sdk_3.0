@@ -436,13 +436,13 @@ class PDRAlgorithm:
                 issues[port_name] = Constants.ISSUE_OONOC
         return list(issues.values())
 
-    def check_deisolation_conditions(self, port_state):
+    def check_deisolation_conditions(self, isolated_port):
         """
         Check if given port should be deisolated
         Function doesn't perform deisolation itself, just checks deisolation conditions only
         Return True if given port should be deisolated
         """
-        cause = port_state.get_cause()
+        cause = isolated_port.get_cause()
         # EZ: it is a state that say that some maintenance was done to the link
         #     so need to re-evaluate if to return it to service
         # Deal with ports that with either cause = oonoc or fixed
@@ -450,22 +450,22 @@ class PDRAlgorithm:
             return False
 
         # We don't deisolate those out of NOC
-        port_name = port_state.name
+        port_name = isolated_port.name
         if self.is_out_of_operating_conf(port_name):
             return False
 
-        if datetime.now() < port_state.get_change_time() + timedelta(seconds=self.deisolate_consider_time):
+        if datetime.now() < isolated_port.get_change_time() + timedelta(seconds=self.deisolate_consider_time):
             # Too close to state change
             return False
 
         # TODO: check if it can be moved into BER issue detection
         port_obj = self.ports_data.get(port_name)
-        if port_state.cause == Constants.ISSUE_BER:
+        if isolated_port.cause == Constants.ISSUE_BER:
             # Check if we are still above the threshold
             symbol_ber_rate = self.calc_ber_rates(port_name, port_obj.active_speed, port_obj.port_width, self.max_ber_wait_time + 1)
             if symbol_ber_rate and symbol_ber_rate > self.max_ber_threshold:
                 cause = Constants.ISSUE_BER
-                port_state.update(cause)
+                isolated_port.update(cause)
                 return False
 
         return True
