@@ -27,9 +27,6 @@ import time
 from pathlib import Path
 import traceback
 from typing import Callable, List, Set, Tuple
-import subprocess
-import platform
-import matplotlib.pyplot as plt
 
 
 from loganalyze.log_analyzers.base_analyzer import BaseAnalyzer
