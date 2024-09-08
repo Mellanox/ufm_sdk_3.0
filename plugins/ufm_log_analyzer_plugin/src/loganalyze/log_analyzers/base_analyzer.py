@@ -19,6 +19,7 @@ import warnings
 from datetime import timedelta
 from typing import List
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
@@ -154,6 +155,16 @@ class BaseAnalyzer:
 
             plt.xticks(rotation=45)  # Rotate x-axis labels to make them readable
             plt.tight_layout()
+            min_val = np.min(data_to_plot)
+            max_val = np.max(data_to_plot)
+            median_val = np.median(data_to_plot)
+            plt.text(
+                0.05,
+                0.95,
+                f"Min: {min_val:.2f}\nMax: {max_val:.2f}\nMedian: {median_val:.2f}",
+                transform=ax.transAxes,
+                bbox={facecolor="white", alpha=0.5},
+            )
 
             generic_file_name = f"{title}".replace(" ", "_").replace("/", "_")
             images_created = []
