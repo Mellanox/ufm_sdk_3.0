@@ -129,7 +129,7 @@ class BaseAnalyzer:
                 # Replace the original file with the modified file
             os.replace(temp_file, csv_file)
 
-    def _plot_and_save_data_based_on_timestamp(
+    def _save_data_based_on_timestamp(
         self, data_to_plot, x_label, y_label, title
     ):
         with plt.ion():
@@ -166,7 +166,7 @@ class BaseAnalyzer:
             plt.close()
             return images_list_with_title
 
-    def _plot_and_save_pivot_data_in_bars(  # pylint: disable=# pylint: disable=too-many-arguments
+    def save_pivot_data_in_bars(  # pylint: disable=# pylint: disable=too-many-arguments
         self, pivoted_data, x_label, y_label, title, legend_title
     ):
         if pivoted_data.empty:

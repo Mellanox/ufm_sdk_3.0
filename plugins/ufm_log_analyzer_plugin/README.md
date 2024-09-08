@@ -59,7 +59,6 @@ options:
                         Depth of logs tar extraction, default is 1
   --hours HOURS         How many hours to process from last logs. Default is 6 hours
   -i, --interactive     Should an interactive Ipython session start. Default is False
-  -s, --show-output     Should the output charts be presented. Default is False
   --skip-tar-extract    If the location is to an existing extracted tar or just UFM logs directory, skip the tar extraction and only copy the needed logs. Default is False
   --interval [{1min,10min,1h,24h}]
                         Time interval for the graphs. Choices are: '1min'- Every minute, '10min'- Every ten minutes, '1h'- Every one hour, '24h'- Every 24 hours. Default is '1H'.

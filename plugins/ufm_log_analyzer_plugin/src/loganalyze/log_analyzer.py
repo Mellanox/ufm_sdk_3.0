@@ -190,12 +190,6 @@ def parse_args():
         help="Should an interactive Ipython session start. Default is False",
     )
     parser.add_argument(
-        "-s",
-        "--show-output",
-        action="store_true",
-        help="Should the output charts be presented. Default is False",
-    )
-    parser.add_argument(
         "--skip-tar-extract",
         action="store_true",
         help="If the location is to an existing extracted tar, skip the " \
@@ -353,16 +347,6 @@ if __name__ == "__main__":
         files_types_to_delete.add("log") #logs taken from the logs
         files_types_to_delete.add("gz") # Zipped logs taken from the logs
         delete_files_by_types(args.destination, files_types_to_delete)
-        if args.show_output:
-            if platform.system() == "Windows":
-                os.startfile(pdf_path)  # pylint: disable=no-member
-            elif platform.system() == "Darwin":  # macOS
-                subprocess.call(("open", pdf_path))  # pylint: disable=no-member
-            else:  # Linux
-                subprocess.call(("xdg-open", pdf_path))  # pylint: disable=no-member
-
-            # This will show all the graphs we created
-            plt.show()
         if args.interactive:
             import IPython
 
