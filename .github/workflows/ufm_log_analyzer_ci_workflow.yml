@@ -31,8 +31,6 @@ jobs:
         # Install dependencies
         pip install -r src/loganalyze/requirements.txt
         pip install pylint
-    
-    - name: Run Pylint
+
         # Run PyLint
-      run: |
         pylint --rcfile=src/loganalyze/.pylintrc src/loganalyze
