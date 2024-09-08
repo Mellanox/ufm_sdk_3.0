@@ -330,11 +330,11 @@ if __name__ == "__main__":
 
         rest_api_log_analyzer = partial_create_analyzer(log_name="rest_api.log",
                                                         analyzer_clc=RestApiAnalyzer)
-        second_telemetry_sampled_csv = get_files_in_dest_by_type(args.destination,
+        second_telemetry_samples = get_files_in_dest_by_type(args.destination,
                                                                  "secondary_",
                                                                  1000,
                                                                  "gz")
-        links_flapping_analyzer = LinkFlappingAnalyzer(second_telemetry_sampled_csv,
+        links_flapping_analyzer = LinkFlappingAnalyzer(second_telemetry_samples,
                                                        args.destination)
         ufm_top_analyzer.add_analyzer(links_flapping_analyzer)
         end = time.perf_counter()
@@ -354,14 +354,14 @@ if __name__ == "__main__":
         pdf_header = (
             f"Dump analysis for {os.path.basename(args.location)}, hours={args.hours}"
         )
-        fabric_info = str(ibdiagnet_analyzer.get_fabric_size() \
+        FABRIC_INFO = str(ibdiagnet_analyzer.get_fabric_size() \
                         if ibdiagnet_analyzer else "No Fabric Info found")
 
-        link_flapping = str(links_flapping_analyzer.get_link_flapping_last_week() \
+        LINK_FLAPPING = str(links_flapping_analyzer.get_link_flapping_last_week() \
                             if links_flapping_analyzer else "No link flapping info")
         # PDF creator gets all the images and to add to the report
-        text = fabric_info + os.linesep + "Link Flapping:" + os.linesep + link_flapping
-        pdf = PDFCreator(pdf_path, pdf_header, png_images, text)
+        TEXT = FABRIC_INFO + os.linesep + "Link Flapping:" + os.linesep + LINK_FLAPPING
+        pdf = PDFCreator(pdf_path, pdf_header, png_images, TEXT)
         pdf.created_pdf()
         # Generated a report that can be located in the destination
         log.LOGGER.info("Analysis is done, please see the following outputs:")
