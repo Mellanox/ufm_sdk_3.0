@@ -163,7 +163,7 @@ class BaseAnalyzer:
                 0.95,
                 f"Min: {min_val:.2f}\nMax: {max_val:.2f}\nMedian: {median_val:.2f}",
                 transform=ax.transAxes,
-                bbox={facecolor="white", alpha=0.5},
+                bbox='{"facecolor": 'white', "alpha": 0.5}',
             )
 
             generic_file_name = f"{title}".replace(" ", "_").replace("/", "_")
