@@ -166,7 +166,7 @@ class BaseAnalyzer:
             plt.close()
             return images_list_with_title
 
-    def save_pivot_data_in_bars(  # pylint: disable=# pylint: disable=too-many-arguments
+    def _save_pivot_data_in_bars(  # pylint: disable=# pylint: disable=too-many-arguments
         self, pivoted_data, x_label, y_label, title, legend_title
     ):
         if pivoted_data.empty:
