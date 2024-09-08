@@ -354,14 +354,14 @@ if __name__ == "__main__":
         pdf_header = (
             f"Dump analysis for {os.path.basename(args.location)}, hours={args.hours}"
         )
-        FABRIC_INFO = str(ibdiagnet_analyzer.get_fabric_size() \
+        fabric_info = str(ibdiagnet_analyzer.get_fabric_size() \
                         if ibdiagnet_analyzer else "No Fabric Info found")
 
-        LINK_FLAPPING = str(links_flapping_analyzer.get_link_flapping_last_week() \
+        link_flapping = str(links_flapping_analyzer.get_link_flapping_last_week() \
                             if links_flapping_analyzer else "No link flapping info")
         # PDF creator gets all the images and to add to the report
-        TEXT = FABRIC_INFO + os.linesep + "Link Flapping:" + os.linesep + LINK_FLAPPING
-        pdf = PDFCreator(pdf_path, pdf_header, png_images, TEXT)
+        text = fabric_info + os.linesep + "Link Flapping:" + os.linesep + link_flapping
+        pdf = PDFCreator(pdf_path, pdf_header, png_images, text)
         pdf.created_pdf()
         # Generated a report that can be located in the destination
         log.LOGGER.info("Analysis is done, please see the following outputs:")
