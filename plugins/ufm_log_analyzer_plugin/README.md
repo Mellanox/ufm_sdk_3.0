@@ -1,6 +1,6 @@
 # UFM LOGANALYZER
 
-**Warning:** This feature is still under development and right now should only be used internally
+**Warning:** This feature is still under development and should only be used internally
 
 ## What
 This tool should help developers find issues in a UFM sysdump or logs.
