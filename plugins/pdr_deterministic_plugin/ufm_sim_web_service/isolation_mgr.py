@@ -111,7 +111,7 @@ class IsolationMgr:
 
         self.logger.info(f"Evaluating deisolation of port {port_name}")
         if not port_name in self.ufm_latest_isolation_state and not self.dry_run:
-            if self.isolated_ports.get(port_name):
+            if port_name in self.isolated_ports:
                 self.isolated_ports.pop(port_name)
             return
 
@@ -286,30 +286,32 @@ class IsolationMgr:
                 except (KeyError, TypeError, ValueError) as exception_error:
                     self.logger.error(f"failed to read information with error {exception_error}")
 
-                if issues:
-                    if len(issues) > self.max_num_isolate:
-                        # UFM send external event
-                        event_msg = f"got too many ports detected as unhealthy: {len(issues)}, skipping isolation"
+                # deal with reported new issues
+                for issue in issues or []:
+                    # ensure we are not ecxeeding allowed number of isolated ports
+                    if len(self.isolated_ports) >= self.max_num_isolate:
+                        # UFM send external event and break
+                        event_msg = ("Reached muximum allowed number of isolated ports "
+                                    f"({len(self.isolated_ports)}), skipping isolation")
                         self.logger.warning(event_msg)
                         if not self.test_mode:
                             self.ufm_client.send_event(event_msg, event_id=Constants.EXTERNAL_EVENT_ALERT,
                                                        external_event_name="Skipping isolation")
+                        break
 
-                    # deal with reported new issues
-                    else:
-                        for issue in issues:
-                            port = issue.port
-                            cause = issue.cause # ber|pdr|oonoc|link_down
-                            self.eval_isolation(port, cause)
+                    # isolate port
+                    port = issue.port
+                    cause = issue.cause # ber|pdr|oonoc|link_down
+                    self.eval_isolation(port, cause)
 
-                    # deisolate ports
-                    if self.do_deisolate:
-                        for isolated_port in list(self.isolated_ports.values()):
-                            if self.pdr_alg.check_deisolation_conditions(isolated_port):
-                                self.eval_deisolate(isolated_port.name)
-                    ports_updated = self.update_ports_data()
-                    if ports_updated:
-                        self.update_telemetry_session()
+                # deisolate ports
+                if self.do_deisolate:
+                    for isolated_port in list(self.isolated_ports.values()):
+                        if self.pdr_alg.check_deisolation_conditions(isolated_port):
+                            self.eval_deisolate(isolated_port.name)
+                ports_updated = self.update_ports_data()
+                if ports_updated:
+                    self.update_telemetry_session()
                 t_end = time.time()
             #pylint: disable=broad-except
             except Exception as exception:
