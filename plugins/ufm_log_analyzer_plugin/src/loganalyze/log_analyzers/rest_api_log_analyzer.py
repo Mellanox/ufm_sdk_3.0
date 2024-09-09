@@ -10,9 +10,9 @@
 #
 from typing import List
 from urllib.parse import urlparse
-from loganalyze.log_analyzers.base_analyzer import BaseAnalyzer
 import pandas as pd
 import numpy as np
+from loganalyze.log_analyzers.base_analyzer import BaseAnalyzer
 
 class RestApiAnalyzer(BaseAnalyzer):
 
@@ -22,10 +22,12 @@ class RestApiAnalyzer(BaseAnalyzer):
         self._log_data_sorted = self._log_data_sorted.loc\
             [self._log_data_sorted['user'] != 'ufmsystem']
         #Splitting the URL for better analysis
-        self._log_data_sorted[['uri', 'query_params']] = self._log_data_sorted['url']\
-            .apply(self.split_url_to_uri_and_query_params).apply(pd.Series)
-        self._have_duration = self._have_data_in_column('duration')
-        self._have_user = self._have_data_in_column('user')
+        if not self._log_data_sorted.empty:
+            self._log_data_sorted[['uri', 'query_params']] = self._log_data_sorted['url']\
+                .apply(self.split_url_to_uri_and_query_params).apply(pd.Series)
+            self._have_duration = self._have_data_in_column('duration')
+            self._have_user = self._have_data_in_column('user')
+            self._funcs_for_analysis = {self.analyze_endpoints_freq}
 
     @staticmethod
     def split_url_to_uri_and_query_params(url):
@@ -64,7 +66,3 @@ class RestApiAnalyzer(BaseAnalyzer):
                                                       f"Top {endpoints_count_to_show} "\
                                                         "requests count over time",
                                                       "legend")
-
-    def full_analysis(self):
-        created_images = self.analyze_endpoints_freq()
-        return created_images if len(created_images) > 0 else []
