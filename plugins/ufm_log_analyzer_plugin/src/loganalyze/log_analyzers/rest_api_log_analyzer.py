@@ -58,7 +58,7 @@ class RestApiAnalyzer(BaseAnalyzer):
                                              values='amount_per_uri').fillna(0)
         data_to_show = data_to_show[top_x_uris]
 
-        return self._plot_and_save_pivot_data_in_bars(data_to_show,
+        return self._save_pivot_data_in_bars(data_to_show,
                                                       "time",
                                                       "requests count",
                                                       f"Top {endpoints_count_to_show} "\

@@ -58,7 +58,7 @@ class UFMHealthAnalyzer(BaseAnalyzer):
         pivot_failed_by_time = grouped_failed_only_relevant_by_time.pivot(
             index=DataConstants.AGGREGATIONTIME, columns="test_name", values="count"
         ).fillna(0)
-        graph_images = self._plot_and_save_pivot_data_in_bars(
+        graph_images = self._save_pivot_data_in_bars(
             pivot_failed_by_time,
             "Time",
             "Number of failures",
