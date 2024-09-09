@@ -27,9 +27,6 @@ import time
 from pathlib import Path
 import traceback
 from typing import Callable, List, Set, Tuple
-import subprocess
-import platform
-import matplotlib.pyplot as plt
 
 
 from loganalyze.log_analyzers.base_analyzer import BaseImageCreator
@@ -196,12 +193,6 @@ def parse_args():
         "--interactive",
         action="store_true",
         help="Should an interactive Ipython session start. Default is False",
-    )
-    parser.add_argument(
-        "-s",
-        "--show-output",
-        action="store_true",
-        help="Should the output charts be presented. Default is False",
     )
     parser.add_argument(
         "--skip-tar-extract",
@@ -375,16 +366,6 @@ if __name__ == "__main__":
         files_types_to_delete.add("csv") #tmp csv + telemetery samples
         files_types_to_delete.add("gz") #gz files of logs and samples
         delete_files_by_types(args.destination, files_types_to_delete)
-        if args.show_output:
-            if platform.system() == "Windows":
-                os.startfile(pdf_path)  # pylint: disable=no-member
-            elif platform.system() == "Darwin":  # macOS
-                subprocess.call(("open", pdf_path))  # pylint: disable=no-member
-            else:  # Linux
-                subprocess.call(("xdg-open", pdf_path))  # pylint: disable=no-member
-
-            # This will show all the graphs we created
-            plt.show()
         if args.interactive:
             import IPython
 
