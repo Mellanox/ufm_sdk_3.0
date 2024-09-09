@@ -99,7 +99,7 @@ class UFMLogAnalyzer(BaseAnalyzer):
         if not matched_logs_df.empty:
             matched_logs_df.drop(columns=["timestamp_end"], inplace=True)
             matched_logs_df.set_index("timestamp_start", inplace=True)
-            create_images = self._save_data_based_on_timestamp(
+            self._save_data_based_on_timestamp(
                 matched_logs_df,
                 DataConstants.TIMESTAMP,
                 "Loading time Time (seconds)",
@@ -214,7 +214,7 @@ class UFMLogAnalyzer(BaseAnalyzer):
             )
             merged_logs.set_index("timestamp_start", inplace=True)
             title = "Fabric analysis run time"
-            create_images = self._save_data_based_on_timestamp(
+            self._save_data_based_on_timestamp(
                 merged_logs, "Time", "Processing Time (s)", title
             )
 
@@ -269,7 +269,7 @@ class UFMLogAnalyzer(BaseAnalyzer):
 
         # Plot the data within the filtered time range
         title = "Telemetry processing time"
-        create_images = self._save_data_based_on_timestamp(
+        self._save_data_based_on_timestamp(
             minutely_mean_processing_time,
             "Time",
             "Processing Time (s)",

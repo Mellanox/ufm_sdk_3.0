@@ -54,7 +54,7 @@ class ConsoleLogAnalyzer(BaseAnalyzer):
     def print_exceptions_per_time_count(self):
         error_data = self._log_data_sorted[self._log_data_sorted["type"] == "Error"]
         errors_per_hour = error_data.groupby(DataConstants.AGGREGATIONTIME).size()
-        images_created = self._save_data_based_on_timestamp(
+        self._save_data_based_on_timestamp(
             errors_per_hour,
             "Time",
             "Amount of exceptions",
