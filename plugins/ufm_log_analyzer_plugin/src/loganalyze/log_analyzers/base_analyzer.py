@@ -38,6 +38,9 @@ class BaseImageCreator:
 
     time_interval = "h"
     _images_type = {"svg", "png"}
+    X_POS_FOR_STATS = 0.05
+    Y_POS_FOR_STATS = 0.95
+
     def __init__(self, dest_image_path):
         self._dest_image_path = dest_image_path
         self._images_created = []
@@ -72,8 +75,8 @@ class BaseImageCreator:
             max_val = np.max(data_to_plot)
             median_val = np.median(data_to_plot)
             plt.text(
-                0.05,
-                0.95,
+                self.X_POS_FOR_STATS,
+                self.Y_POS_FOR_STATS,
                 f"Min: {min_val:.2f}\nMax: {max_val:.2f}\nMedian: {median_val:.2f}",
                 transform=ax.transAxes,
                 bbox={"facecolor": "white", "alpha": 0.5},
