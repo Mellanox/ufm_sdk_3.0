@@ -12,7 +12,10 @@
 
 import logging
 
-class PDRConstants(object):
+class PDRConstants():
+    """
+    The constants of the PDR plugin.
+    """
 
     CONF_FILE = "/config/pdr_deterministic.conf"
     LOG_FILE = '/log/pdr_deterministic_plugin.log'
@@ -54,6 +57,8 @@ class PDRConstants(object):
     API_HEALTHY_PORTS = "healthy_ports"
     API_ISOLATED_PORTS = "isolated_ports"
     SECONDARY_INSTANCE = "low_freq_debug"
+
+    TIMEOUT = 60
 
     EXTERNAL_EVENT_ERROR = 554
     EXTERNAL_EVENT_ALERT = 553
@@ -106,10 +111,6 @@ class PDRConstants(object):
     ISSUE_OONOC = "oonoc"
     ISSUE_INIT = "init"
     ISSUE_LINK_DOWN = "link_down"
-
-    STATE_NORMAL = "normal"
-    STATE_ISOLATED = "isolated"
-    STATE_TREATED = "treated"
 
     # intervals in seconds for testing ber values and corresponding thresholds
     BER_THRESHOLDS_INTERVALS = [(125 * 60, 3), (12 * 60, 2.88)]

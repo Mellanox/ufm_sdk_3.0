@@ -19,6 +19,7 @@ import warnings
 from datetime import timedelta
 from typing import List
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
@@ -42,7 +43,7 @@ class BaseImageCreator:
         self._images_created = []
         self._funcs_for_analysis = set()
 
-    def _plot_and_save_data_based_on_timestamp(
+    def _save_data_based_on_timestamp(
         self, data_to_plot, x_label, y_label, title
     ):
         with plt.ion():
@@ -67,6 +68,17 @@ class BaseImageCreator:
 
             plt.xticks(rotation=45)  # Rotate x-axis labels to make them readable
             plt.tight_layout()
+            min_val = np.min(data_to_plot)
+            max_val = np.max(data_to_plot)
+            median_val = np.median(data_to_plot)
+            plt.text(
+                0.05,
+                0.95,
+                f"Min: {min_val:.2f}\nMax: {max_val:.2f}\nMedian: {median_val:.2f}",
+                transform=ax.transAxes,
+                bbox={"facecolor": "white", "alpha": 0.5},
+            )
+
 
             generic_file_name = f"{title}".replace(" ", "_").replace("/", "_")
             images_created = []
@@ -79,7 +91,7 @@ class BaseImageCreator:
             self._images_created.extend(images_list_with_title)
             plt.close()
 
-    def _plot_and_save_pivot_data_in_bars(  # pylint: disable=# pylint: disable=too-many-arguments
+    def _save_pivot_data_in_bars(  # pylint: disable=# pylint: disable=too-many-arguments
         self, pivoted_data, x_label, y_label, title, legend_title
     ):
         if pivoted_data.empty:
