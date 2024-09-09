@@ -113,7 +113,7 @@ class LinkFlappingAnalyzer(BaseImageCreator):
             rename_axis(None).rename(columns={'counts': 'Count'})
 
         # Plot pivot table using _plot_and_save_pivot_data_in_bars method
-        self._plot_and_save_pivot_data_in_bars(pivot_table,
+        self._save_pivot_data_in_bars(pivot_table,
                                                'Time',
                                                'Count',
                                                'Link Flapping Count',

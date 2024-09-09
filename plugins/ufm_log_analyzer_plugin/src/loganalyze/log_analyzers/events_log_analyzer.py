@@ -82,7 +82,7 @@ class EventsLogAnalyzer(BaseAnalyzer):
             index=DataConstants.AGGREGATIONTIME, columns="event", values="count"
         ).fillna(0)
 
-        self._plot_and_save_pivot_data_in_bars(
+        self._save_pivot_data_in_bars(
             pivot_critical_events_by_hour,
             "Time",
             "Events",
@@ -105,7 +105,7 @@ class EventsLogAnalyzer(BaseAnalyzer):
         pivot_links_data = counted_links_events_by_time.pivot(
             index=DataConstants.AGGREGATIONTIME, columns="event", values="count"
         ).fillna(0)
-        self._plot_and_save_pivot_data_in_bars(
+        self._save_pivot_data_in_bars(
             pivot_links_data,
             "Time",
             "Number of Events",
