@@ -13,6 +13,7 @@
 # pylint: disable=# pylint: disable=missing-class-docstring
 # pylint: disable=# pylint: disable=missing-module-docstring
 
+from datetime import datetime, timedelta
 from typing import List
 import pandas as pd
 from loganalyze.log_analyzers.constants import DataConstants
@@ -70,6 +71,40 @@ class EventsLogAnalyzer(BaseAnalyzer):
             f"Top {n} aggregated critical events over time",
             "Events",
         )
+
+    def get_critical_event_bursts(self, n=5):
+        """
+        Finds bursts of events by event_type over all time, going minute by minute.
+        """
+        critical_events = self.get_events_by_log_level("CRITICAL")
+
+        # Round timestamps to the nearest minute
+        critical_events['minute'] = critical_events['timestamp'].dt.floor('T')
+
+        # Group by minute and event type, then count the number of events in each group
+        event_counts = (critical_events
+                        .groupby(['minute', 'event', 'event_type'])
+                        .size()
+                        .reset_index(name='count'))
+
+        # Filter for bursts where the count exceeds or equals 'n'
+        bursts = event_counts[event_counts['count'] >= n]
+
+        # Create a Series with 'minute' as index and 'count' as values
+        bursts_series = bursts.set_index('minute')['count']
+
+        # Save the plot using the series
+        self._save_data_based_on_timestamp(
+            bursts_series,  # Pass the Series instead of separate lists
+            "Time",
+            "Number of Critical Events in the burst",
+            "Critical Event Bursts"
+        )
+
+        # Convert the result to a list of dictionaries for returning
+        burst_list = bursts.rename(columns={'minute': 'timestamp'}).to_dict(orient='records')
+
+        return burst_list
 
     def plot_critical_events_per_aggregation_time(self):
         critical_events = self.get_events_by_log_level("CRITICAL")

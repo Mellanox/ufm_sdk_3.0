@@ -21,6 +21,7 @@ from functools import partial
 import glob
 from multiprocessing import Process
 import os
+import pprint
 import re
 import sys
 import time
@@ -343,15 +344,27 @@ if __name__ == "__main__":
         # Next section is to create a summary PDF
         pdf_path = os.path.join(args.destination, "UFM_Dump_analysis.pdf")
         pdf_header = (
-            f"Dump analysis for {os.path.basename(args.location)}, hours={args.hours}"
+            f"{os.path.basename(args.location)}, hours={args.hours}"
         )
-        FABRIC_INFO = str(ibdiagnet_analyzer.get_fabric_size() \
-                        if ibdiagnet_analyzer else "No Fabric Info found")
+        fabric_info = ibdiagnet_analyzer.get_fabric_size() \
+                        if ibdiagnet_analyzer else "No Fabric Info found"
 
-        LINK_FLAPPING = str(links_flapping_analyzer.get_link_flapping_last_week() \
-                            if links_flapping_analyzer else "No link flapping info")
+        link_flapping = links_flapping_analyzer.get_link_flapping_last_week() \
+                            if links_flapping_analyzer else "No link flapping info"
         # PDF creator gets all the images and to add to the report
-        TEXT = FABRIC_INFO + os.linesep + "Link Flapping:" + os.linesep + LINK_FLAPPING
+        TEXT = str(fabric_info) + os.linesep + "Link Flapping:" + os.linesep + str(link_flapping)
+ 
+        critical_events_burst = event_log_analyzer.get_critical_event_bursts()
+        critical_events_text = "The minute           event_type     event    count"
+        for critical_event in critical_events_burst:
+            timestamp = critical_event['timestamp']
+            event_type = critical_event['event_type']
+            event = critical_event['event']
+            count = critical_event['count']
+            event_text = f"{timestamp} {event_type} {event} {count}"
+            critical_events_text = critical_events_text + os.linesep + event_text
+
+        TEXT = TEXT + os.linesep + "More than 5 events burst over a minute:" + os.linesep + critical_events_text
         pdf = PDFCreator(pdf_path, pdf_header, png_images, TEXT)
         pdf.created_pdf()
         # Generated a report that can be located in the destination
@@ -359,6 +372,12 @@ if __name__ == "__main__":
         for image, title in images_and_title_to_present:
             log.LOGGER.info(f"{title}: {image}")
         log.LOGGER.info(f"Summary PDF was created! you can open here at {pdf_path}")
+        
+        if args.interactive:
+            import IPython
+
+            IPython.embed()
+
         # Clean some unended files created during run
         files_types_to_delete = set()
         files_types_to_delete.add("png") #png images created for PDF report
@@ -366,10 +385,6 @@ if __name__ == "__main__":
         files_types_to_delete.add("csv") #tmp csv + telemetery samples
         files_types_to_delete.add("gz") #gz files of logs and samples
         delete_files_by_types(args.destination, files_types_to_delete)
-        if args.interactive:
-            import IPython
-
-            IPython.embed()
 
     except Exception as exc:
         print("-E-", str(exc))
