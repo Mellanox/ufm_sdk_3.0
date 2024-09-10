@@ -23,6 +23,7 @@ from exclude_list import ExcludeList
 from constants import PDRConstants as Constants
 from telemetry_collector import TelemetryCollector
 from ufm_communication_mgr import UFMCommunicator
+from data_store import DataStore
 # should actually be persistent and thread safe dictionary pf PortStates
 
 #pylint: disable=too-many-instance-attributes
@@ -197,7 +198,8 @@ class IsolationMgr:
         self.test_iteration = 0
         # Take from Conf
         self.logger = logger
-        self.telemetry_collector = TelemetryCollector(self.test_mode)
+        self.data_store = DataStore(self.logger)
+        self.telemetry_collector = TelemetryCollector(self.test_mode,logger,self.data_store)
         self.ber_intervals = Constants.BER_THRESHOLDS_INTERVALS if not self.test_mode else [[0.5 * 60, 3]]
         intervals = [x[0] for x in self.ber_intervals]
         self.min_ber_wait_time = min(intervals)
@@ -837,6 +839,7 @@ class IsolationMgr:
                 ports_updated = self.update_ports_data()
                 if ports_updated:
                     self.update_telemetry_session()
+                self.data_store.clean_old_files()
                 t_end = time.time()
             #pylint: disable=broad-except
             except Exception as exception:
