@@ -1,5 +1,5 @@
 from os.path import join,exists
-from os import remove
+from os import remove,makedirs
 from pathlib import Path
 from datetime import datetime
 import pandas as pd
@@ -10,13 +10,16 @@ class DataStore:
     """
     OUTPUT_FILE_FORMAT = "%Y_%m_%d_%H_%M_%S.csv"
     AMOUNT_FILES_TO_KEEP = 10
-    BASE_PATH = "/opt/ufm/PDR/datastore"
+    BASE_PATH = "/opt/ufm/ufm_plugin_pdr_deterministic/datastore"
     ABS_PATH = "abs"
     DELTA_PATH = "delta"
     TAR_SUFFIX = "*.tar.gz"
 
     def __init__(self,logger) -> None:
         self.logger = logger
+        if not exists(self.BASE_PATH):
+            makedirs(self._folder_abs())
+            makedirs(self._folder_delta())
 
     def _folder_abs(self) -> str:
         return join(self.BASE_PATH,self.ABS_PATH)

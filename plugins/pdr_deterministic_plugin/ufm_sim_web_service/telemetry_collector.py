@@ -8,7 +8,7 @@ class TelemetryCollector:
     Represent Telemetry collector which send DataFrame once telemetry is called.
     Calls data store class for save the abs or delta data.
     """
-    BASED_COLUMNS = ["node_guid", "port_guid", "port_num"]
+    BASED_COLUMNS = ["Node_GUID", "port_guid", "Port_Number"]
     KEY = BASED_COLUMNS + ["timestamp","tag"]
 
     def __init__(self,test_mode:bool,logger,data_store:DataStore) -> None:
@@ -32,7 +32,7 @@ class TelemetryCollector:
         except (pd.errors.ParserError, pd.errors.EmptyDataError, urllib.error.URLError) as connection_error:
             self.logger.error("failed to get telemetry data from UFM, fetched url=%s. Error: %s",url,connection_error)
             telemetry_data = None
-        if self.previous_telemetry_data and telemetry_data:
+        if self.previous_telemetry_data is not None and telemetry_data is not None:
             delta = self._get_delta(self.previous_telemetry_data,telemetry_data)
             # when we want to keep only delta
             if len(delta) > 0:
@@ -44,11 +44,10 @@ class TelemetryCollector:
         return telemetry_data
 
     def _get_delta(self, first_df: pd.DataFrame, second_df:pd.DataFrame):
-        self.logger.info("%s._delta", self.__class__.__name__)
         merged_df = pd.merge(second_df, first_df, on=self.BASED_COLUMNS, how='inner', suffixes=('', '_x'))
         delta_dataframe = pd.DataFrame()
-        for col in second_df.columns:
-            if col not in self.KEY:
+        for index,col in enumerate(second_df.columns):
+            if col not in self.KEY and not isinstance(merged_df.iat[0,index],str):
                 col_x = col + "_x"
                 delta_dataframe[col] = merged_df[col] - merged_df[col_x]
             else:
