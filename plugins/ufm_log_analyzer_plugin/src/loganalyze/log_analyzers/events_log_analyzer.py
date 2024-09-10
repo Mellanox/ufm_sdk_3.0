@@ -13,7 +13,6 @@
 # pylint: disable=# pylint: disable=missing-class-docstring
 # pylint: disable=# pylint: disable=missing-module-docstring
 
-from datetime import datetime, timedelta
 from typing import List
 import pandas as pd
 from loganalyze.log_analyzers.constants import DataConstants

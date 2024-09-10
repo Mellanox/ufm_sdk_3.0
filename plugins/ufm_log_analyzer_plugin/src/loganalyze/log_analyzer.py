@@ -21,7 +21,6 @@ from functools import partial
 import glob
 from multiprocessing import Process
 import os
-import pprint
 import re
 import sys
 import time
@@ -352,27 +351,28 @@ if __name__ == "__main__":
         link_flapping = links_flapping_analyzer.get_link_flapping_last_week() \
                             if links_flapping_analyzer else "No link flapping info"
         # PDF creator gets all the images and to add to the report
-        TEXT = str(fabric_info) + os.linesep + "Link Flapping:" + os.linesep + str(link_flapping)
- 
+        text = str(fabric_info) + os.linesep + "Link Flapping:" + os.linesep + str(link_flapping) # pylint: disable=invalid-name
+
         critical_events_burst = event_log_analyzer.get_critical_event_bursts()
-        critical_events_text = "The minute           event_type     event    count"
+        critical_events_text = "The minute           event_type     event    count" # pylint: disable=invalid-name
         for critical_event in critical_events_burst:
             timestamp = critical_event['timestamp']
             event_type = critical_event['event_type']
             event = critical_event['event']
-            count = critical_event['count']
-            event_text = f"{timestamp} {event_type} {event} {count}"
+            counter = critical_event['count']
+            event_text = f"{timestamp} {event_type} {event} {counter}"
             critical_events_text = critical_events_text + os.linesep + event_text
 
-        TEXT = TEXT + os.linesep + "More than 5 events burst over a minute:" + os.linesep + critical_events_text
-        pdf = PDFCreator(pdf_path, pdf_header, png_images, TEXT)
+        text = text + os.linesep + "More than 5 events burst over a minute:" \
+            + os.linesep + critical_events_text
+        pdf = PDFCreator(pdf_path, pdf_header, png_images, text)
         pdf.created_pdf()
         # Generated a report that can be located in the destination
         log.LOGGER.info("Analysis is done, please see the following outputs:")
         for image, title in images_and_title_to_present:
             log.LOGGER.info(f"{title}: {image}")
         log.LOGGER.info(f"Summary PDF was created! you can open here at {pdf_path}")
-        
+
         if args.interactive:
             import IPython
 
