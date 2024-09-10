@@ -36,14 +36,19 @@ class DumpFilesExtractor(BaseExtractor):
             raise FileNotFoundError(f"Could not use {dump_path}, make sure it exists and a tar")
 
     def _get_files_from_tar(
-        self, opened_file: TarFile, files_to_extract: Set[str], destination: str
+        self, opened_file: TarFile,
+        files_to_extract: Set[str],
+        directories_to_extract:Set[str],
+        destination: str
     ):
         files_went_over = set()
         failed_extract = set()
         folders_to_remove = set()
         for member in opened_file:
             base_name = os.path.basename(member.name)
-            if base_name in files_to_extract:
+            dir_name = os.path.dirname(member.name)
+            if base_name in files_to_extract or \
+                os.path.basename(dir_name) in directories_to_extract:
                 try:
                     opened_file.extract(member, path=destination)
                     extracted_file_path = os.path.join(destination, str(member.path))
@@ -56,9 +61,8 @@ class DumpFilesExtractor(BaseExtractor):
                     failed_extract.add(base_name)
                 finally:
                     files_went_over.add(base_name)
-                    files_to_extract.remove(base_name)
-            if not files_to_extract:
-                break
+                    if base_name in files_to_extract:
+                        files_to_extract.remove(base_name)
         files_extracted = files_went_over.difference(failed_extract)
         # When extracting the files from the tar, they are also taken with their
         # directories from inside the tar, there is no way to only take the file
@@ -82,10 +86,13 @@ class DumpFilesExtractor(BaseExtractor):
         file_obj.seek(position)  # Reset the stream position
         return magic_number == GZIP_MAGIC_NUMBER
 
-    def extract_files(self, files_to_extract: List[str], destination: str):
+    def extract_files(self, files_to_extract: List[str],
+                      directories_to_extract: List[str],
+                      destination: str):
         """Since we do not know the type of dump, we search the files in the nested tars"""
         os.makedirs(destination, exist_ok=True)
         files_to_extract = set(files_to_extract)
+        directories_to_extract = set(directories_to_extract)
         open_file_mode = "r:gz" if self.is_gzip_file(self.dump_path) else "r:"
         with tarfile.open(self.dump_path, open_file_mode) as outer_tar:
             # Checking if we have a dump from a complex env
@@ -102,9 +109,12 @@ class DumpFilesExtractor(BaseExtractor):
                         fileobj=inner_tar_stream, mode=inner_file_open_mode
                     ) as inner_tar:
                         extracted_files, failed_files = self._get_files_from_tar(
-                            inner_tar, files_to_extract, destination
+                            inner_tar, files_to_extract, directories_to_extract, destination
                         )
                         if len(extracted_files) > 0:
                             return extracted_files, failed_files
             # If we got to this point, we might have a simple tar, try to extract from it
-            return self._get_files_from_tar(outer_tar, files_to_extract, destination)
+            return self._get_files_from_tar(outer_tar,
+                                            files_to_extract,
+                                            directories_to_extract,
+                                            destination)

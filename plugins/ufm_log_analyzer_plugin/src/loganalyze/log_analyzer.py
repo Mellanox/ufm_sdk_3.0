@@ -27,12 +27,9 @@ import time
 from pathlib import Path
 import traceback
 from typing import Callable, List, Set, Tuple
-import subprocess
-import platform
-import matplotlib.pyplot as plt
 
 
-from loganalyze.log_analyzers.base_analyzer import BaseAnalyzer
+from loganalyze.log_analyzers.base_analyzer import BaseImageCreator
 from loganalyze.logs_extraction.directory_extractor import DirectoryExtractor
 from loganalyze.log_analyzers.ufm_top_analyzer import UFMTopAnalyzer
 from loganalyze.logs_extraction.tar_extractor import DumpFilesExtractor
@@ -46,6 +43,7 @@ from loganalyze.log_analyzers.ibdiagnet_log_analyzer import IBDIAGNETLogAnalyzer
 from loganalyze.log_analyzers.events_log_analyzer import EventsLogAnalyzer
 from loganalyze.log_analyzers.console_log_analyzer import ConsoleLogAnalyzer
 from loganalyze.log_analyzers.rest_api_log_analyzer import RestApiAnalyzer
+from loganalyze.log_analyzers.link_flapping_analyzer import LinkFlappingAnalyzer
 
 from loganalyze.pdf_creator import PDFCreator
 from loganalyze.utils.common import delete_files_by_types
@@ -59,6 +57,10 @@ LOGS_TO_EXTRACT = [
     "ibdiagnet2.log",
     "console.log",
     "rest_api.log"
+]
+
+DIRECTORIES_TO_EXTRACT = [
+    "telemetry_samples"
 ]
 
 def run_both_functions(parser_func, action_func, save_func):
@@ -139,17 +141,20 @@ def sorting_logs(log_path):
     return count
 
 
-def get_csvs_in_dest(location: str, base_name: str, extraction_level: int):
+def get_files_in_dest_by_type(location: str,
+                              base_name: str,
+                              extraction_level: int,
+                              file_type="csv"):
     """
-    Return a list of all the CSV files that were parsed and part of the current
+    Return a list of all the files by type that were parsed and part of the current
     extraction level requested
     """
-    csv_files = glob.glob(os.path.join(location, "*.csv"))
-    matched_files = [file for file in csv_files if base_name in os.path.basename(file)]
+    files_by_type = glob.glob(os.path.join(location, f"*.{file_type}"))
+    matched_files = [file for file in files_by_type if base_name in os.path.basename(file)]
     full_paths = [os.path.abspath(file) for file in matched_files]
-    sorted_csvs = sorted(full_paths, key=sorting_logs)
-    sliced_csvs = sorted_csvs[: (extraction_level + 1)]
-    return sliced_csvs
+    sorted_files = sorted(full_paths, key=sorting_logs)
+    sliced_files = sorted_files[: (extraction_level + 1)]
+    return sliced_files
 
 
 def parse_args():
@@ -188,12 +193,6 @@ def parse_args():
         "--interactive",
         action="store_true",
         help="Should an interactive Ipython session start. Default is False",
-    )
-    parser.add_argument(
-        "-s",
-        "--show-output",
-        action="store_true",
-        help="Should the output charts be presented. Default is False",
     )
     parser.add_argument(
         "--skip-tar-extract",
@@ -247,7 +246,9 @@ def create_analyzer(parsed_args, full_extracted_logs_list,
     Returns the created analyzer
     """
     if log_name in full_extracted_logs_list:
-        log_csvs = get_csvs_in_dest(parsed_args.destination, log_name, parsed_args.extract_level)
+        log_csvs = get_files_in_dest_by_type(parsed_args.destination,
+                                             log_name,
+                                             parsed_args.extract_level)
         analyzer = analyzer_clc(log_csvs, parsed_args.hours, parsed_args.destination)
         ufm_top_analyzer_obj.add_analyzer(analyzer)
         return analyzer
@@ -275,7 +276,7 @@ if __name__ == "__main__":
             extractor = DumpFilesExtractor(args.location)
 
         logs_to_work_with, failed_extract = extractor.extract_files(
-            full_logs_list, args.destination
+            full_logs_list, DIRECTORIES_TO_EXTRACT, args.destination
         )
 
         if len(failed_extract) > 0:
@@ -290,7 +291,7 @@ if __name__ == "__main__":
 
 
         # Setting the time granularity for the graphs
-        BaseAnalyzer.time_interval = args.interval
+        BaseImageCreator.time_interval = args.interval
 
         # Analyze the CSV and be able to query the data
         start = time.perf_counter()
@@ -320,6 +321,13 @@ if __name__ == "__main__":
 
         rest_api_log_analyzer = partial_create_analyzer(log_name="rest_api.log",
                                                         analyzer_clc=RestApiAnalyzer)
+        second_telemetry_samples = get_files_in_dest_by_type(args.destination,
+                                                                 "secondary_",
+                                                                 1000,
+                                                                 "gz")
+        links_flapping_analyzer = LinkFlappingAnalyzer(second_telemetry_samples,
+                                                       args.destination)
+        ufm_top_analyzer.add_analyzer(links_flapping_analyzer)
         end = time.perf_counter()
         log.LOGGER.debug(f"Took {end-start:.3f} to load the parsed data")
 
@@ -337,10 +345,14 @@ if __name__ == "__main__":
         pdf_header = (
             f"Dump analysis for {os.path.basename(args.location)}, hours={args.hours}"
         )
-        fabric_info = ibdiagnet_analyzer.get_fabric_size() \
-                        if ibdiagnet_analyzer else "No Fabric Info found"
+        FABRIC_INFO = str(ibdiagnet_analyzer.get_fabric_size() \
+                        if ibdiagnet_analyzer else "No Fabric Info found")
+
+        LINK_FLAPPING = str(links_flapping_analyzer.get_link_flapping_last_week() \
+                            if links_flapping_analyzer else "No link flapping info")
         # PDF creator gets all the images and to add to the report
-        pdf = PDFCreator(pdf_path, pdf_header, png_images, fabric_info)
+        TEXT = FABRIC_INFO + os.linesep + "Link Flapping:" + os.linesep + LINK_FLAPPING
+        pdf = PDFCreator(pdf_path, pdf_header, png_images, TEXT)
         pdf.created_pdf()
         # Generated a report that can be located in the destination
         log.LOGGER.info("Analysis is done, please see the following outputs:")
@@ -351,18 +363,9 @@ if __name__ == "__main__":
         files_types_to_delete = set()
         files_types_to_delete.add("png") #png images created for PDF report
         files_types_to_delete.add("log") #logs taken from the logs
-        files_types_to_delete.add("gz") # Zipped logs taken from the logs
+        files_types_to_delete.add("csv") #tmp csv + telemetery samples
+        files_types_to_delete.add("gz") #gz files of logs and samples
         delete_files_by_types(args.destination, files_types_to_delete)
-        if args.show_output:
-            if platform.system() == "Windows":
-                os.startfile(pdf_path)  # pylint: disable=no-member
-            elif platform.system() == "Darwin":  # macOS
-                subprocess.call(("open", pdf_path))  # pylint: disable=no-member
-            else:  # Linux
-                subprocess.call(("xdg-open", pdf_path))  # pylint: disable=no-member
-
-            # This will show all the graphs we created
-            plt.show()
         if args.interactive:
             import IPython
 

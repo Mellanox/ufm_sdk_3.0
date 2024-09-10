@@ -10,6 +10,8 @@
 # provided with the software product.
 #
 from pathlib import Path
+from abc import abstractmethod
+from typing import List
 
 
 class BaseExtractor:
@@ -24,3 +26,9 @@ class BaseExtractor:
         if location.exists():
             return location
         return None
+
+    @abstractmethod
+    def extract_files(self, files_to_extract: List[str],
+                      directories_to_extract: List[str],
+                      destination: str):
+        pass

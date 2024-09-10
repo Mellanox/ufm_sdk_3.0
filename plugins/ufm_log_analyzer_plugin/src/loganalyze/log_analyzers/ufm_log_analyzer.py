@@ -25,6 +25,9 @@ import loganalyze.logger as log
 class UFMLogAnalyzer(BaseAnalyzer):
     def __init__(self, logs_csvs: List[str], hours: int, dest_image_path):
         super().__init__(logs_csvs, hours, dest_image_path)
+        self._funcs_for_analysis = {self.full_analyze_ufm_loading_time,
+                                    self.full_telemetry_processing_time_report,
+                                    self.full_analyze_fabric_analysis_time}
 
     def full_analyze_ufm_loading_time(self):
         ufm_started_logs = self._log_data_sorted[
@@ -96,14 +99,12 @@ class UFMLogAnalyzer(BaseAnalyzer):
         if not matched_logs_df.empty:
             matched_logs_df.drop(columns=["timestamp_end"], inplace=True)
             matched_logs_df.set_index("timestamp_start", inplace=True)
-            create_images = self._plot_and_save_data_based_on_timestamp(
+            self._save_data_based_on_timestamp(
                 matched_logs_df,
                 DataConstants.TIMESTAMP,
                 "Loading time Time (seconds)",
                 "UFM loading time",
             )
-            return create_images
-        return []
 
     def full_analyze_fabric_analysis_time(self):
         # Filter by 'fabric_analysis' log_type and the timestamp range
@@ -213,11 +214,9 @@ class UFMLogAnalyzer(BaseAnalyzer):
             )
             merged_logs.set_index("timestamp_start", inplace=True)
             title = "Fabric analysis run time"
-            create_images = self._plot_and_save_data_based_on_timestamp(
+            self._save_data_based_on_timestamp(
                 merged_logs, "Time", "Processing Time (s)", title
             )
-            return create_images
-        return []
 
     def full_telemetry_processing_time_report(self):
         # Further filter to only telemetry processing time logs
@@ -270,24 +269,9 @@ class UFMLogAnalyzer(BaseAnalyzer):
 
         # Plot the data within the filtered time range
         title = "Telemetry processing time"
-        create_images = self._plot_and_save_data_based_on_timestamp(
+        self._save_data_based_on_timestamp(
             minutely_mean_processing_time,
             "Time",
             "Processing Time (s)",
             title
         )
-        return create_images
-
-    def full_analysis(self):
-        """
-        Returns a list of all the graphs created and their title
-        """
-        graphs = []
-        functions_to_run = {self.full_analyze_ufm_loading_time,
-                            self.full_telemetry_processing_time_report,
-                            self.full_analyze_fabric_analysis_time}
-        for function_to_run in functions_to_run:
-            results_list = function_to_run()
-            if len(results_list) > 0:
-                graphs.extend(results_list)
-        return graphs

@@ -24,27 +24,28 @@ class DirectoryExtractor(BaseExtractor):
             raise FileNotFoundError(f"Could not use {dir_path}, "
                                     "make sure it exists and is a directory")
 
-    def extract_files(self, files_to_extract: List[str], destination: str):
+    def extract_files(self, files_to_extract: List[str],
+                      directories_to_extract: List[str],
+                      destination: str):
         if not os.path.exists(destination):
             os.makedirs(destination)
 
         # Convert the list to a set for faster lookup
         files_to_extract = set(files_to_extract)
+        directories_to_extract = set(directories_to_extract)
         found_files = set()
         not_found_files = set(files_to_extract)
 
         # Traverse the source directory and its subdirectories
         for root, _, files in os.walk(self.dir_path):
             for file_name in files:
-                if file_name in files_to_extract:
+                full_dir_name = os.path.dirname(file_name)
+                last_dir_name = os.path.basename(full_dir_name)
+                if file_name in files_to_extract or last_dir_name in directories_to_extract:
                     src_file_path = os.path.join(root, file_name)
                     dest_file_path = os.path.join(destination, file_name)
                     shutil.copy2(src_file_path, dest_file_path)
                     found_files.add(dest_file_path)
                     not_found_files.discard(file_name)
-
-                    # Stop if all files have been found
-                    if not not_found_files:
-                        return found_files, not_found_files
 
         return found_files, not_found_files
