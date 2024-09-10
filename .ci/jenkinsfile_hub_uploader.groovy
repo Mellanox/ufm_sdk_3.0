@@ -4,7 +4,7 @@ pipeline{
             // if the docker file changes it should be build and uploaded manually
             image 'harbor.mellanox.com/swx-storage/ci-demo/x86_64/swx-dockerhub-uploader:20240221'
             label 'DOCKER'
-            args '-v /auto/mswg:/auto/mswg -v /mswg:/mswg -v /var/run/docker.sock:/var/run/docker.sock --privileged'
+            args '-v /auto/mswg:/auto/mswg -v /auto/sw/:/auto/sw -v /mswg:/mswg -v /var/run/docker.sock:/var/run/docker.sock --privileged'
         }
     }
     stages {
