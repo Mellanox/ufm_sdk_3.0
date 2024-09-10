@@ -10,14 +10,10 @@
 # provided with the software product.
 #
 
-from enum import Enum
-import urllib.error
-import urllib
 import logging
 import http
 from constants import PDRConstants as Constants
 import requests
-import pandas as pd
 
 class UFMCommunicator:
     """
@@ -60,7 +56,7 @@ class UFMCommunicator:
         logging.info("UFM API Request Status: %s, URL: %s",response.status_code, request)
         return response
 
-      def send_event(self, message, event_id=Constants.EXTERNAL_EVENT_NOTICE,
+    def send_event(self, message, event_id=Constants.EXTERNAL_EVENT_NOTICE,
                     external_event_name="PDR Plugin Event", external_event_type="PDR Plugin Event"):
         data = {
             "event_id": event_id,

@@ -280,7 +280,7 @@ class IsolationMgr:
                     self.logger.info(f"Retrieving test mode telemetry data to determine ports' states: iteration {self.test_iteration}")
                     self.test_iteration += 1
                 try:
-                    ports_counters = self.ufm_client.get_telemetry(self.test_mode)
+                    ports_counters = self.telemetry_collector.get_telemetry()
                     if ports_counters is None:
                         self.logger.error("Couldn't retrieve telemetry data")
                     else:
