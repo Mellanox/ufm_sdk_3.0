@@ -69,15 +69,15 @@ class PDFCreator(FPDF):
         self.set_font("Arial", "", 12)
 
         # First block of text
-        fabric_size = """Fabric size:
+        text = """
         """
         output = StringIO()
         print(self._fabric_stats_list, file=output)
-        fabric_size += (
+        text += (
             output.getvalue().strip()
         )  # .strip() to remove any leading/trailing whitespace
 
-        self.multi_cell(0, 10, fabric_size)
+        self.multi_cell(0, 10, text)
 
         # Output PDF
         self.output(self._pdf_path)

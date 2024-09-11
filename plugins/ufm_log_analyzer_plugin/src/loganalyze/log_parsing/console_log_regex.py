@@ -21,33 +21,30 @@ from loganalyze.log_parsing.base_regex import RegexAndHandlers
 # as each specific log is being analyzed on his own.
 ###
 
-EXPCT_REGEX = r"expc"
-TRACBEBACK_REGEX = r"traceback"
-
 CONSOLE_LOG_EXCEPTION_REGEX = re.compile(
     # Date and time    NA  log level    The rest of the line
-    r"^([\d\-]+ [\d\:\.]+) \w+ +(\w+) +(.*(?:traceback|exception).*)",
+    r"^([\d\-]+ [\d\:\.]+) \w+ +(\w+) +(.*(?:traceback|exception).*)$",
     re.IGNORECASE,
 )
 
 ERROR_LINE_REGEX = re.compile(
     # Does not start with date   The rest
-    r"^(?![\d\-]+ [\d\:\.]+ \w+)(.*)$",
+    r"^(?!f?)(?![\d\-]+ [\d\:\.]+ \w+)(.*)$"
 )
-"""
-fetch_telemetry_data() with param: http://0.0.0.0:9001/csv/cset/converted_enterprise, 0
-Received bytes: 5369833
-Processed counters: 690000
-fetch time: 561, parse time: 186
-
-"""
 
 FETCH_TELEMETRY_DATA = re.compile(
     r"^(?:fetch_telemetry_data|Received bytes|Processed counters|fetch time).*$"
 )
 
-UFM_STATE_CHANGE = re.compile(r"^.*UFM daemon.*")
+UFM_STATE_CHANGE = re.compile(r"^.*UFM daemon.*$")
 
+UFM_VERSION_REGEX = re.compile(
+    r"^\d+\.\d+\.\d+ build \d+$"
+)
+
+def ufm_version(match: Match):
+    ufm_version = match.group()
+    return (None, "ufm_version", ufm_version)
 
 def console_log_exception(match: Match):
     timestamp = match.group(1)
@@ -57,6 +54,7 @@ def console_log_exception(match: Match):
 
 def error_line(match: Match):
     line = match.group(1)
+    print(f"error line {line}")
     return (None, None, line)
 
 
@@ -67,6 +65,7 @@ def do_nothing(match: Match):  # pylint: disable=unused-argument
 CONSOLE_LOG_HEADERS = ("timestamp", "type", "data")
 
 console_log_regex_cls = RegexAndHandlers("console.log", CONSOLE_LOG_HEADERS)
+console_log_regex_cls.add_regex(UFM_VERSION_REGEX, ufm_version)
 console_log_regex_cls.add_regex(FETCH_TELEMETRY_DATA, do_nothing)
 console_log_regex_cls.add_regex(UFM_STATE_CHANGE, do_nothing)
 console_log_regex_cls.add_regex(CONSOLE_LOG_EXCEPTION_REGEX, console_log_exception)

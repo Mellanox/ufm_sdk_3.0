@@ -269,7 +269,7 @@ if __name__ == "__main__":
         full_logs_list = add_extraction_levels_to_files_set(
             LOGS_TO_EXTRACT, args.extract_level
         )
-        log.LOGGER.debug(f"Going to extract {len(full_logs_list)} logs from {args.location}")
+        log.LOGGER.debug(f"Going to extract {full_logs_list} logs from {args.location}")
         if args.skip_tar_extract:
             extractor = DirectoryExtractor(args.location)
         else:
@@ -345,13 +345,16 @@ if __name__ == "__main__":
         pdf_header = (
             f"Dump analysis for {os.path.basename(args.location)}, hours={args.hours}"
         )
-        FABRIC_INFO = str(ibdiagnet_analyzer.get_fabric_size() \
+
+        used_ufm_version = console_log_analyzer.ufm_versions
+        text = f"Used ufm version in console log {used_ufm_version}"
+        FABRIC_INFO = "fabric info:" + os.linesep + str(ibdiagnet_analyzer.get_fabric_size() \
                         if ibdiagnet_analyzer else "No Fabric Info found")
 
         LINK_FLAPPING = str(links_flapping_analyzer.get_link_flapping_last_week() \
                             if links_flapping_analyzer else "No link flapping info")
         # PDF creator gets all the images and to add to the report
-        TEXT = FABRIC_INFO + os.linesep + "Link Flapping:" + os.linesep + LINK_FLAPPING
+        TEXT = text + os.linesep + FABRIC_INFO + os.linesep + "Link Flapping:" + os.linesep + LINK_FLAPPING
         pdf = PDFCreator(pdf_path, pdf_header, png_images, TEXT)
         pdf.created_pdf()
         # Generated a report that can be located in the destination
@@ -359,6 +362,10 @@ if __name__ == "__main__":
         for image, title in images_and_title_to_present:
             log.LOGGER.info(f"{title}: {image}")
         log.LOGGER.info(f"Summary PDF was created! you can open here at {pdf_path}")
+        if args.interactive:
+            import IPython
+
+            IPython.embed()
         # Clean some unended files created during run
         files_types_to_delete = set()
         files_types_to_delete.add("png") #png images created for PDF report
@@ -366,10 +373,6 @@ if __name__ == "__main__":
         files_types_to_delete.add("csv") #tmp csv + telemetery samples
         files_types_to_delete.add("gz") #gz files of logs and samples
         delete_files_by_types(args.destination, files_types_to_delete)
-        if args.interactive:
-            import IPython
-
-            IPython.embed()
 
     except Exception as exc:
         print("-E-", str(exc))
