@@ -354,7 +354,8 @@ if __name__ == "__main__":
         LINK_FLAPPING = str(links_flapping_analyzer.get_link_flapping_last_week() \
                             if links_flapping_analyzer else "No link flapping info")
         # PDF creator gets all the images and to add to the report
-        TEXT = text + os.linesep + FABRIC_INFO + os.linesep + "Link Flapping:" + os.linesep + LINK_FLAPPING
+        TEXT = text + os.linesep + FABRIC_INFO + os.linesep + \
+        "Link Flapping:" + os.linesep + LINK_FLAPPING
         pdf = PDFCreator(pdf_path, pdf_header, png_images, TEXT)
         pdf.created_pdf()
         # Generated a report that can be located in the destination

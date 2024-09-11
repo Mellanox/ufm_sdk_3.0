@@ -43,8 +43,8 @@ UFM_VERSION_REGEX = re.compile(
 )
 
 def ufm_version(match: Match):
-    ufm_version = match.group()
-    return (None, "ufm_version", ufm_version)
+    ufm_version_text = match.group()
+    return (None, "ufm_version", ufm_version_text)
 
 def console_log_exception(match: Match):
     timestamp = match.group(1)

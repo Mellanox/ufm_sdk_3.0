@@ -38,7 +38,14 @@ class ConsoleLogAnalyzer(BaseAnalyzer):
             temp_file = csv_file + ".temp"
 
             # Open the input CSV file for reading
-            with open(csv_file, mode='r', newline='') as infile, open(temp_file, mode='w', newline='') as outfile:
+            with open(csv_file,
+                      mode='r',
+                      newline='',
+                      encoding=DataConstants.UTF8ENCODING) as infile, \
+                open(temp_file,
+                     mode='w',
+                     newline='',
+                     encoding=DataConstants.UTF8ENCODING) as outfile:
                 reader = csv.DictReader(infile)
                 fieldnames = reader.fieldnames  # Get the header from the CSV
                 writer = csv.DictWriter(outfile, fieldnames=fieldnames)
@@ -49,7 +56,8 @@ class ConsoleLogAnalyzer(BaseAnalyzer):
                 # Iterate through each row in the input CSV
                 for row in reader:
                     if row['type'] == 'ufm_version':
-                        # If the type is 'ufm_version', save the row and don't write it to the new file
+                        # If the type is 'ufm_version',
+                        # save the row and don't write it to the new file
                         ufm_versions.add(row['data'])
                     else:
                         # Write the row to the new CSV file
