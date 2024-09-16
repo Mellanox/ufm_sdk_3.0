@@ -13,7 +13,7 @@ class DataStore:
     BASE_PATH = "/opt/ufm/ufm_plugin_pdr_deterministic/datastore"
     ABS_PATH = "abs"
     DELTA_PATH = "delta"
-    TAR_SUFFIX = "*.tar.gz"
+    TAR_SUFFIX = "*.csv"
 
     def __init__(self,logger) -> None:
         self.logger = logger
@@ -51,7 +51,7 @@ class DataStore:
         input_path_dir = Path(data_path)
         files = list(input_path_dir.glob(suffix))
         files.sort(key=lambda p: p.name)
-        files = [str(p) for p in files ]
+        files = [str(p) for p in files]
         if len(files) > to_keep:
             files_to_remove = files[:len(files)- to_keep]
         return files_to_remove
@@ -71,7 +71,7 @@ class DataStore:
         :param files: (List) List of files to be removed
         :return: None
         """
-        self.logger(f"removing {len(files)} old files")
+        self.logger.info(f"removing {len(files)} old files")
         for file in files:
             try:
                 if exists(file):
@@ -81,9 +81,9 @@ class DataStore:
             except OSError as exc:
                 self.logger.error("failed to remove file %s [%s]", file, exc)
 
-    def save(self,dataframe:pd.DataFrame, file_name:str) -> None:
+    def save(self, dataframe:pd.DataFrame, file_name:str) -> None:
         """
-        save dataframe to the file name th
+        save dataframe to the file name
         """
         self.logger.info(f"saving data to {file_name}")
         dataframe.to_csv(file_name)

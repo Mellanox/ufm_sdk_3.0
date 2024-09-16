@@ -1,6 +1,5 @@
 import urllib
 import pandas as pd
-from constants import PDRConstants as Constants
 from data_store import DataStore
 
 class TelemetryCollector:
@@ -10,6 +9,8 @@ class TelemetryCollector:
     """
     BASED_COLUMNS = ["Node_GUID", "port_guid", "Port_Number"]
     KEY = BASED_COLUMNS + ["timestamp","tag"]
+    SECONDARY_TELEMETRY_PORT = 9002
+    SECONDARY_INSTANCE = "low_freq_debug"
 
     def __init__(self,test_mode:bool,logger,data_store:DataStore) -> None:
         self.test_mode = test_mode
@@ -25,7 +26,7 @@ class TelemetryCollector:
         if self.test_mode:
             url = "http://127.0.0.1:9090/csv/xcset/simulated_telemetry"
         else:
-            url = f"http://127.0.0.1:{Constants.SECONDARY_TELEMETRY_PORT}/csv/xcset/{Constants.SECONDARY_INSTANCE}"
+            url = f"http://127.0.0.1:{self.SECONDARY_TELEMETRY_PORT}/csv/xcset/{self.SECONDARY_INSTANCE}"
         try:
             self.logger.info(f"collecting telemetry from {url}.")
             telemetry_data = pd.read_csv(url)

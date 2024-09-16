@@ -46,7 +46,6 @@ class PDRConstants():
     SWITCH_TO_HOST_ISOLATION = "SWITCH_TO_HOST_ISOLATION"
     TEST_MODE = "TEST_MODE"
     TEST_MODE_PORT = 9090
-    SECONDARY_TELEMETRY_PORT = 9002
 
     GET_SESSION_DATA_REST = "/monitoring/session/0/data"
     POST_EVENT_REST = "/app/events/external_event"
@@ -56,7 +55,6 @@ class PDRConstants():
     GET_ACTIVE_PORTS_REST = "/resources/ports?active=true"
     API_HEALTHY_PORTS = "healthy_ports"
     API_ISOLATED_PORTS = "isolated_ports"
-    SECONDARY_INSTANCE = "low_freq_debug"
 
     TIMEOUT = 60
 

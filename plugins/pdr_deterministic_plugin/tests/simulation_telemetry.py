@@ -17,10 +17,12 @@ from threading import Lock
 import copy
 import argparse
 import random
-from os.path import exists
+from os.path import exists,join
 from collections import OrderedDict
 import requests
 from utils.utils import Utils
+from pathlib import Path
+from datetime import datetime
 
 lock = Lock()
 
@@ -339,7 +341,29 @@ def check_logs(config):
             break
     if len(lines) == 0:
         print("Could not find log file in " + str(location_logs_can_be))
-        return 1        
+        return 1
+
+    saved_files_tests = True
+    locations_telemetry_csv = "/opt/ufm/ufm_plugin_pdr_deterministic/datastore"
+    OUTPUT_FILE_FORMAT = "%Y_%m_%d_%H_%M_%S.csv"
+
+    for option_location in ['abs','delta']:
+        input_path_dir = Path(join(locations_telemetry_csv,option_location))
+        files = list(input_path_dir.glob("*.csv"))
+        
+        if len(files) == 0: # testing we have files there
+            print(f"There is no files in the datastore location:{join(locations_telemetry_csv,option_location)}")
+            saved_files_tests = False
+            continue
+        files.sort(key=lambda p: p.name)
+        latest_file = files[0].name
+        saved_time = datetime.strptime(latest_file,OUTPUT_FILE_FORMAT)
+        different_time = datetime.now() - saved_time
+        print_test_result(f"the latest file saved at {join(locations_telemetry_csv,option_location)} before test running, more than 5 minutes {different_time.total_seconds() > 300}",
+                          different_time.total_seconds() > 300, False)
+        if different_time.total_seconds() > 300:
+            saved_files_tests = False
+            continue            
     # if a you want to add more tests, please add more guids and test on other indices.
 
     ports_should_be_isolated_indices = list(set([x[1] for x in POSITIVE_DATA_TEST]))
@@ -373,7 +397,7 @@ def check_logs(config):
                 break
         print_test_result(f"port {port_name} (index: {p}) which check {tested_counter} should not be in the logs", found, False, "negative")
 
-    all_pass = number_of_failed_positive_tests == 0 and number_of_failed_negative_tests == 0
+    all_pass = number_of_failed_positive_tests == 0 and number_of_failed_negative_tests == 0 and saved_files_tests
     return 0 if all_pass else 1
 
 def main():
