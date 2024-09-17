@@ -236,8 +236,8 @@ def create_telemetries_logs():
     successful = True
     abs_file_path = Path(join(TELEMETRY_DATASTORE_LOCATION,"abs"))
     files = list(abs_file_path.glob("*.csv"))
-    if files == 0:
-        print("abs file didnt create yet")
+    if files != 0:
+        print("abs file have not created yet")
         return False
     df = pd.read_csv(files[0])
     for option_location in ['abs','delta']:
