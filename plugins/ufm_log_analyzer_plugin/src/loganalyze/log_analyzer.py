@@ -347,16 +347,16 @@ if __name__ == "__main__":
         )
 
         used_ufm_version = console_log_analyzer.ufm_versions
-        text = f"Used ufm version in console log {used_ufm_version}"
+        text_to_show_in_pdf = f"Used ufm version in console log {used_ufm_version}"
         FABRIC_INFO = "fabric info:" + os.linesep + str(ibdiagnet_analyzer.get_fabric_size() \
                         if ibdiagnet_analyzer else "No Fabric Info found")
 
         LINK_FLAPPING = str(links_flapping_analyzer.get_link_flapping_last_week() \
                             if links_flapping_analyzer else "No link flapping info")
         # PDF creator gets all the images and to add to the report
-        TEXT = text + os.linesep + FABRIC_INFO + os.linesep + \
+        text_to_show_in_pdf += os.linesep + FABRIC_INFO + os.linesep + \
         "Link Flapping:" + os.linesep + LINK_FLAPPING
-        pdf = PDFCreator(pdf_path, pdf_header, png_images, TEXT)
+        pdf = PDFCreator(pdf_path, pdf_header, png_images, text_to_show_in_pdf)
         pdf.created_pdf()
         # Generated a report that can be located in the destination
         log.LOGGER.info("Analysis is done, please see the following outputs:")

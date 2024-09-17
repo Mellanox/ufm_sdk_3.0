@@ -68,14 +68,11 @@ class PDFCreator(FPDF):
         self.add_page()  # Add a new page for the text
         self.set_font("Arial", "", 12)
 
-        # First block of text
-        text = """
-        """
         output = StringIO()
         print(self._fabric_stats_list, file=output)
-        text += (
+        text = (
             output.getvalue().strip()
-        )  # .strip() to remove any leading/trailing whitespace
+        ) 
 
         self.multi_cell(0, 10, text)
 

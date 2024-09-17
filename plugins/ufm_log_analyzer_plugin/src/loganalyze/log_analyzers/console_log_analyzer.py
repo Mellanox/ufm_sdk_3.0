@@ -32,6 +32,11 @@ class ConsoleLogAnalyzer(BaseAnalyzer):
 
     @staticmethod
     def _extract_ufm_version(logs_csvs):
+        """
+        This function gets all the ufm version from the console log.
+        It saves then in a set and returns all the unique UFM version
+        that were found in the log
+        """
         ufm_versions = set()  # List to store ufm_version rows
 
         for csv_file in logs_csvs:
