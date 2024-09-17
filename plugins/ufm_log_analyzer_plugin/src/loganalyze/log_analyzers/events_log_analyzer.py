@@ -50,7 +50,7 @@ class EventsLogAnalyzer(BaseAnalyzer):
         critical_events = self.get_events_by_log_level("CRITICAL")
         total_critical_events = critical_events.groupby("event").size().reset_index(name="count")
 
-        # Get the top 5 events with the highest count overall
+        # Get the top n events with the highest count overall
         top_n_events = total_critical_events.nlargest(n, 'count')
 
         # Group the top 5 events by time interval
