@@ -238,7 +238,7 @@ def create_telemetries_logs():
         input_path_dir = Path(join(TELEMETRY_DATASTORE_LOCATION,option_location))
         files = list(input_path_dir.glob("*.csv"))
         if len(files)==0:
-            print("didnt create files because there are no files in the folder")
+            print(f"didnt create files because there are no files in the folder:{input_path_dir}")
             successful = False
             continue
         df = pd.read_csv(files[0])

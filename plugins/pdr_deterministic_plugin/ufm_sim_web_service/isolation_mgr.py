@@ -271,6 +271,7 @@ class IsolationMgr:
                 t_begin = time.time()
                 self.exclude_list.refresh()
                 self.get_isolation_state()
+                self.data_store.clean_old_files()
 
                 issues = None
                 # Get telemetry data
