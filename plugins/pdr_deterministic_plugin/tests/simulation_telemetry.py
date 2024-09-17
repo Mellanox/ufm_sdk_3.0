@@ -244,8 +244,8 @@ def create_telemetries_logs():
         df = pd.read_csv(files[0])
         for day in range(1,MAX_LOG_FILES*2):
             # we put days back to make sure the logs that the server creates are recent, we have a test for recent logs.
-            file_name_year_ago = (datetime.now() - timedelta(days=day)).strftime(OUTPUT_FILE_FORMAT)
-            df.to_csv(file_name_year_ago)
+            file_name = (datetime.now() - timedelta(days=day)).strftime(OUTPUT_FILE_FORMAT)
+            df.to_csv(join(TELEMETRY_DATASTORE_LOCATION,option_location,file_name))
     return successful
 
 def excluded_ports_simulation(endpoint):
