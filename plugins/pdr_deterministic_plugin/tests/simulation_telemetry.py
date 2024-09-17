@@ -234,14 +234,13 @@ def create_telemetries_logs():
     create up to double of the amount of logs that can be in the folder. this is a setup for test.
     """
     successful = True
+    abs_file_path = Path(join(TELEMETRY_DATASTORE_LOCATION,"abs"))
+    files = list(abs_file_path.glob("*.csv"))
+    if files == 0:
+        print("abs file didnt create yet")
+        return False
+    df = pd.read_csv(files[0])
     for option_location in ['abs','delta']:
-        input_path_dir = Path(join(TELEMETRY_DATASTORE_LOCATION,option_location))
-        files = list(input_path_dir.glob("*.csv"))
-        if len(files)==0:
-            print(f"didnt create files because there are no files in the folder:{input_path_dir}")
-            successful = False
-            continue
-        df = pd.read_csv(files[0])
         for day in range(1,MAX_LOG_FILES*2):
             # we put days back to make sure the logs that the server creates are recent, we have a test for recent logs.
             file_name = (datetime.now() - timedelta(days=day)).strftime(OUTPUT_FILE_FORMAT)
@@ -369,8 +368,7 @@ def check_logs(config):
         print("Could not find log file in " + str(location_logs_can_be))
         return 1
 
-    saved_files_tests = True
-    
+    saved_files_tests = True    
     for option_location in ['abs','delta']:
         input_path_dir = Path(join(TELEMETRY_DATASTORE_LOCATION,option_location))
         files = list(input_path_dir.glob("*.csv"))
@@ -379,7 +377,7 @@ def check_logs(config):
             print(f"There is no files in the datastore location:{join(TELEMETRY_DATASTORE_LOCATION,option_location)}")
             saved_files_tests = False
             continue
-        print_test_result("there are only 10 items in the set, The test copy in each iterations more logs.",
+        print_test_result("Test , The test copy in each iterations more logs.",
                           len(files), MAX_LOG_FILES)
         if len(files) != MAX_LOG_FILES:
             saved_files_tests = False
