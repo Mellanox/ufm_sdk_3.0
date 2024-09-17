@@ -80,9 +80,15 @@ class IsolationMgr:
             return
 
         if not self.dry_run:
+            # Isolate port
             ret = self.ufm_client.isolate_port(port_name)
             if not ret or ret.status_code != http.HTTPStatus.OK:
                 self.logger.warning("Failed isolating port: %s with cause: %s... status_code= %s", port_name, cause, ret.status_code)
+                return
+            # Reset port
+            ret = self.ufm_client.reset_port(port_name, port_obj.port_guid)
+            if not ret or ret.status_code != http.HTTPStatus.OK:
+                self.logger.warning("Failed resetting port: %s... status_code= %s", port_name, ret.status_code)
                 return
         isolated_port = self.isolated_ports.get(port_name)
         if not isolated_port:

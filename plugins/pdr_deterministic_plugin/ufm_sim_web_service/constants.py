@@ -54,6 +54,7 @@ class PDRConstants():
     GET_ISOLATED_PORTS = "/resources/isolated_ports"
     GET_PORTS_REST = "/resources/ports"
     GET_ACTIVE_PORTS_REST = "/resources/ports?active=true"
+    POST_ACTIONS_REST = "/actions"
     API_HEALTHY_PORTS = "healthy_ports"
     API_ISOLATED_PORTS = "isolated_ports"
     SECONDARY_INSTANCE = "low_freq_debug"

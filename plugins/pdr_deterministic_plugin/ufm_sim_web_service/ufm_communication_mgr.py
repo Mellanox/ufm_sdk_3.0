@@ -123,3 +123,18 @@ class UFMCommunicator:
 
     def get_port_metadata(self, port_name):
         return self.get_request(f"{Constants.GET_PORTS_REST}/ {port_name}")
+
+    def reset_port(self, port_name, port_guid):
+        """ 
+        Reset port
+        """
+        # using isolation UFM REST API - POST /ufmRestV2/actions
+        data = {
+            "params": { "port_id": port_name },
+            "action": "reset",
+            "object_ids": [ port_guid ],
+            "object_type": "System",
+            "description": "",
+            "identifier": "id"
+        }
+        return self.send_request(Constants.POST_ACTIONS_REST, data, method=Constants.POST_METHOD)
