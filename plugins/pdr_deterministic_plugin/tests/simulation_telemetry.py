@@ -379,7 +379,7 @@ def check_logs(config):
             continue
         print_test_result("amount of telemetry logs in the folder equal to maximum or maximum plus 1 (did not clean the plus 1 yet).",
                           len(files), MAX_LOG_FILES)
-        if len(files) == MAX_LOG_FILES or len(files) == MAX_LOG_FILES + 1:
+        if len(files) != MAX_LOG_FILES and len(files) != MAX_LOG_FILES + 1:
             saved_files_tests = False
         files.sort(key=lambda p: p.name,reverse=True)
         latest_file = files[0].name
