@@ -343,19 +343,32 @@ if __name__ == "__main__":
         # Next section is to create a summary PDF
         pdf_path = os.path.join(args.destination, "UFM_Dump_analysis.pdf")
         pdf_header = (
-            f"Dump analysis for {os.path.basename(args.location)}, hours={args.hours}"
+            f"{os.path.basename(args.location)}, hours={args.hours}"
         )
 
         used_ufm_version = console_log_analyzer.ufm_versions
         text_to_show_in_pdf = f"Used ufm version in console log {used_ufm_version}"
-        FABRIC_INFO = "fabric info:" + os.linesep + str(ibdiagnet_analyzer.get_fabric_size() \
-                        if ibdiagnet_analyzer else "No Fabric Info found")
+        fabric_info = "fabric info:" + os.linesep + ibdiagnet_analyzer.get_fabric_size() \
+                        if ibdiagnet_analyzer else "No Fabric Info found"
+        link_flapping = links_flapping_analyzer.get_link_flapping_last_week() \
+                            if links_flapping_analyzer else "No link flapping info"
+        text_to_show_in_pdf += os.linesep + str(fabric_info) + os.linesep + \
+        "Link Flapping:" + os.linesep + str(link_flapping)
 
-        LINK_FLAPPING = str(links_flapping_analyzer.get_link_flapping_last_week() \
-                            if links_flapping_analyzer else "No link flapping info")
+        critical_events_burst = event_log_analyzer.get_critical_event_bursts()
+        critical_events_text = "The minute           event_type     event    count" # pylint: disable=invalid-name
+        for critical_event in critical_events_burst:
+            timestamp = critical_event['timestamp']
+            event_type = critical_event['event_type']
+            event = critical_event['event']
+            counter = critical_event['count']
+            event_text = f"{timestamp} {event_type} {event} {counter}"
+            critical_events_text = critical_events_text + os.linesep + event_text
+
+        text_to_show_in_pdf += os.linesep + os.linesep + "More than 5 events burst over a minute:" \
+            + os.linesep + critical_events_text
+
         # PDF creator gets all the images and to add to the report
-        text_to_show_in_pdf += os.linesep + FABRIC_INFO + os.linesep + \
-        "Link Flapping:" + os.linesep + LINK_FLAPPING
         pdf = PDFCreator(pdf_path, pdf_header, png_images, text_to_show_in_pdf)
         pdf.created_pdf()
         # Generated a report that can be located in the destination
@@ -363,10 +376,6 @@ if __name__ == "__main__":
         for image, title in images_and_title_to_present:
             log.LOGGER.info(f"{title}: {image}")
         log.LOGGER.info(f"Summary PDF was created! you can open here at {pdf_path}")
-        if args.interactive:
-            import IPython
-
-            IPython.embed()
         # Clean some unended files created during run
         files_types_to_delete = set()
         files_types_to_delete.add("png") #png images created for PDF report
