@@ -309,9 +309,7 @@ class IsolationMgr:
                     for isolated_port in list(self.isolated_ports.values()):
                         if self.pdr_alg.check_deisolation_conditions(isolated_port):
                             self.eval_deisolate(isolated_port.name)
-                ports_updated = self.update_ports_data()
-                if ports_updated:
-                    self.update_telemetry_session()
+                self.update_ports_data()
                 t_end = time.time()
             #pylint: disable=broad-except
             except Exception as exception:

@@ -269,7 +269,7 @@ if __name__ == "__main__":
         full_logs_list = add_extraction_levels_to_files_set(
             LOGS_TO_EXTRACT, args.extract_level
         )
-        log.LOGGER.debug(f"Going to extract {len(full_logs_list)} logs from {args.location}")
+        log.LOGGER.debug(f"Going to extract {full_logs_list} logs from {args.location}")
         if args.skip_tar_extract:
             extractor = DirectoryExtractor(args.location)
         else:
@@ -345,13 +345,15 @@ if __name__ == "__main__":
         pdf_header = (
             f"{os.path.basename(args.location)}, hours={args.hours}"
         )
-        fabric_info = ibdiagnet_analyzer.get_fabric_size() \
-                        if ibdiagnet_analyzer else "No Fabric Info found"
 
+        used_ufm_version = console_log_analyzer.ufm_versions
+        text_to_show_in_pdf = f"Used ufm version in console log {used_ufm_version}"
+        fabric_info = "fabric info:" + os.linesep + ibdiagnet_analyzer.get_fabric_size() \
+                        if ibdiagnet_analyzer else "No Fabric Info found"
         link_flapping = links_flapping_analyzer.get_link_flapping_last_week() \
                             if links_flapping_analyzer else "No link flapping info"
-        # PDF creator gets all the images and to add to the report
-        text = str(fabric_info) + os.linesep + "Link Flapping:" + os.linesep + str(link_flapping) # pylint: disable=invalid-name
+        text_to_show_in_pdf += os.linesep + str(fabric_info) + os.linesep + \
+        "Link Flapping:" + os.linesep + str(link_flapping)
 
         critical_events_burst = event_log_analyzer.get_critical_event_bursts()
         critical_events_text = "The minute           event_type     event    count" # pylint: disable=invalid-name
@@ -363,21 +365,17 @@ if __name__ == "__main__":
             event_text = f"{timestamp} {event_type} {event} {counter}"
             critical_events_text = critical_events_text + os.linesep + event_text
 
-        text = text + os.linesep + "More than 5 events burst over a minute:" \
+        text_to_show_in_pdf += os.linesep + os.linesep + "More than 5 events burst over a minute:" \
             + os.linesep + critical_events_text
-        pdf = PDFCreator(pdf_path, pdf_header, png_images, text)
+
+        # PDF creator gets all the images and to add to the report
+        pdf = PDFCreator(pdf_path, pdf_header, png_images, text_to_show_in_pdf)
         pdf.created_pdf()
         # Generated a report that can be located in the destination
         log.LOGGER.info("Analysis is done, please see the following outputs:")
         for image, title in images_and_title_to_present:
             log.LOGGER.info(f"{title}: {image}")
         log.LOGGER.info(f"Summary PDF was created! you can open here at {pdf_path}")
-
-        if args.interactive:
-            import IPython
-
-            IPython.embed()
-
         # Clean some unended files created during run
         files_types_to_delete = set()
         files_types_to_delete.add("png") #png images created for PDF report
