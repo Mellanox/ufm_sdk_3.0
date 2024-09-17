@@ -12,6 +12,8 @@
 # pylint: disable=# pylint: disable=missing-function-docstring
 # pylint: disable=# pylint: disable=missing-class-docstring
 # pylint: disable=# pylint: disable=missing-module-docstring
+import csv
+import os
 from typing import List
 from loganalyze.log_analyzers.constants import DataConstants
 from loganalyze.log_analyzers.base_analyzer import BaseAnalyzer
@@ -22,10 +24,53 @@ class ConsoleLogAnalyzer(BaseAnalyzer):
     def __init__(
         self, logs_csvs: List[str], hours: int, dest_image_path, sort_timestamp=True
     ):
+        self.ufm_versions = self._extract_ufm_version(logs_csvs)
         self.fix_lines_with_no_timestamp(logs_csvs)
         super().__init__(logs_csvs, hours, dest_image_path, sort_timestamp)
         self._log_data_sorted.dropna(subset=["data"], inplace=True)
         self._funcs_for_analysis = {self.print_exceptions_per_time_count}
+
+    @staticmethod
+    def _extract_ufm_version(logs_csvs):
+        """
+        This function gets all the ufm version from the console log.
+        It saves then in a set and returns all the unique UFM version
+        that were found in the log
+        """
+        ufm_versions = set()  # List to store ufm_version rows
+
+        for csv_file in logs_csvs:
+            temp_file = csv_file + ".temp"
+
+            # Open the input CSV file for reading
+            with open(csv_file,
+                      mode='r',
+                      newline='',
+                      encoding=DataConstants.UTF8ENCODING) as infile, \
+                open(temp_file,
+                     mode='w',
+                     newline='',
+                     encoding=DataConstants.UTF8ENCODING) as outfile:
+                reader = csv.DictReader(infile)
+                fieldnames = reader.fieldnames  # Get the header from the CSV
+                writer = csv.DictWriter(outfile, fieldnames=fieldnames)
+
+                # Write the header to the new CSV
+                writer.writeheader()
+
+                # Iterate through each row in the input CSV
+                for row in reader:
+                    if row['type'] == 'ufm_version':
+                        # If the type is 'ufm_version',
+                        # save the row and don't write it to the new file
+                        ufm_versions.add(row['data'])
+                    else:
+                        # Write the row to the new CSV file
+                        writer.writerow(row)
+
+            # Replace the original file with the new file
+            os.replace(temp_file, csv_file)
+        return ufm_versions
 
     def _get_exceptions(self):
         error_data = self._log_data_sorted[self._log_data_sorted["type"] == "Error"][
