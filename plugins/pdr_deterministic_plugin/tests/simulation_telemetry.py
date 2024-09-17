@@ -377,11 +377,11 @@ def check_logs(config):
             print(f"There is no files in the datastore location:{join(TELEMETRY_DATASTORE_LOCATION,option_location)}")
             saved_files_tests = False
             continue
-        print_test_result("Test , The test copy in each iterations more logs.",
+        print_test_result("amount of telemetry logs in the folder equal to maximum or maximum plus 1 (did not clean the plus 1 yet).",
                           len(files), MAX_LOG_FILES)
-        if len(files) != MAX_LOG_FILES:
+        if len(files) == MAX_LOG_FILES or len(files) == MAX_LOG_FILES + 1:
             saved_files_tests = False
-        files.sort(key=lambda p: p.name)
+        files.sort(key=lambda p: p.name,reverse=True)
         latest_file = files[0].name
         saved_time = datetime.strptime(latest_file,OUTPUT_FILE_FORMAT)
         different_time = datetime.now() - saved_time
