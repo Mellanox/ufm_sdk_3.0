@@ -72,7 +72,7 @@ class PDFCreator(FPDF):
         print(self._fabric_stats_list, file=output)
         text = (
             output.getvalue().strip()
-        ) 
+        )
 
         self.multi_cell(0, 10, text)
 
