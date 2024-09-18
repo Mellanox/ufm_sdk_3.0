@@ -374,7 +374,7 @@ def check_logs(config):
         files = list(input_path_dir.glob("*.csv"))
 
         if len(files) == 0: # testing we have files there
-            print(f"There is no files in the datastore location:{join(TELEMETRY_DATASTORE_LOCATION,option_location)}")
+            print(f"There are no files in the datastore location:{join(TELEMETRY_DATASTORE_LOCATION,option_location)}")
             saved_files_tests = False
             continue
         print_test_result("amount of telemetry logs in the folder equal to maximum or maximum plus 1 (did not clean the plus 1 yet).",
