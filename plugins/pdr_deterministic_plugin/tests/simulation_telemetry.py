@@ -17,10 +17,13 @@ from threading import Lock
 import copy
 import argparse
 import random
-from os.path import exists
+from os.path import exists,join
 from collections import OrderedDict
 import requests
 from utils.utils import Utils
+import pandas as pd
+from pathlib import Path
+from datetime import datetime,timedelta
 
 lock = Lock()
 
@@ -32,6 +35,8 @@ LINK_DOWN_COUNTER = "Link_Down_IB"
 RCV_REMOTE_PHY_ERROR_COUNTER = "PortRcvRemotePhysicalErrors"
 TEMP_COUNTER = "Module_Temperature"
 FEC_MODE = "fec_mode_active"
+TELEMETRY_DATASTORE_LOCATION = "/opt/ufm/ufm_plugin_pdr_deterministic/datastore"
+MAX_LOG_FILES = 10
 ENDPOINT_CONFIG = {}
 
 EXCLUDE_PORT_LONG_TIME = "ExcludePortForLongTime"
@@ -69,6 +74,8 @@ class CsvEndpointHandler(BaseHTTPRequestHandler):
 
         data = endpoint['data']
         self.wfile.write(data.encode())
+
+OUTPUT_FILE_FORMAT = "%Y_%m_%d_%H_%M_%S.csv"
 
 DIFFERENT_DEFAULT_VALUES = {
     # because the plugin reads the meta data to know the first temperature and we cannot stream the metadata.
@@ -194,6 +201,7 @@ def start_server(port:str,changes_intervals:int, run_forever:bool):
     counters_names = list(counters.keys())
     header = ['timestamp', 'source_id,tag,Node_GUID,port_guid,Port_Number'] + counters_names
     endpoint['data'] = ""
+    setup_log_test = False
     while True:
         # lock.acquire()
         data = []
@@ -217,7 +225,27 @@ def start_server(port:str,changes_intervals:int, run_forever:bool):
         if not run_forever and ENDPOINT_CONFIG["ITERATION_TIME"] > MAX_ITERATIONS:
             # after all the tests are done, we need to stop the simulator and check the logs
             return
+        if not setup_log_test:
+            setup_log_test = create_telemetries_logs()
         time.sleep(changes_intervals)
+
+def create_telemetries_logs():
+    """
+    create up to double of the amount of logs that can be in the folder. this is a setup for test.
+    """
+    successful = True
+    abs_file_path = Path(join(TELEMETRY_DATASTORE_LOCATION,"abs"))
+    files = list(abs_file_path.glob("*.csv"))
+    if len(files) == 0:
+        print("abs file have not created yet")
+        return False
+    df = pd.read_csv(files[0])
+    for option_location in ['abs','delta']:
+        for day in range(1,MAX_LOG_FILES*2):
+            # we put days back to make sure the logs that the server creates are recent, we have a test for recent logs.
+            file_name = (datetime.now() - timedelta(days=day)).strftime(OUTPUT_FILE_FORMAT)
+            df.to_csv(join(TELEMETRY_DATASTORE_LOCATION,option_location,file_name))
+    return successful
 
 def excluded_ports_simulation(endpoint):
     """
@@ -229,7 +257,6 @@ def excluded_ports_simulation(endpoint):
     for port_index in range(len(rows)):
         port_name = endpoint["Ports_names"][port_index]
         iteration = ENDPOINT_CONFIG["ITERATION_TIME"]
-        
         # Process remove operation
         if find_value(port_index, INCLUDE_PORT, iteration, None) is not None:
             # Remove from exclusion list
@@ -339,7 +366,31 @@ def check_logs(config):
             break
     if len(lines) == 0:
         print("Could not find log file in " + str(location_logs_can_be))
-        return 1        
+        return 1
+
+    saved_files_tests = True    
+    for option_location in ['abs','delta']:
+        input_path_dir = Path(join(TELEMETRY_DATASTORE_LOCATION,option_location))
+        files = list(input_path_dir.glob("*.csv"))
+
+        if len(files) == 0: # testing we have files there
+            print(f"There are no files in the datastore location:{join(TELEMETRY_DATASTORE_LOCATION,option_location)}")
+            saved_files_tests = False
+            continue
+        print_test_result("amount of telemetry logs in the folder equal to maximum or maximum plus 1 (did not clean the plus 1 yet).",
+                          len(files), MAX_LOG_FILES)
+        if len(files) != MAX_LOG_FILES and len(files) != MAX_LOG_FILES + 1:
+            saved_files_tests = False
+        files.sort(key=lambda p: p.name,reverse=True)
+        latest_file = files[0].name
+        saved_time = datetime.strptime(latest_file,OUTPUT_FILE_FORMAT)
+        different_time = datetime.now() - saved_time
+        print_test_result(f"the latest file saved at {join(TELEMETRY_DATASTORE_LOCATION,option_location)}\
+                           before test running, more than 5 minutes {different_time.total_seconds() > 300}",
+                          different_time.total_seconds() > 300, False)
+        if different_time.total_seconds() > 300:
+            saved_files_tests = False
+            continue            
     # if a you want to add more tests, please add more guids and test on other indices.
 
     ports_should_be_isolated_indices = list(set([x[1] for x in POSITIVE_DATA_TEST]))
@@ -373,7 +424,7 @@ def check_logs(config):
                 break
         print_test_result(f"port {port_name} (index: {p}) which check {tested_counter} should not be in the logs", found, False, "negative")
 
-    all_pass = number_of_failed_positive_tests == 0 and number_of_failed_negative_tests == 0
+    all_pass = number_of_failed_positive_tests == 0 and number_of_failed_negative_tests == 0 and saved_files_tests
     return 0 if all_pass else 1
 
 def main():
@@ -417,7 +468,7 @@ def main():
 
     if not validate_simulation_data():
         return 1
-    
+
     port = args.endpoint_port
     url = f'http://0.0.0.0:{port}{args.url_suffix}'
     print(f'---Starting endpoint {url}')

@@ -18,8 +18,9 @@ from exclude_list import ExcludeList
 from pdr_algorithm import PortData, IsolatedPort, PDRAlgorithm
 
 from constants import PDRConstants as Constants
+from telemetry_collector import TelemetryCollector
 from ufm_communication_mgr import UFMCommunicator
-# should actually be persistent and thread safe dictionary pf IsolatedPorts
+from data_store import DataStore
 
 #pylint: disable=too-many-instance-attributes
 class IsolationMgr:
@@ -48,6 +49,8 @@ class IsolationMgr:
 
         self.test_iteration = 0
         self.logger = logger
+        self.data_store = DataStore(self.logger)
+        self.telemetry_collector = TelemetryCollector(self.test_mode,logger,self.data_store)
         self.exclude_list = ExcludeList(self.logger)
         self.pdr_alg = PDRAlgorithm(self.ufm_client, self.exclude_list, self.logger, pdr_config)
 
@@ -268,6 +271,7 @@ class IsolationMgr:
                 t_begin = time.time()
                 self.exclude_list.refresh()
                 self.get_isolation_state()
+                self.data_store.clean_old_files()
 
                 issues = None
                 # Get telemetry data
@@ -277,7 +281,7 @@ class IsolationMgr:
                     self.logger.info(f"Retrieving test mode telemetry data to determine ports' states: iteration {self.test_iteration}")
                     self.test_iteration += 1
                 try:
-                    ports_counters = self.ufm_client.get_telemetry(self.test_mode)
+                    ports_counters = self.telemetry_collector.get_telemetry()
                     if ports_counters is None:
                         self.logger.error("Couldn't retrieve telemetry data")
                     else:
@@ -309,6 +313,7 @@ class IsolationMgr:
                     for isolated_port in list(self.isolated_ports.values()):
                         if self.pdr_alg.check_deisolation_conditions(isolated_port):
                             self.eval_deisolate(isolated_port.name)
+
                 self.update_ports_data()
                 t_end = time.time()
             #pylint: disable=broad-except
