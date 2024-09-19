@@ -66,6 +66,9 @@ The following parameters are configurable via the plugin's configuration file. (
 | DEISOLATE_CONSIDER_TIME | consideration time for port deisolation (in minutes) | 5 |
 | DO_DEISOLATION | if set to false, the plugin will not perform deisolation | True |
 | DYNAMIC_WAIT_TIME | Seconds to wait for the dynamic telemetry session to respond | 30 |
+| MAX_PORT_RESET_NUM | max number of resets per port | 2
+| PORT_RESET_INTERVAL_SECONDS | time interval in seconds after last reset that zeroes reset counter (reenables resets) | 604800 # 1 week in seconds
+
 
 ## Calculating BER Counters
 

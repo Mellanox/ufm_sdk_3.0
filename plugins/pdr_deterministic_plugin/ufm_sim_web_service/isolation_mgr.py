@@ -9,6 +9,7 @@
 # This software product is governed by the End User License Agreement
 # provided with the software product.
 #
+from datetime import datetime, timedelta
 import traceback
 import time
 import http
@@ -22,6 +23,18 @@ from telemetry_collector import TelemetryCollector
 from ufm_communication_mgr import UFMCommunicator
 from data_store import DataStore
 
+class PortReset:
+    """
+    Represents the port reset info.
+    """
+    def __init__(self, port_name):
+        """
+        Initialize a new instance of the PortReset class.
+        """
+        self.port_name = port_name
+        self.reset_time = datetime.min
+        self.reset_count = 0
+
 #pylint: disable=too-many-instance-attributes
 class IsolationMgr:
     '''
@@ -34,6 +47,8 @@ class IsolationMgr:
         self.isolated_ports = {}
         # {port_name: telemetry_data}
         self.ports_data = {}
+        # {port_name: PortReset}
+        self.ports_resets = {}
         self.ufm_latest_isolation_state = []
 
         pdr_config = configparser.ConfigParser()
@@ -46,6 +61,10 @@ class IsolationMgr:
         self.do_deisolate = pdr_config.getboolean(Constants.CONF_ISOLATION, Constants.DO_DEISOLATION)
         self.switch_hca_isolation = pdr_config.getboolean(Constants.CONF_ISOLATION, Constants.SWITCH_TO_HOST_ISOLATION)
         self.test_mode = pdr_config.getboolean(Constants.CONF_COMMON, Constants.TEST_MODE, fallback=False)
+        self.max_port_reset_num = pdr_config.getint(Constants.CONF_RESET, Constants.MAX_PORT_RESET_NUM, fallback=2)
+        self.port_reset_interval = timedelta(seconds=pdr_config.getint(Constants.CONF_RESET,
+                                                                       Constants.PORT_RESET_INTERVAL_SECONDS,
+                                                                       fallback=7*24*3600)) # default is 1 week in seconds
 
         self.test_iteration = 0
         self.logger = logger
@@ -83,10 +102,13 @@ class IsolationMgr:
             return
 
         if not self.dry_run:
+            # Isolate port
             ret = self.ufm_client.isolate_port(port_name)
             if not ret or ret.status_code != http.HTTPStatus.OK:
                 self.logger.warning("Failed isolating port: %s with cause: %s... status_code= %s", port_name, cause, ret.status_code)
                 return
+            # Reset port
+            self.reset_port(port_name, port_obj.port_guid)
         isolated_port = self.isolated_ports.get(port_name)
         if not isolated_port:
             self.isolated_ports[port_name] = IsolatedPort(port_name)
@@ -97,6 +119,36 @@ class IsolationMgr:
         if not self.test_mode:
             self.ufm_client.send_event(log_message, event_id=Constants.EXTERNAL_EVENT_ALERT, external_event_name="Isolating Port")
 
+    def reset_port(self, port_name, port_guid):
+        """
+        Reset port if reset limit is not not exceeded
+        """
+        # Check if reset is allowed
+        reset_history = self.ports_resets.get(port_name)
+        if reset_history:
+            if datetime.now() - reset_history.reset_time > self.port_reset_interval:
+                # Passed too much time from last reset: clean reset history and allow resets
+                del self.ports_resets[port_name]
+            elif reset_history.reset_count >= self.max_port_reset_num:
+                # Exceeds reset limit
+                self.logger.info("Skipping reset of port: %s... reset limit exceeded", port_name)
+                return
+
+        # Perform reset
+        ret = self.ufm_client.reset_port(port_name, port_guid)
+        if not ret or ret.status_code != http.HTTPStatus.OK:
+            self.logger.warning("Failed resetting port: %s... status_code= %s", port_name, ret.status_code)
+            return
+
+        # Update port resets history
+        reset_history = self.ports_resets.get(port_name)
+        if not reset_history:
+            reset_history = PortReset(port_name)
+            self.ports_resets[port_name] = reset_history
+
+        reset_history.reset_count += 1
+        reset_history.reset_time = datetime.now()
+        self.logger.info("Resetting port: %s... reset_count= %s", port_name, reset_history.reset_count)
 
     def eval_deisolate(self, port_name):
         """

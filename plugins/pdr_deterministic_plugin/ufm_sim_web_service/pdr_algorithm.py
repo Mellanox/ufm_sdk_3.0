@@ -433,7 +433,7 @@ class PDRAlgorithm:
                 issues[port_name] = ber_issue
             # If out of operating conditions we'll overwrite the cause
             if self.temp_check and self.is_out_of_operating_conf(port_name):
-                issues[port_name].cause = Constants.ISSUE_OONOC
+                issues[port_name] = Issue(port_obj.port_name, Constants.ISSUE_OONOC)
         return list(issues.values())
 
     def check_deisolation_conditions(self, isolated_port):
