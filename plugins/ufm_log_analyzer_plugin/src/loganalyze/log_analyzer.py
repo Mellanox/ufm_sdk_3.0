@@ -348,8 +348,8 @@ if __name__ == "__main__":
 
         used_ufm_version = console_log_analyzer.ufm_versions
         text_to_show_in_pdf = f"Used ufm version in console log {used_ufm_version}"
-        fabric_info = "fabric info:" + os.linesep + ibdiagnet_analyzer.get_fabric_size() \
-                        if ibdiagnet_analyzer else "No Fabric Info found"
+        fabric_info = "fabric info:" + os.linesep + str(ibdiagnet_analyzer.get_fabric_size()) \
+                        if ibdiagnet_analyzer else "No Fabric Info found" # pylint: disable=invalid-name
         link_flapping = links_flapping_analyzer.get_link_flapping_last_week() \
                             if links_flapping_analyzer else "No link flapping info"
         text_to_show_in_pdf += os.linesep + str(fabric_info) + os.linesep + \
