@@ -61,8 +61,6 @@ def parse_config():
                 Constants.DRY_RUN: False,
                 Constants.DEISOLATE_CONSIDER_TIME: 5,
                 Constants.AUTOMATIC_DEISOLATE: True,
-                Constants.MAX_PORT_RESET_NUM: 2,
-                Constants.PORT_RESET_INTERVAL_SECONDS: 604800, # 1 week in seconds
                 }
     pdr_config = configparser.ConfigParser(defaults=defaults)
 

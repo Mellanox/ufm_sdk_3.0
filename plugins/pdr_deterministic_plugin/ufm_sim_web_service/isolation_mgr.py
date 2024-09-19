@@ -60,8 +60,8 @@ class IsolationMgr:
         self.do_deisolate = pdr_config.getboolean(Constants.CONF_ISOLATION, Constants.DO_DEISOLATION)
         self.switch_hca_isolation = pdr_config.getboolean(Constants.CONF_ISOLATION, Constants.SWITCH_TO_HOST_ISOLATION)
         self.test_mode = pdr_config.getboolean(Constants.CONF_COMMON, Constants.TEST_MODE, fallback=False)
-        self.max_port_reset_num = pdr_config.getint(Constants.CONF_RESET, Constants.MAX_PORT_RESET_NUM)
-        self.port_reset_interval = timedelta(seconds=pdr_config.getint(Constants.CONF_RESET, Constants.PORT_RESET_INTERVAL_SECONDS))
+        self.max_port_reset_num = pdr_config.getint(Constants.CONF_RESET, Constants.MAX_PORT_RESET_NUM, fallback=2)
+        self.port_reset_interval = timedelta(seconds=pdr_config.getint(Constants.CONF_RESET, Constants.PORT_RESET_INTERVAL_SECONDS, fallback=7*24*3600)) # default is 1 week in seconds
 
         self.test_iteration = 0
         self.logger = logger
@@ -143,6 +143,7 @@ class IsolationMgr:
 
         reset_history.reset_count += 1
         reset_history.reset_time = datetime.now()
+        self.logger.info("Resetting port: %s... reset_count= %s", port_name, reset_history.reset_count)
 
     def eval_deisolate(self, port_name):
         """
