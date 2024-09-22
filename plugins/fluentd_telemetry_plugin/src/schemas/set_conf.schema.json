@@ -47,9 +47,9 @@
             "splitter": ";",
             "items": {
               "type": "string",
-              "enum": ["legacy", "aggregation", "plane"]
+              "enum": ["legacy", "aggregated", "plane"]
             },
-            "err_message": "[ufm-telemetry-endpoint - xdr_ports_types] attribute should be list consists of at least one of the following types: ['legacy', 'aggregation', 'plane']",
+            "err_message": "[ufm-telemetry-endpoint - xdr_ports_types] attribute should be list consists of at least one of the following types: ['legacy', 'aggregated', 'plane']",
             "minItems": 1
           },
           "message_tag_name": {

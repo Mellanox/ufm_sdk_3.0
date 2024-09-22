@@ -60,7 +60,7 @@ class UFMTelemetryConstants:
             "name": '--ufm_telemetry_xdr_ports_types',
             "help": "Telemetry XDR ports types, "
                     "i.e., List of XDR ports types that should be collected and streamed, "
-                    "separated by `;`. For example legacy;aggregation;plane"
+                    "separated by `;`. For example legacy;aggregated;plane"
         },{
             "name": '--streaming_interval',
             "help": "Interval for telemetry streaming in seconds"
@@ -167,7 +167,7 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
         return self.get_config_value(self.args.ufm_telemetry_xdr_ports_types,
                                      self.UFM_TELEMETRY_ENDPOINT_SECTION,
                                      self.UFM_TELEMETRY_ENDPOINT_SECTION_XDR_PORTS_TYPE,
-                                     "legacy;aggregation;plane")
+                                     "legacy;aggregated;plane")
 
     def get_streaming_interval(self):
         return self.get_config_value(self.args.streaming_interval,
@@ -526,7 +526,7 @@ class UFMTelemetryStreaming(Singleton):
             port_id_keys_indices = normal_port_id_keys_indices
             if port_type_key_index != -1:
                 port_type = values[port_type_key_index]
-                if port_type == PortType.AGGREGATION.value:
+                if port_type == PortType.AGGREGATED.value:
                     port_id_keys_indices = aggr_port_id_keys_indices
 
             # prepare the port_key that will be used as an ID in delta
