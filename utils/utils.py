@@ -97,10 +97,12 @@ class Utils:
         return port
 
     @staticmethod
-    def convert_str_to_type(value, new_type):
+    def convert_str_to_type(value, new_type, arr_splitter=','):
         if isinstance(value, str):
             if new_type == "integer":
                 value = int(value)
             elif new_type == "boolean":
                 value = value.lower() == 'true'
+            elif new_type == "array":
+                value = value.split(arr_splitter)
         return value

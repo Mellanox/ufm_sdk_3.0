@@ -22,6 +22,7 @@ import gzip
 import logging
 import datetime
 import requests
+from typing import List
 from requests.exceptions import ConnectionError  # pylint: disable=redefined-builtin
 from prometheus_client.parser import text_string_to_metric_families
 from fluentbit_writer import init_fb_writer
@@ -29,6 +30,7 @@ from monitor_streaming_mgr import MonitorStreamingMgr
 
 # pylint: disable=no-name-in-module,import-error
 from utils.utils import Utils
+from utils.xdr_utils import PortType, prepare_port_type_http_telemetry_filter
 from utils.args_parser import ArgsParser
 from utils.config_parser import ConfigParser
 from utils.logger import Logger, LOG_LEVELS
@@ -50,6 +52,15 @@ class UFMTelemetryConstants:
         },{
             "name": '--ufm_telemetry_url',
             "help": "URL of UFM Telemetry endpoint"
+        },{
+            "name": '--ufm_telemetry_xdr_mode',
+            "help": "Telemetry XDR mode flag, "
+                    "i.e., if True, the enabled ports types in `xdr_ports_types` will be collected from the telemetry and streamed to fluentd"
+        },{
+            "name": '--ufm_telemetry_xdr_ports_types',
+            "help": "Telemetry XDR ports types, "
+                    "i.e., List of XDR ports types that should be collected and streamed, "
+                    "separated by `;`. For example legacy;aggregation;plane"
         },{
             "name": '--streaming_interval',
             "help": "Interval for telemetry streaming in seconds"
@@ -107,6 +118,9 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
     UFM_TELEMETRY_ENDPOINT_SECTION_URL = "url"
     UFM_TELEMETRY_ENDPOINT_SECTION_INTERVAL = "interval"
     UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME = "message_tag_name"
+    UFM_TELEMETRY_ENDPOINT_SECTION_XDR_MODE = "xdr_mode"
+    UFM_TELEMETRY_ENDPOINT_SECTION_XDR_PORTS_TYPE = "xdr_ports_types"
+    UFM_TELEMETRY_ENDPOINT_SECTION_XDR_PORTS_TYPE_SPLITTER = ";"
 
     FLUENTD_ENDPOINT_SECTION = "fluentd-endpoint"
     FLUENTD_ENDPOINT_SECTION_HOST = "host"
@@ -142,6 +156,18 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
                                      self.UFM_TELEMETRY_ENDPOINT_SECTION,
                                      self.UFM_TELEMETRY_ENDPOINT_SECTION_URL,
                                      "csv/metrics")
+
+    def get_ufm_telemetry_xdr_mode_flag(self):
+        return self.get_config_value(self.args.ufm_telemetry_xdr_mode,
+                                     self.UFM_TELEMETRY_ENDPOINT_SECTION,
+                                     self.UFM_TELEMETRY_ENDPOINT_SECTION_XDR_MODE,
+                                     "False")
+
+    def get_ufm_telemetry_xdr_ports_types(self):
+        return self.get_config_value(self.args.ufm_telemetry_xdr_ports_types,
+                                     self.UFM_TELEMETRY_ENDPOINT_SECTION,
+                                     self.UFM_TELEMETRY_ENDPOINT_SECTION_XDR_PORTS_TYPE,
+                                     "legacy;aggregation;plane")
 
     def get_streaming_interval(self):
         return self.get_config_value(self.args.streaming_interval,
@@ -236,10 +262,13 @@ class UFMTelemetryStreaming(Singleton):
         self.config_parser = conf_parser
 
         self.last_streamed_data_sample_timestamp = None
-        self.port_id_keys = ['node_guid', 'Node_GUID', 'port_guid', 'port_num', 'Port_Number', 'Port']
+        self.normal_port_id_keys = ['node_guid', 'Node_GUID', 'port_guid', 'port_num', 'Port_Number', 'Port']
+        self.agg_port_id_keys = ['sys_image_guid', 'aport']
+        self.port_type_key = 'port_type'
         self.port_constants_keys = {
             'timestamp': 'timestamp', 'source_id': 'source_id', 'tag': 'tag',
             'node_guid': 'node_guid', 'port_guid': 'port_guid',
+            'sys_image_guid': 'sys_image_guid', 'aport': 'aport',
             'port_num': 'port_num', 'node_description': 'node_description',
             'm_label': 'm_label', 'port_label': 'port_label', 'status_message': 'status_message',
             'Port_Number': 'Port_Number', 'Node_GUID': 'Node_GUID', 'Device_ID': 'Device_ID', 'device_id': 'Device_ID',
@@ -270,6 +299,14 @@ class UFMTelemetryStreaming(Singleton):
         return self.config_parser.get_telemetry_url()
 
     @property
+    def ufm_telemetry_xdr_mode_flag(self):
+        return self.config_parser.get_ufm_telemetry_xdr_mode_flag()
+
+    @property
+    def ufm_telemetry_xdr_ports_types(self):
+        return self.config_parser.get_ufm_telemetry_xdr_ports_types()
+
+    @property
     def streaming_interval(self):
         return self.config_parser.get_streaming_interval()
 
@@ -279,17 +316,24 @@ class UFMTelemetryStreaming(Singleton):
         hosts = self.ufm_telemetry_host.split(splitter)
         ports = self.ufm_telemetry_port.split(splitter)
         urls = self.ufm_telemetry_url.split(splitter)
+        xdr_mode = self.ufm_telemetry_xdr_mode_flag.split(splitter)
+        xdr_ports_types = self.ufm_telemetry_xdr_ports_types.split(splitter)
         intervals = self.streaming_interval.split(splitter)
         msg_tags = self.fluentd_msg_tag.split(splitter)
         endpoints = []
         for i, value in enumerate(hosts):
+            _url = self._append_filters_to_telemetry_url(
+                urls[i],
+                Utils.convert_str_to_type(xdr_mode[i], 'boolean'),
+                xdr_ports_types[i].split(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_XDR_PORTS_TYPE_SPLITTER)
+            )
             endpoints.append({
                 self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_HOST: value,
                 self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_PORT: ports[i],
-                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_URL: urls[i],
+                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_URL: _url,
                 self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_INTERVAL: intervals[i],
                 self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME:
-                    msg_tags[i] if msg_tags[i] else f'{value}:{ports[i]}/{urls[i]}'
+                    msg_tags[i] if msg_tags[i] else f'{value}:{ports[i]}/{_url}'
             })
         return endpoints
 
@@ -341,6 +385,25 @@ class UFMTelemetryStreaming(Singleton):
                                              timeout=timeout,
                                              use_c=_use_c)
         return self._fluent_sender
+
+    def _append_filters_to_telemetry_url(self, url: str, xdr_mode: bool, port_types: List[str]):
+        """
+        This function constructs and appends filter parameters to the given URL if certain conditions are met.
+
+        Parameters:
+            url (str): The base telemetry URL to which filters may be appended.
+            xdr_mode (bool): A flag indicating whether extended data record (XDR) mode is enabled.
+            port_types (List[str]): list of port type names used to generate filters.
+
+        Returns:
+            str: The telemetry URL with appended filter parameters if applicable, or the original URL.
+        """
+        filters = []
+        if xdr_mode:
+           filters.append(prepare_port_type_http_telemetry_filter(port_types))
+        if filters:
+            return f'{url}?{"&".join(filters)}'
+        return url
 
     def _get_metrics(self, _host, _port, _url, msg_tag):
         _host = f'[{_host}]' if Utils.is_ipv6_address(_host) else _host
@@ -438,9 +501,20 @@ class UFMTelemetryStreaming(Singleton):
         is_meta_fields_available = len(self.meta_fields[0]) or len(self.meta_fields[1])
         output = []
 
-        port_id_keys_indices = []
-        for port_id_key in self.port_id_keys:
-            port_id_keys_indices += [i for i, x in enumerate(keys) if x == port_id_key]
+        normal_port_id_keys_indices = []
+        aggr_port_id_keys_indices = []
+        port_type_key_index = -1
+
+        normal_port_id_keys_set = set(self.normal_port_id_keys)
+        agg_port_id_keys_set = set(self.agg_port_id_keys)
+
+        for i, key in enumerate(keys):
+            if key in normal_port_id_keys_set:
+                normal_port_id_keys_indices.append(i)
+            if key in agg_port_id_keys_set:
+                aggr_port_id_keys_indices.append(i)
+            if key == self.port_type_key and port_type_key_index == -1:
+                port_type_key_index = i
 
         modified_keys = self._get_filtered_counters(keys)
         available_keys_indices = modified_keys.keys()
@@ -449,6 +523,11 @@ class UFMTelemetryStreaming(Singleton):
             # skip the first row since it contains the headers
             # skip the last row since its empty row
             values = row.split(UFMTelemetryConstants.CSV_ROW_ATTRS_SEPARATOR)
+            port_id_keys_indices = normal_port_id_keys_indices
+            if port_type_key_index != -1:
+                port_type = values[port_type_key_index]
+                if port_type == PortType.AGGREGATION.value:
+                    port_id_keys_indices = aggr_port_id_keys_indices
 
             # prepare the port_key that will be used as an ID in delta
             port_key = ":".join([values[index] for index in port_id_keys_indices])
@@ -531,7 +610,7 @@ class UFMTelemetryStreaming(Singleton):
             if len(family.samples):
                 timestamp = family.samples[0].timestamp
             for sample in family.samples:
-                uid = port_key = ":".join([sample.labels.get(key, '') for key in self.port_id_keys])
+                uid = port_key = ":".join([sample.labels.get(key, '') for key in self.normal_port_id_keys])
                 uid += f':{str(sample.timestamp)}'
                 current_row = elements_dict.get(uid, {})
                 if self.stream_only_new_samples:
@@ -656,7 +735,7 @@ class UFMTelemetryStreaming(Singleton):
             except Exception as ex:  # pylint: disable=broad-except
                 logging.error("Exception occurred during parsing telemetry data: %s", str(ex))
         else:
-            logging.error("Failed to get the telemetry data metrics")
+            logging.error(f"Failed to get the telemetry data metrics for {_url}")
 
     def _add_streaming_attribute(self, attribute):
         if self.streaming_attributes.get(attribute, None) is None:
