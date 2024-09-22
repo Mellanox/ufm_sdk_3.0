@@ -405,7 +405,8 @@ class UFMTelemetryStreaming(Singleton):
         if xdr_mode:
             filters.append(prepare_port_type_http_telemetry_filter(port_types))
         if filters:
-            return f'{url}?{"&".join(filters)}'
+            filters_sign = '&' if '?' in url else '?'
+            return f'{url}{filters_sign}{"&".join(filters)}'
         return url
 
     def _get_metrics(self, _host, _port, _url, msg_tag):
