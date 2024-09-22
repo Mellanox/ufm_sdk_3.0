@@ -36,7 +36,7 @@ class StreamingConfigurationsAPI(BaseAPIApplication):
             self.update_streaming_attributes: {'urls': ["/attributes"], 'methods': ["POST"]}
         }
 
-    def _set_new_conf(self):
+    def _set_new_conf(self): # pylint: disable=too-many-branches
         new_conf = request.json
         sections = self.conf.get_conf_sections()
         for section, section_items in new_conf.items():

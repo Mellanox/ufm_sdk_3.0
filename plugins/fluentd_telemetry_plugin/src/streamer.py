@@ -21,8 +21,9 @@ import json
 import gzip
 import logging
 import datetime
-import requests
 from typing import List
+
+import requests
 from requests.exceptions import ConnectionError  # pylint: disable=redefined-builtin
 from prometheus_client.parser import text_string_to_metric_families
 from fluentbit_writer import init_fb_writer
@@ -55,7 +56,8 @@ class UFMTelemetryConstants:
         },{
             "name": '--ufm_telemetry_xdr_mode',
             "help": "Telemetry XDR mode flag, "
-                    "i.e., if True, the enabled ports types in `xdr_ports_types` will be collected from the telemetry and streamed to fluentd"
+                    "i.e., if True, the enabled ports types in `xdr_ports_types` "
+                    "will be collected from the telemetry and streamed to fluentd"
         },{
             "name": '--ufm_telemetry_xdr_ports_types',
             "help": "Telemetry XDR ports types, "
@@ -251,6 +253,7 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
         return aliases, custom
 
 
+#pylint: disable=too-many-instance-attributes
 class UFMTelemetryStreaming(Singleton):
     """
     UFMTelemetryStreaming class
@@ -400,7 +403,7 @@ class UFMTelemetryStreaming(Singleton):
         """
         filters = []
         if xdr_mode:
-           filters.append(prepare_port_type_http_telemetry_filter(port_types))
+            filters.append(prepare_port_type_http_telemetry_filter(port_types))
         if filters:
             return f'{url}?{"&".join(filters)}'
         return url
@@ -477,7 +480,7 @@ class UFMTelemetryStreaming(Singleton):
                 modified_keys[i] = attr_obj.get('name', key)
         return modified_keys
 
-    def _parse_telemetry_csv_metrics_to_json_with_delta(self, data):  # pylint: disable=too-many-locals
+    def _parse_telemetry_csv_metrics_to_json_with_delta(self, data):  # pylint: disable=too-many-locals,too-many-branches
         """
         :desc: parsed the data csv input & convert it to list of ports records
         each record contains key[s]:value[s] for the port's counters
@@ -735,7 +738,7 @@ class UFMTelemetryStreaming(Singleton):
             except Exception as ex:  # pylint: disable=broad-except
                 logging.error("Exception occurred during parsing telemetry data: %s", str(ex))
         else:
-            logging.error(f"Failed to get the telemetry data metrics for {_url}")
+            logging.error("Failed to get the telemetry data metrics for %s", _url)
 
     def _add_streaming_attribute(self, attribute):
         if self.streaming_attributes.get(attribute, None) is None:
