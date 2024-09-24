@@ -5,6 +5,3 @@ disable=missing-function-docstring,
         too-few-public-methods,
         logging-fstring-interpolation,
         invalid-name
-
-[DESIGN]
-max-args=8
