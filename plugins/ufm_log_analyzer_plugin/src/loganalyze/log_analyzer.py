@@ -280,7 +280,7 @@ if __name__ == "__main__":
         )
 
         if len(failed_extract) > 0:
-            log.LOGGER.warning(f"Failed to get some logs - {failed_extract}, skipping them")
+            log.LOGGER.debug(f"Failed to get some logs - {failed_extract}, skipping them")
         logs_regex_csv_handler_list = create_logs_regex_csv_handler_list(
             logs_to_work_with
         )
@@ -325,9 +325,13 @@ if __name__ == "__main__":
                                                                  "secondary_",
                                                                  1000,
                                                                  "gz")
-        links_flapping_analyzer = LinkFlappingAnalyzer(second_telemetry_samples,
+        if len(second_telemetry_samples):
+
+            links_flapping_analyzer = LinkFlappingAnalyzer(second_telemetry_samples,
                                                        args.destination)
-        ufm_top_analyzer.add_analyzer(links_flapping_analyzer)
+            ufm_top_analyzer.add_analyzer(links_flapping_analyzer)
+        else:
+            links_flapping_analyzer = None # pylint: disable=invalid-name
         end = time.perf_counter()
         log.LOGGER.debug(f"Took {end-start:.3f} to load the parsed data")
 
@@ -350,10 +354,11 @@ if __name__ == "__main__":
         text_to_show_in_pdf = f"Used ufm version in console log {used_ufm_version}"
         fabric_info = "fabric info:" + os.linesep + str(ibdiagnet_analyzer.get_fabric_size()) \
                         if ibdiagnet_analyzer else "No Fabric Info found" # pylint: disable=invalid-name
-        link_flapping = links_flapping_analyzer.get_link_flapping_last_week() \
+        if links_flapping_analyzer:
+            link_flapping = links_flapping_analyzer.get_link_flapping_last_week() \
                             if links_flapping_analyzer else "No link flapping info"
-        text_to_show_in_pdf += os.linesep + str(fabric_info) + os.linesep + \
-        "Link Flapping:" + os.linesep + str(link_flapping)
+            text_to_show_in_pdf += os.linesep + str(fabric_info) + os.linesep + \
+            "Link Flapping:" + os.linesep + str(link_flapping)
 
         critical_events_burst = event_log_analyzer.get_critical_event_bursts()
         critical_events_text = "The minute           event_type     event    count" # pylint: disable=invalid-name
