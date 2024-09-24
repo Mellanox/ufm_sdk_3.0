@@ -325,7 +325,8 @@ if __name__ == "__main__":
                                                                  "secondary_",
                                                                  1000,
                                                                  "gz")
-        if len(second_telemetry_samples) > 0:
+        if len(second_telemetry_samples):
+
             links_flapping_analyzer = LinkFlappingAnalyzer(second_telemetry_samples,
                                                        args.destination)
             ufm_top_analyzer.add_analyzer(links_flapping_analyzer)
