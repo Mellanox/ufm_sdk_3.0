@@ -330,7 +330,7 @@ if __name__ == "__main__":
                                                        args.destination)
             ufm_top_analyzer.add_analyzer(links_flapping_analyzer)
         else:
-            links_flapping_analyzer = None
+            links_flapping_analyzer = None # pylint: disable=invalid-name
         end = time.perf_counter()
         log.LOGGER.debug(f"Took {end-start:.3f} to load the parsed data")
 
