@@ -9,7 +9,7 @@
 # This software product is governed by the End User License Agreement
 # provided with the software product.
 #
-from utils.logger import Logger, LOG_LEVELS
+import logging
 from typing import List
 from enum import Enum
 
@@ -51,8 +51,8 @@ def prepare_port_type_http_telemetry_filter(port_types: List[str]) -> str:
     for ptype in port_types:
         ptype_val = PORT_TYPE_NAME_MAP.get(ptype)
         if not ptype_val:
-            Logger.log_message(f'Skipping Port type {ptype}, '
-                               f'it should be one of {SUPPORTED_PORT_TYPES_NAMES}', LOG_LEVELS.WARNING)
+            warn_msg = f'Skipping Port type {ptype}, it should be one of {SUPPORTED_PORT_TYPES_NAMES}'
+            logging.warning(warn_msg)
             continue
         filter_val = f'{filter_val}__{ptype_val.value}'
     return filter_val
