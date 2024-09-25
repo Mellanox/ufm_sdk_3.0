@@ -31,11 +31,11 @@ from monitor_streaming_mgr import MonitorStreamingMgr
 
 # pylint: disable=no-name-in-module,import-error
 from utils.utils import Utils
-from utils.xdr_utils import PortType, prepare_port_type_http_telemetry_filter
 from utils.args_parser import ArgsParser
 from utils.config_parser import ConfigParser
 from utils.logger import Logger, LOG_LEVELS
 from utils.singleton import Singleton
+from ufm_sdk_tools.src.xdr_utils import PortType,prepare_port_type_http_telemetry_filter
 
 
 class UFMTelemetryConstants:

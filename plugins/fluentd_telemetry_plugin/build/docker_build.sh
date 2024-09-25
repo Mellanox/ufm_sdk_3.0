@@ -102,6 +102,7 @@ pushd ${SCRIPT_DIR}
 BUILD_DIR=$(create_out_dir)
 cp Dockerfile ${BUILD_DIR}
 cp -r ../../../utils ${BUILD_DIR}
+cp -r ../../../ufm_sdk_tools ${BUILD_DIR}
 cp -r ../../fluentd_telemetry_plugin ${BUILD_DIR}
 
 echo "BUILD_DIR    : [${BUILD_DIR}]"
