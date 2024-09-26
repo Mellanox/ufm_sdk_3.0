@@ -10,3 +10,7 @@
 	path = plugins/UFM_NDT_Plugin/ufm_sim_web_service/ndt-ui/sms-ui-suite
 	url = git@github.com:Mellanox-lab/sw_mng_ui.git
 	branch = standalone-suite
+[submodule "ufm_sdk_tools"]
+	path = ufm_sdk_tools
+	url = git@github.com:Mellanox/ufm_sdk_tools.git
+	branch = main

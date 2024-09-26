@@ -36,7 +36,7 @@ class StreamingConfigurationsAPI(BaseAPIApplication):
             self.update_streaming_attributes: {'urls': ["/attributes"], 'methods': ["POST"]}
         }
 
-    def _set_new_conf(self):
+    def _set_new_conf(self): # pylint: disable=too-many-branches
         new_conf = request.json
         sections = self.conf.get_conf_sections()
         for section, section_items in new_conf.items():
@@ -60,7 +60,10 @@ class StreamingConfigurationsAPI(BaseAPIApplication):
                 new_section_data = {}
                 for endpoint in section_items:
                     for endpoint_item in endpoint_obj_keys:
-                        new_section_data[endpoint_item] = f'{new_section_data.get(endpoint_item, "")},{endpoint.get(endpoint_item,"")}'
+                        endpoint_item_value = endpoint.get(endpoint_item,"")
+                        if endpoint_item == self.conf.UFM_TELEMETRY_ENDPOINT_SECTION_XDR_PORTS_TYPE:
+                            endpoint_item_value = self.conf.UFM_TELEMETRY_ENDPOINT_SECTION_XDR_PORTS_TYPE_SPLITTER.join(endpoint_item_value)
+                        new_section_data[endpoint_item] = f'{new_section_data.get(endpoint_item, "")},{endpoint_item_value}'
                 for endpoint_item in endpoint_obj_keys:
                     self.conf.set_item_value(section, endpoint_item, new_section_data.get(endpoint_item)[1:].strip())
             else:
@@ -110,23 +113,25 @@ class StreamingConfigurationsAPI(BaseAPIApplication):
                     if section_type == "array":
                         # in case the section_type is array, we need to collect
                         # the array elements from the saved comma separated strings
+                        section_value_splitter = section_properties.get('splitter', ',')
                         section_properties = section_properties.get('items', {}).get("properties", None)
                         if section_properties:
                             conf_dict[section] = []
                             for item_key, item_value in section_items:
-                                item_type = section_properties.get(item_key, None)
-                                if item_type is None:
+                                item = section_properties.get(item_key, None)
+                                if item is None:
                                     raise InvalidConfRequest(f'Failed to get the configurations schema for the item {item_key} '
                                                              f'under the section: {section}')
-                                item_type = item_type.get('type', None)
-                                item_values = item_value.split(",")
+                                item_type = item.get('type', None)
+                                item_value_splitter = item.get('splitter', ';')
+                                item_values = item_value.split(section_value_splitter)
                                 for i, value in enumerate(item_values):
                                     try:
                                         arr_element_obj = conf_dict[section][i]
                                     except IndexError:
                                         arr_element_obj = {}
                                         conf_dict[section].append(arr_element_obj)
-                                    arr_element_obj[item_key] = Utils.convert_str_to_type(value, item_type)
+                                    arr_element_obj[item_key] = Utils.convert_str_to_type(value, item_type, item_value_splitter)
                                     conf_dict[section][i] = arr_element_obj
                     elif section_type == "object":
                         section_properties = section_properties.get('properties', None)

@@ -37,7 +37,20 @@
           "interval": {
             "type": "integer",
             "minimum": 1,
-            "err_message": "[streaming - interval] attribute should be an integer greater than 0"
+            "err_message": "[ufm-telemetry-endpoint - interval] attribute should be an integer greater than 0"
+          },
+          "xdr_mode": {
+            "type": "boolean"
+          },
+          "xdr_ports_types": {
+            "type": "array",
+            "splitter": ";",
+            "items": {
+              "type": "string",
+              "enum": ["legacy", "aggregated", "plane"]
+            },
+            "err_message": "[ufm-telemetry-endpoint - xdr_ports_types] attribute should be list consists of at least one of the following types: ['legacy', 'aggregated', 'plane']",
+            "minItems": 1
           },
           "message_tag_name": {
             "type": "string"
@@ -51,6 +64,7 @@
         ],
         "additionalProperties": false
       },
+      "splitter": ",",
       "minItems": 1
     },
     "fluentd-endpoint": {
