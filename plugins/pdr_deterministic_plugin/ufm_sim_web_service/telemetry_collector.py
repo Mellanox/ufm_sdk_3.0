@@ -45,8 +45,8 @@ class TelemetryCollector:
             elif telemetry_data is not None:
                 # when we want to keep the abs
                 self.data_store.save(telemetry_data,self.data_store.get_filename_abs())
-        except Exception as exception_error:
-                self.logger.error(f"Failed to store telemetry data with error {exception_error}")
+        except Exception as exception_error: # pylint: disable=broad-exception-caught
+            self.logger.error(f"Failed to store telemetry data with error {exception_error}")
 
         # update previous telemetry data
         if telemetry_data is not None:
