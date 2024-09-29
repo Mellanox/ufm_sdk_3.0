@@ -134,6 +134,7 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
     STREAMING_SECTION_C_FLUENT__STREAMER = "c_fluent_streamer"
     STREAMING_SECTION_BULK_STREAMING = "bulk_streaming"
     STREAMING_SECTION_STREAM_ONLY_NEW_SAMPLES = "stream_only_new_samples"
+    STREAMING_SECTION_ENABLE_CACHED_STREAM_ON_TELEMETRY_FAIL = "enable_cached_stream_on_telemetry_fail"
     STREAMING_SECTION_ENABLED = "enabled"
 
     META_FIELDS_SECTION = "meta-fields"
@@ -199,6 +200,12 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
         return self.safe_get_bool(self.args.bulk_streaming,
                                   self.STREAMING_SECTION,
                                   self.STREAMING_SECTION_STREAM_ONLY_NEW_SAMPLES,
+                                  True)
+
+    def get_enable_cached_stream_on_telemetry_fail(self):
+        return self.safe_get_bool(None,
+                                  self.STREAMING_SECTION,
+                                  self.STREAMING_SECTION_ENABLE_CACHED_STREAM_ON_TELEMETRY_FAIL,
                                   True)
 
     def get_enable_streaming_flag(self):
@@ -278,7 +285,7 @@ class UFMTelemetryStreaming(Singleton):
             'mvcr_sensor_name': 'mvcr_sensor_name', 'mtmp_sensor_name': 'mtmp_sensor_name',
             'switch_serial_number': 'switch_serial_number', 'switch_part_number': 'switch_part_number'
         }
-        self.last_streamed_data_sample_per_port = {}
+        self.last_streamed_data_sample_per_endpoint = {}
 
         self.streaming_metrics_mgr = MonitorStreamingMgr()
 
@@ -325,15 +332,17 @@ class UFMTelemetryStreaming(Singleton):
         msg_tags = self.fluentd_msg_tag.split(splitter)
         endpoints = []
         for i, value in enumerate(hosts):
+            _is_xdr_mode = Utils.convert_str_to_type(xdr_mode[i], 'boolean')
             _url = self._append_filters_to_telemetry_url(
                 urls[i],
-                Utils.convert_str_to_type(xdr_mode[i], 'boolean'),
+                _is_xdr_mode,
                 xdr_ports_types[i].split(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_XDR_PORTS_TYPE_SPLITTER)
             )
             endpoints.append({
                 self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_HOST: value,
                 self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_PORT: ports[i],
                 self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_URL: _url,
+                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_XDR_MODE: _is_xdr_mode,
                 self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_INTERVAL: intervals[i],
                 self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME:
                     msg_tags[i] if msg_tags[i] else f'{value}:{ports[i]}/{_url}'
@@ -355,6 +364,10 @@ class UFMTelemetryStreaming(Singleton):
     @property
     def stream_only_new_samples(self):
         return self.config_parser.get_stream_only_new_samples_flag()
+
+    @property
+    def stream_cached_data_on_telemetry_fail_is_enabled(self):
+        return self.config_parser.get_enable_cached_stream_on_telemetry_fail()
 
     @property
     def fluentd_host(self):
@@ -462,6 +475,84 @@ class UFMTelemetryStreaming(Singleton):
     def update_saved_streaming_attributes(self, attributes):
         Utils.write_json_to_file(self.streaming_attributes_file, attributes)
 
+    def _get_port_keys_indexes_from_csv_headers(self, headers: List[str]):
+        """
+        Extracts the indexes of specific port keys from CSV headers.
+
+        This method identifies and returns the indexes of normal (legacy, plane in case of XDR) port ID keys,
+        aggregated port ID keys (in case of XDR),
+        and the port type key from the provided list of CSV headers.
+
+        Parameters:
+        - headers (list of str): A list of strings representing the CSV header row.
+
+        Returns:
+        - tuple: A tuple containing three elements:
+            - normal_port_id_keys_indexes (list of int): Indices of normal port ID keys found in the headers.
+            - aggr_port_id_keys_indexes (list of int): Indices of aggregated port ID keys found in the headers.
+            - port_type_key_index (int): Index of the port type key in the headers, or -1 if not found.
+        """
+
+        normal_port_id_keys_indexes = []
+        aggr_port_id_keys_indexes = []
+        port_type_key_index = -1
+
+        normal_port_id_keys_set = set(self.normal_port_id_keys)
+        agg_port_id_keys_set = set(self.agg_port_id_keys)
+
+        for i, key in enumerate(headers):
+            if key in normal_port_id_keys_set:
+                normal_port_id_keys_indexes.append(i)
+            if key in agg_port_id_keys_set:
+                aggr_port_id_keys_indexes.append(i)
+            if key == self.port_type_key and port_type_key_index == -1:
+                port_type_key_index = i
+        return normal_port_id_keys_indexes, aggr_port_id_keys_indexes, port_type_key_index
+
+    def _get_port_id_from_csv_row(self, port_values, port_indexes):
+        """
+        Constructs a port ID from a CSV row using specified indexes.
+
+        This method generates a port ID by concatenating values from a list of
+        port values at the specified indices. The values are joined together
+        using a colon (":") as the separator.
+
+        Parameters:
+        - port_values (list of str): A list of strings representing the values from a CSV row.
+        - port_indexes (list of int): A list of indexes indicating which values to use for constructing the port ID.
+
+        Returns:
+        - str: A string representing the constructed port ID.
+        """
+        return ":".join([port_values[index] for index in port_indexes])
+
+    def _get_xdr_port_id_from_csv_row(self, port_values,
+                                      normal_port_id_keys_indexes,
+                                      aggr_port_id_keys_indexes,
+                                      port_type_key_index):
+        """
+        Determines and constructs the XDR port ID from a CSV row.
+
+        This method selects the appropriate set of port ID key indexes based on
+        the port type and constructs the XDR port ID by using these indexes to
+        extract values from the provided CSV row.
+
+        Parameters:
+        - port_values (list of str): A list of strings representing the values from a CSV row.
+        - normal_port_id_keys_indexes (list of int): Indexes for normal port ID keys.
+        - aggr_port_id_keys_indexes (list of int): Indexes for aggregated port ID keys.
+        - port_type_key_index (int): Index of the port type key in the row, or -1 if not present.
+
+        Returns:
+        - str: A string representing the constructed XDR port ID.
+        """
+        port_id_keys_indexes = normal_port_id_keys_indexes
+        if port_type_key_index != -1:
+            port_type = port_values[port_type_key_index]
+            if port_type == PortType.AGGREGATED.value:
+                port_id_keys_indexes = aggr_port_id_keys_indexes
+        return self._get_port_id_from_csv_row(port_values, port_id_keys_indexes)
+
     def _get_filtered_counters(self, counters):
         """
         :desc:
@@ -481,68 +572,77 @@ class UFMTelemetryStreaming(Singleton):
                 modified_keys[i] = attr_obj.get('name', key)
         return modified_keys
 
-    def _parse_telemetry_csv_metrics_to_json_with_delta(self, data):  # pylint: disable=too-many-locals,too-many-branches
+    def _parse_telemetry_csv_metrics_to_json_with_delta(self, available_headers, rows,
+                                                        port_key_generator, port_key_generator_args,
+                                                        is_meta_fields_available, endpoint_key):  # pylint: disable=too-many-locals,too-many-branches
         """
-        :desc: parsed the data csv input & convert it to list of ports records
-        each record contains key[s]:value[s] for the port's counters
-        process operations:
-        1. extract the port's ID keys indices from the CSV headers.
-        2. filter the headers/counters to include only the enabled counters using _get_filtered_counters method
-        3. parse the data CSV, iterate over all rows and construct the port's counters based on the filtered headers/counters
-        4. when constructing the port's record, will try to convert the values to int/float if possible
-        5. After the first iteration, only the changed counters will be considered and added to the output list (delta only)
-        6. if there's a configured/saved meta fields (aliases or constants), they will be appended to the port's record
+        Parses CSV telemetry data into JSON format with delta updates.
 
-        :param: data: csv string metrics
-        :return: [
-        {port_guid: port1, counterA:value, counterB:value...},
-        {port_guid: port2, counterA:value, counterB:value}...
+        This method processes CSV rows to generate a list of port records. Each record contains
+        key-value pairs representing the port's counters.
+        Only counters that have changed since the last update are included in the output.
+
+        Parameters:
+
+        - available_headers (dict): Maps available CSV headers to their indices. This is a subset
+          of all CSV headers, filtered based on specific criteria.
+
+        - rows (list of str): The CSV data rows as strings. The first row (headers) and the last
+          row (empty) are ignored.
+
+        - port_key_generator (function): Function to generate unique keys for each port. These keys
+          are crucial for identifying and caching each port's data uniquely across iterations.
+
+        - port_key_generator_args (tuple): Arguments required by the `port_key_generator` function.
+
+        - is_meta_fields_available (bool): If `True`, meta fields (such as aliases or constants)
+          are appended to each record.
+
+        - endpoint_key (str): Identifies the endpoint for caching purposes.
+
+        Returns:
+
+        - tuple:
+            - A list of dictionaries, where each dictionary represents a port's record with updated
+              counter values.
+            - `None`: Reserved for future use.
+
+        Example Output:
+
+        [
+            {'port_guid': 'port1', 'counterA': value, 'counterB': value, ...},
+            {'port_guid': 'port2', 'counterA': value, 'counterB': value, ...},
+            ...
         ]
+
+        Process Overview:
+
+        1. Iterate over CSV rows, skipping the header and empty rows.
+        2. Use the `port_key_generator` to create a unique key for each port from the row data.
+        This key is essential for tracking changes and caching previous data states.
+        3. Construct a port record using values from the CSV row and available headers.
+        4. Convert values to integers or floats where possible.
+        5. Store each port's record in a map per endpoint using the generated port key.
+        6. After initial processing, only include counters that have changed in subsequent outputs.
+        7. Append configured meta fields to records if applicable.
         """
-        rows = data.split(UFMTelemetryConstants.CSV_LINE_SEPARATOR)
-        keys = rows[0].split(UFMTelemetryConstants.CSV_ROW_ATTRS_SEPARATOR)
-        keys_length = len(keys)
-        is_meta_fields_available = len(self.meta_fields[0]) or len(self.meta_fields[1])
         output = []
 
-        normal_port_id_keys_indices = []
-        aggr_port_id_keys_indices = []
-        port_type_key_index = -1
-
-        normal_port_id_keys_set = set(self.normal_port_id_keys)
-        agg_port_id_keys_set = set(self.agg_port_id_keys)
-
-        for i, key in enumerate(keys):
-            if key in normal_port_id_keys_set:
-                normal_port_id_keys_indices.append(i)
-            if key in agg_port_id_keys_set:
-                aggr_port_id_keys_indices.append(i)
-            if key == self.port_type_key and port_type_key_index == -1:
-                port_type_key_index = i
-
-        modified_keys = self._get_filtered_counters(keys)
-        available_keys_indices = modified_keys.keys()
+        available_keys_indices = available_headers.keys()
 
         for row in rows[1:-1]:
             # skip the first row since it contains the headers
             # skip the last row since its empty row
             values = row.split(UFMTelemetryConstants.CSV_ROW_ATTRS_SEPARATOR)
-            port_id_keys_indices = normal_port_id_keys_indices
-            if port_type_key_index != -1:
-                port_type = values[port_type_key_index]
-                if port_type == PortType.AGGREGATED.value:
-                    port_id_keys_indices = aggr_port_id_keys_indices
-
-            # prepare the port_key that will be used as an ID in delta
-            port_key = ":".join([values[index] for index in port_id_keys_indices])
+            port_key = port_key_generator(values, *port_key_generator_args)
             # get the last cached port's values
-            current_port_values = self.last_streamed_data_sample_per_port.get(port_key, {})
+            current_port_values = self.last_streamed_data_sample_per_endpoint.get(endpoint_key,{}).get(port_key, {})
             #######
             is_data_changed = False
             dic = {}
             for i in available_keys_indices:
                 value = values[i]
-                key = modified_keys[i]
+                key = available_headers[i]
                 is_constant_value = self.port_constants_keys.get(key)
                 if value:
                     # the value of this counter not empty
@@ -555,58 +655,121 @@ class UFMTelemetryStreaming(Singleton):
                     elif is_constant_value:
                         dic[key] = value
             ########
-            self.last_streamed_data_sample_per_port[port_key] = current_port_values
+            self.last_streamed_data_sample_per_endpoint[endpoint_key][port_key] = current_port_values
             if is_data_changed:
                 if is_meta_fields_available:
                     dic = self._append_meta_fields_to_dict(dic)
                 output.append(dic)
-        return output, None, keys_length
+        return output, None
 
-    def _parse_telemetry_csv_metrics_to_json_without_delta(self, data):
+    def _parse_telemetry_csv_metrics_to_json_without_delta(self, available_headers, rows,
+                                                           port_key_generator, port_key_generator_args,
+                                                           is_meta_fields_available, endpoint_key):
         """
-        :desc: parsed the data csv input & convert it to list of ports records
-        each record contains key[s]:value[s] for the port's counters
-        process operations:
-        1. extract the port's ID keys indices from the CSV headers.
-        2. filter the headers/counters to include only the enabled counters using _get_filtered_counters method
-        3. parse the data CSV, iterate over all rows and construct the port's counters based on the filtered headers/counters
-        4. when constructing the port's record, will try to convert the values to int/float if possible
-        5. if there's a configured/saved meta fields (aliases or constants), they will be appended to the port's record
+        Parses CSV telemetry data into JSON format with delta updates.
 
-        :param: data: csv string metrics
-        :return: [
-        {port_guid: port1, counterA:value, counterB:value...},
-        {port_guid: port2, counterA:value, counterB:value}...
+        This method processes CSV rows to generate a list of port records. Each record contains
+        key-value pairs representing the port's counters.
+
+        Parameters:
+
+        - available_headers (dict): Maps available CSV headers to their indices. This is a subset
+          of all CSV headers, filtered based on specific criteria.
+
+        - rows (list of str): The CSV data rows as strings. The first row (headers) and the last
+          row (empty) are ignored.
+
+        - port_key_generator (function): Function to generate unique keys for each port. These keys
+          are crucial for identifying and caching each port's data uniquely across iterations.
+
+        - port_key_generator_args (tuple): Arguments required by the `port_key_generator` function.
+
+        - is_meta_fields_available (bool): If `True`, meta fields (such as aliases or constants)
+          are appended to each record.
+
+        - endpoint_key (str): Identifies the endpoint for caching purposes.
+
+
+        Example Output:
+
+        [
+            {'port_guid': 'port1', 'counterA': value, 'counterB': value, ...},
+            {'port_guid': 'port2', 'counterA': value, 'counterB': value, ...},
+            ...
         ]
+
+        Process Overview:
+
+        1. Iterate over CSV rows, skipping the header and empty rows.
+        2. Use the `port_key_generator` to create a unique key for each port from the row data.
+        This key is essential for tracking changes and caching previous data states.
+        3. Construct a port record using values from the CSV row and available headers.
+        4. Convert values to integers or floats where possible.
+        5. Store each port's record in a map per endpoint using the generated port key.
+        6. Append configured meta fields to records if applicable.
         """
-        rows = data.split(UFMTelemetryConstants.CSV_LINE_SEPARATOR)
-        keys = rows[0].split(UFMTelemetryConstants.CSV_ROW_ATTRS_SEPARATOR)
-        keys_length = len(keys)
         output = []
 
-        is_meta_fields_available = len(self.meta_fields[0]) or len(self.meta_fields[1])
-        modified_keys = self._get_filtered_counters(keys)
-        available_keys_indices = modified_keys.keys()
+        available_keys_indices = available_headers.keys()
 
         for row in rows[1:-1]:
             values = row.split(UFMTelemetryConstants.CSV_ROW_ATTRS_SEPARATOR)
+            port_key = port_key_generator(values, *port_key_generator_args)
             port_record = {}
             for i in available_keys_indices:
                 value = values[i]
-                key = modified_keys[i]
+                key = available_headers[i]
                 if value:
                     port_record[key] = self._convert_str_to_num(value)
-                    if is_meta_fields_available:
-                        port_record = self._append_meta_fields_to_dict(port_record)
+            self.last_streamed_data_sample_per_endpoint[endpoint_key][port_key] = port_record
+            if is_meta_fields_available:
+                port_record = self._append_meta_fields_to_dict(port_record)
             output.append(port_record)
-        return output, None, keys_length
+        return output, None
 
-    def _parse_telemetry_csv_metrics_to_json(self, data):
-        if self.stream_only_new_samples:
-            return self._parse_telemetry_csv_metrics_to_json_with_delta(data)
-        return self._parse_telemetry_csv_metrics_to_json_without_delta(data)
+    def _parse_telemetry_csv_metrics_to_json(self, data, msg_tag, is_xdr_mode):
+        """
+        Parses telemetry CSV metrics into JSON format.
 
-    def _parse_telemetry_prometheus_metrics_to_json(self, data):  # pylint: disable=too-many-locals,too-many-branches
+        This method processes CSV data to convert it into JSON, selecting the
+        appropriate parsing strategy based on whether only new samples should be
+        streamed. It handles both normal and XDR modes for generating port IDs.
+
+        Parameters:
+        - data (str): The CSV data to be parsed.
+        - msg_tag (str): A message tag used for identifying the data sample.
+        - is_xdr_mode (bool): A flag indicating whether to use XDR mode for port ID generation.
+
+        Returns:
+        - tuple: A tuple containing the parsed JSON data and the number of keys (counters).
+        """
+        rows: List[str] = data.split(UFMTelemetryConstants.CSV_LINE_SEPARATOR)
+        keys: List[str] = rows[0].split(UFMTelemetryConstants.CSV_ROW_ATTRS_SEPARATOR)
+        modified_keys = self._get_filtered_counters(keys)
+        is_meta_fields_available = len(self.meta_fields[0]) or len(self.meta_fields[1])
+        normal_port_id_keys_indexes ,aggr_port_id_keys_indexes, port_type_key_index = \
+            self._get_port_keys_indexes_from_csv_headers(keys)
+        if is_xdr_mode:
+            port_key_generator = self._get_xdr_port_id_from_csv_row
+            port_key_generator_args = (normal_port_id_keys_indexes, aggr_port_id_keys_indexes)
+        else:
+            port_key_generator = self._get_port_id_from_csv_row
+            port_key_generator_args = (normal_port_id_keys_indexes,)
+
+        if self.last_streamed_data_sample_per_endpoint.get(msg_tag, None) is None:
+            self.last_streamed_data_sample_per_endpoint[msg_tag] = {}
+
+
+        parser_method = self._parse_telemetry_csv_metrics_to_json_with_delta if self.stream_only_new_samples \
+            else self._parse_telemetry_csv_metrics_to_json_without_delta
+
+        parsed_data, new_timestamp = parser_method(modified_keys, rows,
+                                                   port_key_generator, port_key_generator_args,
+                                                   is_meta_fields_available, msg_tag)
+
+        return parsed_data, new_timestamp, len(keys)
+
+    def _parse_telemetry_prometheus_metrics_to_json(self, data, endpoint_key):  # pylint: disable=too-many-locals,too-many-branches
         elements_dict = {}
         timestamp = current_port_values = None
         num_of_counters = 0
@@ -618,7 +781,7 @@ class UFMTelemetryStreaming(Singleton):
                 uid += f':{str(sample.timestamp)}'
                 current_row = elements_dict.get(uid, {})
                 if self.stream_only_new_samples:
-                    current_port_values = self.last_streamed_data_sample_per_port.get(port_key, {})
+                    current_port_values = self.last_streamed_data_sample_per_endpoint.get(endpoint_key,{}).get(port_key, {})
 
                 # main sample's counter value
                 attr_obj = self.streaming_attributes.get(sample.name, None)
@@ -651,7 +814,7 @@ class UFMTelemetryStreaming(Singleton):
                     elements_dict[uid] = current_row
                 ####
                 if self.stream_only_new_samples:
-                    self.last_streamed_data_sample_per_port[port_key] = current_port_values
+                    self.last_streamed_data_sample_per_endpoint[endpoint_key][port_key] = current_port_values
 
         return list(elements_dict.values()), timestamp, num_of_counters
 
@@ -702,44 +865,58 @@ class UFMTelemetryStreaming(Singleton):
         _port = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_PORT)
         _url = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_URL)
         msg_tag = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME)
+        is_xdr_mode = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_XDR_MODE)
         telemetry_data = self._get_metrics(_host, _port, _url, msg_tag)
-        if telemetry_data:
-            try:
+        try:
+            data_to_stream = []
+            new_data_timestamp = None
+            num_of_counters = data_len = 0
+            if telemetry_data:
                 ufm_telemetry_is_prometheus_format = self._check_data_prometheus_format(telemetry_data)
                 logging.info('Start Processing The Received Response From %s', msg_tag)
                 start_time = time.time()
-                data_to_stream, new_data_timestamp, num_of_counters = self._parse_telemetry_prometheus_metrics_to_json(telemetry_data) \
+                data_to_stream, new_data_timestamp, num_of_counters = self._parse_telemetry_prometheus_metrics_to_json(telemetry_data, msg_tag) \
                     if ufm_telemetry_is_prometheus_format else \
-                    self._parse_telemetry_csv_metrics_to_json(telemetry_data)
+                    self._parse_telemetry_csv_metrics_to_json(telemetry_data, msg_tag, is_xdr_mode)
                 end_time = time.time()
                 data_len = len(data_to_stream)
                 resp_process_time = round(end_time - start_time, 6)
                 self.streaming_metrics_mgr.update_streaming_metrics(msg_tag, **{
                     self.streaming_metrics_mgr.telemetry_response_process_time_seconds_key: resp_process_time
                 })
-                if data_len > 0 and \
-                        (not new_data_timestamp or
-                         (new_data_timestamp and new_data_timestamp != self.last_streamed_data_sample_timestamp)):
-                    self.streaming_metrics_mgr.update_streaming_metrics(msg_tag, **{
-                        self.streaming_metrics_mgr.num_of_streamed_ports_in_last_msg_key: data_len,
-                        self.streaming_metrics_mgr.num_of_processed_counters_in_last_msg_key: num_of_counters
-                    })
-                    logging.info('Processing of endpoint %s Completed In: %.2f Seconds. '
-                                 '(%d) Ports, (%d) Counters Were Handled',
-                                 msg_tag, resp_process_time, data_len, num_of_counters)
-                    if self.bulk_streaming_flag:
-                        self._stream_data_to_fluentd(data_to_stream, msg_tag)
-                    else:
-                        for row in data_to_stream:
-                            self._stream_data_to_fluentd(row, msg_tag)
-                    self.last_streamed_data_sample_timestamp = new_data_timestamp
-                elif self.stream_only_new_samples:
-                    logging.info('No new samples in endpoint %s, nothing to stream', msg_tag)
+                logging.info('Processing of endpoint %s Completed In: %.2f Seconds. '
+                             '(%d) Ports, (%d) Counters Were Handled',
+                             msg_tag, resp_process_time, data_len, num_of_counters)
+            elif self.stream_cached_data_on_telemetry_fail_is_enabled and \
+                    self.last_streamed_data_sample_per_endpoint.get(msg_tag):
+                # if the telemetry endpoint currently unavailable, try to get the cached data
+                data_to_stream = list(self.last_streamed_data_sample_per_endpoint[msg_tag].values())
+                data_len = len(data_to_stream)
+                if data_len > 0:
+                    warn_msg = f'The telemetry endpoint {msg_tag} unavailable, streaming {data_len} ports from the cached data'
+                    logging.warning(warn_msg)
+            if data_len > 0 and \
+                    (not new_data_timestamp or
+                     (new_data_timestamp and new_data_timestamp != self.last_streamed_data_sample_timestamp)):
+                if num_of_counters == 0:
+                    num_of_counters = len(data_to_stream[0].keys()) # by default the keys of the first port record
+                self.streaming_metrics_mgr.update_streaming_metrics(msg_tag, **{
+                    self.streaming_metrics_mgr.num_of_streamed_ports_in_last_msg_key: data_len,
+                    self.streaming_metrics_mgr.num_of_processed_counters_in_last_msg_key: num_of_counters
+                })
+                if self.bulk_streaming_flag:
+                    self._stream_data_to_fluentd(data_to_stream, msg_tag)
+                else:
+                    for row in data_to_stream:
+                        self._stream_data_to_fluentd(row, msg_tag)
+                self.last_streamed_data_sample_timestamp = new_data_timestamp
+            elif not telemetry_data:
+                logging.error("Failed to get the telemetry data metrics for %s", _url)
+            elif self.stream_only_new_samples:
+                logging.info('No new samples in endpoint %s, nothing to stream', msg_tag)
 
-            except Exception as ex:  # pylint: disable=broad-except
-                logging.error("Exception occurred during parsing telemetry data: %s", str(ex))
-        else:
-            logging.error("Failed to get the telemetry data metrics for %s", _url)
+        except Exception as ex:  # pylint: disable=broad-except
+            logging.error("Exception occurred during parsing telemetry data: %s", str(ex))
 
     def _add_streaming_attribute(self, attribute):
         if self.streaming_attributes.get(attribute, None) is None:
@@ -793,7 +970,7 @@ class UFMTelemetryStreaming(Singleton):
 
     def clear_cached_streaming_data(self):
         self.last_streamed_data_sample_timestamp = self._fluent_sender = None
-        self.last_streamed_data_sample_per_port = {}
+        self.last_streamed_data_sample_per_endpoint = {}
         self.streaming_metrics_mgr = MonitorStreamingMgr()
 
     def _convert_str_to_num(self, str_val):
