@@ -24,7 +24,7 @@ class PortData:
     """
     Represents the port data.
     """
-    #pylint: disable=too-many-positional-arguments
+    #pylint: disable=too-many-positional-arguments,too-many-arguments
     def __init__(self, port_name=None, port_num=None, peer=None, node_type=None, active_speed=None, port_width=None, port_guid=None):
         """
         Initialize a new instance of the PortData class.
@@ -470,7 +470,7 @@ class PDRAlgorithm:
 
         return True
 
-    #pylint: disable=too-many-positional-arguments,too-many-locals
+    #pylint: disable=too-many-positional-arguments,too-many-arguments,too-many-locals
     def calc_symbol_ber_rate(self, port_name, port_speed, port_width, col_name, time_delta):
         """
         calculate the symbol BER rate for a given port given the time delta
