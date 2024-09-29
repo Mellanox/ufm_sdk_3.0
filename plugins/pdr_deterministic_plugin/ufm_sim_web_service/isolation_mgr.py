@@ -136,7 +136,7 @@ class IsolationMgr:
 
         # Perform reset
         ret = self.ufm_client.reset_port(port_name, port_guid)
-        if not ret or not (ret.status_code == http.HTTPStatus.OK or ret.status_code == http.HTTPStatus.ACCEPTED):
+        if not ret or ret.status_code not in (http.HTTPStatus.OK, http.HTTPStatus.ACCEPTED):
             self.logger.warning("Failed resetting port: %s... status_code= %s", port_name, ret.status_code)
             return
 
