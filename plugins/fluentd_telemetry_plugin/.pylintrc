@@ -6,6 +6,9 @@ max-public-methods=100
 
 [DESIGN]
 max-attributes=10
+max-args=10
+max-locals=20
+max-module-lines=1500
 
 [MESSAGES CONTROL]
 disable=missing-module-docstring,missing-function-docstring,fixme

@@ -751,7 +751,7 @@ class UFMTelemetryStreaming(Singleton):
             self._get_port_keys_indexes_from_csv_headers(keys)
         if is_xdr_mode:
             port_key_generator = self._get_xdr_port_id_from_csv_row
-            port_key_generator_args = (normal_port_id_keys_indexes, aggr_port_id_keys_indexes)
+            port_key_generator_args = (normal_port_id_keys_indexes, aggr_port_id_keys_indexes, port_type_key_index)
         else:
             port_key_generator = self._get_port_id_from_csv_row
             port_key_generator_args = (normal_port_id_keys_indexes,)
@@ -875,7 +875,8 @@ class UFMTelemetryStreaming(Singleton):
                 ufm_telemetry_is_prometheus_format = self._check_data_prometheus_format(telemetry_data)
                 logging.info('Start Processing The Received Response From %s', msg_tag)
                 start_time = time.time()
-                data_to_stream, new_data_timestamp, num_of_counters = self._parse_telemetry_prometheus_metrics_to_json(telemetry_data, msg_tag) \
+                data_to_stream, new_data_timestamp, num_of_counters = \
+                    self._parse_telemetry_prometheus_metrics_to_json(telemetry_data, msg_tag) \
                     if ufm_telemetry_is_prometheus_format else \
                     self._parse_telemetry_csv_metrics_to_json(telemetry_data, msg_tag, is_xdr_mode)
                 end_time = time.time()
