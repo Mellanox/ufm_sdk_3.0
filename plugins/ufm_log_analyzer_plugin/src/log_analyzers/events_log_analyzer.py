@@ -15,9 +15,9 @@
 
 from typing import List
 import pandas as pd
-from loganalyze.log_analyzers.constants import DataConstants
-from loganalyze.log_analyzers.base_analyzer import BaseAnalyzer
-import loganalyze.logger as log
+from log_analyzers.constants import DataConstants
+from log_analyzers.base_analyzer import BaseAnalyzer
+import logger as log
 
 
 class EventsLogAnalyzer(BaseAnalyzer):

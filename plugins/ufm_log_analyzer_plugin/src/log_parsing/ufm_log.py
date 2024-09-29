@@ -15,7 +15,7 @@
 import re
 from typing import Match
 
-from loganalyze.log_parsing.base_regex import RegexAndHandlers
+from log_parsing.base_regex import RegexAndHandlers
 
 UFM_LOG_BASE = r"^(?P<timestamp>[\d\-]+ [\d\:\.]+) \w+ +(?P<severity>\w+) +{}"
 

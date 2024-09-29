@@ -18,4 +18,4 @@ SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 src_dir=$( realpath "${SCRIPT_DIR}/src" )
 export PYTHONPATH="${src_dir}:../../" # The ../../ is to be able to use the utils
 
-python3 "${src_dir}/loganalyze/log_analyzer.py" "$@"
+python3 "${src_dir}/log_analyzer.py" "$@"

@@ -14,7 +14,7 @@
 import re
 from typing import Match
 
-from loganalyze.log_parsing.base_regex import RegexAndHandlers
+from log_parsing.base_regex import RegexAndHandlers
 
 EVENT_LOG_REGEX = re.compile(
     #  date      time         na       na severity   Site and name      type   objtype objid

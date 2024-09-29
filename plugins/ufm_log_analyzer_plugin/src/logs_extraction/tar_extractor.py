@@ -18,9 +18,9 @@ import tarfile
 import os
 from typing import List, Set
 
-from loganalyze.logs_extraction.base_extractor import BaseExtractor
-from loganalyze.utils.common import delete_folders
-import loganalyze.logger as log
+from logs_extraction.base_extractor import BaseExtractor
+from utils.common import delete_folders
+import logger as log
 
 LOGS_GZ_POSTFIX = ".gz"
 GZIP_MAGIC_NUMBER = b"\x1f\x8b"  # Magic number to understand if a file is really a gzip

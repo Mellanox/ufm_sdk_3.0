@@ -11,12 +11,12 @@
 #
 # pylint: disable=missing-module-docstring
 
-from loganalyze.log_parsing.event_log_regex import event_log_regex_cls
-from loganalyze.log_parsing.ufm_health_regex import ufm_health_regex_cls
-from loganalyze.log_parsing.ufm_log import ufm_log_regex_cls
-from loganalyze.log_parsing.ibdiagnet_log_regex import ibdiagnet_log_regex_cls
-from loganalyze.log_parsing.console_log_regex import console_log_regex_cls
-from loganalyze.log_parsing.rest_api_log_regex import rest_api_log_regex_cls
+from log_parsing.event_log_regex import event_log_regex_cls
+from log_parsing.ufm_health_regex import ufm_health_regex_cls
+from log_parsing.ufm_log import ufm_log_regex_cls
+from log_parsing.ibdiagnet_log_regex import ibdiagnet_log_regex_cls
+from log_parsing.console_log_regex import console_log_regex_cls
+from log_parsing.rest_api_log_regex import rest_api_log_regex_cls
 
 logs = [
     event_log_regex_cls,

@@ -15,9 +15,9 @@
 import csv
 import os
 from typing import List
-from loganalyze.log_analyzers.constants import DataConstants
-from loganalyze.log_analyzers.base_analyzer import BaseAnalyzer
-import loganalyze.logger as log
+from log_analyzers.constants import DataConstants
+from log_analyzers.base_analyzer import BaseAnalyzer
+import logger as log
 
 
 class ConsoleLogAnalyzer(BaseAnalyzer):

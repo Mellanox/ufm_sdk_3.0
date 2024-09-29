@@ -12,7 +12,7 @@ from typing import List
 from urllib.parse import urlparse
 import pandas as pd
 import numpy as np
-from loganalyze.log_analyzers.base_analyzer import BaseAnalyzer
+from log_analyzers.base_analyzer import BaseAnalyzer
 
 class RestApiAnalyzer(BaseAnalyzer):
 

@@ -15,7 +15,7 @@ import glob
 import os
 import shutil
 from typing import Set
-import loganalyze.logger as log
+import logger as log
 
 def delete_folders(folders: Set[str], until_folder:str):
     """

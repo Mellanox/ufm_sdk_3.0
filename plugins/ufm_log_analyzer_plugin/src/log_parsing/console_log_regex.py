@@ -14,7 +14,7 @@
 import re
 from typing import Match
 
-from loganalyze.log_parsing.base_regex import RegexAndHandlers
+from log_parsing.base_regex import RegexAndHandlers
 
 ###
 # This log is only to find general exceptions and errors,

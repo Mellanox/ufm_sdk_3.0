@@ -23,8 +23,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
-from loganalyze.log_analyzers.constants import DataConstants
-import loganalyze.logger as log
+from log_analyzers.constants import DataConstants
+import logger as log
 
 pd.set_option("display.max_colwidth", None)
 warnings.filterwarnings("ignore")

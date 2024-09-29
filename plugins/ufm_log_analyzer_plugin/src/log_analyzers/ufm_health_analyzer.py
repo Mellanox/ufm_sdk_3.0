@@ -12,8 +12,8 @@
 # pylint: disable=missing-class-docstring
 # pylint: disable=missing-module-docstring
 from typing import List
-from loganalyze.log_analyzers.constants import DataConstants
-from loganalyze.log_analyzers.base_analyzer import BaseAnalyzer
+from log_analyzers.constants import DataConstants
+from log_analyzers.base_analyzer import BaseAnalyzer
 
 
 class UFMHealthAnalyzer(BaseAnalyzer):

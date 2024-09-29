@@ -13,7 +13,7 @@ import os
 from pathlib import Path
 import shutil
 from typing import List
-from loganalyze.logs_extraction.base_extractor import BaseExtractor
+from logs_extraction.base_extractor import BaseExtractor
 
 class DirectoryExtractor(BaseExtractor):
     def __init__(self, dir_path:Path):

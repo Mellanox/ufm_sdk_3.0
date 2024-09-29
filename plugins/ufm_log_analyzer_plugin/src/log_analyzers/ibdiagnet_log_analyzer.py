@@ -13,8 +13,8 @@
 # pylint: disable=missing-class-docstring
 
 from typing import List
-from loganalyze.log_analyzers.base_analyzer import BaseAnalyzer
-import loganalyze.logger as log
+from log_analyzers.base_analyzer import BaseAnalyzer
+import logger as log
 
 
 class IBDIAGNETLogAnalyzer(BaseAnalyzer):

@@ -16,7 +16,7 @@
 import os
 import csv
 from typing import List, Tuple
-import loganalyze.logger as log
+import logger as log
 
 class CsvHandler:
     def __init__(

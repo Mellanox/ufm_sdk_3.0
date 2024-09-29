@@ -14,7 +14,7 @@
 import re
 from typing import Match
 
-from loganalyze.log_parsing.base_regex import RegexAndHandlers
+from log_parsing.base_regex import RegexAndHandlers
 
 IBDIAGNET_LOG_TOTAL_NODES = re.compile(
     #                   Num Nodes

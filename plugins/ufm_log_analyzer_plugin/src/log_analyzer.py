@@ -29,26 +29,26 @@ import traceback
 from typing import Callable, List, Set, Tuple
 
 
-from loganalyze.log_analyzers.base_analyzer import BaseImageCreator
-from loganalyze.logs_extraction.directory_extractor import DirectoryExtractor
-from loganalyze.log_analyzers.ufm_top_analyzer import UFMTopAnalyzer
-from loganalyze.logs_extraction.tar_extractor import DumpFilesExtractor
-from loganalyze.log_parsing.log_parser import LogParser
-from loganalyze.log_parsing.logs_regex import logs_regex_csv_headers_list
-from loganalyze.logs_csv.csv_handler import CsvHandler
+from log_analyzers.base_analyzer import BaseImageCreator
+from logs_extraction.directory_extractor import DirectoryExtractor
+from log_analyzers.ufm_top_analyzer import UFMTopAnalyzer
+from logs_extraction.tar_extractor import DumpFilesExtractor
+from log_parsing.log_parser import LogParser
+from log_parsing.logs_regex import logs_regex_csv_headers_list
+from logs_csv.csv_handler import CsvHandler
 
-from loganalyze.log_analyzers.ufm_log_analyzer import UFMLogAnalyzer
-from loganalyze.log_analyzers.ufm_health_analyzer import UFMHealthAnalyzer
-from loganalyze.log_analyzers.ibdiagnet_log_analyzer import IBDIAGNETLogAnalyzer
-from loganalyze.log_analyzers.events_log_analyzer import EventsLogAnalyzer
-from loganalyze.log_analyzers.console_log_analyzer import ConsoleLogAnalyzer
-from loganalyze.log_analyzers.rest_api_log_analyzer import RestApiAnalyzer
-from loganalyze.log_analyzers.link_flapping_analyzer import LinkFlappingAnalyzer
+from log_analyzers.ufm_log_analyzer import UFMLogAnalyzer
+from log_analyzers.ufm_health_analyzer import UFMHealthAnalyzer
+from log_analyzers.ibdiagnet_log_analyzer import IBDIAGNETLogAnalyzer
+from log_analyzers.events_log_analyzer import EventsLogAnalyzer
+from log_analyzers.console_log_analyzer import ConsoleLogAnalyzer
+from log_analyzers.rest_api_log_analyzer import RestApiAnalyzer
+from log_analyzers.link_flapping_analyzer import LinkFlappingAnalyzer
 
-from loganalyze.pdf_creator import PDFCreator
-from loganalyze.utils.common import delete_files_by_types
+from pdf_creator import PDFCreator
+from utils.common import delete_files_by_types
 
-import loganalyze.logger as log
+import logger as log
 
 LOGS_TO_EXTRACT = [
     "event.log",

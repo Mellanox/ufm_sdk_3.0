@@ -15,7 +15,7 @@
 import re
 from typing import Match
 
-from loganalyze.log_parsing.base_regex import RegexAndHandlers
+from log_parsing.base_regex import RegexAndHandlers
 
 UFM_HEALTH_LOG_REGEX = re.compile(
     #       Date                         Severity               Test         Test Class Status
