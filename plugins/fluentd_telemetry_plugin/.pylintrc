@@ -15,6 +15,7 @@ disable=missing-module-docstring,missing-function-docstring,fixme
 
 [FORMAT]
 max-line-length=140
+max-positional-arguments=10
 
 [BASIC]
 min-public-methods=0
