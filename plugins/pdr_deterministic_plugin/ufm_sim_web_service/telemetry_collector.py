@@ -57,8 +57,10 @@ class TelemetryCollector:
         merged_df = pd.merge(second_df, first_df, on=self.BASED_COLUMNS, how='inner', suffixes=('', '_x'))
         delta_dataframe = pd.DataFrame()
         for _,col in enumerate(second_df.columns):
-            if col not in self.KEY:
-                col_x = col + "_x"
+            col_x = col + "_x"
+            if col not in self.KEY\
+                    and not merged_df[col].apply(lambda x: isinstance(x, str)).any()\
+                    and not merged_df[col_x].apply(lambda x: isinstance(x, str)).any():
                 try:
                     delta_dataframe[col] = merged_df[col] - merged_df[col_x]
                 except TypeError:
