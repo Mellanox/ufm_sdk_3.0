@@ -36,6 +36,15 @@ class TelemetryCollector:
             telemetry_data = None
 
         # store telemetry data
+        self.store_telemetry_data(telemetry_data)
+
+        # return retrieved data
+        return telemetry_data
+
+    def store_telemetry_data(self, telemetry_data):
+        """
+        Store telemetry data into the file
+        """
         try:
             if self.previous_telemetry_data is not None and telemetry_data is not None:
                 delta = self._get_delta(self.previous_telemetry_data,telemetry_data)
@@ -48,10 +57,9 @@ class TelemetryCollector:
         except Exception as exception_error: # pylint: disable=broad-exception-caught
             self.logger.error(f"Failed to store telemetry data with error {exception_error}")
 
-        # update previous telemetry data
+        # keep telemetry data for next delta calculation
         if telemetry_data is not None:
             self.previous_telemetry_data = telemetry_data
-        return telemetry_data
 
     def _get_delta(self, first_df: pd.DataFrame, second_df:pd.DataFrame):
         merged_df = pd.merge(second_df, first_df, on=self.BASED_COLUMNS, how='inner', suffixes=('', '_x'))
