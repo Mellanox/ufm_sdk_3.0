@@ -115,6 +115,9 @@
         "stream_only_new_samples": {
           "type": "boolean"
         },
+        "enable_cached_stream_on_telemetry_fail": {
+          "type": "boolean"
+        },
         "enabled": {
           "type": "boolean"
         }
