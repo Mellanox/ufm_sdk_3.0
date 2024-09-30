@@ -136,7 +136,7 @@ class IsolationMgr:
 
         # Perform reset
         ret = self.ufm_client.reset_port(port_name, port_guid)
-        if not ret or ret.status_code != http.HTTPStatus.OK:
+        if not ret or ret.status_code != http.HTTPStatus.ACCEPTED:
             self.logger.warning("Failed resetting port: %s... status_code= %s", port_name, ret.status_code)
             return
 
@@ -338,9 +338,10 @@ class IsolationMgr:
                         self.logger.error("Couldn't retrieve telemetry data")
                     else:
                         # Detect ports to be isolated or deisolated
+                        self.logger.info("Starting telemetry data analysis")
                         issues = self.pdr_alg.analyze_telemetry_data(self.ports_data, ports_counters)
                 except (KeyError, TypeError, ValueError) as exception_error:
-                    self.logger.error(f"failed to read information with error {exception_error}")
+                    self.logger.error(f"Failed to read information with error {exception_error}")
 
                 # deal with reported new issues
                 for issue in issues or []:
