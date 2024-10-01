@@ -71,7 +71,7 @@ class DataStore:
         :param files: (List) List of files to be removed
         :return: None
         """
-        self.logger.info(f"removing {len(files)} old files")
+        self.logger.info(f"Removing {len(files)} old files")
         for file in files:
             try:
                 if exists(file):
@@ -79,11 +79,11 @@ class DataStore:
             except FileNotFoundError:
                 pass
             except OSError as exc:
-                self.logger.error("failed to remove file %s [%s]", file, exc)
+                self.logger.error("Failed to remove file %s [%s]", file, exc)
 
     def save(self, dataframe:pd.DataFrame, file_name:str) -> None:
         """
         save dataframe to the file name
         """
-        self.logger.info(f"saving data to {file_name}")
+        self.logger.info(f"Saving data to {file_name}")
         dataframe.to_csv(file_name)

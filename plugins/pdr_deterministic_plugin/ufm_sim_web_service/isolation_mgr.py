@@ -253,7 +253,7 @@ class IsolationMgr:
             for port in meta_data:
                 port_name = port.get(Constants.PORT_NAME)
                 if not self.ports_data.get(port_name):
-                    self.ports_data[port_name] = {}
+                    self.ports_data[port_name] = PortData(port_name)
                     self.update_port_metadata(port_name, port)
                     ports_updated = True
         return ports_updated
