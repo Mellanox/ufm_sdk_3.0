@@ -120,6 +120,9 @@
         },
         "enabled": {
           "type": "boolean"
+        },
+        "include_meta_data": {
+          "type": "boolean"
         }
       }
     },
