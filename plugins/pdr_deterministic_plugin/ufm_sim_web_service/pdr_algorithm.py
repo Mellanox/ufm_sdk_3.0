@@ -356,9 +356,13 @@ class PDRAlgorithm:
                 return None
             peer_link_downed_rate = self.get_rate(peer_obj, Constants.LNK_DOWNED_COUNTER, peer_link_downed, peer_row_timestamp)
             if peer_link_downed_rate > 0:
-                self.logger.info(f"Isolation issue ({Constants.ISSUE_LINK_DOWN}) detected for port {port_obj.port_name}: "
-                                f"link down counter raised from {old_link_downed} to {link_downed} "
-                                f"and its peer ({port_obj.peer}) link down rate is {peer_link_downed_rate}")
+                info_msg = ""
+                if link_downed == old_link_downed:
+                    info_msg += f"link down counter is {link_downed} with link down rate {link_downed_rate} "
+                else:
+                    info_msg += f"link down counter raised from {old_link_downed} to {link_downed} "
+                info_msg += f"and its peer ({port_obj.peer}) link down rate is {peer_link_downed_rate}"
+                self.logger.info(f"Isolation issue ({Constants.ISSUE_LINK_DOWN}) detected for port {port_obj.port_name}: {info_msg}")
                 return Issue(port_obj.port_name, Constants.ISSUE_LINK_DOWN)
         return None
 
