@@ -756,10 +756,6 @@ class UFMTelemetryStreaming(Singleton):
             port_key_generator = self._get_port_id_from_csv_row
             port_key_generator_args = (normal_port_id_keys_indexes,)
 
-        if self.last_streamed_data_sample_per_endpoint.get(msg_tag, None) is None:
-            self.last_streamed_data_sample_per_endpoint[msg_tag] = {}
-
-
         parser_method = self._parse_telemetry_csv_metrics_to_json_with_delta if self.stream_only_new_samples \
             else self._parse_telemetry_csv_metrics_to_json_without_delta
 
@@ -872,6 +868,8 @@ class UFMTelemetryStreaming(Singleton):
             new_data_timestamp = None
             num_of_counters = data_len = 0
             if telemetry_data:
+                if self.last_streamed_data_sample_per_endpoint.get(msg_tag, None) is None:
+                    self.last_streamed_data_sample_per_endpoint[msg_tag] = {}
                 ufm_telemetry_is_prometheus_format = self._check_data_prometheus_format(telemetry_data)
                 logging.info('Start Processing The Received Response From %s', msg_tag)
                 start_time = time.time()
