@@ -42,6 +42,8 @@ def filter(tag, time, record)
     else
       record['object_id'] = objtype
     end
+  when 'Grid'
+    record['object_type'] = 'UFM'
   else
     record['object_id'] = objtype
   end
