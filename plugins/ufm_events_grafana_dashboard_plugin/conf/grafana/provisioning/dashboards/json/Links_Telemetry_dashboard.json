@@ -1,0 +1,432 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 8,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "be0cjqju2nncwb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 17,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "be0cjqju2nncwb"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "link_down_counter{port_guid=\"0x$src_port_guid\", port_num=\"$src_port_num\"}",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "instant": true,
+          "legendFormat": "{{node_description}} - {{port_guid}} - {{port_num}}",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "be0cjqju2nncwb"
+          },
+          "editorMode": "code",
+          "expr": "link_down_counter{port_guid=\"0x$dest_port_guid\", port_num=\"$dest_port_num\"}",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "{{node_description}} - {{port_guid}} - {{port_num}}",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Link Down Metric",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "be0cjqju2nncwb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "be0cjqju2nncwb"
+          },
+          "editorMode": "code",
+          "expr": "irate(link_down_counter{port_guid=\"0x$src_port_guid\", port_num=\"$src_port_num\"}[$__range])",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "{{node_description}} - {{port_guid}} - {{port_num}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "be0cjqju2nncwb"
+          },
+          "editorMode": "code",
+          "expr": "irate(link_down_counter{port_guid=\"0x$dest_port_guid\", port_num=\"$dest_port_num\"}[$__range])",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "{{node_description}} - {{port_guid}} - {{port_num}}",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Link Down Rate",
+      "type": "timeseries"
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "localhost mlx5_0",
+          "value": "localhost mlx5_0"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "be0cjqju2nncwb"
+        },
+        "definition": "label_values({port_guid=\"0x$src_port_guid\"},node_description)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Source Node Description",
+        "multi": false,
+        "name": "src_node_description",
+        "options": [],
+        "query": {
+          "qryType": 5,
+          "query": "label_values({port_guid=\"0x$src_port_guid\"},node_description)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "043f720300a45b08",
+          "value": "043f720300a45b08"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "be0cjqju2nncwb"
+        },
+        "definition": "label_values(port_guid)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Source Port GUID",
+        "multi": false,
+        "name": "src_port_guid",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(port_guid)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "^0x?(.*)",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "isNone": true,
+          "selected": false,
+          "text": "None",
+          "value": ""
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "be0cjqju2nncwb"
+        },
+        "definition": "label_values({port_guid=\"0x$src_port_guid\"},Port_Number)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Source Port #",
+        "multi": false,
+        "name": "src_port_num",
+        "options": [],
+        "query": {
+          "qryType": 5,
+          "query": "label_values({port_guid=\"0x$src_port_guid\"},Port_Number)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 3,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "localhost mlx5_0",
+          "value": "localhost mlx5_0"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "be0cjqju2nncwb"
+        },
+        "definition": "label_values({port_guid=\"0x$dest_port_guid\"},node_description)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Destination Node Description",
+        "multi": false,
+        "name": "dest_node_description",
+        "options": [],
+        "query": {
+          "qryType": 5,
+          "query": "label_values({port_guid=\"0x$dest_port_guid\"},node_description)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "043f720300a45b08",
+          "value": "043f720300a45b08"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "be0cjqju2nncwb"
+        },
+        "definition": "label_values(port_guid)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Destination Port GUID",
+        "multi": false,
+        "name": "dest_port_guid",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(port_guid)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "^0x?(.*)",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "isNone": true,
+          "selected": false,
+          "text": "None",
+          "value": ""
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "be0cjqju2nncwb"
+        },
+        "definition": "label_values({port_guid=\"0x$dest_port_guid\"},Port_Number)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Destination Port #",
+        "multi": false,
+        "name": "dest_port_num",
+        "options": [],
+        "query": {
+          "qryType": 5,
+          "query": "label_values({port_guid=\"0x$dest_port_guid\"},Port_Number)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 3,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Links Telemetry",
+  "uid": "adtvsifuj0gsgc",
+  "version": 2,
+  "weekStart": ""
+}
