@@ -55,12 +55,10 @@ def main():
 
 
 if __name__ == "__main__":
-    try:
-        api = SysInfoPluginAPI()
-        server = BaseAiohttpServer()
-        server.run(api.app, "127.0.0.1", 8999)
-    except:
-        pass
+    api = SysInfoPluginAPI()
+    server = BaseAiohttpServer()
+    server.run(api.app, "127.0.0.1", 8999)
+    del api
 
 #    _loop = asyncio.get_event_loop()
 #    ufm_web_sim = UFMWebSimProc()
