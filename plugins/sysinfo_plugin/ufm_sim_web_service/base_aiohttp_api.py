@@ -47,7 +47,7 @@ class BaseAiohttpServer:
     """
     Base class for HTTP server implemented with aiohttp
     """
-    def __init__(self, logger):
+    def __init__(self, logger=None):
         """
         Initialize a new instance of the BaseAiohttpAPI class.
         """
@@ -69,13 +69,15 @@ class BaseAiohttpServer:
         await runner.setup()
         site = web.TCPSite(runner, host, port)
         await site.start()
-        self.logger.info(f"Server started at {host}:{port}")
+        if self.logger:
+            self.logger.info(f"Server started at {host}:{port}")
 
         # Wait for shutdown signal
         shutdown_event = asyncio.Event()
         try:
             await shutdown_event.wait()
         except KeyboardInterrupt:
-            self.logger.info(f"Shutting down server {host}:{port}...")
+            if self.logger:
+                self.logger.info(f"Shutting down server {host}:{port}...")
         finally:
             await runner.cleanup()
