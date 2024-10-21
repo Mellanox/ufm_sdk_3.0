@@ -29,9 +29,17 @@ class SysInfoPluginAPI:
         Initialize a new instance of the PDRPluginAPI class.
         """
         self.scheduler = BackgroundScheduler(timezone=get_localzone())
+        self.scheduler.start()
+
         self.app = web.Application()
         self.app["scheduler"] = self.scheduler
         self.app.router.add_view("/test", TestHandler)
+
+    def __del__(self):
+        """
+        Uninitialize instance of the PDRPluginAPI class.
+        """
+        self.scheduler.shutdown()
 
 
 class TestHandler(ScheduledAiohttpHandler):
