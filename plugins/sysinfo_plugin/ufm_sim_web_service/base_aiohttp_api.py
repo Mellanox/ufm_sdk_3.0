@@ -11,41 +11,36 @@
 #
 
 import asyncio
-from http import HTTPStatus
-import json
-import signal
 from aiohttp import web
-
-# pylint: disable=broad-exception-caught
 
 class BaseAiohttpAPI:
     """
     Base class for API implemented with aiohttp
     """
-    def __init__(self, logger):
+    def __init__(self):
         """
-        Initialize a new instance of the SysInfoPluginAPI class.
+        Initialize a new instance of the BaseAiohttpAPI class.
         """
-        # Init logger
-        self.logger = logger
-
-        # Init application
         self.app = web.Application()
-        self.app["logger"] = self.logger
 
-        # Attach the cleanup function
-        self.app.on_cleanup.append(self.cleanup)
+    @property
+    def application(self):
+        """
+        Read-only property for the application instance.
+        """
+        return self.app
 
-    def add_handler(self, path, handler):
+    def add_route(self, method, path, handler):
         """
-        Add handler to API.
+        Add route to API.
         """
-        self.app.router.add_view(path, handler)
+        self.app.router.add_route(method, path, handler)
 
-    async def cleanup(self, app): # pylint: disable=unused-argument
+    def web_response(self, text, status):
         """
-        This method runs on cleanup and can be used for releasing resources
+        Create response object.
         """
+        return web.json_response(text=text, status=status)
 
 
 class BaseAiohttpServer:
@@ -57,33 +52,18 @@ class BaseAiohttpServer:
         Initialize a new instance of the BaseAiohttpAPI class.
         """
         self.logger = logger
-        self.shutdown_event = asyncio.Event()
 
     def run(self, app, host, port):
         """
         Run the server on the specified host and port.
         """
-        # Register signal handlers
         loop = asyncio.get_event_loop()
-        for signame in ["SIGINT", "SIGTERM"]:
-            loop.add_signal_handler(getattr(signal, signame), lambda: asyncio.create_task(self.stop()))
+        loop.run_until_complete(self._run_server(app, host, port))
 
-        # Run server loop
-        loop.run_until_complete(self.__run(app, host, port))
-
-    async def stop(self):
-        """
-        Gracefully shut down the server.
-        """
-        self.shutdown_event.set()
-
-    async def __run(self, app, host, port):
+    async def _run_server(self, app, host, port):
         """
         Asynchronously run the server and handle shutdown.
         """
-        # Clear shutdown signal
-        self.shutdown_event.clear()
-
         # Run server
         runner = web.AppRunner(app)
         await runner.setup()
@@ -92,58 +72,10 @@ class BaseAiohttpServer:
         self.logger.info(f"Server started at {host}:{port}")
 
         # Wait for shutdown signal
-        await self.shutdown_event.wait()
-        self.logger.info(f"Shutting down server {host}:{port}")
-
-        # Uninitialize server
-        await site.stop()
-        await runner.cleanup()
-
-
-class BaseAiohttpHandler(web.View):
-    """
-    Base aiohttp handler class
-    """
-    def __init__(self, request):
-        """
-        Initialize a new instance of the BaseAiohttpHandler class.
-        """
-        super().__init__(request)
-        self.logger = request.app["logger"]
-
-    def text_response(self, text, status) -> web.Response:
-        """
-        Create text response object.
-        """
-        return web.json_response(text=text, status=status)
-
-    def json_response(self, data, status) -> web.Response:
-        """
-        Create json response object.
-        """
-        return web.json_response(data=data, status=status)
-
-    def json_file_response(self, file_name) -> web.Response:
-        """
-        Create json response object from file.
-        """
+        shutdown_event = asyncio.Event()
         try:
-            with open(file_name, "r", encoding="utf-8") as file:
-                data = json.load(file)
-                return self.json_response(data, HTTPStatus.OK)
-        except Exception as e:
-            error_text = f"Failed to read json object from file {file_name}: {e}"
-            return self.report_error(error_text)
-
-    def report_success(self) -> web.Request:
-        """
-        Create success response
-        """
-        return self.json_response({}, HTTPStatus.OK)
-
-    def report_error(self, message:str, status_code:int=HTTPStatus.BAD_REQUEST) -> web.Request:
-        """
-        Create error response
-        """
-        self.logger.error(message)
-        return self.json_response({"error": message}, status_code)
+            await shutdown_event.wait()
+        except KeyboardInterrupt:
+            self.logger.info(f"Shutting down server {host}:{port}...")
+        finally:
+            await runner.cleanup()
