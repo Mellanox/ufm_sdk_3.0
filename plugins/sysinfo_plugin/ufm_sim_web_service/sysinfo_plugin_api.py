@@ -10,45 +10,32 @@
 # provided with the software product.
 #
 
-from tzlocal import get_localzone
-from apscheduler.schedulers.background import BackgroundScheduler
+import json
+import time
+from http import HTTPStatus
+from json import JSONDecodeError
 from base_aiohttp_api import BaseAiohttpAPI
-from resources import Delete, QueryRequest, Cancel, QueryId, Version, Help, Config, Queries, Date, Dummy
+
+ERROR_INCORRECT_INPUT_FORMAT = "Incorrect input format"
+EOL = '\n'
 
 class SysInfoPluginAPI(BaseAiohttpAPI):
-    """
-    Class SysInfoPluginAPI
-    """
-    def __init__(self, logger):
-        """
-        Initialize a new instance of the SysInfoPluginAPI class.
-        """
-        # Call the parent class's constructor
-        super().__init__(logger)
+    '''
+    class SysInfoPluginAPI
+    '''
 
-        # Init scheduler
-        try:
-            timezone = get_localzone()
-        except: # pylint: disable=bare-except
-            self.logger.warning("Using UTC due to missing or incorrect timezone")
-            timezone = "Etc/UTC"
-        self.scheduler = self.app["scheduler"] = BackgroundScheduler(timezone=timezone)
-        self.scheduler.start()
-
-        # Add handlers
-        self.add_handler("/delete/{report_id}", Delete)
-        self.add_handler("/query", QueryRequest)
-        self.add_handler("/cancel", Cancel)
-        self.add_handler("/queries/{query_id}", QueryId)
-        self.add_handler("/version", Version)
-        self.add_handler("/help", Help)
-        self.add_handler("/config", Config)
-        self.add_handler("/queries", Queries)
-        self.add_handler("/dummy", Dummy)
-        self.add_handler("/date", Date)
-
-    async def cleanup(self, app): # pylint: disable=unused-argument
+    def __init__(self):
         """
-        This method runs on cleanup and can be used for releasing resources
+        Initialize a new instance of the PDRPluginAPI class.
         """
-        self.scheduler.shutdown()
+        super().__init__()
+
+        # Define routes using the base class's method
+        self.add_route("GET", "/test", self.test)
+
+
+    async def test(self, request): # pylint: disable=unused-argument
+        """
+        Return ports from exclude list as comma separated port names
+        """
+        return self.web_response("Test response\n", HTTPStatus.OK)

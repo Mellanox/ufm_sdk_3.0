@@ -10,14 +10,11 @@
 # provided with the software product.
 #
 
-import logging
-from logging.handlers import RotatingFileHandler
-import os
-
-from configuration import Configuration
+import asyncio
+import signal
+from ufm_web_sim import UFMWebSim
 from base_aiohttp_api import BaseAiohttpServer
 from sysinfo_plugin_api import SysInfoPluginAPI
-
 
 def create_logger():
     """
@@ -58,4 +55,22 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        api = SysInfoPluginAPI()
+        server = BaseAiohttpServer()
+        server.run(api.app, "127.0.0.1", 8999)
+    except:
+        pass
+
+#    _loop = asyncio.get_event_loop()
+#    ufm_web_sim = UFMWebSimProc()
+#    try:
+#        signal.signal(signal.SIGTERM, ufm_web_sim.shutdown)
+#        ufm_web_sim.main()
+#        _loop.run_forever()
+#    except KeyboardInterrupt:
+#        pass
+#    finally:
+#        print("Stopping Sysinfo web server", flush=True)
+#        _loop.run_until_complete(ufm_web_sim.cleanup())
+#        _loop.stop()
