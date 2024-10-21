@@ -12,28 +12,29 @@
 
 import json
 import time
-from aiohttp import web
 from http import HTTPStatus
 from json import JSONDecodeError
-from base_aiohttp_api import BaseAiohttpHandler
-
-ERROR_INCORRECT_INPUT_FORMAT = "Incorrect input format"
-EOL = '\n'
+from aiohttp import web
+from tzlocal import get_localzone
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.executors.pool import ProcessPoolExecutor
+from base_aiohttp_api import BaseAiohttpHandler, ScheduledAiohttpHandler
 
 class SysInfoPluginAPI:
-    '''
-    class SysInfoPluginAPI
-    '''
-
+    """
+    Class SysInfoPluginAPI
+    """
     def __init__(self):
         """
         Initialize a new instance of the PDRPluginAPI class.
         """
+        self.scheduler = BackgroundScheduler(timezone=get_localzone())
         self.app = web.Application()
+        self.app["scheduler"] = self.scheduler
         self.app.router.add_view("/test", TestHandler)
 
 
-class TestHandler(BaseAiohttpHandler):
+class TestHandler(ScheduledAiohttpHandler):
     async def get(self):
         # Use self.config here
         return self.web_response("Test handler response\n", HTTPStatus.OK)
