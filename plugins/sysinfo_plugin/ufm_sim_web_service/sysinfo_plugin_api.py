@@ -12,14 +12,15 @@
 
 import json
 import time
+from aiohttp import web
 from http import HTTPStatus
 from json import JSONDecodeError
-from base_aiohttp_api import BaseAiohttpAPI
+from base_aiohttp_api import BaseAiohttpHandler
 
 ERROR_INCORRECT_INPUT_FORMAT = "Incorrect input format"
 EOL = '\n'
 
-class SysInfoPluginAPI(BaseAiohttpAPI):
+class SysInfoPluginAPI:
     '''
     class SysInfoPluginAPI
     '''
@@ -28,14 +29,11 @@ class SysInfoPluginAPI(BaseAiohttpAPI):
         """
         Initialize a new instance of the PDRPluginAPI class.
         """
-        super().__init__()
-
-        # Define routes using the base class's method
-        self.add_route("GET", "/test", self.test)
+        self.app = web.Application()
+        self.app.router.add_view("/test", TestHandler)
 
 
-    async def test(self, request): # pylint: disable=unused-argument
-        """
-        Return ports from exclude list as comma separated port names
-        """
-        return self.web_response("Test response\n", HTTPStatus.OK)
+class TestHandler(BaseAiohttpHandler):
+    async def get(self):
+        # Use self.config here
+        return self.web_response("Test handler response\n", HTTPStatus.OK)

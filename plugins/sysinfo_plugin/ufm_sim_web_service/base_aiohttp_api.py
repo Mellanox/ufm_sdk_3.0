@@ -13,36 +13,6 @@
 import asyncio
 from aiohttp import web
 
-class BaseAiohttpAPI:
-    """
-    Base class for API implemented with aiohttp
-    """
-    def __init__(self):
-        """
-        Initialize a new instance of the BaseAiohttpAPI class.
-        """
-        self.app = web.Application()
-
-    @property
-    def application(self):
-        """
-        Read-only property for the application instance.
-        """
-        return self.app
-
-    def add_route(self, method, path, handler):
-        """
-        Add route to API.
-        """
-        self.app.router.add_route(method, path, handler)
-
-    def web_response(self, text, status):
-        """
-        Create response object.
-        """
-        return web.json_response(text=text, status=status)
-
-
 class BaseAiohttpServer:
     """
     Base class for HTTP server implemented with aiohttp
@@ -81,3 +51,34 @@ class BaseAiohttpServer:
                 self.logger.info(f"Shutting down server {host}:{port}...")
         finally:
             await runner.cleanup()
+
+
+class BaseAiohttpHandler(web.View):
+    """
+    Base aiohttp handler class
+    """
+    def __init__(self, request):
+        """
+        Initialize a new instance of the BaseAiohttpHandler class.
+        """
+        super().__init__(request)
+        self.logger = request.app.get("logger", None)
+
+    @staticmethod
+    def web_response(text, status):
+        """
+        Create response object.
+        """
+        return web.json_response(text=text, status=status)
+
+
+class ScheduledAiohttpHandler(BaseAiohttpHandler):
+    """
+    Base aiohttp handler class with scheduller
+    """
+    def __init__(self, request):
+        """
+        Initialize a new instance of the ScheduledAiohttpHandler class.
+        """
+        super().__init__(request)
+        self.scheduler = request.app.get("scheduler", None)
