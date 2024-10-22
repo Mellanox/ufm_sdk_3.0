@@ -17,7 +17,7 @@ class BaseAiohttpServer:
     """
     Base class for HTTP server implemented with aiohttp
     """
-    def __init__(self, logger=None):
+    def __init__(self, logger):
         """
         Initialize a new instance of the BaseAiohttpAPI class.
         """
@@ -39,16 +39,14 @@ class BaseAiohttpServer:
         await runner.setup()
         site = web.TCPSite(runner, host, port)
         await site.start()
-        if self.logger:
-            self.logger.info(f"Server started at {host}:{port}")
+        self.logger.info(f"Server started at {host}:{port}")
 
         # Wait for shutdown signal
         shutdown_event = asyncio.Event()
         try:
             await shutdown_event.wait()
         except KeyboardInterrupt:
-            if self.logger:
-                self.logger.info(f"Shutting down server {host}:{port}...")
+            self.logger.info(f"Shutting down server {host}:{port}...")
         finally:
             await runner.cleanup()
 
@@ -62,7 +60,7 @@ class BaseAiohttpHandler(web.View):
         Initialize a new instance of the BaseAiohttpHandler class.
         """
         super().__init__(request)
-        self.logger = request.app.get("logger", None)
+        self.logger = request.app["logger"]
 
     @staticmethod
     def web_response(text, status):
@@ -81,4 +79,4 @@ class ScheduledAiohttpHandler(BaseAiohttpHandler):
         Initialize a new instance of the ScheduledAiohttpHandler class.
         """
         super().__init__(request)
-        self.scheduler = request.app.get("scheduler", None)
+        self.scheduler = request.app["scheduler"]

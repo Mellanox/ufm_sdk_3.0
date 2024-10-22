@@ -11,7 +11,11 @@
 #
 
 import asyncio
+import logging
+from logging.handlers import RotatingFileHandler
+import os
 import signal
+from configuration import Configuration
 from ufm_web_sim import UFMWebSim
 from base_aiohttp_api import BaseAiohttpServer
 from sysinfo_plugin_api import SysInfoPluginAPI
@@ -38,11 +42,39 @@ class UFMWebSimProc:
         raise KeyboardInterrupt
 
 
-if __name__ == "__main__":
-    api = SysInfoPluginAPI()
-    server = BaseAiohttpServer()
+def create_logger():
+    """
+    Create a logger for plugin actions
+    """
+    log_file = Configuration.LOG_FILE_NAME
+    if not os.path.exists(log_file):
+        os.makedirs('/'.join(log_file.split('/')[:-1]), exist_ok=True)
+
+    logger = logging.getLogger(log_file)
+    format_str = f"%(asctime)-15s ufm-sysinfo-plugin-{log_file} Machine: localhost     %(levelname)-7s: %(message)s"
+    logging.basicConfig(format=format_str, level=Configuration.log_level)
+    rotate_handler = RotatingFileHandler(log_file,maxBytes=Configuration.log_file_max_size,
+                                         backupCount=Configuration.log_file_backup_count)
+    rotate_handler.setLevel(Configuration.log_level)
+    rotate_handler.setFormatter(logging.Formatter(format_str))
+    logger.addHandler(rotate_handler)
+    return logger
+
+
+def main():
+    """
+    Plugin main function
+    """
+    Configuration.load()
+    logger = create_logger()
+    api = SysInfoPluginAPI(logger)
+    server = BaseAiohttpServer(logger)
     server.run(api.app, "127.0.0.1", 8999)
     del api
+
+
+if __name__ == "__main__":
+    main()
 
 #    _loop = asyncio.get_event_loop()
 #    ufm_web_sim = UFMWebSimProc()
