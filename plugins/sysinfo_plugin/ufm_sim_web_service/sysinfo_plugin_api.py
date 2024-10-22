@@ -24,14 +24,17 @@ class SysInfoPluginAPI:
     """
     Class SysInfoPluginAPI
     """
-    def __init__(self):
+    def __init__(self, logger):
         """
         Initialize a new instance of the PDRPluginAPI class.
         """
+        self.logger = logger
+
         self.scheduler = BackgroundScheduler(timezone=get_localzone())
         self.scheduler.start()
 
         self.app = web.Application()
+        self.app["logger"] = self.logger
         self.app["scheduler"] = self.scheduler
         self.app.router.add_view("/test", TestHandler)
 
