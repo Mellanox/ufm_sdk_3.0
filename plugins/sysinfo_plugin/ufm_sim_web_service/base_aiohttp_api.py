@@ -14,6 +14,35 @@ import asyncio
 import signal
 from aiohttp import web
 
+class BaseAiohttpAPI(web.Application):
+    """
+    Base class for API implemented with aiohttp
+    """
+    def __init__(self, logger, *args, **kwargs):
+        """
+        Initialize a new instance of the SysInfoPluginAPI class.
+        """
+        # Call the parent class's constructor
+        super().__init__(*args, **kwargs)
+
+        # Attach the cleanup function
+        self.on_cleanup.append(self.cleanup_resources)
+
+        # Init logger
+        self.logger = self["logger"] = logger
+
+    def add_handler(self, path, handler):
+        """
+        Add handler to API.
+        """
+        self.router.add_view(path, handler)
+
+    async def cleanup_resources(self, app): # pylint: disable=unused-argument
+        """
+        This method runs on cleanup and can be used for releasing resources
+        """
+
+
 class BaseAiohttpServer:
     """
     Base class for HTTP server implemented with aiohttp
@@ -64,6 +93,7 @@ class BaseAiohttpServer:
         # Uninitialize server
         await site.stop()
         await runner.cleanup()
+
 
 class BaseAiohttpHandler(web.View):
     """
