@@ -14,7 +14,6 @@ import asyncio
 import logging
 from logging.handlers import RotatingFileHandler
 import os
-import signal
 from configuration import Configuration
 from ufm_web_sim import UFMWebSim
 from base_aiohttp_api import BaseAiohttpServer
@@ -74,20 +73,10 @@ def main():
         api = SysInfoPluginAPI(logger)
 
         server = BaseAiohttpServer(logger)
-    
-        # Register signal handlers
-        loop = asyncio.get_event_loop()
-        for signame in ["SIGINT", "SIGTERM"]:
-            loop.add_signal_handler(getattr(signal, signame), lambda: asyncio.create_task(server.stop()))
-
-        # Run server loop
-        server.run(api.app, host, port)
+        server.run(api, host, port)
     
     except Exception as e: # pylint: disable=broad-exception-caught
         logger.error(f"{str(e)}")
-    
-    finally:
-        api.cleanup()
 
 
 if __name__ == "__main__":

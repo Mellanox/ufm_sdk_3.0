@@ -11,6 +11,7 @@
 #
 
 import asyncio
+import signal
 from aiohttp import web
 
 class BaseAiohttpServer:
@@ -28,7 +29,12 @@ class BaseAiohttpServer:
         """
         Run the server on the specified host and port.
         """
+        # Register signal handlers
         loop = asyncio.get_event_loop()
+        for signame in ["SIGINT", "SIGTERM"]:
+            loop.add_signal_handler(getattr(signal, signame), lambda: asyncio.create_task(self.stop()))
+
+        # Run server loop
         loop.run_until_complete(self._run_server(app, host, port))
 
     async def stop(self):
