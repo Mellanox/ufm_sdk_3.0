@@ -65,12 +65,29 @@ def main():
     """
     Plugin main function
     """
-    Configuration.load()
-    logger = create_logger()
-    api = SysInfoPluginAPI(logger)
-    server = BaseAiohttpServer(logger)
-    server.run(api.app, "127.0.0.1", 8999)
-    del api
+    try:
+        host = "127.0.0.1"
+        port = 8999
+
+        Configuration.load()
+        logger = create_logger()
+        api = SysInfoPluginAPI(logger)
+
+        server = BaseAiohttpServer(logger)
+    
+        # Register signal handlers
+        loop = asyncio.get_event_loop()
+        for signame in ["SIGINT", "SIGTERM"]:
+            loop.add_signal_handler(getattr(signal, signame), lambda: asyncio.create_task(server.stop()))
+
+        # Run server loop
+        server.run(api.app, host, port)
+    
+    except Exception as e: # pylint: disable=broad-exception-caught
+        logger.error(f"{str(e)}")
+    
+    finally:
+        api.cleanup()
 
 
 if __name__ == "__main__":
