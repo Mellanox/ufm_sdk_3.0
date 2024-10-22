@@ -65,7 +65,7 @@ class BaseAiohttpServer:
             loop.add_signal_handler(getattr(signal, signame), lambda: asyncio.create_task(self.stop()))
 
         # Run server loop
-        loop.run_until_complete(self._run_server(app, host, port))
+        loop.run_until_complete(self.__run(app, host, port))
 
     async def stop(self):
         """
@@ -73,7 +73,7 @@ class BaseAiohttpServer:
         """
         self.shutdown_event.set()
 
-    async def _run_server(self, app, host, port):
+    async def __run(self, app, host, port):
         """
         Asynchronously run the server and handle shutdown.
         """
