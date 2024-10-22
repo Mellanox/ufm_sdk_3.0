@@ -22,6 +22,7 @@ class BaseAiohttpServer:
         Initialize a new instance of the BaseAiohttpAPI class.
         """
         self.logger = logger
+        self.shutdown_event = asyncio.Event()
 
     def run(self, app, host, port):
         """
@@ -30,10 +31,19 @@ class BaseAiohttpServer:
         loop = asyncio.get_event_loop()
         loop.run_until_complete(self._run_server(app, host, port))
 
+    async def stop(self):
+        """
+        Gracefully shut down the server.
+        """
+        self.shutdown_event.set()
+
     async def _run_server(self, app, host, port):
         """
         Asynchronously run the server and handle shutdown.
         """
+        # Clear shutdown signal
+        self.shutdown_event.clear()
+
         # Run server
         runner = web.AppRunner(app)
         await runner.setup()
@@ -42,14 +52,12 @@ class BaseAiohttpServer:
         self.logger.info(f"Server started at {host}:{port}")
 
         # Wait for shutdown signal
-        shutdown_event = asyncio.Event()
-        try:
-            await shutdown_event.wait()
-        except KeyboardInterrupt:
-            self.logger.info(f"Shutting down server {host}:{port}...")
-        finally:
-            await runner.cleanup()
+        await self.shutdown_event.wait()
+        self.logger.info(f"Shutting down server {host}:{port}")
 
+        # Uninitialize server
+        await site.stop()
+        await runner.cleanup()
 
 class BaseAiohttpHandler(web.View):
     """

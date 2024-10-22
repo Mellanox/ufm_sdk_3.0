@@ -26,7 +26,7 @@ class SysInfoPluginAPI:
     """
     def __init__(self, logger):
         """
-        Initialize a new instance of the PDRPluginAPI class.
+        Initialize a new instance of the SysInfoPluginAPI class.
         """
         self.logger = logger
 
@@ -38,9 +38,9 @@ class SysInfoPluginAPI:
         self.app["scheduler"] = self.scheduler
         self.app.router.add_view("/test", TestHandler)
 
-    def __del__(self):
+    def cleanup(self):
         """
-        Uninitialize instance of the PDRPluginAPI class.
+        Uninitialize instance of the SysInfoPluginAPI class.
         """
         self.scheduler.shutdown()
 
