@@ -73,7 +73,7 @@ def main():
         api = SysInfoPluginAPI(logger)
 
         server = BaseAiohttpServer(logger)
-        server.run(api, host, port)
+        server.run(api.app, host, port)
     
     except Exception as e: # pylint: disable=broad-exception-caught
         logger.error(f"{str(e)}")

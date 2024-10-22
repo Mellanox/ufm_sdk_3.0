@@ -14,7 +14,6 @@ import json
 import time
 from http import HTTPStatus
 from json import JSONDecodeError
-from aiohttp import web
 from tzlocal import get_localzone
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.executors.pool import ProcessPoolExecutor
@@ -24,21 +23,21 @@ class SysInfoPluginAPI(BaseAiohttpAPI):
     """
     Class SysInfoPluginAPI
     """
-    def __init__(self, logger, *args, **kwargs):
+    def __init__(self, logger):
         """
         Initialize a new instance of the SysInfoPluginAPI class.
         """
         # Call the parent class's constructor
-        super().__init__(logger, *args, **kwargs)
+        super().__init__(logger)
 
         # Init scheduler
-        self.scheduler = self["scheduler"] = BackgroundScheduler(timezone=get_localzone())
+        self.scheduler = self.app["scheduler"] = BackgroundScheduler(timezone=get_localzone())
         self.scheduler.start()
 
         # Add handlers
-        self.router.add_view("/test", TestHandler)
+        self.add_handler("/test", TestHandler)
 
-    async def cleanup_resources(self, app): # pylint: disable=unused-argument
+    async def cleanup(self, app): # pylint: disable=unused-argument
         """
         This method runs on cleanup and can be used for releasing resources
         """
