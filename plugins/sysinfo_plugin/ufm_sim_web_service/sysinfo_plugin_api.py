@@ -18,9 +18,9 @@ from aiohttp import web
 from tzlocal import get_localzone
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.executors.pool import ProcessPoolExecutor
-from base_aiohttp_api import BaseAiohttpHandler, ScheduledAiohttpHandler
+from base_aiohttp_api import BaseAiohttpAPI, BaseAiohttpHandler, ScheduledAiohttpHandler
 
-class SysInfoPluginAPI(web.Application):
+class SysInfoPluginAPI(BaseAiohttpAPI):
     """
     Class SysInfoPluginAPI
     """
@@ -29,18 +29,10 @@ class SysInfoPluginAPI(web.Application):
         Initialize a new instance of the SysInfoPluginAPI class.
         """
         # Call the parent class's constructor
-        super().__init__(*args, **kwargs)
-
-        # Attach the cleanup function
-        self.on_cleanup.append(self.cleanup_resources)
-
-        # Init logger
-        self.logger = logger
-        self["logger"] = self.logger
+        super().__init__(logger, *args, **kwargs)
 
         # Init scheduler
-        self.scheduler = BackgroundScheduler(timezone=get_localzone())
-        self["scheduler"] = self.scheduler
+        self.scheduler = self["scheduler"] = BackgroundScheduler(timezone=get_localzone())
         self.scheduler.start()
 
         # Add handlers
