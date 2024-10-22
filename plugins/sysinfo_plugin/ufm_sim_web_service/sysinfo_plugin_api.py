@@ -20,27 +20,35 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.executors.pool import ProcessPoolExecutor
 from base_aiohttp_api import BaseAiohttpHandler, ScheduledAiohttpHandler
 
-class SysInfoPluginAPI:
+class SysInfoPluginAPI(web.Application):
     """
     Class SysInfoPluginAPI
     """
-    def __init__(self, logger):
+    def __init__(self, logger, *args, **kwargs):
         """
         Initialize a new instance of the SysInfoPluginAPI class.
         """
-        self.logger = logger
+        # Call the parent class's constructor
+        super().__init__(*args, **kwargs)
 
+        # Attach the cleanup function
+        self.on_cleanup.append(self.cleanup_resources)
+
+        # Init logger
+        self.logger = logger
+        self["logger"] = self.logger
+
+        # Init scheduler
         self.scheduler = BackgroundScheduler(timezone=get_localzone())
+        self["scheduler"] = self.scheduler
         self.scheduler.start()
 
-        self.app = web.Application()
-        self.app["logger"] = self.logger
-        self.app["scheduler"] = self.scheduler
-        self.app.router.add_view("/test", TestHandler)
+        # Add handlers
+        self.router.add_view("/test", TestHandler)
 
-    def cleanup(self):
+    async def cleanup_resources(self, app): # pylint: disable=unused-argument
         """
-        Uninitialize instance of the SysInfoPluginAPI class.
+        This method runs on cleanup and can be used for releasing resources
         """
         self.scheduler.shutdown()
 
