@@ -13,7 +13,7 @@
 from tzlocal import get_localzone
 from apscheduler.schedulers.background import BackgroundScheduler
 from base_aiohttp_api import BaseAiohttpAPI
-from resources import Config, Queries, Date, Dummy
+from resources import Version, Help, Config, Queries, Date, Dummy
 
 class SysInfoPluginAPI(BaseAiohttpAPI):
     """
@@ -31,23 +31,15 @@ class SysInfoPluginAPI(BaseAiohttpAPI):
         self.scheduler.start()
 
         # Add handlers
+        self.add_handler("/version", Version)
+        self.add_handler("/help", Help)
         self.add_handler("/config", Config)
         self.add_handler("/queries", Queries)
         self.add_handler("/dummy", Dummy)
         self.add_handler("/date", Date)
-        # self.add_handler("/test", TestHandler)
 
     async def cleanup(self, app): # pylint: disable=unused-argument
         """
         This method runs on cleanup and can be used for releasing resources
         """
         self.scheduler.shutdown()
-
-
-# class TestHandler(SysInfoAiohttpHandler):
-#     async def get(self):
-#         return self.text_response("Test handler get response\n", HTTPStatus.OK)
-
-#     async def post(self):
-#         # Use self.request here
-#         return self.text_response("Test handler post response\n", HTTPStatus.OK)

@@ -54,12 +54,13 @@ class SysInfoAiohttpHandler(BaseAiohttpHandler):
         self.datetime_format = "%Y-%m-%d %H:%M:%S"
         self.expected_keys = set()
         self.optional_keys = set()
-        self.version_file = "release.json"
-        self.help_file = "help.json"
-
         self.queries_list = []
-        self.version_file = "/opt/ufm/ufm_plugin_sysinfo/ufm_sim_web_service/release.json"
-        self.help_file = "/opt/ufm/ufm_plugin_sysinfo/ufm_sim_web_service/help.json"
+
+        resources_dir = "/opt/ufm/ufm_plugin_sysinfo/ufm_sim_web_service"
+        if not os.path.exists(resources_dir):
+            resources_dir = os.path.dirname(os.path.abspath(__file__))
+        self.version_file = os.path.join(resources_dir, "release.json")
+        self.help_file = os.path.join(resources_dir, "help.json")
 
         self.create_reports_file(self.queries_list_file)
 
@@ -467,23 +468,19 @@ class QueryId(SysInfoAiohttpHandler):
 
 
 class Version(SysInfoAiohttpHandler):
-    def __init__(self):
+    """ Version class handler """
+    async def get(self):
+        """ GET method handler """
         logging.info("GET /plugin/sysinfo/version")
-        super().__init__()
-        self.response_file = self.version_file
-
-    def post(self) -> tuple((str,int)):
-        return self.report_error(405, "Method is not allowed")
+        return self.json_file_response(self.version_file)
 
 
 class Help(SysInfoAiohttpHandler):
-    def __init__(self):
-        logging.info("GET /plugin/sysinfo/version")
-        super().__init__()
-        self.response_file = self.help_file
-
-    def post(self) -> tuple((str,int)):
-        return self.report_error(405, "Method is not allowed")
+    """ Help class handler """
+    async def get(self):
+        """ GET method handler """
+        logging.info("GET /plugin/sysinfo/help")
+        return self.json_file_response(self.help_file)
 
 
 class Config(SysInfoAiohttpHandler):
@@ -523,14 +520,13 @@ class Queries(SysInfoAiohttpHandler):
 
 class Dummy(SysInfoAiohttpHandler):
     """ Dummy class handler """
+    async def get(self):
+        """ GET method handler """
+        return self.text_response("Dummy 'get' response", HTTPStatus.OK)
+
     async def post(self):
         """ POST method handler """
-        print(datetime.now())
-        if self.request.json:
-            print(self.request.json)
-        else:
-            print(self.request)
-        return self.text_response(None, HTTPStatus.OK)
+        return self.text_response("Dummy 'post' response", HTTPStatus.OK)
 
 
 class Date(SysInfoAiohttpHandler):
