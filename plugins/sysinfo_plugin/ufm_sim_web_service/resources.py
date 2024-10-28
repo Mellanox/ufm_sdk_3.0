@@ -55,6 +55,7 @@ class SysInfoAiohttpHandler(BaseAiohttpHandler):
         self.datetime_format = "%Y-%m-%d %H:%M:%S"
         self.expected_keys = set()
         self.optional_keys = set()
+        self.queries_list = []
 
         resources_dir = "/opt/ufm/ufm_plugin_sysinfo/ufm_sim_web_service"
         if not os.path.exists(resources_dir):
@@ -466,23 +467,19 @@ class QueryId(SysInfoAiohttpHandler):
 
 
 class Version(SysInfoAiohttpHandler):
-    def __init__(self):
+    """ Version class handler """
+    async def get(self):
+        """ GET method handler """
         logging.info("GET /plugin/sysinfo/version")
-        super().__init__()
-        self.response_file = self.version_file
-
-    def post(self) -> tuple((str,int)):
-        return self.report_error(405, "Method is not allowed")
+        return self.json_file_response(self.version_file)
 
 
 class Help(SysInfoAiohttpHandler):
-    def __init__(self):
-        logging.info("GET /plugin/sysinfo/version")
-        super().__init__()
-        self.response_file = self.help_file
-
-    def post(self) -> tuple((str,int)):
-        return self.report_error(405, "Method is not allowed")
+    """ Help class handler """
+    async def get(self):
+        """ GET method handler """
+        logging.info("GET /plugin/sysinfo/help")
+        return self.json_file_response(self.help_file)
 
 
 class Config(SysInfoAiohttpHandler):
@@ -522,14 +519,13 @@ class Queries(SysInfoAiohttpHandler):
 
 class Dummy(SysInfoAiohttpHandler):
     """ Dummy class handler """
+    async def get(self):
+        """ GET method handler """
+        return self.text_response("Dummy 'get' response", HTTPStatus.OK)
+
     async def post(self):
         """ POST method handler """
-        print(datetime.now())
-        if self.request.json:
-            print(self.request.json)
-        else:
-            print(self.request)
-        return self.text_response(None, HTTPStatus.OK)
+        return self.text_response("Dummy 'post' response", HTTPStatus.OK)
 
 
 class Date(SysInfoAiohttpHandler):
