@@ -108,11 +108,18 @@ class BaseAiohttpHandler(web.View):
         self.logger = request.app["logger"]
 
     @staticmethod
-    def web_response(text, status):
+    def text_response(text, status):
         """
         Create response object.
         """
         return web.json_response(text=text, status=status)
+
+    @staticmethod
+    def data_response(data, status):
+        """
+        Create response object.
+        """
+        return web.json_response(data=data, status=status)
 
 
 class ScheduledAiohttpHandler(BaseAiohttpHandler):

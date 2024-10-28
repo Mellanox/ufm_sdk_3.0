@@ -15,8 +15,13 @@
 import json
 import os
 from datetime import datetime, timedelta
+import logging
+import requests
+from flask_restful import Resource
+from flask import request
 from http import HTTPStatus
-from typing import Tuple
+from base_aiohttp_api import BaseAiohttpHandler, ScheduledAiohttpHandler
+
 import asyncio
 import platform
 import subprocess
@@ -499,21 +504,24 @@ class Queries(SysInfoAiohttpHandler):
         self.logger.info("GET /plugin/sysinfo/queries")
         return self.json_file_response(self.queries_list_file)
 
-
-class Dummy(SysInfoAiohttpHandler):
+class Dummy(BaseAiohttpHandler):
     """ Dummy class handler """
-    async def get(self):
-        """ GET method handler """
-        return self.text_response("Dummy 'get' response", HTTPStatus.OK)
-
     async def post(self):
         """ POST method handler """
-        return self.text_response("Dummy 'post' response", HTTPStatus.OK)
+        print(datetime.now())
+        if self.request.json:
+            print(self.request.json)
+        else:
+            print(self.request)
+        return self.data_response(None, HTTPStatus.OK)
 
-
-class Date(SysInfoAiohttpHandler):
+class Date(BaseAiohttpHandler):
     """ Date class handler """
     async def get(self):
         """ GET method handler """
         self.logger.info("GET /plugin/sysinfo/date")
-        return self.json_response({"date": self.get_timestamp()}, HTTPStatus.OK)
+        self.data_response({"date": self.get_timestamp()}, HTTPStatus.OK)
+
+    # async def post(self):
+    #     """ POST method handler """
+    #     return self.text_response("Method is not allowed\n", HTTPStatus.METHOD_NOT_ALLOWED)
