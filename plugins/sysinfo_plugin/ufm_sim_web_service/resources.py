@@ -17,8 +17,6 @@ import os
 from datetime import datetime, timedelta
 import logging
 import requests
-from flask_restful import Resource
-from flask import request
 from http import HTTPStatus
 
 import asyncio
@@ -29,9 +27,12 @@ from validators import url
 import requests
 
 from configuration import Configuration
-from base_aiohttp_api import BaseAiohttpHandler, ScheduledAiohttpHandler
+from base_aiohttp_api import BaseAiohttpHandler
 
-class UFMResource(Resource):
+class SysInfoAiohttpHandler(BaseAiohttpHandler):
+    """
+    Base plugin aiohttp handler class
+    """
     # config_file_name = "../build/config/sysinfo.conf"
     # periodic_request_file = "../build/config/periodic_request.json"
     config_file_name = "/config/sysinfo.conf"
@@ -44,11 +45,12 @@ class UFMResource(Resource):
         super().__init__(request)
 
         self.scheduler = request.app["scheduler"]
+        self.response_file = ""
         self.reports_dir = "reports"
         self.queries_list_file = "/log/queries"
         self.sysinfo_config_dir = "/config/sysinfo"
-        self.success = 200
-   
+        # self.success = 200
+
         self.validation_enabled = True
         self.datetime_format = "%Y-%m-%d %H:%M:%S"
         self.expected_keys = set()
@@ -66,7 +68,7 @@ class UFMResource(Resource):
         self.configs['reports_to_save'] = Configuration.reports_to_save
         self.configs['ufm_port'] = Configuration.ufm_port
         self.configs['max_jobs'] = Configuration.max_jobs
-   
+
     def get_sysinfo_config_path(self, file_name: str) -> str:
         """ Return full configuration file path based on file name """
         return os.path.join(self.sysinfo_config_dir, file_name)
@@ -75,8 +77,16 @@ class UFMResource(Resource):
         """ Return full report file path based on file name """
         return os.path.join(self.reports_dir, file_name)
 
-    def check_request_keys(self, json_data:dict) -> web.Response:
-        """ Check request keys. """
+    # def get(self) -> tuple((json,int)):
+    #     return self.read_json_file(self.response_file), self.success
+
+    # def post(self) -> tuple((dict,int)):
+    #     return self.report_success()
+
+    # def report_success(self) -> tuple((dict,int)):
+    #     return {}, self.success
+
+    def check_request_keys(self, json_data:dict) -> tuple((str,int)):
         try:
             keys_dict = json_data.keys()
         except ValueError:
@@ -104,9 +114,8 @@ class UFMResource(Resource):
 
 
 class Delete(SysInfoAiohttpHandler):
-    """ Delete class handler """
-    def __init__(self, request) -> None:
-        super().__init__(request)
+    def __init__(self) -> None:
+        super().__init__()
         self.queries_to_delete = []
 
     def delete_sysinfo(self, file_name:str) -> web.Response:
@@ -190,13 +199,10 @@ class Delete(SysInfoAiohttpHandler):
         else:
             return self.report_error("Upload request is empty or invalid")
 
-
 class QueryRequest(SysInfoAiohttpHandler):
-    """ QueryRequest class handler """
-    UFM_SWITCHES_URL="http://127.0.0.1:8000/resources/systems?type=switch"
-
-    def __init__(self, request) -> None:
-        super().__init__(request)
+    def __init__(self, scheduler) -> None:
+        super().__init__()
+        self.scheduler = scheduler
         self.report_number = 0
         self.timestamp = ""
 
@@ -403,6 +409,10 @@ class QueryRequest(SysInfoAiohttpHandler):
         except Exception as e:
             return self.report_error(f"Failed to save results: {e}")
 
+class Cancel(SysInfoAiohttpHandler):
+    def __init__(self, scheduler) -> None:
+        super().__init__()
+        self.scheduler = scheduler
 
 class Cancel(SysInfoAiohttpHandler):
     """ Cancel class handler """
@@ -410,9 +420,8 @@ class Cancel(SysInfoAiohttpHandler):
         """ POST method handler """
         self.logger.info("POST /plugin/sysinfo/cancel")
         try:
-            if os.path.exists(self.periodic_request_file):
-                os.remove(self.periodic_request_file)
-
+            if os.path.exists(SysInfoAiohttpHandler.periodic_request_file):
+                os.remove(SysInfoAiohttpHandler.periodic_request_file)
             if len(self.scheduler.get_jobs()):
                 self.scheduler.remove_all_jobs()
                 return self.report_success()
@@ -423,11 +432,18 @@ class Cancel(SysInfoAiohttpHandler):
 
 
 class QueryId(SysInfoAiohttpHandler):
-    """ QueryId class handler """
-    async def get(self):
-        """ GET method handler """
-        query_id = self.request.match_info["query_id"]
-        self.logger.info("GET /plugin/sysinfo/queries/{query_id}")
+    def __init__(self):
+        super().__init__()
+        # unhandled exception in case reports file was deleted manually
+        with open(self.queries_list_file, "r", encoding="utf-8") as file:
+            self.data = json.load(file)
+
+    def post(self, query_id) -> tuple((str,int)):
+        return self.report_error(405, "Method is not allowed")
+
+    def get(self, query_id) -> tuple((str,int)):
+        logging.info("GET /plugin/sysinfo/reports")
+        # unhandled exception in case reports file was changed manually
         try:
             query_id = int(query_id)
         except ValueError:
@@ -449,34 +465,39 @@ class QueryId(SysInfoAiohttpHandler):
 
 
 class Version(SysInfoAiohttpHandler):
-    """ Version class handler """
-    async def get(self):
-        """ GET method handler """
-        self.logger.info("GET /plugin/sysinfo/version")
-        return self.json_file_response(self.version_file)
+    def __init__(self):
+        logging.info("GET /plugin/sysinfo/version")
+        super().__init__()
+        self.response_file = self.version_file
+
+    def post(self) -> tuple((str,int)):
+        return self.report_error(405, "Method is not allowed")
 
 
 class Help(SysInfoAiohttpHandler):
-    """ Help class handler """
-    async def get(self):
-        """ GET method handler """
-        self.logger.info("GET /plugin/sysinfo/help")
-        return self.json_file_response(self.help_file)
+    def __init__(self):
+        logging.info("GET /plugin/sysinfo/version")
+        super().__init__()
+        self.response_file = self.help_file
+
+    def post(self) -> tuple((str,int)):
+        return self.report_error(405, "Method is not allowed")
 
 
 class Config(SysInfoAiohttpHandler):
-    """ Config class handler """
-    async def get(self):
-        """ GET method handler """
-        self.logger.info("GET /plugin/sysinfo/config")
-        return self.json_response(self.configs, HTTPStatus.OK)
+    def __init__(self):
+        logging.info("GET /plugin/sysinfo/config")
+        super().__init__()
+        self.optional_keys = self.configs.keys()
 
-    async def post(self):
-        """ POST method handler """
-        self.logger.info("POST /plugin/sysinfo/config")
-        if self.request.content_type == 'application/json':
-            json_data = await self.request.json()
-            with open(self.periodic_request_file, "w", encoding="utf-8") as file:
+    def get(self) -> tuple((str,int)):
+        logging.info("GET /plugin/sysinfo/config")
+        return self.configs, self.success
+
+    def post(self) -> tuple((str,int)):
+        if request.json:
+            json_data = request.get_json(force=True)
+            with open(SysInfoAiohttpHandler.periodic_request_file, "w") as file:
                 json.dump(json_data, file)
 
             self.optional_keys = self.configs.keys()
@@ -493,15 +514,15 @@ class Config(SysInfoAiohttpHandler):
             return self.report_error("Request format is incorrect")
 
 
-class Queries(BaseAiohttpHandler):
+class Queries(SysInfoAiohttpHandler):
     """ Queries class handler """
     async def get(self):
         """ GET method handler """
         logging.info("GET /plugin/sysinfo/queries")
-        self.json_file_response(self.queries_list_file)
+        return self.json_file_response(self.queries_list_file)
 
 
-class Dummy(BaseAiohttpHandler):
+class Dummy(SysInfoAiohttpHandler):
     """ Dummy class handler """
     async def post(self):
         """ POST method handler """
@@ -513,9 +534,9 @@ class Dummy(BaseAiohttpHandler):
         return self.json_response(None, HTTPStatus.OK)
 
 
-class Date(BaseAiohttpHandler):
+class Date(SysInfoAiohttpHandler):
     """ Date class handler """
     async def get(self):
         """ GET method handler """
         self.logger.info("GET /plugin/sysinfo/date")
-        self.json_response({"date": self.get_timestamp()}, HTTPStatus.OK)
+        return self.json_response({"date": self.get_timestamp()}, HTTPStatus.OK)

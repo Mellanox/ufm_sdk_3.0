@@ -132,15 +132,3 @@ class BaseAiohttpHandler(web.View):
         except Exception as e: # pylint: disable=broad-exception-caught
             self.logger.error(f"Failed to read json object from file {file_name}: {str(e)}")
             return self.json_response(None, HTTPStatus.INTERNAL_SERVER_ERROR)
-
-
-class ScheduledAiohttpHandler(BaseAiohttpHandler):
-    """
-    Base aiohttp handler class with scheduller
-    """
-    def __init__(self, request):
-        """
-        Initialize a new instance of the ScheduledAiohttpHandler class.
-        """
-        super().__init__(request)
-        self.scheduler = request.app["scheduler"]
