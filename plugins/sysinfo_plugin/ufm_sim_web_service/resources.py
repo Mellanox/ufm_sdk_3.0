@@ -20,6 +20,8 @@ import logging
 import requests
 from flask_restful import Resource
 from flask import request
+from http import HTTPStatus
+from base_aiohttp_api import BaseAiohttpHandler, ScheduledAiohttpHandler
 
 import asyncio
 import platform,subprocess
@@ -515,21 +517,24 @@ class Queries(UFMResource):
     def post(self) -> tuple((str,int)):
         return self.report_error(405, "Method is not allowed")
 
-class Dummy(UFMResource):
-    def __init__(self) -> None:
-        super().__init__()
-
-    def post(self) -> tuple((str,int)):
+class Dummy(BaseAiohttpHandler):
+    """ Dummy class handler """
+    async def post(self):
+        """ POST method handler """
         print(datetime.now())
-        if request.json:
-            print(request.json)
-        else: print(request)
+        if self.request.json:
+            print(self.request.json)
+        else:
+            print(self.request)
+        return self.data_response(None, HTTPStatus.OK)
 
-class Date(UFMResource):
-    def get(self):
-        logging.info("GET /plugin/sysinfo/date")
-        return {"date": self.get_timestamp()}, self.success
+class Date(BaseAiohttpHandler):
+    """ Date class handler """
+    async def get(self):
+        """ GET method handler """
+        self.logger.info("GET /plugin/sysinfo/date")
+        self.data_response({"date": self.get_timestamp()}, HTTPStatus.OK)
 
-    def post(self):
-        return self.report_error(405, "Method is not allowed")
-
+    # async def post(self):
+    #     """ POST method handler """
+    #     return self.text_response("Method is not allowed\n", HTTPStatus.METHOD_NOT_ALLOWED)

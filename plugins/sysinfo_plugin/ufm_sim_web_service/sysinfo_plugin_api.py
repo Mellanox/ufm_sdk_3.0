@@ -18,6 +18,7 @@ from tzlocal import get_localzone
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.executors.pool import ProcessPoolExecutor
 from base_aiohttp_api import BaseAiohttpAPI, BaseAiohttpHandler, ScheduledAiohttpHandler
+from resources import Date, Dummy
 
 class SysInfoPluginAPI(BaseAiohttpAPI):
     """
@@ -36,6 +37,8 @@ class SysInfoPluginAPI(BaseAiohttpAPI):
 
         # Add handlers
         self.add_handler("/test", TestHandler)
+        self.add_handler("/dummy", Dummy)
+        self.add_handler("/date", Date)
 
     async def cleanup(self, app): # pylint: disable=unused-argument
         """
@@ -46,5 +49,8 @@ class SysInfoPluginAPI(BaseAiohttpAPI):
 
 class TestHandler(ScheduledAiohttpHandler):
     async def get(self):
-        # Use self.config here
-        return self.web_response("Test handler response\n", HTTPStatus.OK)
+        return self.text_response("Test handler get response\n", HTTPStatus.OK)
+
+    async def post(self):
+        # Use self.request here
+        return self.text_response("Test handler post response\n", HTTPStatus.OK)

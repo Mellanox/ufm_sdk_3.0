@@ -27,6 +27,7 @@ class Configuration:
     log_file_backup_count = 5
     reports_to_save = 10
     amount_of_workers = 10
+    max_jobs=10
     executors = None
 
     @staticmethod
@@ -44,6 +45,7 @@ class Configuration:
             Configuration.log_file_max_size = common_section.getint("log_file_max_size", fallback=Configuration.log_file_max_size)
             Configuration.log_file_backup_count = common_section.getint("log_file_backup_count", fallback=Configuration.log_file_backup_count)
             Configuration.reports_to_save = common_section.getint("reports_to_save", fallback=Configuration.reports_to_save)
+            Configuration.max_jobs = common_section.getint("max_jobs", fallback=Configuration.max_jobs)
             Configuration.amount_of_workers = common_section.getint("max_workers", fallback=Configuration.amount_of_workers)
             Configuration.executors = {
                 'default': {'type': 'threadpool', 'max_workers': Configuration.amount_of_workers},
