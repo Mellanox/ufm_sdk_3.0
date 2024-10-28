@@ -21,7 +21,7 @@ from logging.handlers import RotatingFileHandler
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.executors.pool import ProcessPoolExecutor
 
-from resources import UFMResource, QueryRequest, Queries, QueryId,\
+from resources import QueryRequest, Queries, QueryId,\
     Delete, Cancel, Version, Help, Dummy
 
 
