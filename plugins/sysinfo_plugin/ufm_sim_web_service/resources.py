@@ -20,7 +20,6 @@ import requests
 from flask_restful import Resource
 from flask import request
 from http import HTTPStatus
-from base_aiohttp_api import BaseAiohttpHandler, ScheduledAiohttpHandler
 
 import asyncio
 import platform
@@ -29,16 +28,12 @@ from aiohttp import web
 from validators import url
 import requests
 
-from Request_handler.request_handler import RequestHandler
 from configuration import Configuration
-from base_aiohttp_api import BaseAiohttpHandler
+from base_aiohttp_api import BaseAiohttpHandler, ScheduledAiohttpHandler
 
-# pylint: disable=broad-exception-caught
-
-class SysInfoAiohttpHandler(BaseAiohttpHandler):
-    """
-    Base plugin aiohttp handler class
-    """
+class UFMResource(Resource):
+    # config_file_name = "../build/config/sysinfo.conf"
+    # periodic_request_file = "../build/config/periodic_request.json"
     config_file_name = "/config/sysinfo.conf"
     periodic_request_file = "/config/periodic_request.json"
 
@@ -52,7 +47,8 @@ class SysInfoAiohttpHandler(BaseAiohttpHandler):
         self.reports_dir = "reports"
         self.queries_list_file = "/log/queries"
         self.sysinfo_config_dir = "/config/sysinfo"
-
+        self.success = 200
+   
         self.validation_enabled = True
         self.datetime_format = "%Y-%m-%d %H:%M:%S"
         self.expected_keys = set()
@@ -70,7 +66,7 @@ class SysInfoAiohttpHandler(BaseAiohttpHandler):
         self.configs['reports_to_save'] = Configuration.reports_to_save
         self.configs['ufm_port'] = Configuration.ufm_port
         self.configs['max_jobs'] = Configuration.max_jobs
-
+   
     def get_sysinfo_config_path(self, file_name: str) -> str:
         """ Return full configuration file path based on file name """
         return os.path.join(self.sysinfo_config_dir, file_name)
@@ -497,12 +493,13 @@ class Config(SysInfoAiohttpHandler):
             return self.report_error("Request format is incorrect")
 
 
-class Queries(SysInfoAiohttpHandler):
+class Queries(BaseAiohttpHandler):
     """ Queries class handler """
     async def get(self):
         """ GET method handler """
-        self.logger.info("GET /plugin/sysinfo/queries")
-        return self.json_file_response(self.queries_list_file)
+        logging.info("GET /plugin/sysinfo/queries")
+        self.json_file_response(self.queries_list_file)
+
 
 class Dummy(BaseAiohttpHandler):
     """ Dummy class handler """
@@ -513,15 +510,12 @@ class Dummy(BaseAiohttpHandler):
             print(self.request.json)
         else:
             print(self.request)
-        return self.data_response(None, HTTPStatus.OK)
+        return self.json_response(None, HTTPStatus.OK)
+
 
 class Date(BaseAiohttpHandler):
     """ Date class handler """
     async def get(self):
         """ GET method handler """
         self.logger.info("GET /plugin/sysinfo/date")
-        self.data_response({"date": self.get_timestamp()}, HTTPStatus.OK)
-
-    # async def post(self):
-    #     """ POST method handler """
-    #     return self.text_response("Method is not allowed\n", HTTPStatus.METHOD_NOT_ALLOWED)
+        self.json_response({"date": self.get_timestamp()}, HTTPStatus.OK)

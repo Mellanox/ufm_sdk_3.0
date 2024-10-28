@@ -11,6 +11,8 @@
 #
 
 import asyncio
+from http import HTTPStatus
+import json
 import signal
 from aiohttp import web
 
@@ -107,19 +109,29 @@ class BaseAiohttpHandler(web.View):
         super().__init__(request)
         self.logger = request.app["logger"]
 
-    @staticmethod
-    def text_response(text, status):
+    def text_response(self, text, status):
         """
-        Create response object.
+        Create text response object.
         """
         return web.json_response(text=text, status=status)
 
-    @staticmethod
-    def data_response(data, status):
+    def json_response(self, data, status):
         """
-        Create response object.
+        Create json response object.
         """
         return web.json_response(data=data, status=status)
+
+    def json_file_response(self, file_name):
+        """
+        Create json response object from file.
+        """
+        try:
+            with open(file_name, "r", encoding="utf-8") as file:
+                data = json.load(file)
+                return self.json_response(data, HTTPStatus.OK)
+        except Exception as e: # pylint: disable=broad-exception-caught
+            self.logger.error(f"Failed to read json object from file {file_name}: {str(e)}")
+            return self.json_response(None, HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
 class ScheduledAiohttpHandler(BaseAiohttpHandler):
