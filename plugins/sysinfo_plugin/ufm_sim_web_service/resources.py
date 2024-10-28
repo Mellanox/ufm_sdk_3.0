@@ -12,16 +12,16 @@
 # date:   February 1, 2023
 #
 
-import configparser
 import json
 import os
 from datetime import datetime, timedelta
 import logging
-import requests
 from http import HTTPStatus
+from typing import Tuple
+import requests
 
 import asyncio
-import platform,subprocess
+import platform, subprocess
 from Request_handler.request_handler import RequestHandler
 from validators import url
 
@@ -83,20 +83,21 @@ class SysInfoAiohttpHandler(BaseAiohttpHandler):
     # def report_success(self) -> tuple((dict,int)):
     #     return {}, self.success
 
-    def check_request_keys(self, json_data:dict) -> tuple((str,int)):
+    def check_request_keys(self, json_data:dict) -> Tuple[str, int]:
+        """ Check request keys. """
         try:
             keys_dict = json_data.keys()
         except ValueError:
-            return "Request format is incorrect", 400
+            return "Request format is incorrect", HTTPStatus.BAD_REQUEST
         extra_keys = keys_dict - self.expected_keys
         if extra_keys:
             extra_keys = extra_keys - self.optional_keys
             if extra_keys:
-                return f"Incorrect format, extra keys in request: {extra_keys}", 400
+                return f"Incorrect format, extra keys in request: {extra_keys}", HTTPStatus.BAD_REQUEST
         missing_keys = self.expected_keys - keys_dict
         if missing_keys:
-            return f"Incorrect format, missing keys in request: {missing_keys}", 400
-        return self.report_success()
+            return f"Incorrect format, missing keys in request: {missing_keys}", HTTPStatus.BAD_REQUEST
+        return None, HTTPStatus.OK
 
     @staticmethod
     def read_json_file(file_name:str) -> json:
@@ -486,28 +487,30 @@ class Help(SysInfoAiohttpHandler):
 
 
 class Config(SysInfoAiohttpHandler):
-    def __init__(self):
+    """ Config class handler """
+    async def get(self):
+        """ GET method handler """
         logging.info("GET /plugin/sysinfo/config")
-        super().__init__()
+        return self.json_response(self.configs, HTTPStatus.OK)
+
+    async def post(self):
+        """ POST method handler """
+        logging.info("POST /plugin/sysinfo/config")
+        if not self.request.json:
+            return self.text_response("Request format is incorrect", HTTPStatus.BAD_REQUEST)
+
+        json_data = self.request.get_json(force=True)
+        with open(self.periodic_request_file, "w", encoding="utf-8") as file:
+            json.dump(json_data, file)
         self.optional_keys = self.configs.keys()
+        error_text, status_code = self.check_request_keys(json_data)
+        if status_code != self.success:
+            return self.text_response(error_text, status_code)
 
-    def get(self) -> tuple((str,int)):
-        logging.info("GET /plugin/sysinfo/config")
-        return self.configs, self.success
-
-    def post(self) -> tuple((str,int)):
-        if request.json:
-            json_data = request.get_json(force=True)
-            with open(SysInfoAiohttpHandler.periodic_request_file, "w") as file:
-                json.dump(json_data, file)
-            response, status_code = self.check_request_keys(json_data)
-            if status_code != self.success:
-                return response, status_code
-            
-            for key in json_data:
-                if key in self.configs.keys():
-                    self.configs[key] = json_data[key]
-            return self.report_success()
+        for key in json_data:
+            if key in self.configs:
+                self.configs[key] = json_data[key]
+        return self.text_response(None, HTTPStatus.OK)
 
 
 class Queries(SysInfoAiohttpHandler):
@@ -527,7 +530,7 @@ class Dummy(SysInfoAiohttpHandler):
             print(self.request.json)
         else:
             print(self.request)
-        return self.json_response(None, HTTPStatus.OK)
+        return self.text_response(None, HTTPStatus.OK)
 
 
 class Date(SysInfoAiohttpHandler):

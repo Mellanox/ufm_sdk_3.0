@@ -10,14 +10,10 @@
 # provided with the software product.
 #
 
-import json
-import time
-from http import HTTPStatus
-from json import JSONDecodeError
 from tzlocal import get_localzone
 from apscheduler.schedulers.background import BackgroundScheduler
 from base_aiohttp_api import BaseAiohttpAPI
-from resources import Queries, Date, Dummy
+from resources import Config, Queries, Date, Dummy
 
 class SysInfoPluginAPI(BaseAiohttpAPI):
     """
@@ -35,6 +31,7 @@ class SysInfoPluginAPI(BaseAiohttpAPI):
         self.scheduler.start()
 
         # Add handlers
+        self.add_handler("/config", Config)
         self.add_handler("/queries", Queries)
         self.add_handler("/dummy", Dummy)
         self.add_handler("/date", Date)
