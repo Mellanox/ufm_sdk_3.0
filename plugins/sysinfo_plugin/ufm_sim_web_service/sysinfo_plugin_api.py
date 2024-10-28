@@ -27,7 +27,12 @@ class SysInfoPluginAPI(BaseAiohttpAPI):
         super().__init__(logger)
 
         # Init scheduler
-        self.scheduler = self.app["scheduler"] = BackgroundScheduler(timezone=get_localzone())
+        try:
+            timezone = get_localzone()
+        except: # pylint: disable=bare-except
+            self.logger.warning("Using UTC due to missing or incorrect timezone")
+            timezone = "Etc/UTC"
+        self.scheduler = self.app["scheduler"] = BackgroundScheduler(timezone=timezone)
         self.scheduler.start()
 
         # Add handlers
