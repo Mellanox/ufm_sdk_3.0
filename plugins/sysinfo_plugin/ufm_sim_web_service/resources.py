@@ -21,12 +21,14 @@ import requests
 from flask_restful import Resource
 from flask import request
 from http import HTTPStatus
-from base_aiohttp_api import BaseAiohttpHandler, ScheduledAiohttpHandler
 
 import asyncio
 import platform,subprocess
 from Request_handler.request_handler import RequestHandler
 from validators import url
+
+from configuration import Configuration
+from base_aiohttp_api import BaseAiohttpHandler, ScheduledAiohttpHandler
 
 class UFMResource(Resource):
     # config_file_name = "../build/config/sysinfo.conf"
@@ -40,7 +42,6 @@ class UFMResource(Resource):
         self.queries_list_file = "/log/queries"
         self.sysinfo_config_dir = "/config/sysinfo"
         self.success = 200
-        self.configs = {}
    
         self.validation_enabled = True
         self.datetime_format = "%Y-%m-%d %H:%M:%S"
@@ -54,18 +55,11 @@ class UFMResource(Resource):
         self.help_file = "/opt/ufm/ufm_plugin_sysinfo/ufm_sim_web_service/help.json"
 
         self.create_reports_file(self.queries_list_file)
-        self.parse_config()
 
-    def parse_config(self) -> None:
-        self.configs['reports_to_save'] = 10
-        self.configs['ufm_port'] = 8000
-        self.configs['max_jobs'] = 10
-        file_config = configparser.ConfigParser()
-        if os.path.exists(self.config_file_name):
-            file_config.read(self.config_file_name)
-            self.configs['reports_to_save'] = file_config.getint("Common", "reports_to_save", fallback=10)
-            self.configs['ufm_port'] = file_config.getint("Common", "ufm_port", fallback=8000)
-    
+        self.configs = {}
+        self.configs['reports_to_save'] = Configuration.reports_to_save
+        self.configs['ufm_port'] = Configuration.ufm_port
+        self.configs['max_jobs'] = Configuration.max_jobs
    
     def get_sysinfo_config_path(self, file_name: str) -> str:
         return os.path.join(self.sysinfo_config_dir, file_name)
@@ -508,14 +502,14 @@ class Config(UFMResource):
                     self.configs[key] = json_data[key]
             return self.report_success()
 
-class Queries(UFMResource):
-    def __init__(self) -> None:
-        logging.info("GET /plugin/sysinfo/queries")
-        super().__init__()
-        self.response_file = self.queries_list_file
 
-    def post(self) -> tuple((str,int)):
-        return self.report_error(405, "Method is not allowed")
+class Queries(BaseAiohttpHandler):
+    """ Queries class handler """
+    async def get(self):
+        """ GET method handler """
+        logging.info("GET /plugin/sysinfo/queries")
+        self.json_file_response(self.queries_list_file)
+
 
 class Dummy(BaseAiohttpHandler):
     """ Dummy class handler """
@@ -526,15 +520,12 @@ class Dummy(BaseAiohttpHandler):
             print(self.request.json)
         else:
             print(self.request)
-        return self.data_response(None, HTTPStatus.OK)
+        return self.json_response(None, HTTPStatus.OK)
+
 
 class Date(BaseAiohttpHandler):
     """ Date class handler """
     async def get(self):
         """ GET method handler """
         self.logger.info("GET /plugin/sysinfo/date")
-        self.data_response({"date": self.get_timestamp()}, HTTPStatus.OK)
-
-    # async def post(self):
-    #     """ POST method handler """
-    #     return self.text_response("Method is not allowed\n", HTTPStatus.METHOD_NOT_ALLOWED)
+        self.json_response({"date": self.get_timestamp()}, HTTPStatus.OK)
