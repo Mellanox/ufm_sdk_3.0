@@ -55,7 +55,6 @@ class SysInfoAiohttpHandler(BaseAiohttpHandler):
         self.datetime_format = "%Y-%m-%d %H:%M:%S"
         self.expected_keys = set()
         self.optional_keys = set()
-        self.queries_list = []
 
         resources_dir = "/opt/ufm/ufm_plugin_sysinfo/ufm_sim_web_service"
         if not os.path.exists(resources_dir):
@@ -103,12 +102,24 @@ class SysInfoAiohttpHandler(BaseAiohttpHandler):
             return f"Incorrect format, missing keys in request: {missing_keys}", HTTPStatus.BAD_REQUEST
         return None, HTTPStatus.OK
 
-    def create_reports_file(self, file_name:str) -> None:
-        """ Create reports file if it does not exist """
+    # @staticmethod
+    # def read_json_file(file_name:str) -> json:
+    #     with open(file_name, "r", encoding="utf-8") as file:
+    #         # unhandled exception in case some of the files was changed manually
+    #         data = json.load(file)
+    #     return data
+
+    @staticmethod
+    def create_reports_file(file_name:str) -> None:
         if not os.path.exists(file_name):
             self.logger.info("Creating %s", file_name)
             with open(file_name, "w", encoding="utf-8") as file:
                 json.dump([], file)
+
+    # @staticmethod
+    # def report_error(status_code:int, message:str) -> tuple((dict,int)):
+    #     logging.error(message)
+    #     return {"error": message}, status_code
 
     def get_timestamp(self) -> str:
         """ Return timestamp string based in predefined format """
@@ -120,18 +131,19 @@ class Delete(SysInfoAiohttpHandler):
         super().__init__()
         self.queries_to_delete = []
 
-    def delete_sysinfo(self, file_name:str) -> web.Response:
-        """ Remove report file """
-        self.logger.debug(f"Deleting file: {file_name}")
+    def get(self) -> tuple((str,int)):
+        return self.report_error(405, "Method is not allowed")
+
+    def delete_sysinfo(self, file_name:str) -> tuple((str,int)):
+        self.logger.debug("Deleting file: {}".format(file_name))
         try:
             os.remove(self.get_report_path(file_name))
             return self.report_success()
         except FileNotFoundError:
             return self.report_error(f"Cannot remove {file_name}: file not found")
 
-    def parse_request(self, json_data:json, file_name:str, validate_keys:bool=True) -> Tuple[str, web.Response]:
-        """ Parse JSON request """
-        self.logger.debug(f"Parsing JSON request: {json_data}")
+    def parse_request(self, json_data:json, file_name:str, validate_keys:bool=True) -> tuple((str,int)):
+        self.logger.debug("Parsing JSON request: {}".format(json_data))
         if validate_keys:
             response = self.check_request_keys(json_data)
             if response.status != HTTPStatus.OK:
@@ -176,18 +188,17 @@ class Delete(SysInfoAiohttpHandler):
         except Exception as e:
             return self.report_error(f"{e}")
 
-    async def post(self):
-        """ POST method handler """
-        delete_id = self.request.match_info["report_id"]
-        self.logger.info("POST /plugin/sysinfo/delete/{delete_id}")
-        if self.request.content_type == 'application/json':
-            json_data = await self.request.json()
-            error_status_code = HTTPStatus.OK
-            error_response = []
-            response = self.update_queries_list_delete(json_data, delete_id)
-            if response.status != HTTPStatus.OK:
-                error_status_code = response.status
-                error_response.extend(response.text)
+    def post(self, delete_id:int) -> tuple((dict,int)):
+        self.logger.info("POST /plugin/sysinfo/delete")
+        if not request.json:
+            return self.report_error(400, "Upload request is empty")
+        else:
+            error_status_code, error_response = self.success, []
+            json_data = request.get_json(force=True)
+            response, status_code = self.update_queries_list_delete(json_data, delete_id)
+            if status_code != self.success:
+                error_status_code = status_code
+                error_response.extend(response)
             for sysinfo_file in self.queries_to_delete:
                 response = self.delete_sysinfo(sysinfo_file)
                 if response.status != HTTPStatus.OK:
@@ -231,8 +242,12 @@ class QueryRequest(SysInfoAiohttpHandler):
         self.expected_keys_first_level = {'callback','commands'}
         self.expected_keys_second_level = {"startTime", "endTime", "interval"}
 
-    def post_commands(self, scope:str="Periodic") -> dict:
-        """ Run topology comparison """
+        self.UFM_SWITCHES_URL="http://127.0.0.1:8000/resources/systems?type=switch"
+
+    def get(self) -> tuple((dict,int)):
+        return self.report_error(405, "Method is not allowed")
+
+    def post_commands(self, scope:str="Periodic") -> tuple((dict,int)):
         self.logger.info("Run topology comparison")
         if scope == 'Periodic':
             self.parse_config()
@@ -385,17 +400,21 @@ class QueryRequest(SysInfoAiohttpHandler):
             print("Couldnt reach ufm:" + respond.reason)
         return {}
 
-    async def post(self):
-        """ POST method handler """
+    def post(self) -> tuple((dict,int)):
         self.logger.info("POST /plugin/sysinfo/query")
-        if self.request.content_type == 'application/json':
-            json_data = await self.request.json()
-            # if len(self.scheduler.get_jobs()) > self.configs["max_jobs"]:
-            #     return self.report_error("Too much queries running")
-            response = self.parse_request(json_data)
-            if response.status == HTTPStatus.OK:
-                response = self.add_scheduler_jobs()
-            return response
+        if request.json:
+            json_data = request.get_json(force=True)
+            #if len(self.scheduler.get_jobs()) > self.configs["max_jobs"]:
+            #    return self.report_error(400, "Too much queries running")
+            response, status_code = self.parse_request(json_data)
+            if status_code != self.success:
+                return response, status_code
+            
+            response, status_code = self.add_scheduler_jobs()
+            if response != self.success:
+                return response,status_code
+
+            return self.report_success()
         else:
             return self.report_error("Not receive a json post")
 
@@ -434,22 +453,15 @@ class Cancel(SysInfoAiohttpHandler):
 
 
 class QueryId(SysInfoAiohttpHandler):
-    def __init__(self):
-        super().__init__()
-        # unhandled exception in case reports file was deleted manually
-        with open(self.queries_list_file, "r", encoding="utf-8") as file:
-            self.data = json.load(file)
-
-    def post(self, query_id) -> tuple((str,int)):
-        return self.report_error(405, "Method is not allowed")
-
-    def get(self, query_id) -> tuple((str,int)):
-        logging.info("GET /plugin/sysinfo/reports")
-        # unhandled exception in case reports file was changed manually
+    """ QueryId class handler """
+    async def get(self):
+        """ GET method handler """
+        query_id = self.request.match_info["query_id"]
+        self.logger.info("GET /plugin/sysinfo/queries/{query_id}")
         try:
             query_id = int(query_id)
         except ValueError:
-            return self.report_error(f"Report id {query_id} is not valid")
+            return self.text_response(f"Report id '{query_id}' is not valid", HTTPStatus.BAD_REQUEST)
 
         try:
             with open(self.queries_list_file, "r", encoding="utf-8") as file:
@@ -461,16 +473,16 @@ class QueryId(SysInfoAiohttpHandler):
                     self.logger.debug(f"Report found: {report_file}")
                     return self.json_file_response(report_file)
                 else:
-                    return self.report_error(f"Report {query_id} not found")
-        except Exception as e:
-            return self.report_error(f"{e}")
+                    return self.text_response(f"Report {query_id} not found", HTTPStatus.BAD_REQUEST)
+        except Exception as e: # pylint: disable=broad-exception-caught
+            return self.text_response(f"{str(e)}", HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
 class Version(SysInfoAiohttpHandler):
     """ Version class handler """
     async def get(self):
         """ GET method handler """
-        logging.info("GET /plugin/sysinfo/version")
+        self.logger.info("GET /plugin/sysinfo/version")
         return self.json_file_response(self.version_file)
 
 
@@ -478,7 +490,7 @@ class Help(SysInfoAiohttpHandler):
     """ Help class handler """
     async def get(self):
         """ GET method handler """
-        logging.info("GET /plugin/sysinfo/help")
+        self.logger.info("GET /plugin/sysinfo/help")
         return self.json_file_response(self.help_file)
 
 
@@ -486,12 +498,12 @@ class Config(SysInfoAiohttpHandler):
     """ Config class handler """
     async def get(self):
         """ GET method handler """
-        logging.info("GET /plugin/sysinfo/config")
+        self.logger.info("GET /plugin/sysinfo/config")
         return self.json_response(self.configs, HTTPStatus.OK)
 
     async def post(self):
         """ POST method handler """
-        logging.info("POST /plugin/sysinfo/config")
+        self.logger.info("POST /plugin/sysinfo/config")
         if not self.request.json:
             return self.text_response("Request format is incorrect", HTTPStatus.BAD_REQUEST)
 
@@ -513,7 +525,7 @@ class Queries(SysInfoAiohttpHandler):
     """ Queries class handler """
     async def get(self):
         """ GET method handler """
-        logging.info("GET /plugin/sysinfo/queries")
+        self.logger.info("GET /plugin/sysinfo/queries")
         return self.json_file_response(self.queries_list_file)
 
 
