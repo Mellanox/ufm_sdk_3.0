@@ -444,7 +444,7 @@ class Cancel(SysInfoAiohttpHandler):
             else:
                 return self.text_response("Periodic comparison is not running", HTTPStatus.BAD_REQUEST)
         except Exception as e:
-            return self.text_response(f"Failed to cancel periodic comparison: {str(e)}", HTTPStatus.BAD_REQUEST)
+            return self.text_response(f"Failed to cancel periodic comparison: {e}", HTTPStatus.BAD_REQUEST)
 
 
 class QueryId(SysInfoAiohttpHandler):
@@ -470,7 +470,7 @@ class QueryId(SysInfoAiohttpHandler):
                 else:
                     return self.text_response(f"Report {query_id} not found", HTTPStatus.BAD_REQUEST)
         except Exception as e:
-            return self.text_response(f"{str(e)}", HTTPStatus.INTERNAL_SERVER_ERROR)
+            return self.text_response(f"{e}", HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
 class Version(SysInfoAiohttpHandler):
