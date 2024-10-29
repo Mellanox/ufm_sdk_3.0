@@ -19,6 +19,7 @@ import logging
 from http import HTTPStatus
 from typing import Tuple
 import requests
+from aiohttp import web
 
 import asyncio
 import platform, subprocess
@@ -29,6 +30,7 @@ from configuration import Configuration
 from base_aiohttp_api import BaseAiohttpHandler
 
 # pylint: disable=broad-exception-caught
+
 class SysInfoAiohttpHandler(BaseAiohttpHandler):
     """
     Base plugin aiohttp handler class
@@ -43,7 +45,6 @@ class SysInfoAiohttpHandler(BaseAiohttpHandler):
         super().__init__(request)
 
         self.scheduler = request.app["scheduler"]
-        self.response_file = ""
         self.reports_dir = "reports"
         self.queries_list_file = "/log/queries"
         self.sysinfo_config_dir = "/config/sysinfo"
@@ -68,48 +69,37 @@ class SysInfoAiohttpHandler(BaseAiohttpHandler):
         self.configs['max_jobs'] = Configuration.max_jobs
 
     def get_sysinfo_config_path(self, file_name: str) -> str:
+        """ Return full configuration file path based on file name """
         return os.path.join(self.sysinfo_config_dir, file_name)
 
     def get_report_path(self, file_name: str) -> str:
+        """ Return full report file path based on file name """
         return os.path.join(self.reports_dir, file_name)
-
-    # def get(self) -> tuple((json,int)):
-    #     return self.read_json_file(self.response_file), self.success
-
-    # def post(self) -> tuple((dict,int)):
-    #     return self.report_success()
 
     # def report_success(self) -> tuple((dict,int)):
     #     return {}, self.success
 
-    def check_request_keys(self, json_data:dict) -> Tuple[str, int]:
+    def check_request_keys(self, json_data:dict) -> web.Response:
         """ Check request keys. """
         try:
             keys_dict = json_data.keys()
         except ValueError:
-            return "Request format is incorrect", HTTPStatus.BAD_REQUEST
+            return self.text_response("Request format is incorrect", HTTPStatus.BAD_REQUEST)
         extra_keys = keys_dict - self.expected_keys
         if extra_keys:
             extra_keys = extra_keys - self.optional_keys
             if extra_keys:
-                return f"Incorrect format, extra keys in request: {extra_keys}", HTTPStatus.BAD_REQUEST
+                return self.text_response(f"Incorrect format, extra keys in request: {extra_keys}", HTTPStatus.BAD_REQUEST)
         missing_keys = self.expected_keys - keys_dict
         if missing_keys:
-            return f"Incorrect format, missing keys in request: {missing_keys}", HTTPStatus.BAD_REQUEST
-        return None, HTTPStatus.OK
+            return self.text_response(f"Incorrect format, missing keys in request: {missing_keys}", HTTPStatus.BAD_REQUEST)
+        return self.text_response(None, HTTPStatus.OK)
 
-    # @staticmethod
-    # def read_json_file(file_name:str) -> json:
-    #     with open(file_name, "r", encoding="utf-8") as file:
-    #         # unhandled exception in case some of the files was changed manually
-    #         data = json.load(file)
-    #     return data
-
-    @staticmethod
-    def create_reports_file(file_name:str) -> None:
+    def create_reports_file(self, file_name:str) -> None:
+        """ Create reports file if it does not exist """
         if not os.path.exists(file_name):
-            logging.info("Creating {}".format(file_name))
-            with open(file_name, "w") as file:
+            self.logger.info("Creating %s", file_name)
+            with open(file_name, "w", encoding="utf-8") as file:
                 json.dump([], file)
 
     # @staticmethod
@@ -118,6 +108,7 @@ class SysInfoAiohttpHandler(BaseAiohttpHandler):
     #     return {"error": message}, status_code
 
     def get_timestamp(self) -> str:
+        """ Return timestamp string based in predefined format """
         return str(datetime.now().strftime(self.datetime_format))
 
 
@@ -137,9 +128,9 @@ class Delete(SysInfoAiohttpHandler):
     def parse_request(self, json_data:json, file_name:str, validate_keys:bool=True) -> tuple((str,int)):
         self.logger.debug("Parsing JSON request: {}".format(json_data))
         if validate_keys:
-            response, status_code = self.check_request_keys(json_data)
-            if status_code != self.success:
-                return "", (response, status_code)
+            response = self.check_request_keys(json_data)
+            if response.status != HTTPStatus.OK:
+                return response
         file = json_data[file_name]
         if not file:
             return "", ("File name is empty", 400)
@@ -166,7 +157,7 @@ class Delete(SysInfoAiohttpHandler):
                         break
                 else:
                     error_response.append(f"Cannot remove {sysinfo_to_delete}: file not found")
-        with open(self.queries_list_file, "w") as file:
+        with open(self.queries_list_file, "w", encoding="utf-8") as file:
             json.dump(data, file)
         
         return error_response,400 if error_response else self.report_success()
@@ -195,12 +186,14 @@ class Delete(SysInfoAiohttpHandler):
             return self.text_response("Upload request is empty", HTTPStatus.BAD_REQUEST)
 
 class QueryRequest(SysInfoAiohttpHandler):
-    def __init__(self, scheduler) -> None:
-        super().__init__()
-        self.scheduler = scheduler
+    """ QueryRequest class handler """
+    UFM_SWITCHES_URL="http://127.0.0.1:8000/resources/systems?type=switch"
+
+    def __init__(self, request) -> None:
+        super().__init__(request)
         self.report_number = 0
         self.timestamp = ""
-        
+
         self.interval = 0
         self.datetime_start = None
         self.datetime_end = None
@@ -224,9 +217,8 @@ class QueryRequest(SysInfoAiohttpHandler):
         self.expected_keys_first_level = {'callback','commands'}
         self.expected_keys_second_level = {"startTime", "endTime", "interval"}
 
-        self.UFM_SWITCHES_URL="http://127.0.0.1:8000/resources/systems?type=switch"
-
-    def post_commands(self, scope:str="Periodic") -> tuple((dict,int)):
+    def post_commands(self, scope:str="Periodic") -> dict:
+        """ Run topology comparison """
         self.logger.info("Run topology comparison")
         if scope == 'Periodic':
             self.parse_config()
@@ -238,8 +230,9 @@ class QueryRequest(SysInfoAiohttpHandler):
             respond.update(self.auto_respond)
             return respond
         
-        except Exception as exep:
-            return self.report_error(400, exep)
+        except Exception as e:
+            self.logger.error(f"Failed to run topology comparison: {e}")
+            return None
 
     @staticmethod
     def _ping(host:str) -> bool:
@@ -264,37 +257,36 @@ class QueryRequest(SysInfoAiohttpHandler):
         """
         self.ip_to_guid=self._get_switches_from_ufm()
         if len(self.switches) == 0 and len(self.ip_to_guid)>0: 
-            #empty list of switches with non empty list of ips from ufm
+            # empty list of switches with non empty list of ips from ufm
             self.switches=list(self.ip_to_guid.keys())
-
 
         for switch in self.switches:
             if not self._ping(switch):
                 self.switches.remove(switch)
                 self.auto_respond[switch] = "Switch does not respond to ping"
-            if len(self.ip_to_guid)>0 and switch not in self.ip_to_guid.keys():
+            if len(self.ip_to_guid) > 0 and switch not in self.ip_to_guid:
                 self.switches.remove(switch)
                 self.auto_respond[switch] = "Switch does not located on the running ufm"
         
 
-    def parse_interval(self,json_data:dict) -> tuple((dict,int)):
+    def parse_interval(self,json_data:dict) -> web.Response:
         """
         parse the interval part and check the requested interval for it.
         """
         params = json_data["periodic_run"]
         self.expected_keys = self.expected_keys_second_level
-        response, status_code = self.check_request_keys(params)
-        if status_code != self.success:
-            return self.report_error(status_code, response)
+        response = self.check_request_keys(params)
+        if response.status != HTTPStatus.OK:
+            return response
         start_time = params["startTime"]
         end_time = params["endTime"]
         self.interval = params["interval"]
         try:
             self.interval = int(self.interval)
             if self.interval < 5:
-                return self.report_error(400, "Minimal interval value is 5 seconds")
+                return self.text_response("Minimal interval value is 5 seconds", HTTPStatus.BAD_REQUEST)
         except ValueError:
-            return self.report_error(400, f"Interval '{self.interval}' is not valid")
+            return self.text_response(f"Interval '{self.interval}' is not valid", HTTPStatus.BAD_REQUEST)
         timestamp = datetime.strptime(self.get_timestamp(), self.datetime_format)
         self.datetime_start = datetime.strptime(start_time, self.datetime_format)
         while timestamp > self.datetime_start:
@@ -303,10 +295,10 @@ class QueryRequest(SysInfoAiohttpHandler):
         if self.datetime_end < timestamp:
             self.logger.info(f"End time is: {self.datetime_end.strftime(self.datetime_format)},\
             current time is: {timestamp.strftime(self.datetime_format)}")
-            return self.report_error(400, "End time is less than current time")
-        return self.report_success()
+            return self.text_response("End time is less than current time", HTTPStatus.BAD_REQUEST)
+        return self.text_response(None, HTTPStatus.OK)
             
-    def parse_request(self, json_data) -> tuple((int,str)):
+    def parse_request(self, json_data) -> web.Response:
         """
         parse the request that we got as json_data
         report success if successful to parse all, error and what part elsewise
@@ -314,72 +306,69 @@ class QueryRequest(SysInfoAiohttpHandler):
         self.logger.debug(f"Parsing JSON request: {json_data}")
         try:
             self.expected_keys = self.expected_keys_first_level
-            response, status_code = self.check_request_keys(json_data)
-            if status_code != self.success:
-                return self.report_error(status_code, response)
+            response = self.check_request_keys(json_data)
+            if response.status != HTTPStatus.OK:
+                return response
 
             self.__dict__.update((k,v) for k,v in json_data.items() \
              if (k in self.expected_keys or k in self.optional_keys))
 
-            is_url=url(self.callback)
+            is_url = url(self.callback)
             if not is_url:
-                return self.report_error(400,f"the callback url is not right:{is_url}")
+                return self.text_response(f"the callback url is not right:{is_url}", HTTPStatus.BAD_REQUEST)
 
             if self.username and self.password:
                 self.ac = (self.username, self.password)
             self.check_switches()
 
             if "periodic_run" in json_data:
-                response, status_code = self.parse_interval(json_data)
-                if status_code != self.success:
-                    return self.report_error(status_code, response)
-            return self.report_success()
-        except TypeError:
-            return self.report_error(400, "Incorrect format, failed to parse timestamp")
-        except ValueError as valueerror:
-            return self.report_error(400, f"Incorrect timestamp format: {valueerror}")
+                return self.parse_interval(json_data)
 
-    def add_scheduler_jobs(self) -> tuple((dict,int)):
-        
+            return self.text_response(None, HTTPStatus.OK)
+        except TypeError:
+            return self.text_response("Incorrect format, failed to parse timestamp", HTTPStatus.BAD_REQUEST)
+        except ValueError as valueerror:
+            return self.text_response(f"Incorrect timestamp format: {valueerror}", HTTPStatus.BAD_REQUEST)
+
+    def add_scheduler_jobs(self) -> web.Response:
+        """ Add scheduler jobs """
         try:
-            request_handler_switches = RequestHandler(self.switches,self.commands,self.ac,ip_to_guid=self.ip_to_guid,
-                                        all_at_once=(self.callback if self.one_by_one else None),is_async=self.is_async,
+            request_handler_switches = RequestHandler(self.switches, self.commands,self.ac, ip_to_guid=self.ip_to_guid,
+                                        all_at_once=(self.callback if self.one_by_one else None), is_async=self.is_async,
                                         auto_respond=self.auto_respond)
             if self.interval != 0:
-                self.scheduler.add_job(func=request_handler_switches.login_to_all,\
-                         run_date=self.datetime_start)
+                self.scheduler.add_job(func=request_handler_switches.login_to_all,
+                                       run_date=self.datetime_start)
                 while self.datetime_start <= self.datetime_end:
-                    self.scheduler.add_job(func=request_handler_switches.execute_commands_and_save,\
-                         run_date=self.datetime_start,args=[self.callback])
+                    self.scheduler.add_job(func=request_handler_switches.execute_commands_and_save,
+                                           run_date=self.datetime_start,args=[self.callback])
                     self.datetime_start += timedelta(seconds=self.interval)
-                self.scheduler.add_job(func=request_handler_switches.logout_to_all,\
-                         run_date=self.datetime_start)
-                return self.report_success()
+                self.scheduler.add_job(func=request_handler_switches.logout_to_all,
+                                       run_date=self.datetime_start)
+                return self.text_response(None, HTTPStatus.OK)
             else:
                 asyncio.run(request_handler_switches.post_commands())
-                error,status = self.save_results(request_handler_switches.latest_respond)
-                if status == self.success:
-                    return self.report_success()
-                return self.report_error(status,error)
+                return self.save_results(request_handler_switches.latest_respond)
         except Exception as exep:
             return self.report_error(400, f"Periodic comparison failed to start: {exep}")
 
     def _get_switches_from_ufm(self) -> dict:
-        if self.ignore_ufm:return {}
-        respond = requests.get(self.UFM_SWITCHES_URL,headers={"X-Remote-User": "ufmsystem"},verify=False)
-        if respond.status_code==200:
+        if self.ignore_ufm:
+            return {}
+        respond = requests.get(self.UFM_SWITCHES_URL,headers={"X-Remote-User": "ufmsystem"}, verify=False)
+        if respond.status_code == HTTPStatus.OK:
             try:
                 as_json = respond.json()
-                ip_to_guid={}
+                ip_to_guid = {}
                 for switch in as_json:
-                    if switch['ip']!='0.0.0.0':
-                        ip_to_guid[switch['ip']]=switch['guid']
+                    if switch['ip'] != '0.0.0.0':
+                        ip_to_guid[switch['ip']] = switch['guid']
                 return ip_to_guid
 
-            except (json.JSONDecodeError,ValueError,KeyError):
+            except (json.JSONDecodeError, ValueError, KeyError):
                 return {}
         else:
-            print("Couldnt reach ufm:"+respond.reason)
+            print("Couldnt reach ufm:" + respond.reason)
         return {}
 
     async def post(self):
@@ -387,30 +376,26 @@ class QueryRequest(SysInfoAiohttpHandler):
         self.logger.info("POST /plugin/sysinfo/query")
         if self.request.content_type == 'application/json':
             json_data = await self.request.json()
-            #if len(self.scheduler.get_jobs()) > self.configs["max_jobs"]:
-            #    return self.report_error(400, "Too much queries running")
-            response, status_code = self.parse_request(json_data)
-            if status_code != self.success:
-                return response, status_code
-            
-            response, status_code = self.add_scheduler_jobs()
-            if response != self.success:
-                return response,status_code
-
-            return self.text_response(None, HTTPStatus.OK)
+            # if len(self.scheduler.get_jobs()) > self.configs["max_jobs"]:
+            #     return self.report_error(400, "Too much queries running")
+            response = self.parse_request(json_data)
+            if response.status == HTTPStatus.OK:
+                response = self.add_scheduler_jobs()
+            return response
         else:
             return self.text_response("Not receive a json post", HTTPStatus.BAD_REQUEST)
 
-    def save_results(self,results) -> tuple((dict,int)):
+    def save_results(self, results) -> web.Response:
+        """ Save results """
         if self.one_by_one:
             return self.report_success()
         try:
-            respond = requests.post(self.callback,json=results,verify=False)
-            if 200 <= respond.status_code <= 203:
-                return self.report_success()
-            return self.report_error(respond.status_code,respond.text)
-        except Exception as exception:
-            return self.report_error(400, exception)
+            response = requests.post(self.callback, json=results, verify=False)
+            if HTTPStatus.OK <= response.status_code <= HTTPStatus.NON_AUTHORITATIVE_INFORMATION:
+                return self.text_response(None, HTTPStatus.OK)
+            return self.text_response(response.text, response.status_code)
+        except Exception as e:
+            return self.text_response(f"Failed to save results: {e}", HTTPStatus.BAD_REQUEST)
 
 class Cancel(SysInfoAiohttpHandler):
     """ Cancel class handler """
@@ -488,9 +473,9 @@ class Config(SysInfoAiohttpHandler):
                 json.dump(json_data, file)
 
             self.optional_keys = self.configs.keys()
-            error_text, status_code = self.check_request_keys(json_data)
-            if status_code != self.success:
-                return self.text_response(error_text, status_code)
+            response = self.check_request_keys(json_data)
+            if response.status != HTTPStatus.OK:
+                return response
 
             for key in json_data:
                 if key in self.configs:
