@@ -126,9 +126,6 @@ class Delete(SysInfoAiohttpHandler):
         super().__init__()
         self.queries_to_delete = []
 
-    def get(self) -> tuple((str,int)):
-        return self.report_error(405, "Method is not allowed")
-
     def delete_sysinfo(self, file_name:str) -> tuple((str,int)):
         self.logger.debug("Deleting file: {}".format(file_name))
         try:
@@ -174,13 +171,12 @@ class Delete(SysInfoAiohttpHandler):
         
         return error_response,400 if error_response else self.report_success()
 
-    def post(self, delete_id:int) -> tuple((dict,int)):
+    async def post(self):
+        """ POST method handler """
         self.logger.info("POST /plugin/sysinfo/delete")
-        if not request.json:
-            return self.report_error(400, "Upload request is empty")
-        else:
+        if self.request.content_type == 'application/json':
             error_status_code, error_response = self.success, []
-            json_data = request.get_json(force=True)
+            json_data = await self.request.json()
             response, status_code = self.update_queries_list_delete(json_data, delete_id)
             if status_code != self.success:
                 error_status_code = status_code
@@ -192,9 +188,11 @@ class Delete(SysInfoAiohttpHandler):
                     error_response.append(response)
 
             if error_status_code == self.success:
-                return self.report_success()
+                return self.text_response(None, HTTPStatus.OK)
             else:
                 return self.report_error(error_status_code, error_response)
+        else:
+            return self.text_response("Upload request is empty", HTTPStatus.BAD_REQUEST)
 
 class QueryRequest(SysInfoAiohttpHandler):
     def __init__(self, scheduler) -> None:
@@ -227,9 +225,6 @@ class QueryRequest(SysInfoAiohttpHandler):
         self.expected_keys_second_level = {"startTime", "endTime", "interval"}
 
         self.UFM_SWITCHES_URL="http://127.0.0.1:8000/resources/systems?type=switch"
-
-    def get(self) -> tuple((dict,int)):
-        return self.report_error(405, "Method is not allowed")
 
     def post_commands(self, scope:str="Periodic") -> tuple((dict,int)):
         self.logger.info("Run topology comparison")
@@ -387,10 +382,11 @@ class QueryRequest(SysInfoAiohttpHandler):
             print("Couldnt reach ufm:"+respond.reason)
         return {}
 
-    def post(self) -> tuple((dict,int)):
+    async def post(self):
+        """ POST method handler """
         self.logger.info("POST /plugin/sysinfo/query")
-        if request.json:
-            json_data = request.get_json(force=True)
+        if self.request.content_type == 'application/json':
+            json_data = await self.request.json()
             #if len(self.scheduler.get_jobs()) > self.configs["max_jobs"]:
             #    return self.report_error(400, "Too much queries running")
             response, status_code = self.parse_request(json_data)
@@ -401,9 +397,9 @@ class QueryRequest(SysInfoAiohttpHandler):
             if response != self.success:
                 return response,status_code
 
-            return self.report_success()
+            return self.text_response(None, HTTPStatus.OK)
         else:
-            return self.report_error(400, "Not receive a json post")
+            return self.text_response("Not receive a json post", HTTPStatus.BAD_REQUEST)
 
     def save_results(self,results) -> tuple((dict,int)):
         if self.one_by_one:
@@ -486,21 +482,23 @@ class Config(SysInfoAiohttpHandler):
     async def post(self):
         """ POST method handler """
         self.logger.info("POST /plugin/sysinfo/config")
-        if not self.request.json:
+        if self.request.content_type == 'application/json':
+            json_data = await self.request.json()
+            with open(self.periodic_request_file, "w", encoding="utf-8") as file:
+                json.dump(json_data, file)
+
+            self.optional_keys = self.configs.keys()
+            error_text, status_code = self.check_request_keys(json_data)
+            if status_code != self.success:
+                return self.text_response(error_text, status_code)
+
+            for key in json_data:
+                if key in self.configs:
+                    self.configs[key] = json_data[key]
+
+            return self.text_response(None, HTTPStatus.OK)
+        else:
             return self.text_response("Request format is incorrect", HTTPStatus.BAD_REQUEST)
-
-        json_data = self.request.get_json(force=True)
-        with open(self.periodic_request_file, "w", encoding="utf-8") as file:
-            json.dump(json_data, file)
-        self.optional_keys = self.configs.keys()
-        error_text, status_code = self.check_request_keys(json_data)
-        if status_code != self.success:
-            return self.text_response(error_text, status_code)
-
-        for key in json_data:
-            if key in self.configs:
-                self.configs[key] = json_data[key]
-        return self.text_response(None, HTTPStatus.OK)
 
 
 class Queries(SysInfoAiohttpHandler):
