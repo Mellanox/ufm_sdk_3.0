@@ -76,7 +76,7 @@ def main():
         server.run(api.app, host, port)
 
     except Exception as e: # pylint: disable=broad-exception-caught
-        logger.error(f"{str(e)}")
+        logger.error(f"{e}")
 
 
 if __name__ == "__main__":

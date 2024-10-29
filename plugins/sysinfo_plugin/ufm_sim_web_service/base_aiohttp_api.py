@@ -130,6 +130,6 @@ class BaseAiohttpHandler(web.View):
                 data = json.load(file)
                 return self.json_response(data, HTTPStatus.OK)
         except Exception as e: # pylint: disable=broad-exception-caught
-            error_text = f"Failed to read json object from file {file_name}: {str(e)}"
+            error_text = f"Failed to read json object from file {file_name}: {e}"
             self.logger.error(error_text)
             return self.text_response(error_text, HTTPStatus.INTERNAL_SERVER_ERROR)
