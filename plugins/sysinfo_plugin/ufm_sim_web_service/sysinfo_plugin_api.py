@@ -13,7 +13,7 @@
 from tzlocal import get_localzone
 from apscheduler.schedulers.background import BackgroundScheduler
 from base_aiohttp_api import BaseAiohttpAPI
-from resources import QueryId, Version, Help, Config, Queries, Date, Dummy
+from resources import Cancel, QueryId, Version, Help, Config, Queries, Date, Dummy
 
 class SysInfoPluginAPI(BaseAiohttpAPI):
     """
@@ -36,6 +36,7 @@ class SysInfoPluginAPI(BaseAiohttpAPI):
         self.scheduler.start()
 
         # Add handlers
+        self.add_handler("/cancel", Cancel)
         self.add_handler("/queries/{query_id}", QueryId)
         self.add_handler("/version", Version)
         self.add_handler("/help", Help)

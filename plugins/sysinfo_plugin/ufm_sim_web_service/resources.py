@@ -28,12 +28,11 @@ from validators import url
 from configuration import Configuration
 from base_aiohttp_api import BaseAiohttpHandler
 
+# pylint: disable=broad-exception-caught
 class SysInfoAiohttpHandler(BaseAiohttpHandler):
     """
     Base plugin aiohttp handler class
     """
-    # config_file_name = "../build/config/sysinfo.conf"
-    # periodic_request_file = "../build/config/periodic_request.json"
     config_file_name = "/config/sysinfo.conf"
     periodic_request_file = "/config/periodic_request.json"
 
@@ -418,24 +417,21 @@ class QueryRequest(SysInfoAiohttpHandler):
             return self.report_error(400, exception)
 
 class Cancel(SysInfoAiohttpHandler):
-    def __init__(self, scheduler) -> None:
-        super().__init__()
-        self.scheduler = scheduler
-
-    def post(self) -> tuple((str,int)):
+    """ Cancel class handler """
+    async def post(self):
+        """ POST method handler """
+        self.logger.info("POST /plugin/sysinfo/cancel")
         try:
-            if os.path.exists(SysInfoAiohttpHandler.periodic_request_file):
-                os.remove(SysInfoAiohttpHandler.periodic_request_file)
+            if os.path.exists(self.periodic_request_file):
+                os.remove(self.periodic_request_file)
+
             if len(self.scheduler.get_jobs()):
                 self.scheduler.remove_all_jobs()
-                return self.report_success()
+                return self.text_response(None, HTTPStatus.OK)
             else:
-                return self.report_error(400, "Periodic comparison is not running")
-        except Exception as exep:
-            return self.report_error(400, "Failed to cancel periodic comparison: {}".format(exep))
-
-    def get(self) -> tuple((str,int)):
-        return self.report_error(405, "Method is not allowed")
+                return self.text_response("Periodic comparison is not running", HTTPStatus.BAD_REQUEST)
+        except Exception as e:
+            return self.text_response(f"Failed to cancel periodic comparison: {str(e)}", HTTPStatus.BAD_REQUEST)
 
 
 class QueryId(SysInfoAiohttpHandler):
@@ -460,7 +456,7 @@ class QueryId(SysInfoAiohttpHandler):
                     return self.json_file_response(report_file)
                 else:
                     return self.text_response(f"Report {query_id} not found", HTTPStatus.BAD_REQUEST)
-        except Exception as e: # pylint: disable=broad-exception-caught
+        except Exception as e:
             return self.text_response(f"{str(e)}", HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
