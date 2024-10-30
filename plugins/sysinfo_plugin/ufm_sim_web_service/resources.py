@@ -331,8 +331,8 @@ class QueryRequest(SysInfoAiohttpHandler):
             return self.report_success()
         except TypeError:
             return self.report_error("Incorrect format, failed to parse timestamp")
-        except ValueError as valueerror:
-            return self.report_error(f"Incorrect timestamp format: {valueerror}")
+        except ValueError as value_error:
+            return self.report_error(f"Incorrect timestamp format: {value_error}")
 
     def add_scheduler_jobs(self) -> web.Response:
         """ Add scheduler jobs """
