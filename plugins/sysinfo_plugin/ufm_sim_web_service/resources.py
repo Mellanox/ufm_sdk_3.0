@@ -49,7 +49,6 @@ class SysInfoAiohttpHandler(BaseAiohttpHandler):
         self.reports_dir = "reports"
         self.queries_list_file = "/log/queries"
         self.sysinfo_config_dir = "/config/sysinfo"
-        # self.success = 200
 
         self.validation_enabled = True
         self.datetime_format = "%Y-%m-%d %H:%M:%S"
@@ -114,28 +113,31 @@ class SysInfoAiohttpHandler(BaseAiohttpHandler):
 
 
 class Delete(SysInfoAiohttpHandler):
-    def __init__(self) -> None:
-        super().__init__()
+    """ Delete class handler """
+    def __init__(self, request) -> None:
+        super().__init__(request)
         self.queries_to_delete = []
 
-    def delete_sysinfo(self, file_name:str) -> tuple((str,int)):
-        self.logger.debug("Deleting file: {}".format(file_name))
+    def delete_sysinfo(self, file_name:str) -> web.Response:
+        """ Remove report file """
+        self.logger.debug(f"Deleting file: {file_name}")
         try:
             os.remove(self.get_report_path(file_name))
-            return self.report_success()
+            return self.text_response(None, HTTPStatus.OK)
         except FileNotFoundError:
-            return self.report_error(f"Cannot remove {file_name}: file not found")
+            return self.text_response(f"Cannot remove {file_name}: file not found", HTTPStatus.BAD_REQUEST)
 
-    def parse_request(self, json_data:json, file_name:str, validate_keys:bool=True) -> tuple((str,int)):
-        self.logger.debug("Parsing JSON request: {}".format(json_data))
+    def parse_request(self, json_data:json, file_name:str, validate_keys:bool=True) -> Tuple[str, web.Response]:
+        """ Parse JSON request """
+        self.logger.debug(f"Parsing JSON request: {json_data}")
         if validate_keys:
             response = self.check_request_keys(json_data)
             if response.status != HTTPStatus.OK:
-                return response
+                return "", response
         file = json_data[file_name]
         if not file:
-            return "", self.report_error("File name is empty")
-        return file, self.report_success()
+            return "", self.text_response("File name is empty", HTTPStatus.BAD_REQUEST)
+        return file, self.text_response(None, HTTPStatus.OK)
 
     def update_queries_list_delete(self, json_data:json, delete_id:int) -> web.Response:
         """ Delete queries from queries list file """
@@ -149,40 +151,53 @@ class Delete(SysInfoAiohttpHandler):
                     if response.status != HTTPStatus.OK:
                         error_response.append(response.text)
                         continue
-                    if sysinfo_to_delete == sysinfo_file:
-                        data.remove(sysinfo_record)
-                        self.queries_to_delete.append(sysinfo_to_delete)
-                        break
-                else:
-                    error_response.append(f"Cannot remove {sysinfo_to_delete}: file not found")
-        with open(self.queries_list_file, "w", encoding="utf-8") as file:
-            json.dump(data, file)
+                    for sysinfo_record in list(data):
+                        sysinfo_file, response = self.parse_request(sysinfo_record, "file", False)
+                        if response.status != HTTPStatus.OK:
+                            error_response.append(response.text)
+                            continue
+                        if sysinfo_to_delete == sysinfo_file:
+                            data.remove(sysinfo_record)
+                            self.queries_to_delete.append(sysinfo_to_delete)
+                            break
+                    else:
+                        error_response.append(f"Cannot remove {sysinfo_to_delete}: file not found")
+
+            with open(self.queries_list_file, "w", encoding="utf-8") as file:
+                json.dump(data, file)
+
+            if not error_response:
+                return self.json_response(error_response, HTTPStatus.BAD_REQUEST)
+
+            return self.text_response(None, HTTPStatus.OK)
         
         except Exception as e:
-            return self.report_error(f"{e}")
+            return self.text_response(f"{e}", HTTPStatus.INTERNAL_SERVER_ERROR)
 
     async def post(self):
         """ POST method handler """
-        self.logger.info("POST /plugin/sysinfo/delete")
+        delete_id = self.request.match_info["report_id"]
+        self.logger.info("POST /plugin/sysinfo/delete/{delete_id}")
         if self.request.content_type == 'application/json':
-            error_status_code, error_response = self.success, []
             json_data = await self.request.json()
-            response, status_code = self.update_queries_list_delete(json_data, delete_id)
-            if status_code != self.success:
-                error_status_code = status_code
-                error_response.extend(response)
+            error_status_code = HTTPStatus.OK
+            error_response = []
+            response = self.update_queries_list_delete(json_data, delete_id)
+            if response.status != HTTPStatus.OK:
+                error_status_code = response.status
+                error_response.extend(response.text)
             for sysinfo_file in self.queries_to_delete:
                 response = self.delete_sysinfo(sysinfo_file)
                 if response.status != HTTPStatus.OK:
                     error_status_code = response.status
                     error_response.append(response.text)
 
-            if error_status_code == self.success:
+            if error_status_code == HTTPStatus.OK:
                 return self.text_response(None, HTTPStatus.OK)
             else:
-                return self.report_error(error_status_code, error_response)
+                return self.json_response(error_response, error_status_code)
         else:
-            return self.text_response("Upload request is empty", HTTPStatus.BAD_REQUEST)
+            return self.text_response("Upload request is empty or invalid", HTTPStatus.BAD_REQUEST)
 
 class QueryRequest(SysInfoAiohttpHandler):
     """ QueryRequest class handler """
@@ -348,8 +363,8 @@ class QueryRequest(SysInfoAiohttpHandler):
             else:
                 asyncio.run(request_handler_switches.post_commands())
                 return self.save_results(request_handler_switches.latest_respond)
-        except Exception as exep:
-            return self.report_error(400, f"Periodic comparison failed to start: {exep}")
+        except Exception as e:
+            return self.text_response(f"Periodic comparison failed to start: {e}", HTTPStatus.BAD_REQUEST)
 
     def _get_switches_from_ufm(self) -> dict:
         if self.ignore_ufm:
@@ -376,7 +391,7 @@ class QueryRequest(SysInfoAiohttpHandler):
         if self.request.content_type == 'application/json':
             json_data = await self.request.json()
             # if len(self.scheduler.get_jobs()) > self.configs["max_jobs"]:
-            #     return self.report_error(400, "Too much queries running")
+            #     return self.text_response("Too much queries running", HTTPStatus.BAD_REQUEST)
             response = self.parse_request(json_data)
             if response.status == HTTPStatus.OK:
                 response = self.add_scheduler_jobs()
@@ -387,7 +402,7 @@ class QueryRequest(SysInfoAiohttpHandler):
     def save_results(self, results) -> web.Response:
         """ Save results """
         if self.one_by_one:
-            return self.report_success()
+            return self.text_response(None, HTTPStatus.OK)
         try:
             response = requests.post(self.callback, json=results, verify=False)
             if HTTPStatus.OK <= response.status_code <= HTTPStatus.NON_AUTHORITATIVE_INFORMATION:
