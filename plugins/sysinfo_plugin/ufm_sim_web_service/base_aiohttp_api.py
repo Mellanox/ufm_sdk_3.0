@@ -133,5 +133,17 @@ class BaseAiohttpHandler(web.View):
                 return self.json_response(data, HTTPStatus.OK)
         except Exception as e:
             error_text = f"Failed to read json object from file {file_name}: {e}"
-            self.logger.error(error_text)
-            return self.text_response(error_text, HTTPStatus.INTERNAL_SERVER_ERROR)
+            return self.report_error(error_text)
+
+    def report_success(self) -> web.Request:
+        """
+        Create success response
+        """
+        return self.json_response({}, HTTPStatus.OK)
+
+    def report_error(self, message:str, status_code:int=HTTPStatus.BAD_REQUEST) -> web.Request:
+        """
+        Create error response
+        """
+        self.logger.error(message)
+        return self.json_response({"error": message}, status_code)
