@@ -10,35 +10,12 @@
 # provided with the software product.
 #
 
-import asyncio
 import logging
 from logging.handlers import RotatingFileHandler
 import os
 from configuration import Configuration
-from ufm_web_sim import UFMWebSim
 from base_aiohttp_api import BaseAiohttpServer
 from sysinfo_plugin_api import SysInfoPluginAPI
-
-class UFMWebSimProc:
-    """Main class of the UFM web sim daemon
-    """
-
-    def __init__(self):
-        print("Starting Sysinfo web server", flush=True)
-        self.web_server = UFMWebSim()
-
-    def _start_web_server(self):
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.web_server.run())
-
-    def main(self):
-        self._start_web_server()
-
-    async def cleanup(self):
-        await self.web_server.stop()
-
-    def shutdown(self, *_args):
-        raise KeyboardInterrupt
 
 
 def create_logger():
