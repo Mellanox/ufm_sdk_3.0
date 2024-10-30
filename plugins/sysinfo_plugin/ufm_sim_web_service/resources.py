@@ -189,6 +189,7 @@ class Delete(SysInfoAiohttpHandler):
         else:
             return self.report_error("Upload request is empty or invalid")
 
+
 class QueryRequest(SysInfoAiohttpHandler):
     """ QueryRequest class handler """
     UFM_SWITCHES_URL="http://127.0.0.1:8000/resources/systems?type=switch"
@@ -400,6 +401,7 @@ class QueryRequest(SysInfoAiohttpHandler):
             return self.report_error(response.text, response.status_code)
         except Exception as e:
             return self.report_error(f"Failed to save results: {e}")
+
 
 class Cancel(SysInfoAiohttpHandler):
     """ Cancel class handler """
