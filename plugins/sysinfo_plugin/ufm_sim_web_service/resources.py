@@ -75,8 +75,14 @@ class SysInfoAiohttpHandler(BaseAiohttpHandler):
         """ Return full report file path based on file name """
         return os.path.join(self.reports_dir, file_name)
 
-    # def report_success(self) -> tuple((dict,int)):
-    #     return {}, self.success
+    def report_success(self) -> web.Request:
+        """ Create success response """
+        return self.json_response({}, HTTPStatus.OK)
+
+    def report_error(self, message:str, status_code:int=HTTPStatus.BAD_REQUEST) -> web.Request:
+        """ Create error response """
+        logging.error(message)
+        return self.json_response({"error": message}, status_code)
 
     def check_request_keys(self, json_data:dict) -> web.Response:
         """ Check request keys. """
@@ -92,7 +98,7 @@ class SysInfoAiohttpHandler(BaseAiohttpHandler):
         missing_keys = self.expected_keys - keys_dict
         if missing_keys:
             return self.text_response(f"Incorrect format, missing keys in request: {missing_keys}", HTTPStatus.BAD_REQUEST)
-        return self.text_response(None, HTTPStatus.OK)
+        return self.report_success()
 
     def create_reports_file(self, file_name:str) -> None:
         """ Create reports file if it does not exist """
@@ -100,11 +106,6 @@ class SysInfoAiohttpHandler(BaseAiohttpHandler):
             self.logger.info("Creating %s", file_name)
             with open(file_name, "w", encoding="utf-8") as file:
                 json.dump([], file)
-
-    # @staticmethod
-    # def report_error(status_code:int, message:str) -> tuple((dict,int)):
-    #     logging.error(message)
-    #     return {"error": message}, status_code
 
     def get_timestamp(self) -> str:
         """ Return timestamp string based in predefined format """
@@ -122,7 +123,7 @@ class Delete(SysInfoAiohttpHandler):
         self.logger.debug(f"Deleting file: {file_name}")
         try:
             os.remove(self.get_report_path(file_name))
-            return self.text_response(None, HTTPStatus.OK)
+            return self.report_success()
         except FileNotFoundError:
             return self.text_response(f"Cannot remove {file_name}: file not found", HTTPStatus.BAD_REQUEST)
 
@@ -136,7 +137,7 @@ class Delete(SysInfoAiohttpHandler):
         file = json_data[file_name]
         if not file:
             return "", self.text_response("File name is empty", HTTPStatus.BAD_REQUEST)
-        return file, self.text_response(None, HTTPStatus.OK)
+        return file, self.report_success()
 
     def update_queries_list_delete(self, json_data:json, delete_id:int) -> web.Response:
         """ Delete queries from queries list file """
@@ -168,7 +169,7 @@ class Delete(SysInfoAiohttpHandler):
             if not error_response:
                 return self.json_response(error_response, HTTPStatus.BAD_REQUEST)
 
-            return self.text_response(None, HTTPStatus.OK)
+            return self.report_success()
         
         except Exception as e:
             return self.text_response(f"{e}", HTTPStatus.INTERNAL_SERVER_ERROR)
@@ -192,7 +193,7 @@ class Delete(SysInfoAiohttpHandler):
                     error_response.append(response.text)
 
             if error_status_code == HTTPStatus.OK:
-                return self.text_response(None, HTTPStatus.OK)
+                return self.report_success()
             else:
                 return self.json_response(error_response, error_status_code)
         else:
@@ -309,7 +310,7 @@ class QueryRequest(SysInfoAiohttpHandler):
             self.logger.info(f"End time is: {self.datetime_end.strftime(self.datetime_format)},\
             current time is: {timestamp.strftime(self.datetime_format)}")
             return self.text_response("End time is less than current time", HTTPStatus.BAD_REQUEST)
-        return self.text_response(None, HTTPStatus.OK)
+        return self.report_success()
             
     def parse_request(self, json_data) -> web.Response:
         """
@@ -337,7 +338,7 @@ class QueryRequest(SysInfoAiohttpHandler):
             if "periodic_run" in json_data:
                 return self.parse_interval(json_data)
 
-            return self.text_response(None, HTTPStatus.OK)
+            return self.report_success()
         except TypeError:
             return self.text_response("Incorrect format, failed to parse timestamp", HTTPStatus.BAD_REQUEST)
         except ValueError as valueerror:
@@ -358,7 +359,7 @@ class QueryRequest(SysInfoAiohttpHandler):
                     self.datetime_start += timedelta(seconds=self.interval)
                 self.scheduler.add_job(func=request_handler_switches.logout_to_all,
                                        run_date=self.datetime_start)
-                return self.text_response(None, HTTPStatus.OK)
+                return self.report_success()
             else:
                 asyncio.run(request_handler_switches.post_commands())
                 return self.save_results(request_handler_switches.latest_respond)
@@ -401,11 +402,11 @@ class QueryRequest(SysInfoAiohttpHandler):
     def save_results(self, results) -> web.Response:
         """ Save results """
         if self.one_by_one:
-            return self.text_response(None, HTTPStatus.OK)
+            return self.report_success()
         try:
             response = requests.post(self.callback, json=results, verify=False)
             if HTTPStatus.OK <= response.status_code <= HTTPStatus.NON_AUTHORITATIVE_INFORMATION:
-                return self.text_response(None, HTTPStatus.OK)
+                return self.report_success()
             return self.text_response(response.text, response.status_code)
         except Exception as e:
             return self.text_response(f"Failed to save results: {e}", HTTPStatus.BAD_REQUEST)
@@ -421,7 +422,7 @@ class Cancel(SysInfoAiohttpHandler):
 
             if len(self.scheduler.get_jobs()):
                 self.scheduler.remove_all_jobs()
-                return self.text_response(None, HTTPStatus.OK)
+                return self.report_success()
             else:
                 return self.text_response("Periodic comparison is not running", HTTPStatus.BAD_REQUEST)
         except Exception as e:
@@ -494,7 +495,7 @@ class Config(SysInfoAiohttpHandler):
                 if key in self.configs:
                     self.configs[key] = json_data[key]
 
-            return self.text_response(None, HTTPStatus.OK)
+            return self.report_success()
         else:
             return self.text_response("Request format is incorrect", HTTPStatus.BAD_REQUEST)
 
