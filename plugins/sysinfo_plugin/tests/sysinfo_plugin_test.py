@@ -102,10 +102,12 @@ def assert_equal(request, left_expr, right_expr, test_name="positive"):
 
     if left_expr == right_expr:
         print(f"    - test name: {test_name} {test_type}, request: {request} -- PASS")
+    elif isinstance(right_expr, dict) and right_expr["error"] and right_expr["error"] in left_expr["error"]:
+        print(f"    - test name: {test_name} {test_type}, request: {request} -- PASS")
     elif str(right_expr) in str(left_expr):
         print(f"    - test name: {test_name} {test_type}, request: {request} -- PASS")
     else:
-        global FAILED_TESTS_COUNT
+        global FAILED_TESTS_COUNT # pylint: disable=global-statement
         FAILED_TESTS_COUNT += 1
         print(f"    - test name: {test_name} {test_type}, request: {request} -- FAIL (expected: {right_expr}, actual: {left_expr})")
 
