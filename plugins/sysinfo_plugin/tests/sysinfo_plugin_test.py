@@ -23,8 +23,9 @@ IPAddr = socket.gethostbyname(HOSTNAME)
 RECIVER_SERVER_LOCATION = f"http://{IPAddr}:8995/dummy"
 
 DEFAULT_PASSWORD = "123456"
-DEFAULT_PASSWORD = "admin"
+DEFAULT_USERNAME = "admin"
 NOT_ALLOW="not allowed"
+FROM_SOURCES=True
 
 # rest api
 GET = "GET"
@@ -46,7 +47,7 @@ FAILED_TESTS_COUNT = 0
 
 def read_json_file() -> json:
     file_name = LOG_LOCATION
-    with open(file_name, "r") as file:
+    with open(file_name, "r", encoding="utf-8") as file:
         # unhandled exception in case some of the files was changed manually
         try:
             data = json.load(file)
@@ -66,22 +67,21 @@ def remove_timestamp(response):
     else:
         return response
 
-def make_request(request_type, resource, payload=None, user="admin", password=DEFAULT_PASSWORD,
+def make_request(request_type, resource, payload=None, user=DEFAULT_USERNAME, password=DEFAULT_PASSWORD,
                  rest_version="", headers=None):
     if headers is None:
         headers = {}
     if payload is None:
         payload = {}
-    is_ufm_request = False
-    if is_ufm_request:
-        request = "https://{}/ufmRest{}/plugin/sysinfo/{}".format(HOST_IP, rest_version, resource)
+    if not FROM_SOURCES:
+        request = f"https://{HOST_IP}/ufmRest{rest_version}/plugin/sysinfo/{resource}"
         response = None
         if request_type == POST:
             response = requests.post(request, verify=False, headers=headers, auth=(user, password), json=payload)
         elif request_type == GET:
             response = requests.get(request, verify=False, headers=headers, auth=(user, password))
         else:
-            print("Request {} is not supported".format(request_type))
+            print(f"Request {request_type} is not supported")
     else:
         request = "http://127.0.0.1:8999/{}".format(resource)
         response = None
@@ -90,27 +90,24 @@ def make_request(request_type, resource, payload=None, user="admin", password=DE
         elif request_type == GET:
             response = requests.get(request, verify=False, headers=headers)
         else:
-            print("Request {} is not supported".format(request_type))
-    return response, "{} /{}".format(request_type, resource)
+            print(f"Request {request_type} is not supported")
+    return response, f"{request_type} /{resource}"
 
 
 def assert_equal(request, left_expr, right_expr, test_name="positive"):
-    if type(right_expr) is int:
+    if isinstance(right_expr, int):
         test_type = "code"
     else:
         test_type = "response"
 
     if left_expr == right_expr:
-        print("    - test name: {} {}, request: {} -- PASS"
-              .format(test_name, test_type, request))
+        print(f"    - test name: {test_name} {test_type}, request: {request} -- PASS")
     elif str(right_expr) in str(left_expr):
-        print("    - test name: {} {}, request: {} -- PASS"
-              .format(test_name, test_type, request))
+        print(f"    - test name: {test_name} {test_type}, request: {request} -- PASS")
     else:
         global FAILED_TESTS_COUNT
         FAILED_TESTS_COUNT += 1
-        print("    - test name: {} {}, request: {} -- FAIL (expected: {}, actual: {})"
-              .format(test_name, test_type, request, right_expr, left_expr))
+        print(f"    - test name: {test_name} {test_type}, request: {request} -- FAIL (expected: {right_expr}, actual: {left_expr})")
 
 
 def get_response(response):
