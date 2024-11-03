@@ -1,4 +1,5 @@
 import argparse
+from http import HTTPStatus
 import json
 import subprocess
 import sys
@@ -24,7 +25,6 @@ RECIVER_SERVER_LOCATION = f"http://{IPAddr}:8995/dummy"
 DEFAULT_PASSWORD = "123456"
 DEFAULT_PASSWORD = "admin"
 NOT_ALLOW="not allowed"
-METHOD_NOT_ALLOWED={'error': 'Method is not allowed'}
 
 # rest api
 GET = "GET"
@@ -66,21 +66,31 @@ def remove_timestamp(response):
     else:
         return response
 
-
 def make_request(request_type, resource, payload=None, user="admin", password=DEFAULT_PASSWORD,
                  rest_version="", headers=None):
     if headers is None:
         headers = {}
     if payload is None:
         payload = {}
-    request = "https://{}/ufmRest{}/plugin/sysinfo/{}".format(HOST_IP, rest_version, resource)
-    response = None
-    if request_type == POST:
-        response = requests.post(request, verify=False, headers=headers, auth=(user, password), json=payload)
-    elif request_type == GET:
-        response = requests.get(request, verify=False, headers=headers, auth=(user, password))
+    is_ufm_request = False
+    if is_ufm_request:
+        request = "https://{}/ufmRest{}/plugin/sysinfo/{}".format(HOST_IP, rest_version, resource)
+        response = None
+        if request_type == POST:
+            response = requests.post(request, verify=False, headers=headers, auth=(user, password), json=payload)
+        elif request_type == GET:
+            response = requests.get(request, verify=False, headers=headers, auth=(user, password))
+        else:
+            print("Request {} is not supported".format(request_type))
     else:
-        print("Request {} is not supported".format(request_type))
+        request = "http://127.0.0.1:8999/{}".format(resource)
+        response = None
+        if request_type == POST:
+            response = requests.post(request, verify=False, headers=headers, json=payload)
+        elif request_type == GET:
+            response = requests.get(request, verify=False, headers=headers)
+        else:
+            print("Request {} is not supported".format(request_type))
     return response, "{} /{}".format(request_type, resource)
 
 
@@ -89,10 +99,11 @@ def assert_equal(request, left_expr, right_expr, test_name="positive"):
         test_type = "code"
     else:
         test_type = "response"
+
     if left_expr == right_expr:
         print("    - test name: {} {}, request: {} -- PASS"
               .format(test_name, test_type, request))
-    elif right_expr in left_expr:
+    elif str(right_expr) in str(left_expr):
         print("    - test name: {} {}, request: {} -- PASS"
               .format(test_name, test_type, request))
     else:
@@ -104,8 +115,9 @@ def assert_equal(request, left_expr, right_expr, test_name="positive"):
 
 def get_response(response):
     if response is not None:
-        if response.status_code == 200:
-            return response.json()
+        #if response.status_code == HTTPStatus.OK:
+            json_response = response.json()
+            return json_response
     else:
         return None
 
@@ -120,21 +132,19 @@ def help_and_version():
     print("help and version works")
 
     response, request_string = make_request(GET, HELP)
-    assert_equal(request_string, get_code(response), 200)
+    assert_equal(request_string, get_code(response), HTTPStatus.OK)
     assert_equal(request_string, len(get_response(response)), 8)
 
     response, request_string = make_request(GET, VERSION)
-    assert_equal(request_string, get_code(response), 200)
+    assert_equal(request_string, get_code(response), HTTPStatus.OK)
     assert_equal(request_string, len(get_response(response)), 1)
 
     test_name = NOT_ALLOW
     response, request_string = make_request(POST, HELP)
-    assert_equal(request_string, get_code(response), 405, test_name)
-    assert_equal(request_string, get_response(response), METHOD_NOT_ALLOWED, test_name)
+    assert_equal(request_string, get_code(response), HTTPStatus.METHOD_NOT_ALLOWED, test_name)
     
     response, request_string = make_request(POST, QUERIES)
-    assert_equal(request_string, get_code(response), 405, test_name)
-    assert_equal(request_string, get_response(response), METHOD_NOT_ALLOWED, test_name)
+    assert_equal(request_string, get_code(response), HTTPStatus.METHOD_NOT_ALLOWED, test_name)
 
 
 
@@ -145,21 +155,20 @@ def instant_comparison():
 
     test_name = NOT_ALLOW
     response, request_string = make_request(GET, QUERY_REQUEST, payload=request)
-    assert_equal(request_string, get_code(response), 405, test_name)
-    assert_equal(request_string, get_response(response), METHOD_NOT_ALLOWED, test_name)
+    assert_equal(request_string, get_code(response), HTTPStatus.METHOD_NOT_ALLOWED, test_name)
 
     test_name = "incorrect praser information"
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
-    assert_equal(request_string, get_code(response), 400, test_name)
+    assert_equal(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
     assert_equal(request_string, get_response(response),
-                 {'error': "Incorrect format, missing keys in request: {'commands'}."}, test_name)
+                 {'error': "Incorrect format, missing keys in request: {'commands'}"}, test_name)
     
     request['commands']=["show power","show inventory"]
     request['callback']="notURL/dummy"
 
     test_name = "incorrect URL"
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
-    assert_equal(request_string, get_code(response), 400, test_name)
+    assert_equal(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
     assert_equal(request_string, get_response(response), {'error': 'the callback url is not right:'}, test_name)
     
 
@@ -170,7 +179,7 @@ def instant_comparison():
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     time.sleep(5)
     data_from=read_json_file()
-    assert_equal(request_string, get_code(response), 200, test_name)
+    assert_equal(request_string, get_code(response), HTTPStatus.OK, test_name)
     assert_equal(request_string, data_from[0],{"0.0.0.0":"Switch does not respond to ping"}
                  , test_name)
     
@@ -179,7 +188,7 @@ def instant_comparison():
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     time.sleep(5)
     data_from=read_json_file()
-    assert_equal(request_string, get_code(response), 200, test_name)
+    assert_equal(request_string, get_code(response), HTTPStatus.OK, test_name)
     assert_equal(request_string, len(data_from[0]),2 , test_name)
 
 
@@ -199,7 +208,7 @@ def periodic_comparison():
     request['commands']=["show power","show inventory"]
     request["periodic_run"]=""
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
-    assert_equal(request_string, get_code(response), 400, test_name)
+    assert_equal(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
     assert_equal(request_string, get_response(response),
                  {'error': "Incorrect format, extra keys in request: {'asd'}"}, test_name)
 
@@ -212,7 +221,7 @@ def periodic_comparison():
         }
     }
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
-    assert_equal(request_string, get_code(response), 400, test_name)
+    assert_equal(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
     assert_equal(request_string, get_response(response),
                  {'error': "Incorrect timestamp format: time data '{}' does not match format '{}'"
                  .format(request["periodic_run"]["startTime"], DATETIME_FORMAT)},
@@ -228,7 +237,7 @@ def periodic_comparison():
         }
     }
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
-    assert_equal(request_string, get_code(response), 400, test_name)
+    assert_equal(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
     assert_equal(request_string, get_response(response), {'error': 'Minimal interval value is 5 minutes'},
                  test_name)
 
@@ -241,7 +250,7 @@ def periodic_comparison():
         }
     }
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
-    assert_equal(request_string, get_code(response), 400, test_name)
+    assert_equal(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
     assert_equal(request_string, get_response(response), {'error': 'End time is less than current time'},
                  test_name)
 
@@ -254,10 +263,10 @@ def periodic_comparison():
         }
     }
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
-    assert_equal(request_string, get_code(response), 200)
+    assert_equal(request_string, get_code(response), HTTPStatus.OK)
     assert_equal(request_string, get_response(response), {})
 
-    if get_code(response) == 200:
+    if get_code(response) == HTTPStatus.OK:
         time.sleep(5)
         data_from=read_json_file()
         check_data(request_string,data_from,request["commands"])
