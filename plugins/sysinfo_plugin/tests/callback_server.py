@@ -97,9 +97,6 @@ class CallbackServerThread:
         Start server
         """
         try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
             api = BaseAiohttpAPI(self.logger)
             api.add_handler("/{CALLBACK_HANDLER}", Callback)
 
