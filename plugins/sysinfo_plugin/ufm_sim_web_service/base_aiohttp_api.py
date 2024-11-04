@@ -14,6 +14,7 @@ import asyncio
 from http import HTTPStatus
 import json
 import signal
+import threading
 from aiohttp import web
 
 # pylint: disable=broad-exception-caught
@@ -63,10 +64,12 @@ class BaseAiohttpServer:
         """
         Run the server on the specified host and port.
         """
-        # Register signal handlers
         loop = asyncio.get_event_loop()
-        for signame in ["SIGINT", "SIGTERM"]:
-            loop.add_signal_handler(getattr(signal, signame), lambda: asyncio.create_task(self.stop()))
+
+        # Register signal handlers
+        if self.__is_main_thread():
+            for signame in ["SIGINT", "SIGTERM"]:
+                loop.add_signal_handler(getattr(signal, signame), lambda: asyncio.create_task(self.stop()))
 
         # Run server loop
         loop.run_until_complete(self.__run(app, host, port))
@@ -92,12 +95,21 @@ class BaseAiohttpServer:
         self.logger.info(f"Server started at {host}:{port}")
 
         # Wait for shutdown signal
-        await self.shutdown_event.wait()
+        while not self.shutdown_event.is_set():
+            # Sleep to avoid busy-wait
+            await asyncio.sleep(0.1)
         self.logger.info(f"Shutting down server {host}:{port}")
 
         # Uninitialize server
         await site.stop()
         await runner.cleanup()
+
+    @staticmethod
+    def __is_main_thread():
+        """
+        Return True if called in main thread
+        """
+        return threading.current_thread() is threading.main_thread()
 
 
 class BaseAiohttpHandler(web.View):
