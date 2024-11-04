@@ -11,6 +11,7 @@
 #
 
 import asyncio
+import copy
 import json
 import socket
 import threading
@@ -31,9 +32,7 @@ class Callback(BaseAiohttpHandler):
     """
     # Shared lock
     __response_lock = threading.RLock()
-
-    # TODO: avoid usage of file  for recent response (Why do we need it at all?)
-    CALLBACK_RESPONSE_FILE="/tmp/sysinfo_recent_post.log"
+    __response = {}
 
     async def post(self) -> web.Response:
         """ POST method handler """
@@ -42,25 +41,21 @@ class Callback(BaseAiohttpHandler):
             json_data = await self.request.json()
             self.logger.info(json_data)
             # Update callback response file
-            with Callback.__response_lock:
-                with open(Callback.CALLBACK_RESPONSE_FILE, "w", encoding="utf-8") as file:
-                    json.dump(json_data, file)
         else:
+            json_data = {}
             self.logger.info(self.request)
+
+        with Callback.__response_lock:
+            Callback.__response = json_data
+
         return self.report_success()
 
     @staticmethod
     def get_recent_response() -> json:
         """ Read recent callback response from the file """
-        file_name = Callback.CALLBACK_RESPONSE_FILE
         with Callback.__response_lock:
-            with open(file_name, "r", encoding="utf-8") as file:
-                # unhandled exception in case some of the files was changed manually
-                try:
-                    data = json.load(file)
-                except json.JSONDecodeError:
-                    return {}
-        return data
+            json_data = copy.deepcopy(Callback.__response)
+        return json_data
 
 
 class CallbackServerThread:
@@ -97,6 +92,9 @@ class CallbackServerThread:
         Start server
         """
         try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
             api = BaseAiohttpAPI(self.logger)
             api.add_handler("/{CALLBACK_HANDLER}", Callback)
 
