@@ -21,7 +21,7 @@ import requests
 import hashlib
 from datetime import datetime, timedelta
 
-from callback_server import Callback, CallbackServerThread, CALLBACK_URL, CALLBACK_HANDLER
+from callback_server import Callback, CallbackServerThread
 from ufm_web_service import create_logger
 
 def get_hash(file_content):
@@ -147,7 +147,7 @@ def help_and_version():
 def instant_comparison():
     print("Run comparion test")
     request = {}
-    request['callback']=CALLBACK_URL
+    request['callback'] = Callback.URL
 
     test_name = NOT_ALLOW
     response, request_string = make_request(GET, QUERY_REQUEST, payload=request)
@@ -159,8 +159,8 @@ def instant_comparison():
     assert_equal(request_string, get_response(response),
                  {'error': "Incorrect format, missing keys in request: {'commands'}"}, test_name)
     
-    request['commands']=["show power","show inventory"]
-    request['callback']=f"notURL/{CALLBACK_HANDLER}"
+    request['commands'] = ["show power","show inventory"]
+    request['callback'] = f"notURL/{Callback.ROUTE}"
 
     test_name = "incorrect URL"
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
@@ -169,22 +169,22 @@ def instant_comparison():
     
 
     test_name = "unreachable switches"
-    request['callback']=CALLBACK_URL
-    request['switches']=["0.0.0.0"]
+    request['callback'] = Callback.URL
+    request['switches'] = ["0.0.0.0"]
 
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     time.sleep(5)
     data_from = Callback.get_recent_response()
     assert_equal(request_string, get_code(response), HTTPStatus.OK, test_name)
-    assert_equal(request_string, data_from[0],{"0.0.0.0":"Switch does not respond to ping"}, test_name)
+    assert_equal(request_string, data_from[0], {"0.0.0.0": "Switch does not respond to ping"}, test_name)
 
-    request['switches']=["10.209.27.19"]
+    request['switches'] = ["10.209.27.19"]
 
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     time.sleep(5)
     data_from = Callback.get_recent_response()
     assert_equal(request_string, get_code(response), HTTPStatus.OK, test_name)
-    assert_equal(request_string, len(data_from[0]),2 , test_name)
+    assert_equal(request_string, len(data_from[0]), 2, test_name)
 
 
 def get_server_datetime():
@@ -198,10 +198,10 @@ def periodic_comparison():
 
     test_name = "incorrect request"
     request = {}
-    request['callback']=CALLBACK_URL
-    request['switches']=["10.209.27.19"]
-    request['commands']=["show power","show inventory"]
-    request["periodic_run"]=""
+    request['callback'] = Callback.URL
+    request['switches'] = ["10.209.27.19"]
+    request['commands'] = ["show power","show inventory"]
+    request["periodic_run"] = ""
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     assert_equal(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
     assert_equal(request_string, get_response(response),

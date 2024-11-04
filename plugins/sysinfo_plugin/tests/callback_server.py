@@ -19,18 +19,16 @@ from aiohttp import web
 from base_aiohttp_api import BaseAiohttpAPI, BaseAiohttpServer, BaseAiohttpHandler
 
 
-HOSTNAME = socket.gethostname()
-CALLBACK_SERVER_IP = socket.gethostbyname(HOSTNAME)
+CALLBACK_SERVER_IP = socket.gethostbyname(socket.gethostname())
 CALLBACK_SERVER_PORT = 8995
-CALLBACK_HANDLER = "callback"
-CALLBACK_URL = f"http://{CALLBACK_SERVER_IP}:{CALLBACK_SERVER_PORT}/{CALLBACK_HANDLER}"
-
 
 class Callback(BaseAiohttpHandler):
     """
     Callback aiohttp handler class
     """
-    # Shared lock
+    ROUTE = "callback"
+    URL = f"http://{CALLBACK_SERVER_IP}:{CALLBACK_SERVER_PORT}/{ROUTE}"
+
     __response_lock = threading.RLock()
     __response = {}
 
@@ -96,7 +94,7 @@ class CallbackServerThread:
             asyncio.set_event_loop(loop)
 
             api = BaseAiohttpAPI(self.logger)
-            api.add_handler("/{CALLBACK_HANDLER}", Callback)
+            api.add_handler(f"/{Callback.ROUTE}", Callback)
 
             self.server = BaseAiohttpServer(self.logger)
             self.server.run(api.app, CALLBACK_SERVER_IP, CALLBACK_SERVER_PORT)
