@@ -1,26 +1,33 @@
+#
+# Copyright © 2013-2024 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+#
+# This software product is a proprietary product of Nvidia Corporation and its affiliates
+# (the "Company") and all right, title, and interest in and to the software
+# product, including all associated intellectual property rights, are and
+# shall remain exclusively with the Company.
+#
+# This software product is governed by the End User License Agreement
+# provided with the software product.
+#
+
 import argparse
+import asyncio
 from http import HTTPStatus
 import json
-import subprocess
 import sys
 import time
 
 import requests
-import os
 import hashlib
 from datetime import datetime, timedelta
-import socket
 
-from background_server import LOG_LOCATION,start_server,kill_server
+from callback_server import Callback, CallbackServerThread, CALLBACK_URL, CALLBACK_HANDLER
+from ufm_web_service import create_logger
 
 def get_hash(file_content):
     sha1 = hashlib.sha1()
     sha1.update(file_content.encode('utf-8'))
     return sha1.hexdigest()
-
-HOSTNAME = socket.gethostname()
-IPAddr = socket.gethostbyname(HOSTNAME)
-RECIVER_SERVER_LOCATION = f"http://{IPAddr}:8995/dummy"
 
 DEFAULT_PASSWORD = "123456"
 DEFAULT_USERNAME = "admin"
@@ -32,7 +39,7 @@ GET = "GET"
 POST = "POST"
 
 # resources
-HELP = 'help'
+HELP = "help"
 VERSION = "version"
 QUERY_REQUEST = "query"
 DELETE = "delete"
@@ -44,16 +51,6 @@ DATE = "date"
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 FAILED_TESTS_COUNT = 0
-
-def read_json_file() -> json:
-    file_name = LOG_LOCATION
-    with open(file_name, "r", encoding="utf-8") as file:
-        # unhandled exception in case some of the files was changed manually
-        try:
-            data = json.load(file)
-        except json.JSONDecodeError:
-            return {}
-    return data
 
 def remove_timestamp(response):
     if response:
@@ -83,7 +80,7 @@ def make_request(request_type, resource, payload=None, user=DEFAULT_USERNAME, pa
         else:
             print(f"Request {request_type} is not supported")
     else:
-        request = "http://127.0.0.1:8999/{}".format(resource)
+        request = f"http://127.0.0.1:8999/{resource}"
         response = None
         if request_type == POST:
             response = requests.post(request, verify=False, headers=headers, json=payload)
@@ -150,7 +147,7 @@ def help_and_version():
 def instant_comparison():
     print("Run comparion test")
     request = {}
-    request['callback']=RECIVER_SERVER_LOCATION
+    request['callback']=CALLBACK_URL
 
     test_name = NOT_ALLOW
     response, request_string = make_request(GET, QUERY_REQUEST, payload=request)
@@ -163,7 +160,7 @@ def instant_comparison():
                  {'error': "Incorrect format, missing keys in request: {'commands'}"}, test_name)
     
     request['commands']=["show power","show inventory"]
-    request['callback']="notURL/dummy"
+    request['callback']=f"notURL/{CALLBACK_HANDLER}"
 
     test_name = "incorrect URL"
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
@@ -172,21 +169,20 @@ def instant_comparison():
     
 
     test_name = "unreachable switches"
-    request['callback']=RECIVER_SERVER_LOCATION
+    request['callback']=CALLBACK_URL
     request['switches']=["0.0.0.0"]
 
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     time.sleep(5)
-    data_from=read_json_file()
+    data_from = Callback.get_recent_response()
     assert_equal(request_string, get_code(response), HTTPStatus.OK, test_name)
-    assert_equal(request_string, data_from[0],{"0.0.0.0":"Switch does not respond to ping"}
-                 , test_name)
-    
+    assert_equal(request_string, data_from[0],{"0.0.0.0":"Switch does not respond to ping"}, test_name)
+
     request['switches']=["10.209.27.19"]
 
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     time.sleep(5)
-    data_from=read_json_file()
+    data_from = Callback.get_recent_response()
     assert_equal(request_string, get_code(response), HTTPStatus.OK, test_name)
     assert_equal(request_string, len(data_from[0]),2 , test_name)
 
@@ -202,7 +198,7 @@ def periodic_comparison():
 
     test_name = "incorrect request"
     request = {}
-    request['callback']=RECIVER_SERVER_LOCATION
+    request['callback']=CALLBACK_URL
     request['switches']=["10.209.27.19"]
     request['commands']=["show power","show inventory"]
     request["periodic_run"]=""
@@ -267,7 +263,7 @@ def periodic_comparison():
 
     if get_code(response) == HTTPStatus.OK:
         time.sleep(5)
-        data_from=read_json_file()
+        data_from = Callback.get_recent_response()
         check_data(request_string,data_from,request["commands"])
 
 def check_data(requst_string,data,commands):
@@ -278,20 +274,21 @@ def check_data(requst_string,data,commands):
             assert_equal(requst_string, commands,switch , test_name+" commands")
 
 
-def main():
-    import urllib3
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+async def main():
+    """ Main function"""
+    logger = create_logger("/log/sysinfo_test.log")
 
-    server=start_server()
+    callback_thread = CallbackServerThread(logger)
+    callback_thread.start()
 
     help_and_version()
     instant_comparison()
     periodic_comparison()
 
-    kill_server(server)
+    await callback_thread.stop()
 
     if FAILED_TESTS_COUNT > 0:
-        print("\n{} tests failed".format(FAILED_TESTS_COUNT))
+        logger.error(f"\n{FAILED_TESTS_COUNT} tests failed")
         return 1
     else:
         return 0
@@ -303,4 +300,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     HOST_IP = args.host
 
-    sys.exit(main())
+    result = asyncio.run(main())
+    sys.exit(result)

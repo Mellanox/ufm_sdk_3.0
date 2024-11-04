@@ -19,11 +19,10 @@ from base_aiohttp_api import BaseAiohttpServer
 from sysinfo_plugin_api import SysInfoPluginAPI
 
 
-def create_logger():
+def create_logger(log_file):
     """
     Create a logger for plugin actions
     """
-    log_file = Configuration.LOG_FILE_NAME
     if not os.path.exists(log_file):
         os.makedirs('/'.join(log_file.split('/')[:-1]), exist_ok=True)
 
@@ -47,7 +46,7 @@ def main():
         port = 8999
 
         Configuration.load()
-        logger = create_logger()
+        logger = create_logger(Configuration.LOG_FILE_NAME)
         api = SysInfoPluginAPI(logger)
 
         server = BaseAiohttpServer(logger)
