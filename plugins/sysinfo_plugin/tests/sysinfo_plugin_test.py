@@ -91,6 +91,58 @@ def make_request(request_type, resource, payload=None, user=DEFAULT_USERNAME, pa
     return response, f"{request_type} /{resource}"
 
 
+def check_code(request_str, code, expected_code, test_name="positive"):
+    test_type = "code"
+    if code == expected_code:
+        on_check_success(request_str, test_type, test_name)
+    else:
+        on_check_fail(request_str, code, expected_code, test_type, test_name)
+
+
+def check_property(request_str, response, property_name, expected_value, test_name="positive"):
+    test_type = "response"
+    if isinstance(response, dict) and expected_value in response[property_name]:
+        on_check_success(request_str, test_type, test_name)
+    else:
+        on_check_fail(request_str, response, expected_value, test_type, test_name)
+
+
+def check_length(request_str, response, expected_length, test_name="positive"):
+    test_type = "response"
+    if isinstance(response, dict) and len(response) == expected_length:
+        on_check_success(request_str, test_type, test_name)
+    else:
+        on_check_fail(request_str, response, f"dictionary of size {expected_length}", test_type, test_name)
+
+
+def check_commands(request_str, response, switch_index, expected_command_names, test_name="positive"):
+    test_type = "response"
+    if isinstance(response, dict) and switch_index < len(response):
+        commands = list(response.values())[switch_index]
+        command_names = list(commands.keys())
+        if command_names == expected_command_names:
+            on_check_success(request_str, test_type, test_name)
+            return
+    on_check_fail(request_str, response, f"dictionary of size {expected_command_names}", test_type, test_name)
+
+# def check_equal(request_str, left_expr, right_expr, test_name="positive"):
+#     test_type = "response"
+#     if left_expr == right_expr:
+#         on_check_success(request_str, test_type, test_name)
+#     else:
+#         on_check_fail(request_str, left_expr, right_expr, test_type, test_name)
+
+
+def on_check_success(request_str, test_type, test_name):
+    print(f"    - test name: {test_name} {test_type}, request: {request_str} -- PASS")
+
+
+def on_check_fail(request_str, left_expr, right_expr, test_type, test_name):
+    global FAILED_TESTS_COUNT # pylint: disable=global-statement
+    FAILED_TESTS_COUNT += 1
+    print(f"    - test name: {test_name} {test_type}, request: {request_str} -- FAIL (expected: {right_expr}, actual: {left_expr})")
+
+
 def assert_equal(request, left_expr, right_expr, test_name="positive"):
     if isinstance(right_expr, int):
         test_type = "code"
@@ -128,63 +180,73 @@ def help_and_version():
     print("help and version works")
 
     response, request_string = make_request(GET, HELP)
-    assert_equal(request_string, get_code(response), HTTPStatus.OK)
-    assert_equal(request_string, len(get_response(response)), 8)
+    check_code(request_string, get_code(response), HTTPStatus.OK)
+    check_length(request_string, get_response(response), 8)
 
     response, request_string = make_request(GET, VERSION)
-    assert_equal(request_string, get_code(response), HTTPStatus.OK)
-    assert_equal(request_string, len(get_response(response)), 1)
+    check_code(request_string, get_code(response), HTTPStatus.OK)
+    check_length(request_string, get_response(response), 1)
 
     test_name = NOT_ALLOW
     response, request_string = make_request(POST, HELP)
-    assert_equal(request_string, get_code(response), HTTPStatus.METHOD_NOT_ALLOWED, test_name)
+    check_code(request_string, get_code(response), HTTPStatus.METHOD_NOT_ALLOWED, test_name)
     
     response, request_string = make_request(POST, QUERIES)
-    assert_equal(request_string, get_code(response), HTTPStatus.METHOD_NOT_ALLOWED, test_name)
-
+    check_code(request_string, get_code(response), HTTPStatus.METHOD_NOT_ALLOWED, test_name)
 
 
 def instant_comparison():
-    print("Run comparion test")
+    print("Run comparison test")
     request = {}
     request['callback'] = Callback.URL
 
     test_name = NOT_ALLOW
     response, request_string = make_request(GET, QUERY_REQUEST, payload=request)
-    assert_equal(request_string, get_code(response), HTTPStatus.METHOD_NOT_ALLOWED, test_name)
+    check_code(request_string, get_code(response), HTTPStatus.METHOD_NOT_ALLOWED, test_name)
 
     test_name = "incorrect praser information"
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
-    assert_equal(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
-    assert_equal(request_string, get_response(response),
-                 {'error': "Incorrect format, missing keys in request: {'commands'}"}, test_name)
-    
-    request['commands'] = ["show power","show inventory"]
+    check_code(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
+    check_property(request_string, get_response(response), "error", "Incorrect format, missing keys in request", test_name)
+
+    request['commands'] = ["show power", "show inventory"]
     request['callback'] = f"notURL/{Callback.ROUTE}"
 
     test_name = "incorrect URL"
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
-    assert_equal(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
-    assert_equal(request_string, get_response(response), {'error': 'the callback url is not right:'}, test_name)
-    
+    check_code(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
+    check_property(request_string, get_response(response), "error", "Incorrect callback url format", test_name)
 
     test_name = "unreachable switches"
+    non_existing_ip = "1.2.3.4"
     request['callback'] = Callback.URL
-    request['switches'] = ["0.0.0.0"]
+    request['switches'] = [non_existing_ip]
 
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     time.sleep(5)
     data_from = Callback.get_recent_response()
-    assert_equal(request_string, get_code(response), HTTPStatus.OK, test_name)
-    assert_equal(request_string, data_from[0], {"0.0.0.0": "Switch does not respond to ping"}, test_name)
+    check_code(request_string, get_code(response), HTTPStatus.OK, test_name)
+    check_property(request_string, data_from, non_existing_ip, "Switch does not respond to ping", test_name)
 
-    request['switches'] = ["10.209.27.19"]
+    test_name = "unrecognized switches"
+    non_switch_ip = "127.0.0.1"
+    request['callback'] = Callback.URL
+    request['switches'] = [non_switch_ip]
 
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     time.sleep(5)
     data_from = Callback.get_recent_response()
-    assert_equal(request_string, get_code(response), HTTPStatus.OK, test_name)
-    assert_equal(request_string, len(data_from[0]), 2, test_name)
+    check_code(request_string, get_code(response), HTTPStatus.OK, test_name)
+    check_property(request_string, data_from, non_switch_ip, "Switch does not located on the running ufm", test_name)
+
+    switch_ip = "10.209.227.189"
+    request['switches'] = [switch_ip]
+
+    response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
+    time.sleep(5)
+    data_from = Callback.get_recent_response()
+    check_code(request_string, get_code(response), HTTPStatus.OK, test_name)
+    check_commands(request_string, data_from, 0, request['commands'], test_name)
 
 
 def get_server_datetime():
@@ -203,7 +265,7 @@ def periodic_comparison():
     request['commands'] = ["show power","show inventory"]
     request["periodic_run"] = ""
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
-    assert_equal(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
+    check_code(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
     assert_equal(request_string, get_response(response),
                  {'error': "Incorrect format, extra keys in request: {'asd'}"}, test_name)
 
@@ -216,7 +278,7 @@ def periodic_comparison():
         }
     }
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
-    assert_equal(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
+    check_code(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
     assert_equal(request_string, get_response(response),
                  {'error': "Incorrect timestamp format: time data '{}' does not match format '{}'"
                  .format(request["periodic_run"]["startTime"], DATETIME_FORMAT)},
@@ -232,7 +294,7 @@ def periodic_comparison():
         }
     }
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
-    assert_equal(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
+    check_code(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
     assert_equal(request_string, get_response(response), {'error': 'Minimal interval value is 5 minutes'},
                  test_name)
 
@@ -245,7 +307,7 @@ def periodic_comparison():
         }
     }
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
-    assert_equal(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
+    check_code(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
     assert_equal(request_string, get_response(response), {'error': 'End time is less than current time'},
                  test_name)
 
@@ -258,7 +320,7 @@ def periodic_comparison():
         }
     }
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
-    assert_equal(request_string, get_code(response), HTTPStatus.OK)
+    check_code(request_string, get_code(response), HTTPStatus.OK)
     assert_equal(request_string, get_response(response), {})
 
     if get_code(response) == HTTPStatus.OK:

@@ -261,18 +261,17 @@ class QueryRequest(SysInfoAiohttpHandler):
         Also check with ufm the guid of them. if it connected to the ufm it will return the guids instead of ips
         """
         self.ip_to_guid=self._get_switches_from_ufm()
-        if len(self.switches) == 0 and len(self.ip_to_guid)>0: 
+        if len(self.switches) == 0 and len(self.ip_to_guid) > 0: 
             # empty list of switches with non empty list of ips from ufm
-            self.switches=list(self.ip_to_guid.keys())
+            self.switches = list(self.ip_to_guid.keys())
 
         for switch in self.switches:
             if not self._ping(switch):
                 self.switches.remove(switch)
                 self.auto_respond[switch] = "Switch does not respond to ping"
-            if len(self.ip_to_guid) > 0 and switch not in self.ip_to_guid:
+            elif len(self.ip_to_guid) > 0 and switch not in self.ip_to_guid:
                 self.switches.remove(switch)
                 self.auto_respond[switch] = "Switch does not located on the running ufm"
-        
 
     def parse_interval(self,json_data:dict) -> web.Response:
         """
@@ -320,7 +319,7 @@ class QueryRequest(SysInfoAiohttpHandler):
 
             is_url = url(self.callback)
             if not is_url:
-                return self.report_error(f"the callback url is not right:{is_url}")
+                return self.report_error(f"Incorrect callback url format: {self.callback}")
 
             if self.username and self.password:
                 self.ac = (self.username, self.password)
