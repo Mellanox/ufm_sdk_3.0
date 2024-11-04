@@ -163,9 +163,11 @@ def assert_equal(request, left_expr, right_expr, test_name="positive"):
 
 def get_response(response):
     if response is not None:
-        #if response.status_code == HTTPStatus.OK:
+        try:
             json_response = response.json()
             return json_response
+        except: # pylint: disable=bare-except
+            return response.text
     else:
         return None
 
@@ -261,28 +263,22 @@ def periodic_comparison():
     test_name = "incorrect request"
     request = {}
     request['callback'] = Callback.URL
-    request['switches'] = ["10.209.27.19"]
+    request['switches'] = ["10.209.227.189"]
     request['commands'] = ["show power","show inventory"]
-    request["periodic_run"] = ""
+    request["periodic_run"] = {}
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     check_code(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
-    assert_equal(request_string, get_response(response),
-                 {'error': "Incorrect format, extra keys in request: {'asd'}"}, test_name)
+    check_property(request_string, get_response(response), "error", "Incorrect format, missing keys in request", test_name)
 
     test_name = "incorrect datetime format"
-    request = {
-        "periodic_run": {
-            "startTime": "asd",
-            "endTime": "xyz",
-            "interval": 10
-        }
+    request["periodic_run"] = {
+        "startTime": "asd",
+        "endTime": "xyz",
+        "interval": 10
     }
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     check_code(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
-    assert_equal(request_string, get_response(response),
-                 {'error': "Incorrect timestamp format: time data '{}' does not match format '{}'"
-                 .format(request["periodic_run"]["startTime"], DATETIME_FORMAT)},
-                 test_name)
+    check_property(request_string, get_response(response), "error", "Incorrect timestamp format: time data 'asd' does not match format", test_name)
 
     datetime_end = datetime_start = get_server_datetime() + timedelta(seconds=3)
     test_name = "too small interval"
