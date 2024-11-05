@@ -66,34 +66,31 @@ def remove_timestamp(response):
         return response
 
 
-def make_request(request_type, resource, payload=None, user=DEFAULT_USERNAME, password=DEFAULT_PASSWORD,
+def make_request(request_type, resource, payload=None,
+                 user=DEFAULT_USERNAME, password=DEFAULT_PASSWORD,
                  rest_version="", headers=None):
     """ Make request to plugin API """
     Callback.clear_recent_response()
     try:
-        if headers is None:
+        if headers is None or payload is None:
             headers = {}
-        if payload is None:
-            payload = {}
+
         if not FROM_SOURCES:
             request = f"https://{HOST_IP}/ufmRest{rest_version}/plugin/sysinfo/{resource}"
-            response = None
-            if request_type == POST:
-                response = requests.post(request, verify=False, headers=headers, auth=(user, password), json=payload)
-            elif request_type == GET:
-                response = requests.get(request, verify=False, headers=headers, auth=(user, password))
-            else:
-                print(f"Request {request_type} is not supported")
+            auth = (user, password)
         else:
             request = f"http://127.0.0.1:8999/{resource}"
+            auth = None
+
+        if request_type == POST:
+            response = requests.post(request, verify=False, headers=headers, auth=auth, json=payload)
+        elif request_type == GET:
+            response = requests.get(request, verify=False, headers=headers, auth=auth)
+        else:
             response = None
-            if request_type == POST:
-                response = requests.post(request, verify=False, headers=headers, json=payload)
-            elif request_type == GET:
-                response = requests.get(request, verify=False, headers=headers)
-            else:
-                print(f"Request {request_type} is not supported")
+            print(f"Request {request_type} is not supported")
         return response, f"{request_type} /{resource}"
+
     except requests.exceptions.ConnectionError:
         response = requests.Response()
         response.status_code = HTTPStatus.NOT_FOUND
