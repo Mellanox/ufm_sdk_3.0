@@ -52,6 +52,7 @@ DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 FAILED_TESTS_COUNT = 0
 
+
 def remove_timestamp(response):
     if response:
         if isinstance(response, dict):
@@ -64,31 +65,38 @@ def remove_timestamp(response):
     else:
         return response
 
+
 def make_request(request_type, resource, payload=None, user=DEFAULT_USERNAME, password=DEFAULT_PASSWORD,
                  rest_version="", headers=None):
-    if headers is None:
-        headers = {}
-    if payload is None:
-        payload = {}
-    if not FROM_SOURCES:
-        request = f"https://{HOST_IP}/ufmRest{rest_version}/plugin/sysinfo/{resource}"
-        response = None
-        if request_type == POST:
-            response = requests.post(request, verify=False, headers=headers, auth=(user, password), json=payload)
-        elif request_type == GET:
-            response = requests.get(request, verify=False, headers=headers, auth=(user, password))
+    try:
+        if headers is None:
+            headers = {}
+        if payload is None:
+            payload = {}
+        if not FROM_SOURCES:
+            request = f"https://{HOST_IP}/ufmRest{rest_version}/plugin/sysinfo/{resource}"
+            response = None
+            if request_type == POST:
+                response = requests.post(request, verify=False, headers=headers, auth=(user, password), json=payload)
+            elif request_type == GET:
+                response = requests.get(request, verify=False, headers=headers, auth=(user, password))
+            else:
+                print(f"Request {request_type} is not supported")
         else:
-            print(f"Request {request_type} is not supported")
-    else:
-        request = f"http://127.0.0.1:8999/{resource}"
-        response = None
-        if request_type == POST:
-            response = requests.post(request, verify=False, headers=headers, json=payload)
-        elif request_type == GET:
-            response = requests.get(request, verify=False, headers=headers)
-        else:
-            print(f"Request {request_type} is not supported")
-    return response, f"{request_type} /{resource}"
+            request = f"http://127.0.0.1:8999/{resource}"
+            response = None
+            if request_type == POST:
+                response = requests.post(request, verify=False, headers=headers, json=payload)
+            elif request_type == GET:
+                response = requests.get(request, verify=False, headers=headers)
+            else:
+                print(f"Request {request_type} is not supported")
+        return response, f"{request_type} /{resource}"
+    except requests.exceptions.ConnectionError:
+        response = requests.Response()
+        response.status_code = HTTPStatus.NOT_FOUND
+        response._content = b"Connection failed" # pylint: disable=protected-access
+        return response, f"{request_type} /{resource}"
 
 
 def check_code(request_str, code, expected_code, test_name="positive"):
@@ -99,9 +107,17 @@ def check_code(request_str, code, expected_code, test_name="positive"):
         on_check_fail(request_str, code, expected_code, test_type, test_name)
 
 
+def check_equal(request_str, left_expr, right_expr, test_name="positive"):
+    test_type = "response"
+    if left_expr == right_expr:
+        on_check_success(request_str, test_type, test_name)
+    else:
+        on_check_fail(request_str, left_expr, right_expr, test_type, test_name)
+
+
 def check_property(request_str, response, property_name, expected_value, test_name="positive"):
     test_type = "response"
-    if isinstance(response, dict) and expected_value in response[property_name]:
+    if isinstance(response, dict) and property_name in response and expected_value in response[property_name]:
         on_check_success(request_str, test_type, test_name)
     else:
         on_check_fail(request_str, response, expected_value, test_type, test_name)
@@ -124,13 +140,6 @@ def check_commands(request_str, response, switch_index, expected_command_names, 
             on_check_success(request_str, test_type, test_name)
             return
     on_check_fail(request_str, response, f"dictionary of size {expected_command_names}", test_type, test_name)
-
-# def check_equal(request_str, left_expr, right_expr, test_name="positive"):
-#     test_type = "response"
-#     if left_expr == right_expr:
-#         on_check_success(request_str, test_type, test_name)
-#     else:
-#         on_check_fail(request_str, left_expr, right_expr, test_type, test_name)
 
 
 def on_check_success(request_str, test_type, test_name):
@@ -177,6 +186,7 @@ def get_code(response):
         return response.status_code
     else:
         return None
+
 
 def help_and_version():
     print("help and version works")
@@ -257,6 +267,7 @@ def get_server_datetime():
     datetime_string = datetime_response["date"]
     return datetime.strptime(datetime_string, DATETIME_FORMAT)
 
+
 def periodic_comparison():
     print("Periodic comparison")
 
@@ -315,23 +326,23 @@ def periodic_comparison():
     }
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     check_code(request_string, get_code(response), HTTPStatus.OK)
-    assert_equal(request_string, get_response(response), {})
+    check_equal(request_string, get_response(response), {})
 
     if get_code(response) == HTTPStatus.OK:
         time.sleep(5)
         data_from = Callback.get_recent_response()
         check_data(request_string, data_from, request["commands"])
 
-def check_data(requst_string, data,commands):
+def check_data(requst_string, data, commands):
     test_name="Check Data"
     for switch in data:
-        assert_equal(requst_string, len(switch), len(commands), test_name + " amount")
+        check_length(requst_string, switch, commands, test_name + " amount")
         for command in switch:
             assert_equal(requst_string, commands, switch, test_name + " commands")
 
 
 async def main():
-    """ Main function"""
+    """ Main function """
     logger = create_logger("/log/sysinfo_test.log")
 
     callback_thread = CallbackServerThread(logger)
