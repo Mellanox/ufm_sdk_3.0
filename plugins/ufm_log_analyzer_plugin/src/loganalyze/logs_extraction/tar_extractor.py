@@ -16,7 +16,7 @@ from pathlib import Path
 from tarfile import TarFile
 import tarfile
 import os
-from typing import List, Set
+from typing import List, Set, Tuple
 
 from loganalyze.logs_extraction.base_extractor import BaseExtractor
 from loganalyze.utils.common import delete_folders
@@ -25,6 +25,9 @@ import loganalyze.logger as log
 LOGS_GZ_POSTFIX = ".gz"
 GZIP_MAGIC_NUMBER = b"\x1f\x8b"  # Magic number to understand if a file is really a gzip
 
+DUPLICATE_LOGS_PATHS = {
+    "ibdiagnet2_port_counters.log":{"ufm_logs", "secondary_telemetry"}
+}
 
 class DumpFilesExtractor(BaseExtractor):
     def __init__(self, dump_path: Path) -> None:
@@ -34,7 +37,7 @@ class DumpFilesExtractor(BaseExtractor):
             self.directory = dump_path.parent
         else:
             raise FileNotFoundError(f"Could not use {dump_path}, make sure it exists and a tar")
-
+    
     def _get_files_from_tar(
         self, opened_file: TarFile,
         files_to_extract: Set[str],
@@ -44,12 +47,19 @@ class DumpFilesExtractor(BaseExtractor):
         files_went_over = set()
         failed_extract = set()
         folders_to_remove = set()
+        single_log_name, logs_with_dirs = self._split_based_on_dir(files_to_extract)
         for member in opened_file:
             base_name = os.path.basename(member.name)
-            dir_name = os.path.dirname(member.name)
-            if base_name in files_to_extract or \
-                os.path.basename(dir_name) in directories_to_extract:
+            full_dir_path = os.path.dirname(member.name)
+            parent_dir_name = os.path.basename(full_dir_path)
+            original_base_name = base_name
+            is_logs_with_dir_flag = parent_dir_name in logs_with_dirs and base_name in logs_with_dirs[parent_dir_name]
+            if base_name in single_log_name or \
+                parent_dir_name in directories_to_extract or \
+                is_logs_with_dir_flag:
                 try:
+                    if is_logs_with_dir_flag:
+                        base_name = f"{parent_dir_name}_{base_name}"
                     opened_file.extract(member, path=destination)
                     extracted_file_path = os.path.join(destination, str(member.path))
                     log.LOGGER.debug(f"Extracted {base_name}")
@@ -63,6 +73,11 @@ class DumpFilesExtractor(BaseExtractor):
                     files_went_over.add(base_name)
                     if base_name in files_to_extract:
                         files_to_extract.remove(base_name)
+                    elif is_logs_with_dir_flag:
+                        logs_with_dirs[parent_dir_name].discard(original_base_name)
+                        if len(logs_with_dirs[parent_dir_name]) == 0:
+                            del logs_with_dirs[parent_dir_name]
+
         files_extracted = files_went_over.difference(failed_extract)
         # When extracting the files from the tar, they are also taken with their
         # directories from inside the tar, there is no way to only take the file

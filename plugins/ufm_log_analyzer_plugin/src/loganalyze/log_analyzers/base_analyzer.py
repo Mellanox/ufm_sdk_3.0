@@ -125,7 +125,10 @@ class BaseImageCreator:
         Run all the analysis and returns a list of all the graphs created and their title
         """
         for func in self._funcs_for_analysis:
-            func()
+            try:
+                func()
+            except:
+                print(":(")
         return self._images_created if len(self._images_created) > 0 else []
 
 

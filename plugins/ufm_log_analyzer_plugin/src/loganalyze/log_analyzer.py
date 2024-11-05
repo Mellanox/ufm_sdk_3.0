@@ -51,18 +51,22 @@ from loganalyze.utils.common import delete_files_by_types
 import loganalyze.logger as log
 
 LOGS_TO_EXTRACT = [
-    "event.log",
-    "ufmhealth.log",
-    "ufm.log",
-    "ibdiagnet2.log",
-    "console.log",
-    "rest_api.log"
+    # "event.log",
+    # "ufmhealth.log",
+    # "ufm.log",
+    # "ibdiagnet2.log",
+    # "console.log",
+    "rest_api.log",
+    "ufm_logs/ibdiagnet2_port_counters.log",
+    "secondary_telemetry/ibdiagnet2_port_counters.log"
 ]
 
 DIRECTORIES_TO_EXTRACT = [
     "telemetry_samples"
 ]
-
+DUPLICATE_LOGS_PATHS = {
+    "ibdiagnet2_port_counters.log":{"ufm_logs", "secondary_telemetry"}
+}
 def run_both_functions(parser_func, action_func, save_func):
     parser_func(action_func)
     save_func()
