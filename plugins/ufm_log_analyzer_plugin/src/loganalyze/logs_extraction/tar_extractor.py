@@ -25,10 +25,6 @@ import loganalyze.logger as log
 LOGS_GZ_POSTFIX = ".gz"
 GZIP_MAGIC_NUMBER = b"\x1f\x8b"  # Magic number to understand if a file is really a gzip
 
-DUPLICATE_LOGS_PATHS = {
-    "ibdiagnet2_port_counters.log":{"ufm_logs", "secondary_telemetry"}
-}
-
 class DumpFilesExtractor(BaseExtractor):
     def __init__(self, dump_path: Path) -> None:
         dump_path = self.is_exists_get_as_path(dump_path)

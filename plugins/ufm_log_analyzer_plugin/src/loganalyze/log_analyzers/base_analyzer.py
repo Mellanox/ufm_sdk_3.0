@@ -128,7 +128,15 @@ class BaseImageCreator:
             try:
                 func()
             except:
-                print(":(")
+                function_name = func.__name__
+                try:
+                    class_name = ""
+                    if "." in func.__qualname__:
+                        class_name = func.__qualname__.split('.')[0]
+                    log.logging.DEBUG(f"Error when calling {function_name} {class_name}, skipping")
+                except:
+                    pass
+
         return self._images_created if len(self._images_created) > 0 else []
 
 

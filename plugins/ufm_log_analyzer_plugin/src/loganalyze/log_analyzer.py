@@ -64,9 +64,7 @@ LOGS_TO_EXTRACT = [
 DIRECTORIES_TO_EXTRACT = [
     "telemetry_samples"
 ]
-DUPLICATE_LOGS_PATHS = {
-    "ibdiagnet2_port_counters.log":{"ufm_logs", "secondary_telemetry"}
-}
+
 def run_both_functions(parser_func, action_func, save_func):
     parser_func(action_func)
     save_func()
