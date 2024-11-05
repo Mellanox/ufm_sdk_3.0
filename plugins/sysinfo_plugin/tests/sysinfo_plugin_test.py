@@ -282,17 +282,14 @@ def periodic_comparison():
 
     datetime_end = datetime_start = get_server_datetime() + timedelta(seconds=3)
     test_name = "too small interval"
-    request = {
-        "run": {
-            "startTime": datetime_start.strftime(DATETIME_FORMAT),
-            "endTime": datetime_end.strftime(DATETIME_FORMAT),
-            "interval": 1
-        }
+    request["periodic_run"] = {
+        "startTime": datetime_start.strftime(DATETIME_FORMAT),
+        "endTime": datetime_end.strftime(DATETIME_FORMAT),
+        "interval": 1
     }
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     check_code(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
-    assert_equal(request_string, get_response(response), {'error': 'Minimal interval value is 5 minutes'},
-                 test_name)
+    check_property(request_string, get_response(response), "error", "Minimal interval value is 5 seconds", test_name)
 
     test_name = "end time less than start time"
     request = {
