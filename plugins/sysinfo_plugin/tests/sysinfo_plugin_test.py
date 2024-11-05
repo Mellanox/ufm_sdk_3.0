@@ -83,9 +83,9 @@ def make_request(request_type, resource, payload=None,
             auth = None
 
         if request_type == POST:
-            response = requests.post(request, verify=False, headers=headers, auth=auth, json=payload)
+            response = requests.post(request, verify=False, headers=headers, auth=auth, json=payload, timeout=60)
         elif request_type == GET:
-            response = requests.get(request, verify=False, headers=headers, auth=auth)
+            response = requests.get(request, verify=False, headers=headers, auth=auth, timeout=60)
         else:
             response = None
             print(f"Request {request_type} is not supported")
@@ -130,15 +130,16 @@ def check_length(request_str, response, expected_length, test_name="positive"):
         on_check_fail(request_str, response, f"dictionary of size {expected_length}", test_type, test_name)
 
 
-def check_commands(request_str, response, switch_index, expected_command_names, test_name="positive"):
+def check_commands(request_str, response, expected_switches, expected_command_names, test_name="positive"):
+    """ Return True if response contains all requested switches and all requested commands for each switch """
+    check_length(request_str, response, len(expected_switches), test_name + " count")
     test_type = "response"
-    if isinstance(response, dict) and switch_index < len(response):
-        commands = list(response.values())[switch_index]
-        command_names = list(commands.keys())
-        if command_names == expected_command_names:
-            on_check_success(request_str, test_type, test_name)
-            return
-    on_check_fail(request_str, response, f"dictionary of size {expected_command_names}", test_type, test_name)
+    if not isinstance(response, dict):
+        on_check_fail(request_str, response, f"dictionary of size {expected_command_names}", test_type, test_name + " commands")
+        return
+    for switch_guid, switch_commands in response.items(): # pylint: disable=unused-variable
+          command_names = list(switch_commands.keys())
+          check_equal(request_str, command_names, expected_command_names, test_name + " commands")
 
 
 def on_check_success(request_str, test_type, test_name):
@@ -250,6 +251,7 @@ def instant_comparison():
     check_code(request_string, get_code(response), HTTPStatus.OK, test_name)
     check_property(request_string, data_from, non_switch_ip, "Switch does not located on the running ufm", test_name)
 
+    test_name = "valid switches"
     switch_ip = "10.209.227.189"
     request['switches'] = [switch_ip]
 
@@ -257,7 +259,7 @@ def instant_comparison():
     time.sleep(5)
     data_from = Callback.get_recent_response()
     check_code(request_string, get_code(response), HTTPStatus.OK, test_name)
-    check_commands(request_string, data_from, 0, request['commands'], test_name)
+    check_commands(request_string, data_from, request['switches'], request['commands'], test_name)
 
 
 def get_server_datetime():
@@ -317,6 +319,7 @@ def periodic_comparison():
     check_code(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
     check_property(request_string, get_response(response), "error", "End time is less than current time", test_name)
 
+    test_name = "valid periodic query"
     datetime_end = datetime_start = get_server_datetime() + timedelta(seconds=5)
     request["periodic_run"] = {
         "startTime": datetime_start.strftime(DATETIME_FORMAT),
@@ -325,19 +328,12 @@ def periodic_comparison():
     }
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
     check_code(request_string, get_code(response), HTTPStatus.OK)
-    check_equal(request_string, get_response(response), {})
+    check_equal(request_string, get_response(response), {}, test_name)
 
     if get_code(response) == HTTPStatus.OK:
         time.sleep(5)
         data_from = Callback.get_recent_response()
-        check_data(request_string, data_from, request["commands"])
-
-def check_data(requst_string, data, commands):
-    test_name="Check Data"
-    for switch in data:
-        check_length(requst_string, switch, commands, test_name + " amount")
-        for command in switch:
-            assert_equal(requst_string, commands, switch, test_name + " commands")
+        check_commands(request_string, data_from, request["switches"], request["commands"], test_name)
 
 
 async def main():
