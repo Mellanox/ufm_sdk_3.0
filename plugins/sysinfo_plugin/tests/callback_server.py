@@ -50,10 +50,16 @@ class Callback(BaseAiohttpHandler):
 
     @staticmethod
     def get_recent_response() -> json:
-        """ Read recent callback response from the file """
+        """ Return recent callback response """
         with Callback.__response_lock:
             json_data = copy.deepcopy(Callback.__response)
         return json_data
+
+    @staticmethod
+    def clear_recent_response() -> None:
+        """ Clear recent callback response """
+        with Callback.__response_lock:
+            Callback.__response = {}
 
 
 class CallbackServerThread:

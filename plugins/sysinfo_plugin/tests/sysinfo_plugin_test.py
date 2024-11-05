@@ -68,6 +68,8 @@ def remove_timestamp(response):
 
 def make_request(request_type, resource, payload=None, user=DEFAULT_USERNAME, password=DEFAULT_PASSWORD,
                  rest_version="", headers=None):
+    """ Make request to plugin API """
+    Callback.clear_recent_response()
     try:
         if headers is None:
             headers = {}
