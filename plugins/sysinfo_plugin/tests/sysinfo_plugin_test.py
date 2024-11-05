@@ -332,10 +332,10 @@ async def main():
     await callback_thread.stop()
 
     if FAILED_TESTS_COUNT > 0:
-        logger.error(f"\n{FAILED_TESTS_COUNT} tests failed")
+        logger.error(f"{FAILED_TESTS_COUNT} tests failed")
         return 1
     else:
-        logger.info("\nAll tests succeeded")
+        logger.info("All tests succeeded")
         return 0
 
 
