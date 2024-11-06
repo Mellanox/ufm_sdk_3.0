@@ -33,7 +33,7 @@ class DumpFilesExtractor(BaseExtractor):
             self.directory = dump_path.parent
         else:
             raise FileNotFoundError(f"Could not use {dump_path}, make sure it exists and a tar")
-    
+
     def _get_files_from_tar(
         self, opened_file: TarFile,
         files_to_extract: Set[str],
@@ -49,7 +49,8 @@ class DumpFilesExtractor(BaseExtractor):
             full_dir_path = os.path.dirname(member.name)
             parent_dir_name = os.path.basename(full_dir_path)
             original_base_name = base_name
-            is_logs_with_dir_flag = parent_dir_name in logs_with_dirs and base_name in logs_with_dirs[parent_dir_name]
+            is_logs_with_dir_flag = parent_dir_name in logs_with_dirs and \
+                base_name in logs_with_dirs[parent_dir_name]
             if base_name in single_log_name or \
                 parent_dir_name in directories_to_extract or \
                 is_logs_with_dir_flag:
