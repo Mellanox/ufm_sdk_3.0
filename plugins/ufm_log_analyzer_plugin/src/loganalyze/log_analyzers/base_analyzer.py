@@ -127,14 +127,14 @@ class BaseImageCreator:
         for func in self._funcs_for_analysis:
             try:
                 func()
-            except:
+            except: # pylint: disable=bare-except
                 function_name = func.__name__
                 try:
                     class_name = ""
                     if "." in func.__qualname__:
                         class_name = func.__qualname__.split('.')[0]
                     log.LOGGER.debug(f"Error when calling {function_name} {class_name}, skipping")
-                except:
+                except: # pylint: disable=bare-except
                     pass
 
         return self._images_created if len(self._images_created) > 0 else []
