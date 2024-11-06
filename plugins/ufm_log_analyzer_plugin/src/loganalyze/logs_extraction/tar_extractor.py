@@ -16,7 +16,7 @@ from pathlib import Path
 from tarfile import TarFile
 import tarfile
 import os
-from typing import List, Set, Tuple
+from typing import List, Set
 
 from loganalyze.logs_extraction.base_extractor import BaseExtractor
 from loganalyze.utils.common import delete_folders

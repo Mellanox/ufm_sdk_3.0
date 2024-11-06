@@ -133,7 +133,7 @@ class BaseImageCreator:
                     class_name = ""
                     if "." in func.__qualname__:
                         class_name = func.__qualname__.split('.')[0]
-                    log.logging.DEBUG(f"Error when calling {function_name} {class_name}, skipping")
+                    log.LOGGER.debug(f"Error when calling {function_name} {class_name}, skipping")
                 except:
                     pass
 

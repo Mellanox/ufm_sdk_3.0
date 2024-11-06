@@ -40,11 +40,13 @@ class DirectoryExtractor(BaseExtractor):
             for file_name in files:
                 full_dir_name = os.path.dirname(file_name)
                 last_dir_name = os.path.basename(full_dir_name)
-                is_logs_with_dir_flag = last_dir_name in logs_with_dirs and file_name in logs_with_dirs[last_dir_name]
+                is_logs_with_dir_flag = last_dir_name in logs_with_dirs and \
+                    file_name in logs_with_dirs[last_dir_name]
                 if file_name in files_to_extract or last_dir_name in directories_to_extract or\
                     is_logs_with_dir_flag:
                     src_file_path = os.path.join(root, file_name)
-                    new_file_name = f"{last_dir_name}_{file_name}" if is_logs_with_dir_flag else file_name
+                    new_file_name = f"{last_dir_name}_{file_name}" if is_logs_with_dir_flag \
+                        else file_name
                     dest_file_path = os.path.join(destination, new_file_name)
                     shutil.copy2(src_file_path, dest_file_path)
                     found_files.add(dest_file_path)
