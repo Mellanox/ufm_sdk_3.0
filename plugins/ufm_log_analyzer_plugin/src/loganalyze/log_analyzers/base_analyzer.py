@@ -125,6 +125,9 @@ class BaseImageCreator:
         Run all the analysis and returns a list of all the graphs created and their title
         """
         for func in self._funcs_for_analysis:
+            # Since we don't know who we are calling and how they
+            # Behave, this is a way to protect all the functions
+            # In case a function is raising an exception.
             try:
                 func()
             except: # pylint: disable=bare-except
