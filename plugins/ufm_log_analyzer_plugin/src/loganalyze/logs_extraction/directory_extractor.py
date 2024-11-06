@@ -34,7 +34,7 @@ class DirectoryExtractor(BaseExtractor):
         directories_to_extract = set(directories_to_extract)
         found_files = set()
         not_found_files = set(files_to_extract)
-        single_log_name, logs_with_dirs = self._split_based_on_dir(files_to_extract)
+        _, logs_with_dirs = self._split_based_on_dir(files_to_extract)
 
         for root, _, files in os.walk(self.dir_path):
             for file_name in files:
