@@ -53,17 +53,17 @@ DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 FAILED_TESTS_COUNT = 0
 
 
-def remove_timestamp(response):
-    if response:
-        if isinstance(response, dict):
-            del response["timestamp"]
-            return response
-        elif isinstance(response, list):
-            return [{i: entry[i] for i in entry if i != "timestamp"} for entry in response]
-        else:
-            return response
-    else:
-        return response
+# def remove_timestamp(response):
+#     if response:
+#         if isinstance(response, dict):
+#             del response["timestamp"]
+#             return response
+#         elif isinstance(response, list):
+#             return [{i: entry[i] for i in entry if i != "timestamp"} for entry in response]
+#         else:
+#             return response
+#     else:
+#         return response
 
 
 def make_request(request_type, resource, payload=None,
@@ -99,6 +99,7 @@ def make_request(request_type, resource, payload=None,
 
 
 def check_code(request_str, code, expected_code, test_name="positive"):
+    """ Check responsed http code """
     test_type = "code"
     if code == expected_code:
         on_check_success(request_str, test_type, test_name)
@@ -107,6 +108,7 @@ def check_code(request_str, code, expected_code, test_name="positive"):
 
 
 def check_equal(request_str, left_expr, right_expr, test_name="positive"):
+    """ Compare two objects """
     test_type = "response"
     if left_expr == right_expr:
         on_check_success(request_str, test_type, test_name)
@@ -115,6 +117,7 @@ def check_equal(request_str, left_expr, right_expr, test_name="positive"):
 
 
 def check_property(request_str, response, property_name, expected_value, test_name="positive"):
+    """ Check value of responsed data property """
     test_type = "response"
     if isinstance(response, dict) and property_name in response and expected_value in response[property_name]:
         on_check_success(request_str, test_type, test_name)
@@ -123,6 +126,7 @@ def check_property(request_str, response, property_name, expected_value, test_na
 
 
 def check_length(request_str, response, expected_length, test_name="positive"):
+    """ Check responsed dictionary length """
     test_type = "response"
     if isinstance(response, dict) and len(response) == expected_length:
         on_check_success(request_str, test_type, test_name)
@@ -143,16 +147,19 @@ def check_commands(request_str, response, expected_switches, expected_command_na
 
 
 def on_check_success(request_str, test_type, test_name):
+    """ Called on successful check """
     print(f"    - test name: {test_name} {test_type}, request: {request_str} -- PASS")
 
 
 def on_check_fail(request_str, left_expr, right_expr, test_type, test_name):
+    """ Called on failed check """
     global FAILED_TESTS_COUNT # pylint: disable=global-statement
     FAILED_TESTS_COUNT += 1
     print(f"    - test name: {test_name} {test_type}, request: {request_str} -- FAIL (expected: {right_expr}, actual: {left_expr})")
 
 
 def get_response(response):
+    """ Return json data from the response """
     if response is not None:
         try:
             json_response = response.json()
@@ -164,13 +171,15 @@ def get_response(response):
 
 
 def get_code(response):
+    """ Return http code from the response"""
     if response is not None:
         return response.status_code
     else:
         return None
 
 
-def help_and_version():
+async def help_and_version():
+    """ Help and version query tests """
     print("help and version works")
 
     response, request_string = make_request(GET, HELP)
@@ -189,7 +198,8 @@ def help_and_version():
     check_code(request_string, get_code(response), HTTPStatus.METHOD_NOT_ALLOWED, test_name)
 
 
-def instant_comparison():
+async def instant_comparison():
+    """ Instant query tests """
     print("Run comparison test")
     request = {}
     request['callback'] = Callback.URL
@@ -217,8 +227,7 @@ def instant_comparison():
     request['switches'] = [non_existing_ip]
 
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
-    time.sleep(5)
-    data_from = Callback.get_recent_response()
+    data_from = await Callback.wait_for_response(10)
     check_code(request_string, get_code(response), HTTPStatus.OK, test_name)
     check_property(request_string, data_from, non_existing_ip, "Switch does not respond to ping", test_name)
 
@@ -228,8 +237,7 @@ def instant_comparison():
     request['switches'] = [non_switch_ip]
 
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
-    time.sleep(5)
-    data_from = Callback.get_recent_response()
+    data_from = await Callback.wait_for_response(10)
     check_code(request_string, get_code(response), HTTPStatus.OK, test_name)
     check_property(request_string, data_from, non_switch_ip, "Switch does not located on the running ufm", test_name)
 
@@ -238,20 +246,21 @@ def instant_comparison():
     request['switches'] = [switch_ip]
 
     response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
-    time.sleep(5)
-    data_from = Callback.get_recent_response()
+    data_from = await Callback.wait_for_response(10)
     check_code(request_string, get_code(response), HTTPStatus.OK, test_name)
     check_commands(request_string, data_from, request['switches'], request['commands'], test_name)
 
 
 def get_server_datetime():
-    response, request_string = make_request(GET, DATE)
+    """ Return server timestamp """
+    response, _ = make_request(GET, DATE)
     datetime_response = get_response(response)
     datetime_string = datetime_response["date"]
     return datetime.strptime(datetime_string, DATETIME_FORMAT)
 
 
-def periodic_comparison():
+async def periodic_comparison():
+    """ Periodic query tests """
     print("Periodic comparison")
 
     test_name = "empty request"
@@ -313,8 +322,7 @@ def periodic_comparison():
     check_equal(request_string, get_response(response), {}, test_name)
 
     if get_code(response) == HTTPStatus.OK:
-        time.sleep(5)
-        data_from = Callback.get_recent_response()
+        data_from = await Callback.wait_for_response(10)
         check_commands(request_string, data_from, request["switches"], request["commands"], test_name)
 
 
@@ -325,9 +333,9 @@ async def main():
     callback_thread = CallbackServerThread(logger)
     callback_thread.start()
 
-    help_and_version()
-    instant_comparison()
-    periodic_comparison()
+    await help_and_version()
+    await instant_comparison()
+    await periodic_comparison()
 
     await callback_thread.stop()
 

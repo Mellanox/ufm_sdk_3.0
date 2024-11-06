@@ -30,7 +30,7 @@ class Callback(BaseAiohttpHandler):
     URL = f"http://{CALLBACK_SERVER_IP}:{CALLBACK_SERVER_PORT}/{ROUTE}"
 
     __response_lock = threading.RLock()
-    __response = {}
+    __response = None
 
     async def post(self) -> web.Response:
         """ POST method handler """
@@ -56,10 +56,20 @@ class Callback(BaseAiohttpHandler):
         return json_data
 
     @staticmethod
+    async def wait_for_response(timeout) -> json:
+        """ Waits for response or exit on timeout """
+        end_time = asyncio.get_event_loop().time() + timeout
+        while Callback.get_recent_response() is None:
+            await asyncio.sleep(0.1)
+            if asyncio.get_event_loop().time() >= end_time:
+                break
+        return Callback.get_recent_response()
+
+    @staticmethod
     def clear_recent_response() -> None:
         """ Clear recent callback response """
         with Callback.__response_lock:
-            Callback.__response = {}
+            Callback.__response = None
 
 
 class CallbackServerThread:
