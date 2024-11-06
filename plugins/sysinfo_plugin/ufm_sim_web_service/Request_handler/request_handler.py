@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2013-2023 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright (C) 2013-2024 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -12,9 +12,9 @@
 
 import asyncio
 import logging
-import asyncio
-import aiohttp
 import time
+import aiohttp
+
 try:
     from SwitchAPI import SwitchJSONAPI
 except ModuleNotFoundError:
@@ -28,8 +28,8 @@ class RequestHandler:
     * all_at_once - if not None, each ip that finish send the results already to the callback, the callback is all_at_once
     * is_async - if the commands are async, and client dont need to wait for the switch to get the information.
     """
-    def __init__(self,switches_ips:list,commands:list,ac:list=None,ip_to_guid:dict=None,
-                 all_at_once:str=None,is_async:bool=False,auto_respond:dict=None) -> None:
+    def __init__(self, switches_ips:list, commands:list, ac:list=None, ip_to_guid:dict=None,
+                 all_at_once:str=None, is_async:bool=False, auto_respond:dict=None) -> None:
         
         self.ip_to_guid = ip_to_guid
         if ip_to_guid is None:
@@ -237,7 +237,7 @@ class RequestHandler:
             if not _resp:
                 logging.error(f"Could not logout from {switch_api.switch}")
 
-    async def save_results(self,callback,results):
+    async def save_results(self, callback, results):
         """
         save the results to the callback location
         """
