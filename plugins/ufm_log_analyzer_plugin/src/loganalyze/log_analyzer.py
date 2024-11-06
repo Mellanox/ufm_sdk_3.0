@@ -51,11 +51,11 @@ from loganalyze.utils.common import delete_files_by_types
 import loganalyze.logger as log
 
 LOGS_TO_EXTRACT = [
-    # "event.log",
-    # "ufmhealth.log",
-    # "ufm.log",
-    # "ibdiagnet2.log",
-    # "console.log",
+    "event.log",
+    "ufmhealth.log",
+    "ufm.log",
+    "ibdiagnet2.log",
+    "console.log",
     "rest_api.log",
     "ufm_logs/ibdiagnet2_port_counters.log",
     "secondary_telemetry/ibdiagnet2_port_counters.log"
@@ -386,9 +386,9 @@ if __name__ == "__main__":
         # Clean some unended files created during run
         files_types_to_delete = set()
         files_types_to_delete.add("png") #png images created for PDF report
-        files_types_to_delete.add("log") #logs taken from the logs
+        # files_types_to_delete.add("log") #logs taken from the logs
         files_types_to_delete.add("csv") #tmp csv + telemetery samples
-        files_types_to_delete.add("gz") #gz files of logs and samples
+        # files_types_to_delete.add("gz") #gz files of logs and samples
         delete_files_by_types(args.destination, files_types_to_delete)
 
     except Exception as exc:

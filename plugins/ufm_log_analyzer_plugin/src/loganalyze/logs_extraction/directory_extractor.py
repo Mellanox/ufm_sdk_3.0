@@ -37,9 +37,10 @@ class DirectoryExtractor(BaseExtractor):
         _, logs_with_dirs = self._split_based_on_dir(files_to_extract)
 
         for root, _, files in os.walk(self.dir_path):
+            if True:
+                print(root)
             for file_name in files:
-                full_dir_name = os.path.dirname(file_name)
-                last_dir_name = os.path.basename(full_dir_name)
+                last_dir_name = os.path.basename(root)
                 is_logs_with_dir_flag = last_dir_name in logs_with_dirs and \
                     file_name in logs_with_dirs[last_dir_name]
                 if file_name in files_to_extract or last_dir_name in directories_to_extract or\
