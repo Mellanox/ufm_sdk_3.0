@@ -139,7 +139,7 @@ def check_commands(request_str, response, expected_switches, expected_command_na
     check_length(request_str, response, len(expected_switches), test_name + " count")
     test_type = "response"
     if not isinstance(response, dict):
-        on_check_fail(request_str, response, f"dictionary of size {expected_command_names}", test_type, test_name + " commands")
+        on_check_fail(request_str, response, f"{expected_command_names}", test_type, test_name + " commands")
         return
     for switch_guid, switch_commands in response.items(): # pylint: disable=unused-variable
           command_names = list(switch_commands.keys())
