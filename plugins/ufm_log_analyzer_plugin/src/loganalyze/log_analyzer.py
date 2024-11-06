@@ -50,6 +50,11 @@ from loganalyze.utils.common import delete_files_by_types
 
 import loganalyze.logger as log
 
+# This list holds all the log files that we extract directly.
+# If a log file has a directory name, we will search for the given
+# Log file in that log directory, if the log is found, we will copy
+# it but also rename it to dir_name_log_name.
+# Notice that we only support one level of directory.
 LOGS_TO_EXTRACT = [
     "event.log",
     "ufmhealth.log",
@@ -386,9 +391,9 @@ if __name__ == "__main__":
         # Clean some unended files created during run
         files_types_to_delete = set()
         files_types_to_delete.add("png") #png images created for PDF report
-        # files_types_to_delete.add("log") #logs taken from the logs
+        files_types_to_delete.add("log") #logs taken from the logs
         files_types_to_delete.add("csv") #tmp csv + telemetery samples
-        # files_types_to_delete.add("gz") #gz files of logs and samples
+        files_types_to_delete.add("gz") #gz files of logs and samples
         delete_files_by_types(args.destination, files_types_to_delete)
 
     except Exception as exc:
