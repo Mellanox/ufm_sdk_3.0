@@ -49,6 +49,7 @@ class RequestHandler:
         self.auto_respond={} if auto_respond is None else auto_respond
         self.latest_respond.update(self.auto_respond)
         self.switches_apis={}
+        self.event_loop = None
 
     async def post_commands(self) -> dict:
         """
@@ -89,16 +90,18 @@ class RequestHandler:
         only execute commands, assume the switchAPIs have already login and have cookie
         """
         if self.is_executing:
-            pass
-        self.is_executing=True
+            return
+        self.is_executing = True
+
         tasks=[]
-        for switchApi in self.switches_apis:
+        for switch_api in self.switches_apis.values():
             if not self.is_async:
-                tasks.append(self._send_for_switch_commands_all(switchApi))
+                tasks.append(self._send_for_switch_commands_all(switch_api))
             else:
-                tasks.append(self._send_async_commands(switchApi))
+                tasks.append(self._send_async_commands(switch_api))
         await asyncio.gather(*tasks)
-        self.is_executing=False
+
+        self.is_executing = False
         return self.latest_respond
 
     async def post_commands_once(self):
@@ -200,21 +203,33 @@ class RequestHandler:
         for answer in raw_data_results:
             respond[answer['executed_command']] = answer
         return respond
-    
-    def login_to_all(self) -> None:
-        asyncio.run(self._login_to_all())
+
+    def _run_task(self, param_func, *args, **kwargs):
+        """
+        run task in precreated event loop
+        """
+        task = self.event_loop.create_task(param_func(*args, **kwargs))
+        self.event_loop.run_until_complete(task)
 
     def logout_to_all(self) -> None:
-        asyncio.run(self._logout_to_all())
+        self._run_task(self._logout_to_all)
 
-    def execute_commands(self) -> None:
-        asyncio.run(self._execute_commands())
+    def execute_commands_and_save(self, callback) -> None:
+        """
+        execute commands and save result
+        """
+        # Login first
+        if not self.event_loop:
+            self.event_loop = asyncio.new_event_loop()
+            self._run_task(self._login_to_all)
 
-    def execute_commands_and_save(self,callback) -> None:
-        self.execute_commands()
-        if self.one_by_one_callback is None: 
-            asyncio.run(self.save_results(callback=callback,results=self.latest_respond))
+        # Execute command
+        self._run_task(self._execute_commands_and_save, callback=callback)
 
+    async def _execute_commands_and_save(self, callback) -> None:
+        await self._execute_commands()
+        if self.one_by_one_callback is None:
+            await self.save_results(callback=callback, results=self.latest_respond)
 
     async def _login_to_all(self) -> None:
         """

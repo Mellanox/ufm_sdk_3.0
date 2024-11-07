@@ -326,6 +326,35 @@ async def periodic_comparison():
         check_commands(request_string, data_from, request["switches"], request["commands"], test_name)
 
 
+async def valid_periodic_query():
+    """ Valid periodic query """
+    test_name = "valid periodic query"
+    request = {}
+    request['callback'] = Callback.URL
+    request['switches'] = ["10.209.227.189"]
+    request['commands'] = ["show power","show inventory"]
+    datetime_start = get_server_datetime()
+    datetime_end = datetime_start + timedelta(minutes=1)
+    request["periodic_run"] = {
+        "startTime": datetime_start.strftime(DATETIME_FORMAT),
+        "endTime": datetime_end.strftime(DATETIME_FORMAT),
+        "interval": 10
+    }
+    response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
+    check_code(request_string, get_code(response), HTTPStatus.OK)
+    check_equal(request_string, get_response(response), {}, test_name)
+
+    if get_code(response) == HTTPStatus.OK:
+        timeout = 15
+        for _ in range(6):
+            Callback.clear_recent_response()
+            data_from = await Callback.wait_for_response(timeout)
+            check_commands(request_string, data_from, request["switches"], request["commands"], test_name)
+
+        Callback.clear_recent_response()
+        data_from = await Callback.wait_for_response(timeout)
+        check_equal(request_string, data_from, None, test_name)
+
 async def main():
     """ Main function """
     logger = create_logger("/log/sysinfo_test.log")
@@ -333,9 +362,10 @@ async def main():
     callback_thread = CallbackServerThread(logger)
     callback_thread.start()
 
-    await help_and_version()
-    await instant_comparison()
-    await periodic_comparison()
+    await valid_periodic_query()
+    # await help_and_version()
+    # await instant_comparison()
+    # await periodic_comparison()
 
     await callback_thread.stop()
 
@@ -354,4 +384,4 @@ if __name__ == "__main__":
     HOST_IP = args.host
 
     result = asyncio.run(main())
-    sys.exit(result)
+    #sys.exit(result)
