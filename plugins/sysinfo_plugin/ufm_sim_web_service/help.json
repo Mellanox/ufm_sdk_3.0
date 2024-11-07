@@ -91,7 +91,7 @@
             "error": "Failed to find query <query_id> ",
             "timestamp": "2020-09-13 10:57:09"
         },
-        "Status Codes": ["200 - Ok", "400 - bad request (bad or missing parameters)"],
+        "Status Codes": ["200 - Ok", "400 - bad request (bad or missing parameters)"]
     },
     "POST /delete":
     {
