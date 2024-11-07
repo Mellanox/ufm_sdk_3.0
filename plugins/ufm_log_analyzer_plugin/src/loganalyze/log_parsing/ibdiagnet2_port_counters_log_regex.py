@@ -15,7 +15,8 @@ from typing import Match
 
 from loganalyze.log_parsing.base_regex import RegexAndHandlers
 
-ITERATION_TIME_REGEX = re.compile(r"^\[ExportAPI_STATS\] Iteration time\: ([\d\.]+) sec \@ \[([\d\-]+ [\d\:\.]+)\]$")
+ITERATION_TIME_REGEX = re.compile(r"^\[ExportAPI_STATS\] Iteration time"
+                                  r"\: ([\d\.]+) sec \@ \[([\d\-]+ [\d\:\.]+)\]$")
 
 TIMEOUT_DUMP_CORE_REGEX = re.compile(r"^timeout: the monitored command dumped core$")
 
@@ -28,7 +29,7 @@ def iteration_time(match: Match):
     timestamp = match.group(2)
     return ("iteration_time", timestamp, iteration_time_sec, None)
 
-def timeout_dump_core(match: Match):
+def timeout_dump_core(_: Match):
     return ("timeout_dump_core", None, None, None)
 
 def total_switch_ports(match: Match):
@@ -37,19 +38,21 @@ def total_switch_ports(match: Match):
     return ("total_switch_ports", None, total_switches, total_ports)
 
 def collectx_version(match:Match):
-    collectx_version = match.group(1)
-    return ("collectx_version", None, collectx_version, None)
+    collectx_version_str = match.group(1)
+    return ("collectx_version", None, collectx_version_str, None)
 
 ibdiagnet2_headers = ("type", "timestamp", "data", "extra")
 
-ibdiagnet2_primary_log_regex_cls = RegexAndHandlers("ufm_logs_ibdiagnet2_port_counters.log", ibdiagnet2_headers)
-ibdiagnet2_secondary_log_regex_cls = RegexAndHandlers("secondary_telemetry_ibdiagnet2_port_counters.log", ibdiagnet2_headers)
+ibdiagnet2_primary_log_regex_cls = \
+    RegexAndHandlers("ufm_logs_ibdiagnet2_port_counters.log", ibdiagnet2_headers)
+ibdiagnet2_secondary_log_regex_cls = \
+    RegexAndHandlers("secondary_telemetry_ibdiagnet2_port_counters.log", ibdiagnet2_headers)
 
 regex_funcs_map = {ITERATION_TIME_REGEX: iteration_time,
                    TIMEOUT_DUMP_CORE_REGEX:timeout_dump_core,
                    TOTAL_SWITCH_PORTS_REGEX: total_switch_ports,
                    COLLECTX_VERSION_REGEX: collectx_version}
 
-for regex in regex_funcs_map:
-    ibdiagnet2_primary_log_regex_cls.add_regex(regex, regex_funcs_map[regex])
-    ibdiagnet2_secondary_log_regex_cls.add_regex(regex, regex_funcs_map[regex]) 
+for regex, regex_func in regex_funcs_map.items():
+    ibdiagnet2_primary_log_regex_cls.add_regex(regex, regex_func)
+    ibdiagnet2_secondary_log_regex_cls.add_regex(regex, regex_func)
