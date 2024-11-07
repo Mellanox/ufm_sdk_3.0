@@ -4,3 +4,6 @@ disable=missing-function-docstring,
         missing-module-docstring,
         too-few-public-methods,
         logging-fstring-interpolation,
+
+[DESIGN]
+max-locals=20

@@ -50,13 +50,20 @@ from loganalyze.utils.common import delete_files_by_types
 
 import loganalyze.logger as log
 
+# This list holds all the log files that we extract directly.
+# If a log file has a directory name, we will search for the given
+# Log file in that log directory, if the log is found, we will copy
+# it but also rename it to dir_name_log_name.
+# Notice that we only support one level of directory.
 LOGS_TO_EXTRACT = [
     "event.log",
     "ufmhealth.log",
     "ufm.log",
     "ibdiagnet2.log",
     "console.log",
-    "rest_api.log"
+    "rest_api.log",
+    "ufm_logs/ibdiagnet2_port_counters.log",
+    "secondary_telemetry/ibdiagnet2_port_counters.log"
 ]
 
 DIRECTORIES_TO_EXTRACT = [

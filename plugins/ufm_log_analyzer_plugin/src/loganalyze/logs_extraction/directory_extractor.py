@@ -30,20 +30,23 @@ class DirectoryExtractor(BaseExtractor):
         if not os.path.exists(destination):
             os.makedirs(destination)
 
-        # Convert the list to a set for faster lookup
         files_to_extract = set(files_to_extract)
         directories_to_extract = set(directories_to_extract)
         found_files = set()
         not_found_files = set(files_to_extract)
+        _, logs_with_dirs = self._split_based_on_dir(files_to_extract)
 
-        # Traverse the source directory and its subdirectories
         for root, _, files in os.walk(self.dir_path):
             for file_name in files:
-                full_dir_name = os.path.dirname(file_name)
-                last_dir_name = os.path.basename(full_dir_name)
-                if file_name in files_to_extract or last_dir_name in directories_to_extract:
+                last_dir_name = os.path.basename(root)
+                is_logs_with_dir_flag = last_dir_name in logs_with_dirs and \
+                    file_name in logs_with_dirs[last_dir_name]
+                if file_name in files_to_extract or last_dir_name in directories_to_extract or\
+                    is_logs_with_dir_flag:
                     src_file_path = os.path.join(root, file_name)
-                    dest_file_path = os.path.join(destination, file_name)
+                    new_file_name = f"{last_dir_name}_{file_name}" if is_logs_with_dir_flag \
+                        else file_name
+                    dest_file_path = os.path.join(destination, new_file_name)
                     shutil.copy2(src_file_path, dest_file_path)
                     found_files.add(dest_file_path)
                     not_found_files.discard(file_name)
