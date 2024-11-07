@@ -341,14 +341,18 @@ class QueryRequest(SysInfoAiohttpHandler):
                                         all_at_once=(self.callback if self.one_by_one else None), is_async=self.is_async,
                                         auto_respond=self.auto_respond)
             if self.interval != 0:
-                self.scheduler.add_job(func=request_handler_switches.login_to_all,
-                                       run_date=self.datetime_start)
-                while self.datetime_start <= self.datetime_end:
-                    self.scheduler.add_job(func=request_handler_switches.execute_commands_and_save,
-                                           run_date=self.datetime_start,args=[self.callback])
-                    self.datetime_start += timedelta(seconds=self.interval)
+                # Schedule periodical query
+                self.scheduler.add_job(func=request_handler_switches.execute_commands_and_save, # TODO: add id=<job_id>
+                                       args=[self.callback],
+                                       trigger="interval",
+                                       seconds=self.interval,
+                                       start_date=self.datetime_start,
+                                       end_date=self.datetime_end)
+
+                # Schedule logout for switches
                 self.scheduler.add_job(func=request_handler_switches.logout_to_all,
-                                       run_date=self.datetime_start)
+                                       run_date=self.datetime_end + timedelta(seconds=self.interval))
+
                 return self.report_success()
             else:
                 await request_handler_switches.post_commands()
