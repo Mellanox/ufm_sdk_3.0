@@ -44,6 +44,7 @@ from loganalyze.log_analyzers.events_log_analyzer import EventsLogAnalyzer
 from loganalyze.log_analyzers.console_log_analyzer import ConsoleLogAnalyzer
 from loganalyze.log_analyzers.rest_api_log_analyzer import RestApiAnalyzer
 from loganalyze.log_analyzers.link_flapping_analyzer import LinkFlappingAnalyzer
+from loganalyze.log_analyzers.ibdiagnet2_port_counters_analyzer import Ibdiagnet2PortCountersAnalyzer
 
 from loganalyze.pdf_creator import PDFCreator
 from loganalyze.utils.common import delete_files_by_types
@@ -252,7 +253,7 @@ def create_analyzer(parsed_args, full_extracted_logs_list,
     in the full report.
     Returns the created analyzer
     """
-    if log_name in full_extracted_logs_list:
+    if any(os.path.basename(log) == log_name for log in full_extracted_logs_list):
         log_csvs = get_files_in_dest_by_type(parsed_args.destination,
                                              log_name,
                                              parsed_args.extract_level)
@@ -305,7 +306,7 @@ if __name__ == "__main__":
         log.LOGGER.debug("Starting analyzing the data")
         partial_create_analyzer = partial(create_analyzer,
                                           parsed_args=args,
-                                          full_extracted_logs_list=full_logs_list,
+                                          full_extracted_logs_list=logs_to_work_with,
                                           ufm_top_analyzer_obj=ufm_top_analyzer)
 
         # Creating the analyzer for each log
@@ -328,6 +329,12 @@ if __name__ == "__main__":
 
         rest_api_log_analyzer = partial_create_analyzer(log_name="rest_api.log",
                                                         analyzer_clc=RestApiAnalyzer)
+        
+        ibdianget_2_ports_primary_analyzer = partial_create_analyzer(log_name="ufm_logs_ibdiagnet2_port_counters.log",
+                                                                     analyzer_clc=Ibdiagnet2PortCountersAnalyzer)
+        
+        ibdianget_2_ports_secondary_analyzer = partial_create_analyzer(log_name="ufm_logs_ibdiagnet2_port_counters.log",
+                                                                     analyzer_clc=Ibdiagnet2PortCountersAnalyzer)
         second_telemetry_samples = get_files_in_dest_by_type(args.destination,
                                                                  "secondary_",
                                                                  1000,
@@ -388,6 +395,11 @@ if __name__ == "__main__":
         for image, title in images_and_title_to_present:
             log.LOGGER.info(f"{title}: {image}")
         log.LOGGER.info(f"Summary PDF was created! you can open here at {pdf_path}")
+        
+        if args.interactive:
+            import IPython
+            IPython.embed()
+        
         # Clean some unended files created during run
         files_types_to_delete = set()
         files_types_to_delete.add("png") #png images created for PDF report

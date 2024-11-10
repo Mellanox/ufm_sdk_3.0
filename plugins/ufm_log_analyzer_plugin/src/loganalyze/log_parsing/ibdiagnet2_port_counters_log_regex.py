@@ -20,28 +20,34 @@ ITERATION_TIME_REGEX = re.compile(r"^\[ExportAPI_STATS\] Iteration time"
 
 TIMEOUT_DUMP_CORE_REGEX = re.compile(r"^timeout: the monitored command dumped core$")
 
-TOTAL_SWITCH_PORTS_REGEX = re.compile(r"^.*Total switches\/ports \[(\d+)\/(\d+)\]\,.*$")
+TOTAL_SWITCH_PORTS_REGEX = re.compile(r"^.*Total switches\/ports \[(\d+)\/(\d+)\]\, CAs\/ports \[(\d+)\/(\d+)\]\, Routers\/ports \[(\d+)\/(\d+)\]\s*$")
 
 COLLECTX_VERSION_REGEX = re.compile(r"^\[ExportAPI\] Collectx version ([\d\.]+)$")
 
 def iteration_time(match: Match):
     iteration_time_sec = match.group(1)
     timestamp = match.group(2)
-    return ("iteration_time", timestamp, iteration_time_sec, None)
+    return ("iteration_time", timestamp, iteration_time_sec, None, None, None, None, None)
 
 def timeout_dump_core(_: Match):
-    return ("timeout_dump_core", None, None, None)
+    return ("timeout_dump_core", None, None, None, None, None, None, None)
 
 def total_switch_ports(match: Match):
     total_switches = match.group(1)
-    total_ports = match.group(2)
-    return ("total_switch_ports", None, total_switches, total_ports)
+    total_switch_ports = match.group(2)
+    total_cas = match.group(3)
+    total_cas_ports = match.group(4)
+    total_routers = match.group(5)
+    total_routers_ports = match.group(6)
+    return ("total_devices_ports", None, total_switches, total_switch_ports,\
+            total_cas, total_cas_ports,\
+            total_routers, total_routers_ports)
 
 def collectx_version(match:Match):
     collectx_version_str = match.group(1)
-    return ("collectx_version", None, collectx_version_str, None)
+    return ("collectx_version", None, collectx_version_str, None, None, None, None, None)
 
-ibdiagnet2_headers = ("type", "timestamp", "data", "extra")
+ibdiagnet2_headers = ("type", "timestamp", "data", "extra1", "extra2", "extra3", "extra4", "extra5")
 
 ibdiagnet2_primary_log_regex_cls = \
     RegexAndHandlers("ufm_logs_ibdiagnet2_port_counters.log", ibdiagnet2_headers)
