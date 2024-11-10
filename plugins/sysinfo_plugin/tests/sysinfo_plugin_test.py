@@ -178,7 +178,7 @@ def get_code(response):
         return None
 
 
-async def help_and_version():
+async def test_help_and_version():
     """ Help and version query tests """
     print("help and version works")
 
@@ -198,7 +198,7 @@ async def help_and_version():
     check_code(request_string, get_code(response), HTTPStatus.METHOD_NOT_ALLOWED, test_name)
 
 
-async def instant_comparison():
+async def test_instant_query():
     """ Instant query tests """
     print("Run comparison test")
     request = {}
@@ -259,7 +259,7 @@ def get_server_datetime():
     return datetime.strptime(datetime_string, DATETIME_FORMAT)
 
 
-async def periodic_comparison():
+async def test_invalid_periodic_query():
     """ Periodic query tests """
     print("Periodic comparison")
 
@@ -310,24 +310,10 @@ async def periodic_comparison():
     check_code(request_string, get_code(response), HTTPStatus.BAD_REQUEST, test_name)
     check_property(request_string, get_response(response), "error", "End time is less than current time", test_name)
 
-    test_name = "valid periodic query"
-    datetime_end = datetime_start = get_server_datetime() + timedelta(seconds=5)
-    request["periodic_run"] = {
-        "startTime": datetime_start.strftime(DATETIME_FORMAT),
-        "endTime": datetime_end.strftime(DATETIME_FORMAT),
-        "interval": 10
-    }
-    response, request_string = make_request(POST, QUERY_REQUEST, payload=request)
-    check_code(request_string, get_code(response), HTTPStatus.OK)
-    check_equal(request_string, get_response(response), {}, test_name)
 
-    if get_code(response) == HTTPStatus.OK:
-        data_from = await Callback.wait_for_response(10)
-        check_commands(request_string, data_from, request["switches"], request["commands"], test_name)
-
-
-async def valid_periodic_query():
+async def test_valid_periodic_query():
     """ Valid periodic query """
+    # Start periodic query
     test_name = "valid periodic query"
     request = {}
     request['callback'] = Callback.URL
@@ -344,13 +330,16 @@ async def valid_periodic_query():
     check_code(request_string, get_code(response), HTTPStatus.OK)
     check_equal(request_string, get_response(response), {}, test_name)
 
+    # Ckeck query
     if get_code(response) == HTTPStatus.OK:
+        # Verify periodic callbacks
         timeout = 15
         for _ in range(6):
             Callback.clear_recent_response()
             data_from = await Callback.wait_for_response(timeout)
             check_commands(request_string, data_from, request["switches"], request["commands"], test_name)
 
+        # Verify that query is stopped on expiration time
         Callback.clear_recent_response()
         data_from = await Callback.wait_for_response(timeout)
         check_equal(request_string, data_from, None, test_name)
@@ -362,10 +351,10 @@ async def main():
     callback_thread = CallbackServerThread(logger)
     callback_thread.start()
 
-    await valid_periodic_query()
-    # await help_and_version()
-    # await instant_comparison()
-    # await periodic_comparison()
+    await test_help_and_version()
+    await test_instant_query()
+    await test_invalid_periodic_query()
+    await test_valid_periodic_query()
 
     await callback_thread.stop()
 
