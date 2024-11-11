@@ -10,11 +10,11 @@
 # provided with the software product.
 #
 
+import os
 from typing import List
 import warnings
 import pandas as pd
 from loganalyze.log_analyzers.base_analyzer import BaseAnalyzer
-from datetime import timedelta
 
 
 class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
@@ -22,6 +22,7 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
         super().__init__(logs_csvs, hours, dest_image_path, sort_timestamp)
         self._iteration_time_data = None
         self._iteration_time_stats = None
+        self.text_to_show_in_pdf = ""
         # This will make sure all the extra columns are int
         extra_columns = ['extra1', 'extra2', 'extra3', 'extra4', 'extra5']
         for col in extra_columns:
@@ -132,21 +133,44 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
         return self._iteration_time_stats
 
     def plot_iteration_time_over_time(self):
-        if not self._iteration_time_data:
+        if self._iteration_time_data is None:
             self.analyze_iteration_time()
 
-            self._iteration_time_data.set_index('timestamp', inplace=True)
+        self._iteration_time_data.set_index('timestamp', inplace=True)
 
         # Plot the data using the existing method
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", ".*Locator attempting to generate.*")
-                self._save_data_based_on_timestamp(
-                    data_to_plot=self._iteration_time_data['data'],
-                    x_label='Timestamp',
-                    y_label='Iteration Time (s)',
-                    title=f'{self.telemetry_type} Iteration Time',
-                    large_sample=True)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", ".*Locator attempting to generate.*")
+            self._save_data_based_on_timestamp(
+                data_to_plot=self._iteration_time_data['data'],
+                x_label='Timestamp',
+                y_label='Iteration Time (s)',
+                title=f'{self.telemetry_type} Iteration Time',
+                large_sample=True)
 
     def get_number_of_core_dumps(self):
         core_dumps = self._log_data_sorted[self._log_data_sorted['type'] == 'timeout_dump_core']
         return len(core_dumps)
+
+    def full_analysis(self):
+        txt_for_pdf = os.linesep + os.linesep
+        txt_for_pdf += f"{self.telemetry_type} info: {os.linesep}"
+        txt_for_pdf += f"Found the following collectx version(s):{os.linesep}"
+        for collectx_version in self.get_collectx_versions():
+            txt_for_pdf += f"{collectx_version}, "
+        txt_for_pdf += os.linesep
+        txt_for_pdf += f"Found {self.get_number_of_core_dumps()} core dumps{os.linesep}"
+        txt_for_pdf += str(self.get_number_of_switches_and_ports())
+        iteration_stats = self.get_last_iterations_time_stats()
+        if iteration_stats is None:
+            self.analyze_iteration_time()
+            iteration_stats = self.get_last_iterations_time_stats()
+        txt_for_pdf += f"Iteration time stats:{os.linesep}"
+        txt_for_pdf += str(iteration_stats)
+        self.text_to_show_in_pdf = txt_for_pdf
+        print(f"stats for {self.telemetry_type}:")
+        print(self.get_last_iterations_time_stats())
+        print(self.get_number_of_switches_and_ports())
+        print(f"Collectx versions {self.get_collectx_versions()}")
+
+        return super().full_analysis()

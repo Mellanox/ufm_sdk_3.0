@@ -12,6 +12,7 @@
 # pylint: disable=missing-function-docstring
 # pylint: disable=missing-module-docstring
 
+import logging
 import os
 import csv
 import shutil
@@ -21,14 +22,16 @@ from typing import List
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib
 import matplotlib.dates as mdates
 
 from loganalyze.log_analyzers.constants import DataConstants
 import loganalyze.logger as log
+logging.getLogger('matplotlib').setLevel(logging.ERROR) # This makes sure the user does not see the warning from plotting
+matplotlib.use('Agg') # This allows to run the tool on servers without graphic card/headless
 
 pd.set_option("display.max_colwidth", None)
 warnings.filterwarnings("ignore")
-
 
 class BaseImageCreator:
     # Setting the graph time interval to 1 hour
