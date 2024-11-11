@@ -47,7 +47,7 @@ class BaseImageCreator:
         self._funcs_for_analysis = set()
 
     def _save_data_based_on_timestamp(
-        self, data_to_plot, x_label, y_label, title
+        self, data_to_plot, x_label, y_label, title, large_sample=False
     ):
         with plt.ion():
             log.LOGGER.debug(f"saving {title}")
@@ -61,7 +61,10 @@ class BaseImageCreator:
             # Set the locator to show ticks every hour and the formatter to
             # include both date and time
             ax = plt.gca()
-            ax.xaxis.set_major_locator(mdates.HourLocator())
+            if large_sample:
+                ax.xaxis.set_major_locator(mdates.HourLocator(interval=24))  # Show labels every hour
+            else:
+                ax.xaxis.set_major_locator(mdates.HourLocator())
             ax.xaxis.set_minor_locator(
                 mdates.MinuteLocator(interval=15)
             )  # Add minor ticks every 15 minutes

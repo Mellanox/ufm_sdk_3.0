@@ -333,7 +333,7 @@ if __name__ == "__main__":
         ibdianget_2_ports_primary_analyzer = partial_create_analyzer(log_name="ufm_logs_ibdiagnet2_port_counters.log",
                                                                      analyzer_clc=Ibdiagnet2PortCountersAnalyzer)
         
-        ibdianget_2_ports_secondary_analyzer = partial_create_analyzer(log_name="ufm_logs_ibdiagnet2_port_counters.log",
+        ibdianget_2_ports_secondary_analyzer = partial_create_analyzer(log_name="secondary_telemetry_ibdiagnet2_port_counters.log",
                                                                      analyzer_clc=Ibdiagnet2PortCountersAnalyzer)
         second_telemetry_samples = get_files_in_dest_by_type(args.destination,
                                                                  "secondary_",
@@ -387,6 +387,27 @@ if __name__ == "__main__":
         text_to_show_in_pdf += os.linesep + os.linesep + "More than 5 events burst over a minute:" \
             + os.linesep + critical_events_text
 
+        # Adding telemetry stats to the PDF
+        for cur_telemetry in [ibdianget_2_ports_primary_analyzer, ibdianget_2_ports_secondary_analyzer]:
+            txt = f"{cur_telemetry.telemetry_type} info: {os.linesep}"
+            txt += f"Found the following collectx version(s):{os.linesep}"
+            for collectx_version in cur_telemetry.get_collectx_versions():
+                txt += f"{collectx_version}, "
+            txt += os.linesep
+            txt += f"Found {cur_telemetry.get_number_of_core_dumps()} core dumps{os.linesep}"
+            txt += str(cur_telemetry.get_number_of_switches_and_ports())
+            iteration_stats = cur_telemetry.get_last_iterations_time_stats()
+            if iteration_stats is None:
+                cur_telemetry.analyze_iteration_time()
+                iteration_stats = cur_telemetry.get_last_iterations_time_stats()
+            txt += f"Iteration time stats:{os.linesep}"
+            txt += str(iteration_stats)
+            text_to_show_in_pdf += os.linesep + os.linesep + txt
+
+            #Also print the stats to the screen
+            print(f"stats for {cur_telemetry.telemetry_type}:")
+            print(cur_telemetry.get_last_iterations_time_stats())
+            print(cur_telemetry.get_number_of_switches_and_ports())
         # PDF creator gets all the images and to add to the report
         pdf = PDFCreator(pdf_path, pdf_header, png_images, text_to_show_in_pdf)
         pdf.created_pdf()
