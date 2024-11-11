@@ -44,7 +44,8 @@ from loganalyze.log_analyzers.events_log_analyzer import EventsLogAnalyzer
 from loganalyze.log_analyzers.console_log_analyzer import ConsoleLogAnalyzer
 from loganalyze.log_analyzers.rest_api_log_analyzer import RestApiAnalyzer
 from loganalyze.log_analyzers.link_flapping_analyzer import LinkFlappingAnalyzer
-from loganalyze.log_analyzers.ibdiagnet2_port_counters_analyzer import Ibdiagnet2PortCountersAnalyzer
+from loganalyze.log_analyzers.ibdiagnet2_port_counters_analyzer \
+    import Ibdiagnet2PortCountersAnalyzer
 
 from loganalyze.pdf_creator import PDFCreator
 from loganalyze.utils.common import delete_files_by_types
@@ -329,12 +330,15 @@ if __name__ == "__main__":
 
         rest_api_log_analyzer = partial_create_analyzer(log_name="rest_api.log",
                                                         analyzer_clc=RestApiAnalyzer)
-        
-        ibdianget_2_ports_primary_analyzer = partial_create_analyzer(log_name="ufm_logs_ibdiagnet2_port_counters.log",
-                                                                     analyzer_clc=Ibdiagnet2PortCountersAnalyzer)
-        
-        ibdianget_2_ports_secondary_analyzer = partial_create_analyzer(log_name="secondary_telemetry_ibdiagnet2_port_counters.log",
-                                                                     analyzer_clc=Ibdiagnet2PortCountersAnalyzer)
+
+        ibdianget_2_ports_primary_analyzer = partial_create_analyzer(
+            log_name="ufm_logs_ibdiagnet2_port_counters.log",
+            analyzer_clc=Ibdiagnet2PortCountersAnalyzer)
+
+        ibdianget_2_ports_secondary_analyzer = partial_create_analyzer(
+            log_name="secondary_telemetry_ibdiagnet2_port_counters.log",
+            analyzer_clc=Ibdiagnet2PortCountersAnalyzer)
+
         second_telemetry_samples = get_files_in_dest_by_type(args.destination,
                                                                  "secondary_",
                                                                  1000,
@@ -388,7 +392,8 @@ if __name__ == "__main__":
             + os.linesep + critical_events_text
 
         # Adding telemetry stats to the PDF
-        for cur_telemetry in [ibdianget_2_ports_primary_analyzer, ibdianget_2_ports_secondary_analyzer]:
+        for cur_telemetry in \
+            [ibdianget_2_ports_primary_analyzer, ibdianget_2_ports_secondary_analyzer]:
             text_to_show_in_pdf += cur_telemetry.text_to_show_in_pdf
         # PDF creator gets all the images and to add to the report
         pdf = PDFCreator(pdf_path, pdf_header, png_images, text_to_show_in_pdf)
@@ -398,11 +403,11 @@ if __name__ == "__main__":
         for image, title in images_and_title_to_present:
             log.LOGGER.info(f"{title}: {image}")
         log.LOGGER.info(f"Summary PDF was created! you can open here at {pdf_path}")
-        
+
         if args.interactive:
             import IPython
             IPython.embed()
-        
+
         # Clean some unended files created during run
         files_types_to_delete = set()
         files_types_to_delete.add("png") #png images created for PDF report

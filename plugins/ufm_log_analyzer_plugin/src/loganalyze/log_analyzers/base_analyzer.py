@@ -27,7 +27,8 @@ import matplotlib.dates as mdates
 
 from loganalyze.log_analyzers.constants import DataConstants
 import loganalyze.logger as log
-logging.getLogger('matplotlib').setLevel(logging.ERROR) # This makes sure the user does not see the warning from plotting
+# This makes sure the user does not see the warning from plotting
+logging.getLogger('matplotlib').setLevel(logging.ERROR)
 matplotlib.use('Agg') # This allows to run the tool on servers without graphic card/headless
 
 pd.set_option("display.max_colwidth", None)
@@ -65,7 +66,7 @@ class BaseImageCreator:
             # include both date and time
             ax = plt.gca()
             if large_sample:
-                ax.xaxis.set_major_locator(mdates.HourLocator(interval=24))  # Show labels every hour
+                ax.xaxis.set_major_locator(mdates.HourLocator(interval=24))
             else:
                 ax.xaxis.set_major_locator(mdates.HourLocator())
             ax.xaxis.set_minor_locator(
@@ -100,7 +101,7 @@ class BaseImageCreator:
             self._images_created.extend(images_list_with_title)
             plt.close()
 
-    def _save_pivot_data_in_bars(  # pylint: disable=too-many-arguments
+    def _save_pivot_data_in_bars(
         self, pivoted_data, x_label, y_label, title, legend_title
     ):
         if pivoted_data.empty:

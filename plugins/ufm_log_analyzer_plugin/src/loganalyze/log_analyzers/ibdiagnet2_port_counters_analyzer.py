@@ -18,7 +18,11 @@ from loganalyze.log_analyzers.base_analyzer import BaseAnalyzer
 
 
 class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
-    def __init__(self, logs_csvs: List[str], hours: int, dest_image_path: str, sort_timestamp=False):
+    def __init__(self,
+                 logs_csvs: List[str],
+                 hours: int,
+                 dest_image_path: str,
+                 sort_timestamp=False):
         super().__init__(logs_csvs, hours, dest_image_path, sort_timestamp)
         self._iteration_time_data = None
         self._iteration_time_stats = None
@@ -40,8 +44,9 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
             self.telemetry_type = "Unknown_telemetry_type"
 
     def get_collectx_versions(self):
-            unique_collectx_versions = self._log_data_sorted[self._log_data_sorted['type'] == 'collectx_version']['data'].unique()
-            return unique_collectx_versions
+        unique_collectx_versions = self._log_data_sorted[\
+            self._log_data_sorted['type'] == 'collectx_version']['data'].unique()
+        return unique_collectx_versions
 
     def get_number_of_switches_and_ports(self):
         """
@@ -49,7 +54,8 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
         This function calculates the average, maximum, minimum
         for switches, CAs, routers, and ports.
         """
-        filtered_data = self._log_data_sorted[self._log_data_sorted['type'] == 'total_devices_ports']
+        filtered_data = self._log_data_sorted[\
+            self._log_data_sorted['type'] == 'total_devices_ports']
 
         ports_numbers_columns = ['extra1', 'extra3', 'extra5']
         filtered_data['extra135'] = pd.to_numeric(
@@ -84,9 +90,9 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
             })
 
         summary_df = pd.DataFrame(summary_stats)
-        
+
         return summary_df
-        
+
     def analyze_iteration_time(self, threshold=0.15):
         """
         Analyze rows where 'type' is 'iteration_time'.
@@ -100,7 +106,7 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
         filtered_data = self._log_data_sorted[self._log_data_sorted['type'] == 'iteration_time']
         filtered_data = filtered_data[['type', 'timestamp', 'data']]
         filtered_data['data'] = pd.to_numeric(filtered_data['data'], errors='coerce')
-        
+
         filtered_data = filtered_data[filtered_data['data'] >= threshold]
         filtered_data['timestamp'] = pd.to_datetime(filtered_data['timestamp'], errors='coerce')
         filtered_data = filtered_data.dropna(subset=['timestamp'])
@@ -110,8 +116,10 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
             max_value = filtered_data['data'].max()
             min_value = filtered_data['data'].min()
 
-            max_timestamp = filtered_data.loc[filtered_data['data'] == max_value, 'timestamp'].iloc[0]
-            min_timestamp = filtered_data.loc[filtered_data['data'] == min_value, 'timestamp'].iloc[0]
+            max_timestamp = filtered_data.loc[filtered_data['data'] \
+                                              == max_value, 'timestamp'].iloc[0]
+            min_timestamp = filtered_data.loc[filtered_data['data'] \
+                                              == min_value, 'timestamp'].iloc[0]
         else:
             average = max_value = min_value = 0.0
             max_timestamp = min_timestamp = None
@@ -127,7 +135,7 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
         stats_df = pd.DataFrame([stats])
         self._iteration_time_data = filtered_data
         self._iteration_time_stats = stats_df
-        return stats_df 
+        return stats_df
 
     def get_last_iterations_time_stats(self):
         return self._iteration_time_stats

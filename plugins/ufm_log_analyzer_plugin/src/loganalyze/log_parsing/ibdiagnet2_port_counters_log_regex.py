@@ -20,7 +20,9 @@ ITERATION_TIME_REGEX = re.compile(r"^\[ExportAPI_STATS\] Iteration time"
 
 TIMEOUT_DUMP_CORE_REGEX = re.compile(r"^timeout: the monitored command dumped core$")
 
-TOTAL_SWITCH_PORTS_REGEX = re.compile(r"^.*Total switches\/ports \[(\d+)\/(\d+)\]\, CAs\/ports \[(\d+)\/(\d+)\]\, Routers\/ports \[(\d+)\/(\d+)\]\s*$")
+TOTAL_SWITCH_PORTS_REGEX = re.compile(r"^.*Total switches\/ports \[(\d+)\/(\d+)\]\, "
+                                      r"CAs\/ports \[(\d+)\/(\d+)\]\, Routers\/ports "
+                                      r"\[(\d+)\/(\d+)\]\s*$")
 
 COLLECTX_VERSION_REGEX = re.compile(r"^\[ExportAPI\] Collectx version ([\d\.]+)$")
 
@@ -34,12 +36,12 @@ def timeout_dump_core(_: Match):
 
 def total_switch_ports(match: Match):
     total_switches = match.group(1)
-    total_switch_ports = match.group(2)
+    total_switch_ports_count = match.group(2)
     total_cas = match.group(3)
     total_cas_ports = match.group(4)
     total_routers = match.group(5)
     total_routers_ports = match.group(6)
-    return ("total_devices_ports", None, total_switches, total_switch_ports,\
+    return ("total_devices_ports", None, total_switches, total_switch_ports_count,\
             total_cas, total_cas_ports,\
             total_routers, total_routers_ports)
 
