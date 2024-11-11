@@ -4,7 +4,6 @@ disable=missing-function-docstring,
         missing-module-docstring,
         too-few-public-methods,
         logging-fstring-interpolation,
-        too-many-positional-arguments # Too many false postivies
 
 
 [DESIGN]
