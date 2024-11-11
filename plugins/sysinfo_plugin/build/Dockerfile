@@ -9,7 +9,7 @@ LABEL maintainer="egershon@nvidia.com"
 
 RUN apt-get update && apt-get -y install supervisor python3 python3-pip rsyslog curl iputils-ping
 
-RUN python3 -m pip install flask flask_restful requests apscheduler validators asyncio aiohttp
+RUN python3 -m pip install requests apscheduler validators asyncio aiohttp
 
 COPY ufm_sim_web_service/ ${BASE_PATH}/ufm_sim_web_service/
 

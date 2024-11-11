@@ -222,7 +222,7 @@ class QueryRequest(SysInfoAiohttpHandler):
         self.expected_keys_first_level = {'callback','commands'}
         self.expected_keys_second_level = {"startTime", "endTime", "interval"}
 
-    def post_commands(self, scope:str="Periodic") -> dict:
+    async def post_commands(self, scope:str="Periodic") -> dict:
         """ Run topology comparison """
         self.logger.info("Run topology comparison")
         if scope == 'Periodic':
@@ -231,10 +231,10 @@ class QueryRequest(SysInfoAiohttpHandler):
         try:
             async_rh = RequestHandler(self.switches,self.commands,self.ac,ip_to_guid=self.ip_to_guid,
                                       auto_respond=self.auto_respond,all_at_once=(self.callback if self.one_by_one else None))
-            respond = asyncio.run(async_rh.post_commands())
+            respond = await async_rh.post_commands()
             respond.update(self.auto_respond)
             return respond
-        
+
         except Exception as e:
             self.logger.error(f"Failed to run topology comparison: {e}")
             return None
@@ -261,18 +261,17 @@ class QueryRequest(SysInfoAiohttpHandler):
         Also check with ufm the guid of them. if it connected to the ufm it will return the guids instead of ips
         """
         self.ip_to_guid=self._get_switches_from_ufm()
-        if len(self.switches) == 0 and len(self.ip_to_guid)>0: 
+        if len(self.switches) == 0 and len(self.ip_to_guid) > 0: 
             # empty list of switches with non empty list of ips from ufm
-            self.switches=list(self.ip_to_guid.keys())
+            self.switches = list(self.ip_to_guid.keys())
 
         for switch in self.switches:
             if not self._ping(switch):
                 self.switches.remove(switch)
                 self.auto_respond[switch] = "Switch does not respond to ping"
-            if len(self.ip_to_guid) > 0 and switch not in self.ip_to_guid:
+            elif len(self.ip_to_guid) > 0 and switch not in self.ip_to_guid:
                 self.switches.remove(switch)
                 self.auto_respond[switch] = "Switch does not located on the running ufm"
-        
 
     def parse_interval(self,json_data:dict) -> web.Response:
         """
@@ -320,7 +319,7 @@ class QueryRequest(SysInfoAiohttpHandler):
 
             is_url = url(self.callback)
             if not is_url:
-                return self.report_error(f"the callback url is not right:{is_url}")
+                return self.report_error(f"Incorrect callback url format: {self.callback}")
 
             if self.username and self.password:
                 self.ac = (self.username, self.password)
@@ -335,24 +334,28 @@ class QueryRequest(SysInfoAiohttpHandler):
         except ValueError as value_error:
             return self.report_error(f"Incorrect timestamp format: {value_error}")
 
-    def add_scheduler_jobs(self) -> web.Response:
+    async def add_scheduler_jobs(self) -> web.Response:
         """ Add scheduler jobs """
         try:
             request_handler_switches = RequestHandler(self.switches, self.commands,self.ac, ip_to_guid=self.ip_to_guid,
                                         all_at_once=(self.callback if self.one_by_one else None), is_async=self.is_async,
                                         auto_respond=self.auto_respond)
             if self.interval != 0:
-                self.scheduler.add_job(func=request_handler_switches.login_to_all,
-                                       run_date=self.datetime_start)
-                while self.datetime_start <= self.datetime_end:
-                    self.scheduler.add_job(func=request_handler_switches.execute_commands_and_save,
-                                           run_date=self.datetime_start,args=[self.callback])
-                    self.datetime_start += timedelta(seconds=self.interval)
+                # Schedule periodical query
+                self.scheduler.add_job(func=request_handler_switches.execute_commands_and_save, # TODO: add id=<job_id>
+                                       args=[self.callback],
+                                       trigger="interval",
+                                       seconds=self.interval,
+                                       start_date=self.datetime_start,
+                                       end_date=self.datetime_end)
+
+                # Schedule logout for switches
                 self.scheduler.add_job(func=request_handler_switches.logout_to_all,
-                                       run_date=self.datetime_start)
+                                       run_date=self.datetime_end + timedelta(seconds=self.interval))
+
                 return self.report_success()
             else:
-                asyncio.run(request_handler_switches.post_commands())
+                await request_handler_switches.post_commands()
                 return self.save_results(request_handler_switches.latest_respond)
         except Exception as e:
             return self.report_error(f"Periodic comparison failed to start: {e}")
@@ -360,7 +363,7 @@ class QueryRequest(SysInfoAiohttpHandler):
     def _get_switches_from_ufm(self) -> dict:
         if self.ignore_ufm:
             return {}
-        respond = requests.get(self.UFM_SWITCHES_URL,headers={"X-Remote-User": "ufmsystem"}, verify=False)
+        respond = requests.get(self.UFM_SWITCHES_URL, headers={"X-Remote-User": "ufmsystem"}, verify=False)
         if respond.status_code == HTTPStatus.OK:
             try:
                 as_json = respond.json()
@@ -385,7 +388,7 @@ class QueryRequest(SysInfoAiohttpHandler):
             #     return self.report_error("Too much queries running")
             response = self.parse_request(json_data)
             if response.status == HTTPStatus.OK:
-                response = self.add_scheduler_jobs()
+                response = await self.add_scheduler_jobs()
             return response
         else:
             return self.report_error("Not receive a json post")
