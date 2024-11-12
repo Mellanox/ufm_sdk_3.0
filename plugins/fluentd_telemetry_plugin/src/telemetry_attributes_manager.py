@@ -1,0 +1,29 @@
+import os
+from utils.utils import Utils
+
+class TelemetryAttributesManager:
+
+    def __init__(self):
+        self.streaming_attributes_file = "/config/tfs_streaming_attributes.json"  # this path on the docker
+        self.streaming_attributes = {}
+
+    def get_saved_streaming_attributes(self):
+        attr = {}
+        if os.path.exists(self.streaming_attributes_file):
+            attr = Utils.read_json_from_file(self.streaming_attributes_file)
+        self.streaming_attributes = attr
+        return self.streaming_attributes
+
+    def update_saved_streaming_attributes(self):
+        Utils.write_json_to_file(self.streaming_attributes_file, self.streaming_attributes)
+
+    def add_streaming_attribute(self, attribute):
+        if self.streaming_attributes.get(attribute, None) is None:
+            # if the attribute is new and wasn't set before --> set default values for the new attribute
+            self.streaming_attributes[attribute] = {
+                'name': attribute,
+                'enabled': True
+            }
+
+    def get_attr_obj(self, key):
+        return self.streaming_attributes.get(key)
