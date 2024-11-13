@@ -79,7 +79,7 @@ class UFMTelemetryStreaming(Singleton):
     @property
     def streaming_interval(self):
         return self.config_parser.get_streaming_interval()
-    
+
     @property
     def fluentd_msg_tag(self):
         return self.config_parser.get_fluentd_msg_tag()
@@ -161,7 +161,6 @@ class UFMTelemetryStreaming(Singleton):
                                              timeout=timeout,
                                              use_c=_use_c)
         return self._fluent_sender
-    
 
     def init_streaming_attributes(self):  # pylint: disable=too-many-locals
         Logger.log_message('Updating The streaming attributes', LOG_LEVELS.DEBUG)
@@ -180,14 +179,14 @@ class UFMTelemetryStreaming(Singleton):
             if not is_processed:
                 telemetry_data = self.telem_parser.get_metrics(_host, _port, _url, _msg_tag)
                 if telemetry_data:
-                    
+
                     # CSV format
                     rows = telemetry_data.split("\n")
                     if len(rows):
                         headers = rows[0].split(",")
                         for attribute in headers:
                             self.attributes_mngr.add_streaming_attribute(attribute)
-                
+
                 processed_endpoints[endpoint_id] = True
         # update the streaming attributes files
         self.attributes_mngr.update_saved_streaming_attributes()
@@ -249,8 +248,11 @@ class UFMTelemetryStreaming(Singleton):
                     self.last_streamed_data_sample_per_endpoint[msg_tag] = {}
                 logging.info('Start Processing The Received Response From %s', msg_tag)
                 start_time = time.time()
-                data_to_stream, new_data_timestamp, num_of_counters = self.telem_parser.parse_telemetry_csv_metrics_to_json(telemetry_data, msg_tag, is_xdr_mode, self.stream_only_new_samples)
-                    
+                data_to_stream, new_data_timestamp, num_of_counters = \
+                    self.telem_parser.parse_telemetry_csv_metrics_to_json(telemetry_data, msg_tag,
+                                                                          is_xdr_mode,
+                                                                          self.stream_only_new_samples)
+
                 end_time = time.time()
                 data_len = len(data_to_stream)
                 resp_process_time = round(end_time - start_time, 6)

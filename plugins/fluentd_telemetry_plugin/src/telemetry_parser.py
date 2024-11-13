@@ -26,7 +26,7 @@ class TelemetryParser:
     """
     UFM TelemetryParser class - to fetch and parse the telemetry data
     """
-    
+
     PORT_CONSTANTS_KEYS = {
         'timestamp': 'timestamp', 'source_id': 'source_id', 'tag': 'tag',
         'node_guid': 'node_guid', 'port_guid': 'port_guid',
@@ -40,14 +40,14 @@ class TelemetryParser:
     NORMAL_PORT_ID_KEYS = {'node_guid', 'Node_GUID', 'port_guid', 'port_num', 'Port_Number', 'Port'}
     AGG_PORT_ID_KEYS = {'sys_image_guid', 'aport'}
     PORT_TYPE_KEY = 'port_type'
-    
+
     def __init__(self, conf_parser, monitor_streaming_mgr, _last_streamed_data_sample_per_endpoint, attr_mngr):
         self.config_parser = conf_parser
         self.streaming_metrics_mgr = monitor_streaming_mgr
         self.last_streamed_data_sample_per_endpoint = _last_streamed_data_sample_per_endpoint
         self.meta_fields = self.config_parser.get_meta_fields()
         self.attributes_mngr = attr_mngr
-    
+
     @staticmethod
     def append_filters_to_telemetry_url(url: str, xdr_mode: bool, port_types: List[str]):
         """
@@ -97,7 +97,6 @@ class TelemetryParser:
         except Exception as ex:  # pylint: disable=broad-except
             logging.error(ex)
             return None
-        
 
     def _parse_telemetry_csv_metrics_to_json_with_delta(self, available_headers, rows,
                                                     port_key_generator, port_key_generator_args,
@@ -188,7 +187,7 @@ class TelemetryParser:
                     dic = self._append_meta_fields_to_dict(dic)
                 output.append(dic)
         return output, None
-    
+
     def _parse_telemetry_csv_metrics_to_json_without_delta(self, available_headers, rows,
                                                         port_key_generator, port_key_generator_args,
                                                         is_meta_fields_available, endpoint_key):
@@ -291,7 +290,7 @@ class TelemetryParser:
                                                 is_meta_fields_available, msg_tag)
 
         return parsed_data, new_timestamp, len(keys)
-    
+
     def _append_meta_fields_to_dict(self, dic):
         keys = dic.keys()
         aliases_meta_fields, custom_meta_fields = self.meta_fields
@@ -307,7 +306,7 @@ class TelemetryParser:
         for custom_field in custom_meta_fields:
             dic[custom_field["key"]] = custom_field["value"]
         return dic
-    
+
     def _get_filtered_counters(self, counters):
         """
         :desc:
@@ -337,7 +336,7 @@ class TelemetryParser:
             except ValueError:
                 return str_val
 
-    @staticmethod        
+    @staticmethod
     def _get_port_keys_indexes_from_csv_headers(headers: List[str]):
         """
         Extracts the indexes of specific port keys from CSV headers.
@@ -368,7 +367,7 @@ class TelemetryParser:
             if key == TelemetryParser.PORT_TYPE_KEY and port_type_key_index == -1:
                 port_type_key_index = i
         return normal_port_id_keys_indexes, aggr_port_id_keys_indexes, port_type_key_index
-    
+
     @staticmethod
     def _get_xdr_port_id_from_csv_row(port_values,
                                     normal_port_id_keys_indexes,
@@ -396,7 +395,7 @@ class TelemetryParser:
             if port_type == PortType.AGGREGATED.value:
                 port_id_keys_indexes = aggr_port_id_keys_indexes
         return TelemetryParser._get_port_id_from_csv_row(port_values, port_id_keys_indexes)
-    
+
     @staticmethod
     def _get_port_id_from_csv_row(port_values, port_indexes):
         """
