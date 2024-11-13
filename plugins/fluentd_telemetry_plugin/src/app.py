@@ -22,12 +22,10 @@ import logging
 from web_service import UFMTelemetryFluentdStreamingAPI
 from streamer import UFMTelemetryStreaming
 from streaming_config_parser import UFMTelemetryStreamingConfigParser
-from telemetry_constants import UFMTelemetryConstants
 from streaming_scheduler import StreamingScheduler
 
 # pylint: disable=no-name-in-module,import-error
 from utils.flask_server import run_api
-from utils.args_parser import ArgsParser
 from utils.logger import Logger
 from utils.utils import Utils
 
@@ -45,7 +43,6 @@ def _init_logs(config_parser):
 if __name__ == '__main__':
 
     # init app config parser & load config files
-    # args = ArgsParser.parse_args("UFM Telemetry Streaming to fluentd", UFMTelemetryConstants.args_list)
     _config_parser = UFMTelemetryStreamingConfigParser()
 
     _init_logs(_config_parser)

@@ -5,10 +5,12 @@ from typing import List
 from ufm_sdk_tools.src.xdr_utils import PortType,prepare_port_type_http_telemetry_filter
 from utils.logger import Logger, LOG_LEVELS
 from telemetry_constants import UFMTelemetryConstants
-from telemetry_attributes_manager import TelemetryAttributesManager
 from utils.utils import Utils
 
 class TelemetryParser:
+        """
+        UFM TelemetryParser class - to fetch and parse the telemetry data
+        """
         
         PORT_CONSTANTS_KEYS = {
             'timestamp': 'timestamp', 'source_id': 'source_id', 'tag': 'tag',
@@ -156,7 +158,7 @@ class TelemetryParser:
                     is_constant_value = TelemetryParser.PORT_CONSTANTS_KEYS.get(key)
                     if value:
                         # the value of this counter not empty
-                        value = self._convert_str_to_num(value)
+                        value = TelemetryParser._convert_str_to_num(value)
                         if is_constant_value is None and value != current_port_values.get(key):
                             # the value was changed -> stream it
                             dic[key] = value
@@ -230,7 +232,7 @@ class TelemetryParser:
                     value = values[i]
                     key = available_headers[i]
                     if value:
-                        port_record[key] = self._convert_str_to_num(value)
+                        port_record[key] = TelemetryParser._convert_str_to_num(value)
                 self.last_streamed_data_sample_per_endpoint[endpoint_key][port_key] = port_record
                 if is_meta_fields_available:
                     port_record = self._append_meta_fields_to_dict(port_record)

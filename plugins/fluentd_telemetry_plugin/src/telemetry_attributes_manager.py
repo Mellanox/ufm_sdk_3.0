@@ -2,6 +2,10 @@ import os
 from utils.utils import Utils
 
 class TelemetryAttributesManager:
+    """"
+    UFM TelemetryAttributesManager class - to manager streaming attributes
+    When we parse the telemetry data, we should update saved/cached attributes (headers) and file (/config/tfs_streaming_attributes.json)
+    """
 
     def __init__(self):
         self.streaming_attributes_file = "/config/tfs_streaming_attributes.json"  # this path on the docker
