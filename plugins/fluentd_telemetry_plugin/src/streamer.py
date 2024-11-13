@@ -51,7 +51,9 @@ class UFMTelemetryStreaming(Singleton):
         self.streaming_metrics_mgr = MonitorStreamingMgr()
         self._fluent_sender = None
         self.attributes_mngr = TelemetryAttributesManager()
-        self.telem_parser = TelemetryParser(self.config_parser, self.streaming_metrics_mgr, self.last_streamed_data_sample_per_endpoint, self.attributes_mngr)
+        self.telem_parser = TelemetryParser(self.config_parser, self.streaming_metrics_mgr,
+                                            self.last_streamed_data_sample_per_endpoint,
+                                            self.attributes_mngr)
         self.init_streaming_attributes()
 
     @property
@@ -95,7 +97,7 @@ class UFMTelemetryStreaming(Singleton):
         endpoints = []
         for i, value in enumerate(hosts):
             _is_xdr_mode = Utils.convert_str_to_type(xdr_mode[i], 'boolean')
-            _url = TelemetryParser._append_filters_to_telemetry_url(
+            _url = TelemetryParser.append_filters_to_telemetry_url(
                 urls[i],
                 _is_xdr_mode,
                 xdr_ports_types[i].split(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_XDR_PORTS_TYPE_SPLITTER)
@@ -179,12 +181,12 @@ class UFMTelemetryStreaming(Singleton):
                 telemetry_data = self.telem_parser.get_metrics(_host, _port, _url, _msg_tag)
                 if telemetry_data:
                     
-                        # CSV format
-                        rows = telemetry_data.split("\n")
-                        if len(rows):
-                            headers = rows[0].split(",")
-                            for attribute in headers:
-                                self.attributes_mngr.add_streaming_attribute(attribute)
+                    # CSV format
+                    rows = telemetry_data.split("\n")
+                    if len(rows):
+                        headers = rows[0].split(",")
+                        for attribute in headers:
+                            self.attributes_mngr.add_streaming_attribute(attribute)
                 
                 processed_endpoints[endpoint_id] = True
         # update the streaming attributes files

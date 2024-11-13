@@ -14,12 +14,12 @@
 @date:   Nov 13, 2024
 """
 import logging
-import requests
 from typing import List
+import requests
 
+from telemetry_constants import UFMTelemetryConstants
 from ufm_sdk_tools.src.xdr_utils import PortType,prepare_port_type_http_telemetry_filter
 from utils.logger import Logger, LOG_LEVELS
-from telemetry_constants import UFMTelemetryConstants
 from utils.utils import Utils
 
 class TelemetryParser:
@@ -49,7 +49,7 @@ class TelemetryParser:
         self.attributes_mngr = attr_mngr
     
     @staticmethod
-    def _append_filters_to_telemetry_url(url: str, xdr_mode: bool, port_types: List[str]):
+    def append_filters_to_telemetry_url(url: str, xdr_mode: bool, port_types: List[str]):
         """
         This function constructs and appends filter parameters to the given URL if certain conditions are met.
 
