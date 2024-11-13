@@ -17,6 +17,7 @@ import logging
 from typing import List
 import requests
 
+# pylint: disable=no-name-in-module,import-error
 from telemetry_constants import UFMTelemetryConstants
 from ufm_sdk_tools.src.xdr_utils import PortType,prepare_port_type_http_telemetry_filter
 from utils.logger import Logger, LOG_LEVELS

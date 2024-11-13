@@ -1,3 +1,4 @@
+# pylint: disable=no-name-in-module,import-error
 import logging
 from utils.config_parser import ConfigParser
 
@@ -8,9 +9,9 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
     """
 
     # for debugging
-    config_file = "../conf/fluentd_telemetry_plugin.cfg"
+    # config_file = "../conf/fluentd_telemetry_plugin.cfg"
 
-    # config_file = "/config/fluentd_telemetry_plugin.cfg" # this path on the docker
+    config_file = "/config/fluentd_telemetry_plugin.cfg" # this path on the docker
 
     UFM_TELEMETRY_ENDPOINT_SECTION = "ufm-telemetry-endpoint"
     UFM_TELEMETRY_ENDPOINT_SECTION_HOST = "host"
