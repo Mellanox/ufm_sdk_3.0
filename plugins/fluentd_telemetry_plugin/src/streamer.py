@@ -267,21 +267,3 @@ class UFMTelemetryStreaming(Singleton):
         self.last_streamed_data_sample_timestamp = self._fluent_sender = None
         self.last_streamed_data_sample_per_endpoint.clear()
         self.streaming_metrics_mgr = MonitorStreamingMgr()
-
-if __name__ == "__main__":
-    # init app config parser & load config files
-    config_parser = UFMTelemetryStreamingConfigParser()
-
-    # init logs configs
-    logs_file_name = config_parser.get_logs_file_name()
-    logs_level = config_parser.get_logs_level()
-    max_log_file_size = config_parser.get_log_file_max_size()
-    log_file_backup_count = config_parser.get_log_file_backup_count()
-    Logger.init_logs_config(logs_file_name, logs_level, max_log_file_size, log_file_backup_count)
-
-    telemetry_streaming = UFMTelemetryStreaming(config_parser)
-
-    # streaming_scheduler = StreamingScheduler.getInstance()
-    # streaming_scheduler.start_streaming(telemetry_streaming.stream_data, telemetry_streaming.streaming_interval)
-
-    # telemetry_streaming.stream_data()
