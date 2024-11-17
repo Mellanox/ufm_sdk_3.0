@@ -43,6 +43,9 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
         else:
             self.telemetry_type = "Unknown_telemetry_type"
 
+        self._first_timestamp_of_logs = None
+        self._last_timestamp_of_logs = None
+
     def get_collectx_versions(self):
         unique_collectx_versions = self._log_data_sorted[\
             self._log_data_sorted['type'] == 'collectx_version']['data'].unique()
@@ -64,7 +67,7 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
 
         columns_of_interest = ['data', 'extra2', 'extra4', 'extra135']
         column_mapping = {
-            'data': 'Number of Switches',
+            'data': '# of Switches',
             'extra2': 'CAs',
             'extra4': 'Routers',
             'extra135': 'Ports'
@@ -110,6 +113,8 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
         filtered_data = filtered_data[filtered_data['data'] >= threshold]
         filtered_data['timestamp'] = pd.to_datetime(filtered_data['timestamp'], errors='coerce')
         filtered_data = filtered_data.dropna(subset=['timestamp'])
+        
+        filtered_data = filtered_data.sort_values(by='timestamp').reset_index(drop=True)
 
         if not filtered_data['data'].empty:
             average = filtered_data['data'].mean()
@@ -120,9 +125,13 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
                                               == max_value, 'timestamp'].iloc[0]
             min_timestamp = filtered_data.loc[filtered_data['data'] \
                                               == min_value, 'timestamp'].iloc[0]
+            first_timestamp = filtered_data['timestamp'].iloc[0]
+            last_timestamp = filtered_data['timestamp'].iloc[-1]
+
         else:
             average = max_value = min_value = 0.0
             max_timestamp = min_timestamp = None
+            first_timestamp = last_timestamp = None
 
         stats = {
             'Average': average,
@@ -135,7 +144,18 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
         stats_df = pd.DataFrame([stats])
         self._iteration_time_data = filtered_data
         self._iteration_time_stats = stats_df
+        self._first_timestamp_of_logs = first_timestamp
+        self._last_timestamp_of_logs = last_timestamp
         return stats_df
+
+    def get_first_last_iteration_timestamp(self):
+        if not self._first_timestamp_of_logs or not self._last_timestamp_of_logs:
+            self.analyze_iteration_time()
+        times ={
+            'first': str(self._first_timestamp_of_logs),
+            'last': str(self._last_timestamp_of_logs)
+        }
+        return pd.DataFrame([times])
 
     def get_last_iterations_time_stats(self):
         return self._iteration_time_stats
@@ -158,27 +178,4 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
 
     def get_number_of_core_dumps(self):
         core_dumps = self._log_data_sorted[self._log_data_sorted['type'] == 'timeout_dump_core']
-        return len(core_dumps)
-
-    def full_analysis(self):
-        txt_for_pdf = os.linesep + os.linesep
-        txt_for_pdf += f"{self.telemetry_type} info: {os.linesep}"
-        txt_for_pdf += f"Found the following collectx version(s):{os.linesep}"
-        for collectx_version in self.get_collectx_versions():
-            txt_for_pdf += f"{collectx_version}, "
-        txt_for_pdf += os.linesep
-        txt_for_pdf += f"Found {self.get_number_of_core_dumps()} core dumps{os.linesep}"
-        txt_for_pdf += str(self.get_number_of_switches_and_ports())
-        iteration_stats = self.get_last_iterations_time_stats()
-        if iteration_stats is None:
-            self.analyze_iteration_time()
-            iteration_stats = self.get_last_iterations_time_stats()
-        txt_for_pdf += f"Iteration time stats:{os.linesep}"
-        txt_for_pdf += str(iteration_stats)
-        self.text_to_show_in_pdf = txt_for_pdf
-        print(f"stats for {self.telemetry_type}:")
-        print(self.get_last_iterations_time_stats())
-        print(self.get_number_of_switches_and_ports())
-        print(f"Collectx versions {self.get_collectx_versions()}")
-
-        return super().full_analysis()
+        return {"Amount":len(core_dumps)}

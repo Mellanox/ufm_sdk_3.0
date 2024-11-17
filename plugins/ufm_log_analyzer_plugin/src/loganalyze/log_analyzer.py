@@ -369,35 +369,29 @@ if __name__ == "__main__":
         )
 
         used_ufm_version = console_log_analyzer.ufm_versions
-        text_to_show_in_pdf = f"Used ufm version in console log {used_ufm_version}"
-        fabric_info = "fabric info:" + os.linesep + str(ibdiagnet_analyzer.get_fabric_size()) \
-                        if ibdiagnet_analyzer else "No Fabric Info found" # pylint: disable=invalid-name
-        if links_flapping_analyzer:
-            link_flapping = links_flapping_analyzer.get_link_flapping_last_week() \
-                            if links_flapping_analyzer else "No link flapping info"
-            text_to_show_in_pdf += os.linesep + str(fabric_info) + os.linesep + \
-            "Link Flapping:" + os.linesep + str(link_flapping)
+        text_to_show_in_pdf = f"Used ufm version in console log {used_ufm_version}{os.linesep}"
 
-        critical_events_burst = event_log_analyzer.get_critical_event_bursts()
-        critical_events_text = "The minute           event_type     event    count" # pylint: disable=invalid-name
-        for critical_event in critical_events_burst:
-            timestamp = critical_event['timestamp']
-            event_type = critical_event['event_type']
-            event = critical_event['event']
-            counter = critical_event['count']
-            event_text = f"{timestamp} {event_type} {event} {counter}"
-            critical_events_text = critical_events_text + os.linesep + event_text
-
-        text_to_show_in_pdf += os.linesep + os.linesep + "More than 5 events burst over a minute:" \
-            + os.linesep + critical_events_text
-
+        pdf = PDFCreator(pdf_path, pdf_header, png_images, text_to_show_in_pdf)
         # Adding telemetry stats to the PDF
+        dataframes_for_pdf = []
+        fabric_info = ibdiagnet_analyzer.get_fabric_size() if ibdiagnet_analyzer else "No Fabric Info found"
+        dataframes_for_pdf.append(("Fabric info", fabric_info))
+        if links_flapping_analyzer:
+            dataframes_for_pdf.append(("Link Flapping past week", links_flapping_analyzer.get_link_flapping_last_week()))
+        lists_to_add = []
+        critical_events_headers = ["timestamp", "event_type", "event", "count"]
+        lists_to_add.append((event_log_analyzer.get_critical_event_bursts(), "More than 5 events burst over a minute", critical_events_headers))
+
         for cur_telemetry in \
             [ibdianget_2_ports_primary_analyzer, ibdianget_2_ports_secondary_analyzer]:
-            text_to_show_in_pdf += cur_telemetry.text_to_show_in_pdf
+            dataframes_for_pdf.append((f"{cur_telemetry.telemetry_type} Telemetry iteration time", cur_telemetry.get_last_iterations_time_stats()))
+            dataframes_for_pdf.append((f"{cur_telemetry.telemetry_type} Telemetry iteration first and last timestamps", cur_telemetry.get_first_last_iteration_timestamp()))
+            dataframes_for_pdf.append((f"{cur_telemetry.telemetry_type} Telemetry fabric size", cur_telemetry.get_number_of_switches_and_ports()))
+            lists_to_add.append(([cur_telemetry.get_number_of_core_dumps()], f"{cur_telemetry.telemetry_type} number of core dumps found in the logs",["Amount"]))
+
+
         # PDF creator gets all the images and to add to the report
-        pdf = PDFCreator(pdf_path, pdf_header, png_images, text_to_show_in_pdf)
-        pdf.created_pdf()
+        pdf.create_pdf(dataframes_for_pdf, lists_to_add)
         # Generated a report that can be located in the destination
         log.LOGGER.info("Analysis is done, please see the following outputs:")
         for image, title in images_and_title_to_present:
