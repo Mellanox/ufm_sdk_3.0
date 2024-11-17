@@ -33,7 +33,7 @@ from telemetry_parser import TelemetryParser
 # pylint: disable=no-name-in-module,import-error
 from utils.utils import Utils
 from utils.args_parser import ArgsParser
-from utils.logger import Logger, LOG_LEVELS
+from utils.logger import Logger
 from utils.singleton import Singleton
 
 #pylint: disable=too-many-instance-attributes
@@ -54,7 +54,8 @@ class UFMTelemetryStreaming(Singleton):
         self.telem_parser = TelemetryParser(self.config_parser, self.streaming_metrics_mgr,
                                             self.last_streamed_data_sample_per_endpoint,
                                             self.attributes_mngr)
-        self.init_streaming_attributes()
+        self.attributes_mngr.init_streaming_attributes(self.telem_parser,
+                                                       self.ufm_telemetry_endpoints, self.config_parser)
 
     @property
     def ufm_telemetry_host(self):
@@ -161,36 +162,6 @@ class UFMTelemetryStreaming(Singleton):
                                              timeout=timeout,
                                              use_c=_use_c)
         return self._fluent_sender
-
-    def init_streaming_attributes(self):  # pylint: disable=too-many-locals
-        Logger.log_message('Updating The streaming attributes', LOG_LEVELS.DEBUG)
-        # load the saved attributes
-        self.attributes_mngr.get_saved_streaming_attributes()
-        telemetry_endpoints = self.ufm_telemetry_endpoints
-        processed_endpoints = {}
-        for endpoint in telemetry_endpoints:  # pylint: disable=too-many-nested-blocks
-            _host = endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_HOST)
-            _port = endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_PORT)
-            _url = endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_URL)
-            _msg_tag = endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME)
-            # the ID of the endpoint is the full URL without filters like the shading,etc...
-            endpoint_id = f'{_host}:{_port}:{_url.split("?")[0]}'
-            is_processed = processed_endpoints.get(endpoint_id)
-            if not is_processed:
-                telemetry_data = self.telem_parser.get_metrics(_host, _port, _url, _msg_tag)
-                if telemetry_data:
-
-                    # CSV format
-                    rows = telemetry_data.split("\n")
-                    if len(rows):
-                        headers = rows[0].split(",")
-                        for attribute in headers:
-                            self.attributes_mngr.add_streaming_attribute(attribute)
-
-                processed_endpoints[endpoint_id] = True
-        # update the streaming attributes files
-        self.attributes_mngr.update_saved_streaming_attributes()
-        Logger.log_message('The streaming attributes were updated successfully')
 
 
     def _stream_data_to_fluentd(self, data_to_stream, fluentd_msg_tag=''):

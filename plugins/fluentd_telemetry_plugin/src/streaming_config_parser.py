@@ -1,5 +1,6 @@
-# pylint: disable=no-name-in-module,import-error
 import logging
+
+# pylint: disable=no-name-in-module,import-error
 from utils.config_parser import ConfigParser
 
 class UFMTelemetryStreamingConfigParser(ConfigParser):
