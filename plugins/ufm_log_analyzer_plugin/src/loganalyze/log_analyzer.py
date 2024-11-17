@@ -374,20 +374,31 @@ if __name__ == "__main__":
         pdf = PDFCreator(pdf_path, pdf_header, png_images, text_to_show_in_pdf)
         # Adding telemetry stats to the PDF
         dataframes_for_pdf = []
-        fabric_info = ibdiagnet_analyzer.get_fabric_size() if ibdiagnet_analyzer else "No Fabric Info found"
+        fabric_info = ibdiagnet_analyzer.get_fabric_size() \
+                        if ibdiagnet_analyzer else "No Fabric Info found"
         dataframes_for_pdf.append(("Fabric info", fabric_info))
         if links_flapping_analyzer:
-            dataframes_for_pdf.append(("Link Flapping past week", links_flapping_analyzer.get_link_flapping_last_week()))
+            dataframes_for_pdf.append(("Link Flapping past week",
+                                       links_flapping_analyzer.get_link_flapping_last_week()))
         lists_to_add = []
         critical_events_headers = ["timestamp", "event_type", "event", "count"]
-        lists_to_add.append((event_log_analyzer.get_critical_event_bursts(), "More than 5 events burst over a minute", critical_events_headers))
+        lists_to_add.append((event_log_analyzer.get_critical_event_bursts(),
+                             "More than 5 events burst over a minute",
+                             critical_events_headers))
 
         for cur_telemetry in \
             [ibdianget_2_ports_primary_analyzer, ibdianget_2_ports_secondary_analyzer]:
-            dataframes_for_pdf.append((f"{cur_telemetry.telemetry_type} Telemetry iteration time", cur_telemetry.get_last_iterations_time_stats()))
-            dataframes_for_pdf.append((f"{cur_telemetry.telemetry_type} Telemetry iteration first and last timestamps", cur_telemetry.get_first_last_iteration_timestamp()))
-            dataframes_for_pdf.append((f"{cur_telemetry.telemetry_type} Telemetry fabric size", cur_telemetry.get_number_of_switches_and_ports()))
-            lists_to_add.append(([cur_telemetry.get_number_of_core_dumps()], f"{cur_telemetry.telemetry_type} number of core dumps found in the logs",["Amount"]))
+            dataframes_for_pdf.append((f"{cur_telemetry.telemetry_type} Telemetry iteration time",
+                                       cur_telemetry.get_last_iterations_time_stats()))
+            dataframes_for_pdf.append((f"{cur_telemetry.telemetry_type} "
+                                       "Telemetry iteration first and last timestamps",
+                                       cur_telemetry.get_first_last_iteration_timestamp()))
+            dataframes_for_pdf.append((f"{cur_telemetry.telemetry_type} Telemetry fabric size",
+                                       cur_telemetry.get_number_of_switches_and_ports()))
+            lists_to_add.append(([cur_telemetry.get_number_of_core_dumps()],
+                                 f"{cur_telemetry.telemetry_type} "
+                                 "number of core dumps found in the logs",
+                                 ["Amount"]))
 
 
         # PDF creator gets all the images and to add to the report

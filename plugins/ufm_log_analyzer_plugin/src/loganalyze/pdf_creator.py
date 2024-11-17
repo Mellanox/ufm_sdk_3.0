@@ -130,5 +130,5 @@ class PDFCreator(FPDF):
         # Output the final PDF
         # Add text section
         self.add_text()
-        
+
         self.output(self._pdf_path)

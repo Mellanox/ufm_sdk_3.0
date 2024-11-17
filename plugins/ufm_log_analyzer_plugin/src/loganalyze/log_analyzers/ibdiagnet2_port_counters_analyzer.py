@@ -10,7 +10,6 @@
 # provided with the software product.
 #
 
-import os
 from typing import List
 import warnings
 import pandas as pd
@@ -113,7 +112,7 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
         filtered_data = filtered_data[filtered_data['data'] >= threshold]
         filtered_data['timestamp'] = pd.to_datetime(filtered_data['timestamp'], errors='coerce')
         filtered_data = filtered_data.dropna(subset=['timestamp'])
-        
+
         filtered_data = filtered_data.sort_values(by='timestamp').reset_index(drop=True)
 
         if not filtered_data['data'].empty:
