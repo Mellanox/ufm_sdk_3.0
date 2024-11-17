@@ -32,7 +32,6 @@ from telemetry_parser import TelemetryParser
 
 # pylint: disable=no-name-in-module,import-error
 from utils.utils import Utils
-from utils.logger import Logger
 from utils.singleton import Singleton
 
 #pylint: disable=too-many-instance-attributes
