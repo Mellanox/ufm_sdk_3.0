@@ -270,11 +270,8 @@ class UFMTelemetryStreaming(Singleton):
         self.streaming_metrics_mgr = MonitorStreamingMgr()
 
 if __name__ == "__main__":
-    # init app args
-    _args = ArgsParser.parse_args("UFM Telemetry Streaming to fluentd", UFMTelemetryConstants.args_list)
-
     # init app config parser & load config files
-    config_parser = UFMTelemetryStreamingConfigParser(_args)
+    config_parser = UFMTelemetryStreamingConfigParser()
 
     # init logs configs
     logs_file_name = config_parser.get_logs_file_name()
