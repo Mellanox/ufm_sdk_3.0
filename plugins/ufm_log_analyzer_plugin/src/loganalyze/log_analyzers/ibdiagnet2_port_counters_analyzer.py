@@ -165,7 +165,6 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
 
         self._iteration_time_data.set_index('timestamp', inplace=True)
 
-        # Plot the data using the existing method
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", ".*Locator attempting to generate.*")
             self._save_data_based_on_timestamp(

@@ -254,6 +254,7 @@ def create_analyzer(parsed_args, full_extracted_logs_list,
     in the full report.
     Returns the created analyzer
     """
+    # Checking the base name since some logs in the list are with a directory name
     if any(os.path.basename(log) == log_name for log in full_extracted_logs_list):
         log_csvs = get_files_in_dest_by_type(parsed_args.destination,
                                              log_name,
@@ -372,7 +373,6 @@ if __name__ == "__main__":
         text_to_show_in_pdf = f"Used ufm version in console log {used_ufm_version}{os.linesep}"
 
         pdf = PDFCreator(pdf_path, pdf_header, png_images, text_to_show_in_pdf)
-        # Adding telemetry stats to the PDF
         dataframes_for_pdf = []
         fabric_info = ibdiagnet_analyzer.get_fabric_size() \
                         if ibdiagnet_analyzer else "No Fabric Info found"

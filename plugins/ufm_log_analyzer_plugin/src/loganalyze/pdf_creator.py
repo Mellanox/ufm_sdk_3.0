@@ -17,7 +17,7 @@
 import os
 from io import StringIO
 from fpdf import FPDF
-from tabulate import tabulate  # Import FPDF from fpdf module
+from tabulate import tabulate
 
 
 class PDFCreator(FPDF):
@@ -66,22 +66,16 @@ class PDFCreator(FPDF):
         if not data_list or not isinstance(data_list, list):
             return
 
-        # Add title if provided
         if title:
             self.set_font("Arial", "B", 12)
             self.cell(0, 10, title, 0, 1, 'C')
             self.ln(5)
 
-        # Set font size for the content
         self.set_font("Arial", "", 10)
 
-        # Prepare data for tabulate
         table_data = [[str(item.get(header, '')) for header in headers] for item in data_list]
-
-        # Convert the list of dictionaries to a formatted string using `tabulate`
         table_str = tabulate(table_data, headers=headers, tablefmt='plain')
 
-        # Print the formatted text as plain text
         self.multi_cell(0, 10, table_str)
         self.ln(10)
 
@@ -90,13 +84,11 @@ class PDFCreator(FPDF):
         if data_frame is None or data_frame.empty:
             return
 
-        # Add title if provided
         if title:
             self.set_font("Arial", "B", 12)
             self.cell(0, 10, title, 0, 1, 'C')
             self.ln(5)
 
-        # Adjust font size based on the number of columns
         num_columns = len(data_frame.columns)
         if num_columns > 10:
             self.set_font("Arial", "", 8)  # Smaller font for many columns
@@ -105,10 +97,9 @@ class PDFCreator(FPDF):
         else:
             self.set_font("Arial", "", 12)
 
-        # Convert DataFrame to a formatted string using `tabulate` without row numbers
+        # Converting and removing the row number as it is not needed
         table_str = tabulate(data_frame.values, headers=data_frame.columns, tablefmt='plain')
 
-        # Print the formatted table as plain text
         self.multi_cell(0, 10, table_str)
         self.ln(10)
 
@@ -116,19 +107,14 @@ class PDFCreator(FPDF):
         """Generates the PDF with images, text, and multiple tables."""
         self.set_display_mode("fullpage")
         self.add_page()
-
-        # Add images section
         self.add_images()
 
-        # Add multiple DataFrames with titles
         for title, df in data_frames_with_titles:
             self.add_dataframe_as_text(data_frame=df, title=title)
 
         for data_list, title, headers in lists_to_add:
             self.add_list_of_dicts_as_text(data_list, title, headers)
 
-        # Output the final PDF
-        # Add text section
         self.add_text()
 
         self.output(self._pdf_path)
