@@ -26,22 +26,6 @@ sudo yum install -y libjpeg-devel zlib-devel
 ```
 Know your UFM sysdump location.
 
-####  Running on a remote server
-Since the tool generates graphs, you will need to setup an X11 forwarding:
-
-1. Mac - Install and run [Quartz](https://www.xquartz.org/). Windows - Install and run [Xming](http://www.straightrunning.com)
-2. On your remote server (Ubuntu/RedHat), make sure the x11 forwarding is enabled: 
-``` 
-vim /etc/ssh/sshd_config
-#Enalbe x11
-X11Forwarding yes
-```
-3. Restart the ssh service `systemctl restart ssh` or `systemctl restart sshd` depends on the OS.
-4. Install `python3-tk` using `sudo yum install python3-tkinter` or `sudo apt-get install python3-tk` depends on the OS.
-5. When you SSH to the server, use the flag `-X`, for example `ssh -X root@my-vm`
-
-If you would like to make sure it is working, once connection is done, do `xclock &`. This should start a clock on your machine.
-
 ### How to run
 ```
 ./log_analzer.sh  [options] -l <path to dump>
@@ -88,7 +72,6 @@ This logic will show links that:
 1. Both sides of the link went down together.
 2. Thermal shut down.
 3. If one side went down and the other side was not rebooted.
-
 
 ![Tool flow](img/loganalzer.png)
 
