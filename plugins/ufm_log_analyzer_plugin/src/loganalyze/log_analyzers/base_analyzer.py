@@ -12,6 +12,7 @@
 # pylint: disable=missing-function-docstring
 # pylint: disable=missing-module-docstring
 
+import logging
 import os
 import csv
 import shutil
@@ -21,14 +22,17 @@ from typing import List
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib
 import matplotlib.dates as mdates
 
 from loganalyze.log_analyzers.constants import DataConstants
 import loganalyze.logger as log
+# This makes sure the user does not see the warning from plotting
+logging.getLogger('matplotlib').setLevel(logging.ERROR)
+matplotlib.use('Agg') # This allows to run the tool on servers without graphic card/headless
 
 pd.set_option("display.max_colwidth", None)
 warnings.filterwarnings("ignore")
-
 
 class BaseImageCreator:
     # Setting the graph time interval to 1 hour
@@ -47,7 +51,7 @@ class BaseImageCreator:
         self._funcs_for_analysis = set()
 
     def _save_data_based_on_timestamp(
-        self, data_to_plot, x_label, y_label, title
+        self, data_to_plot, x_label, y_label, title, large_sample=False
     ):
         with plt.ion():
             log.LOGGER.debug(f"saving {title}")
@@ -61,7 +65,10 @@ class BaseImageCreator:
             # Set the locator to show ticks every hour and the formatter to
             # include both date and time
             ax = plt.gca()
-            ax.xaxis.set_major_locator(mdates.HourLocator())
+            if large_sample:
+                ax.xaxis.set_major_locator(mdates.HourLocator(interval=24))
+            else:
+                ax.xaxis.set_major_locator(mdates.HourLocator())
             ax.xaxis.set_minor_locator(
                 mdates.MinuteLocator(interval=15)
             )  # Add minor ticks every 15 minutes
@@ -94,7 +101,7 @@ class BaseImageCreator:
             self._images_created.extend(images_list_with_title)
             plt.close()
 
-    def _save_pivot_data_in_bars(  # pylint: disable=too-many-arguments
+    def _save_pivot_data_in_bars(
         self, pivoted_data, x_label, y_label, title, legend_title
     ):
         if pivoted_data.empty:
