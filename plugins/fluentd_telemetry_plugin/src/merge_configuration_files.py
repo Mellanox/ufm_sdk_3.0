@@ -60,7 +60,7 @@ def merge_ini_files(old_file_path, new_file_path):
                         config_merged.set(section, option, old_value)
 
     # Write the merged configuration to the output file
-    with open(old_file, 'w', encoding="utf-8") as configfile:
+    with open(old_file_path, 'w', encoding="utf-8") as configfile:
         config_merged.write(configfile)
 
 if __name__ == "__main__":
