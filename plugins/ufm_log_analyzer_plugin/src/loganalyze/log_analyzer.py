@@ -387,7 +387,8 @@ if __name__ == "__main__":
                              critical_events_headers))
 
         existing_telemetry_analyzers = []
-        for telemetry_analyzer in [ibdianget_2_ports_primary_analyzer, ibdianget_2_ports_secondary_analyzer]:
+        for telemetry_analyzer in \
+            [ibdianget_2_ports_primary_analyzer, ibdianget_2_ports_secondary_analyzer]:
             if telemetry_analyzer:
                 existing_telemetry_analyzers.append(telemetry_analyzer)
 
