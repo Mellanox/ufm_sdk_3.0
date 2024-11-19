@@ -108,6 +108,7 @@ class PDFCreator(FPDF):
         self.set_display_mode("fullpage")
         self.add_page()
         self.add_images()
+        self.add_page()
 
         for title, df in data_frames_with_titles:
             self.add_dataframe_as_text(data_frame=df, title=title)

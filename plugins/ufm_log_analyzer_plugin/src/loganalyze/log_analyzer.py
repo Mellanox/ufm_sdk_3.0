@@ -386,8 +386,13 @@ if __name__ == "__main__":
                              "More than 5 events burst over a minute",
                              critical_events_headers))
 
-        for cur_telemetry in \
+        existing_telemetry_analyzers = []
+        for telemetry_analyzer in \
             [ibdianget_2_ports_primary_analyzer, ibdianget_2_ports_secondary_analyzer]:
+            if telemetry_analyzer:
+                existing_telemetry_analyzers.append(telemetry_analyzer)
+
+        for cur_telemetry in existing_telemetry_analyzers:
             dataframes_for_pdf.append((f"{cur_telemetry.telemetry_type} Telemetry iteration time",
                                        cur_telemetry.get_last_iterations_time_stats()))
             dataframes_for_pdf.append((f"{cur_telemetry.telemetry_type} "
