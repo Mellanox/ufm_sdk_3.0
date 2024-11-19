@@ -23,11 +23,13 @@ class UFMHealthAnalyzer(BaseAnalyzer):
         self._failed_tests_data = self._log_data_sorted[
             self._log_data_sorted["test_status"] != "succeeded"
         ]
-        self._funcs_for_analysis={self.print_failed_tests_per_hour}
+        self._funcs_for_analysis = {self.print_failed_tests_per_hour}
 
     def print_failed_tests_per_hour(self):
         grouped_failed_by_time = (
-            self._failed_tests_data.groupby([DataConstants.AGGREGATIONTIME, "test_name"])
+            self._failed_tests_data.groupby(
+                [DataConstants.AGGREGATIONTIME, "test_name"]
+            )
             .size()
             .reset_index(name="count")
         )

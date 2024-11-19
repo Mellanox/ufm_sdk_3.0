@@ -25,6 +25,7 @@ import loganalyze.logger as log
 LOGS_GZ_POSTFIX = ".gz"
 GZIP_MAGIC_NUMBER = b"\x1f\x8b"  # Magic number to understand if a file is really a gzip
 
+
 class DumpFilesExtractor(BaseExtractor):
     def __init__(self, dump_path: Path) -> None:
         dump_path = self.is_exists_get_as_path(dump_path)
@@ -32,13 +33,16 @@ class DumpFilesExtractor(BaseExtractor):
             self.dump_path = dump_path
             self.directory = dump_path.parent
         else:
-            raise FileNotFoundError(f"Could not use {dump_path}, make sure it exists and a tar")
+            raise FileNotFoundError(
+                f"Could not use {dump_path}, make sure it exists and a tar"
+            )
 
     def _get_files_from_tar(
-        self, opened_file: TarFile,
+        self,
+        opened_file: TarFile,
         files_to_extract: Set[str],
-        directories_to_extract:Set[str],
-        destination: str
+        directories_to_extract: Set[str],
+        destination: str,
     ):
         files_went_over = set()
         failed_extract = set()
@@ -49,11 +53,15 @@ class DumpFilesExtractor(BaseExtractor):
             full_dir_path = os.path.dirname(member.name)
             parent_dir_name = os.path.basename(full_dir_path)
             original_base_name = base_name
-            is_logs_with_dir_flag = parent_dir_name in logs_with_dirs and \
-                base_name in logs_with_dirs[parent_dir_name]
-            if base_name in single_log_name or \
-                parent_dir_name in directories_to_extract or \
-                is_logs_with_dir_flag:
+            is_logs_with_dir_flag = (
+                parent_dir_name in logs_with_dirs
+                and base_name in logs_with_dirs[parent_dir_name]
+            )
+            if (
+                base_name in single_log_name
+                or parent_dir_name in directories_to_extract
+                or is_logs_with_dir_flag
+            ):
                 try:
                     if is_logs_with_dir_flag:
                         base_name = f"{parent_dir_name}_{base_name}"
@@ -98,9 +106,12 @@ class DumpFilesExtractor(BaseExtractor):
         file_obj.seek(position)  # Reset the stream position
         return magic_number == GZIP_MAGIC_NUMBER
 
-    def extract_files(self, files_to_extract: List[str],
-                      directories_to_extract: List[str],
-                      destination: str):
+    def extract_files(
+        self,
+        files_to_extract: List[str],
+        directories_to_extract: List[str],
+        destination: str,
+    ):
         """Since we do not know the type of dump, we search the files in the nested tars"""
         os.makedirs(destination, exist_ok=True)
         files_to_extract = set(files_to_extract)
@@ -121,12 +132,14 @@ class DumpFilesExtractor(BaseExtractor):
                         fileobj=inner_tar_stream, mode=inner_file_open_mode
                     ) as inner_tar:
                         extracted_files, failed_files = self._get_files_from_tar(
-                            inner_tar, files_to_extract, directories_to_extract, destination
+                            inner_tar,
+                            files_to_extract,
+                            directories_to_extract,
+                            destination,
                         )
                         if len(extracted_files) > 0:
                             return extracted_files, failed_files
             # If we got to this point, we might have a simple tar, try to extract from it
-            return self._get_files_from_tar(outer_tar,
-                                            files_to_extract,
-                                            directories_to_extract,
-                                            destination)
+            return self._get_files_from_tar(
+                outer_tar, files_to_extract, directories_to_extract, destination
+            )

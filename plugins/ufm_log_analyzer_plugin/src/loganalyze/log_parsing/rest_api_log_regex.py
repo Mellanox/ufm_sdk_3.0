@@ -27,6 +27,7 @@ REST_API_LOG_REGEX = re.compile(
     r"(?: status_code: \((?P<status_code>[\d]+)\),?)?(?: duration: (?P<duration>[\d\.]+) seconds)?$"
 )
 
+
 def rest_api_log(match: Match):
     """
     The rest api log line had serval changes in the last releases.
@@ -43,6 +44,7 @@ def rest_api_log(match: Match):
     duration = match.group("duration")
     return (timestamp, severity, client_ip, user, url, method, status_code, duration)
 
+
 REST_API_LOG_HEADERS = (
     "timestamp",
     "severity",
@@ -51,7 +53,7 @@ REST_API_LOG_HEADERS = (
     "url",
     "method",
     "status_code",
-    "duration"
+    "duration",
 )
 
 rest_api_log_regex_cls = RegexAndHandlers("rest_api.log", REST_API_LOG_HEADERS)
