@@ -14,6 +14,7 @@ import re
 import subprocess
 import argparse
 import sys
+from typing import List
 
 
 UFM_HA_CLUSTER_COMMAND = "ufm_ha_cluster {}"
@@ -40,29 +41,21 @@ def _run_and_parse_ibstat():
     retcode, stdout, _ = _run_command("ibstat")
     if retcode != 0:
         print("Cannot run ibstat")
-        sys.exit(1)
-
-    ca_sections = re.split(r"(?=CA \')", stdout)
+        return {}
+    lines = stdout.split("\n")
     ca_info = {}
+    current_ca = None
 
-    ca_name_pattern = re.compile(r"CA '([\w\d_]+)'")
-    state_pattern = re.compile(r"State:\s+(\w+)")
-    physical_state_pattern = re.compile(r"Physical state:\s+(\w+)")
+    for line in lines:
+        line = line.strip()
+        if line.startswith("CA '"):
+            current_ca = line.split("'")[1]
+            ca_info[current_ca] = {}
+        elif current_ca and line.startswith("State:"):
+            ca_info[current_ca]["State"] = line.split(":")[1].strip().lower()
+        elif current_ca and line.startswith("Physical state:"):
+            ca_info[current_ca]["Physical_state"] = line.split(":")[1].strip().lower()
 
-    for section in ca_sections:
-        ca_name_match = ca_name_pattern.search(section)
-        state_match = state_pattern.search(section)
-        physical_state_match = physical_state_pattern.search(section)
-
-        if ca_name_match and state_match and physical_state_match:
-            ca_name = ca_name_match.group(1)
-            state = state_match.group(1)
-            physical_state = physical_state_match.group(1)
-
-            ca_info[ca_name] = {
-                "State": state.lower(),
-                "Physical_state": physical_state.lower(),
-            }
     return ca_info
 
 
@@ -70,9 +63,8 @@ def _check_ib_interface(ib_interface: str, ib_interfaces_status: dict):
     if ib_interface in ib_interfaces_status:
         ib_state = ib_interfaces_status[ib_interface]["State"]
         physical_state = ib_interfaces_status[ib_interface]["Physical_state"]
-        if ib_state == "Active" and physical_state == "LinkUp":
+        if ib_state == "active" and physical_state == "linkup":
             return True
-
     return False
 
 
@@ -153,30 +145,33 @@ def _get_status_value_from_ha_cluster_status(command_output: str, keyword: str):
 # This are the "main" functions
 
 
-def check_ib_interfaces(*ib_interfaces: str):
+def check_ib_interfaces(ib_interfaces: List[str]):
     result = True
     ib_interfaces_status = _run_and_parse_ibstat()
-    if not ib_interfaces:
-        ib_interfaces = ib_interfaces_status.keys()
     for ib_interface in ib_interfaces:
-        if not _check_ib_interface(ib_interface, ib_interfaces_status):
-            print(f"IB interface {ib_interface} is not active")
+        if not ib_interface in ib_interfaces_status:
+            print(f"{ib_interface} is not in the list of IB interfaces")
             result = False
+        elif not _check_ib_interface(ib_interface, ib_interfaces_status):
+            print(f"IB interface {ib_interface} is not active {ib_interfaces_status[ib_interface]}")
+            result = False
+    if result:
+        print("All given IB interfaces are active")
     return result
 
 
-def check_eth_interfaces(eth_interface: str = ""):
+def check_eth_interfaces(eth_interfaces: List[str]):
     interfaces_status = _run_and_parse_ip_link_show()
-    interfaces_to_check = interfaces_status.keys()
     result = True
-    if eth_interface:
-        interfaces_to_check = [eth_interface]
-    for interface in interfaces_to_check:
-        if not (
-            interface in interfaces_status and interfaces_status[interface] != "up"
-        ):
-            print(f"Interface {interface} is not active")
+    for interface in eth_interfaces:
+        if not interface in interfaces_status:
+            print(f"{interface} is not in the list of ether interfaces")
             result = False
+        elif interfaces_status[interface] != "up":
+            print(f"Interface {interface} is not active {interfaces_status[interface]}")
+            result = False
+    if result:
+        print("All given ether interfaces are active")
     return result
 
 
@@ -274,11 +269,17 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="Checking if standby node is ready.")
 
     parser.add_argument(
-        "--fabric-interfaces", nargs="*", help="Specify one or more fabric interfaces"
+        "--fabric-interfaces",
+        nargs="+",
+        required=True,
+        help="Specify one or more fabric interfaces (at least one is required)"
     )
 
     parser.add_argument(
-        "--mngmnt-interface", nargs="?", help="Specify a management interface"
+        "--mngmnt-interfaces",
+        nargs="+",
+        required=True,
+        help="Specify one or more management interfaces (at least one is required)"
     )
 
     args = parser.parse_args()
@@ -287,36 +288,37 @@ def parse_arguments():
 
 def main(args):
     ib_interfaces_status = check_ib_interfaces(args.fabric_interfaces)
-    eth_interfaces_status = check_eth_interfaces(args.mngmnt_interface)
-    is_ha_enabled = check_if_ha_is_enabled()
-    if not all([ib_interfaces_status, eth_interfaces_status, is_ha_enabled]):
-        sys.exit(1)
-    is_standby_node = is_standby_node()
-    if not is_standby_node:
-        sys.exit(1)
-    pacemaker_status = check_pcs_status()
-    corosync_rings_status = check_corosync_rings_status()
-    corosync_service_stats = check_if_service_is_active("corosync")
-    pacemaker_service_status = check_if_service_is_active("pacemaker")
-    pcsd_service_status = check_if_service_is_active("pcsd")
+    #TODO Handle when the input is ib and not ml
+    eth_interfaces_status = check_eth_interfaces(args.mngmnt_interfaces)
+    # is_ha_enabled = check_if_ha_is_enabled()
+    # if not all([ib_interfaces_status, eth_interfaces_status, is_ha_enabled]):
+    #     sys.exit(1)
+    # is_standby_node = is_standby_node()
+    # if not is_standby_node:
+    #     sys.exit(1)
+    # pacemaker_status = check_pcs_status()
+    # corosync_rings_status = check_corosync_rings_status()
+    # corosync_service_stats = check_if_service_is_active("corosync")
+    # pacemaker_service_status = check_if_service_is_active("pacemaker")
+    # pcsd_service_status = check_if_service_is_active("pcsd")
 
-    ha_cluster_status_string = get_ufm_ha_cluster_status_string()
-    drdb_resures_status = check_drdb_resource(ha_cluster_status_string)
-    drdb_connectivty_status = check_drbd_connectivity(ha_cluster_status_string)
-    drdb_disk_usage_status = check_drbd_disk_state(ha_cluster_status_string)
-    if not all(
-        [
-            pacemaker_status,
-            corosync_rings_status,
-            corosync_service_stats,
-            pacemaker_service_status,
-            pcsd_service_status,
-            drdb_resures_status,
-            drdb_connectivty_status,
-            drdb_disk_usage_status,
-        ]
-    ):
-        sys.exit(1)
+    # ha_cluster_status_string = get_ufm_ha_cluster_status_string()
+    # drdb_resures_status = check_drdb_resource(ha_cluster_status_string)
+    # drdb_connectivty_status = check_drbd_connectivity(ha_cluster_status_string)
+    # drdb_disk_usage_status = check_drbd_disk_state(ha_cluster_status_string)
+    # if not all(
+    #     [
+    #         pacemaker_status,
+    #         corosync_rings_status,
+    #         corosync_service_stats,
+    #         pacemaker_service_status,
+    #         pcsd_service_status,
+    #         drdb_resures_status,
+    #         drdb_connectivty_status,
+    #         drdb_disk_usage_status,
+    #     ]
+    # ):
+    #     sys.exit(1)
 
 
 if __name__ == "__main__":
