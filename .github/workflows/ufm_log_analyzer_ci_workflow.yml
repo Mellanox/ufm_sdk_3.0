@@ -34,3 +34,14 @@ jobs:
 
         # Run PyLint
         pylint --rcfile=src/loganalyze/.pylintrc src/loganalyze
+
+    - name: Install and run Ruff
+      run: |
+        SCRIPT_DIR="plugins/ufm_log_analyzer_plugin"
+        cd $SCRIPT_DIR
+  
+        pip install ruff
+  
+        # Run Ruff
+        ruff format --diff --check src/loganalyze
+  
