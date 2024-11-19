@@ -181,6 +181,7 @@ def check_if_ha_is_enabled():
     if ret_code != 0 or not (stdout.lower() == "yes"):
         print("HA is not enabled")
         return False
+    print("HA is enabled")
     return True
 
 
@@ -188,14 +189,16 @@ def check_pcs_status():
     command = "pcs status"
     return_code, _, _ = _run_command(command)
     if return_code != 0:
-        print("pcs status is not ok")
+        print("pcs status is not ok, return code is {return_code}")
         return False
+    print("PCS status is OK")
     return True
 
 
 def check_corosync_rings_status():
     rings_statuses = _run_and_parse_corosync_rings()
     if not rings_statuses:
+        print("Could not find any rings")
         return False
     result = True
     for ring in rings_statuses:
@@ -203,6 +206,7 @@ def check_corosync_rings_status():
             text = rings_statuses[ring]["status_text"]
             print(f"Ring {ring} is {text}")
             result = False
+    print("All rings are OK")
     return result
 
 
@@ -264,6 +268,15 @@ def check_drbd_disk_state(cluster_status: str):
         return False
     return True
 
+def get_is_standby_node():
+    command = UFM_HA_CLUSTER_COMMAND.format("is-master")
+    _, stdout, _ = _run_command(command)
+    #Not checking the ret code since it is 1 when running on the standby node
+    if stdout != "standby":
+        print(f"Not a standby node but {stdout}")
+        return False
+    print("On standby node")
+    return True
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Checking if standby node is ready.")
@@ -290,13 +303,12 @@ def main(args):
     ib_interfaces_status = check_ib_interfaces(args.fabric_interfaces)
     #TODO Handle when the input is ib and not ml
     eth_interfaces_status = check_eth_interfaces(args.mngmnt_interfaces)
-    # is_ha_enabled = check_if_ha_is_enabled()
-    # if not all([ib_interfaces_status, eth_interfaces_status, is_ha_enabled]):
-    #     sys.exit(1)
-    # is_standby_node = is_standby_node()
-    # if not is_standby_node:
-    #     sys.exit(1)
-    # pacemaker_status = check_pcs_status()
+    is_ha_enabled = check_if_ha_is_enabled()
+    if not all([ib_interfaces_status, eth_interfaces_status, is_ha_enabled]):
+        print("Due to previous failures, stopping the test")
+        sys.exit(1)
+    is_standby_node = get_is_standby_node()
+    pacemaker_status = check_pcs_status()
     # corosync_rings_status = check_corosync_rings_status()
     # corosync_service_stats = check_if_service_is_active("corosync")
     # pacemaker_service_status = check_if_service_is_active("pacemaker")
