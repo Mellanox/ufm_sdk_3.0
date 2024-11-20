@@ -37,11 +37,11 @@ def _run_command(command: str):
 
 
 def _run_and_parse_ibstat():
-    retcode, stdout, _ = _run_command("ibstat")
+    retcode, stdout = _run_command("ibstat")
     if retcode != 0:
         print("Cannot run ibstat")
         return {}
-    lines = stdout.split("\n")
+    lines = stdout.splitlines()
     ca_info = {}
     current_ca = None
 
@@ -92,7 +92,7 @@ def _parse_ip_link_output(ip_link_output: str):
 
 
 def _run_and_parse_ip_link_show():
-    ret_code, ip_link_show_output, _ = _run_command("ip link show")
+    ret_code, ip_link_show_output = _run_command("ip link show")
     if ret_code != 0:
         print("Failed to run ip link show")
         return {}
@@ -101,7 +101,7 @@ def _run_and_parse_ip_link_show():
 
 
 def _run_and_parse_corosync_rings():
-    ret_code, corosync_output, _ = _run_command("corosync-cfgtool -s")
+    ret_code, corosync_output = _run_command("corosync-cfgtool -s")
     if ret_code != 0:
         print("Failed to run corosync-cfgtool -s")
         return {}
@@ -109,10 +109,12 @@ def _run_and_parse_corosync_rings():
     rings_info = {}
     lines = corosync_output.splitlines()
     current_ring = None
+    current_ip = None
+    current_status = None
 
     ring_id_regex = re.compile(r"^RING ID (\d+)")
-    id_ip_regex = re.compile(r"id\s+= ([\d\.]+)")
-    status_regex = re.compile(r"id\s+= (\S+)\s+status\s+= (.+)")
+    id_ip_regex = re.compile(r"id= ([\d\.]+)")
+    status_regex = re.compile(r"^status+= (.+)$")
 
     for line in lines:
         ring_match = ring_id_regex.match(line)
@@ -120,15 +122,21 @@ def _run_and_parse_corosync_rings():
             current_ring = ring_match.group(1)
 
         status_match = status_regex.match(line)
-        if status_match and current_ring is not None:
-            ip_address = status_match.group(1)
-            status_text = status_match.group(2)
-            status_check = "active with no faults" in status_text
+        if status_match:
+            current_status = status_match.group(1)
+        
+        id_ip_match = id_ip_regex.match(line)
+        if id_ip_match:
+            current_ip = id_ip_match.group(1)
+        
+        if current_ring and current_status and current_ip:
+            status_check = "active with no faults" in current_status
             rings_info[current_ring] = {
-                "ip": ip_address,
-                "status_text": status_text,
+                "ip": current_ip,
+                "status_text": current_status,
                 "status_check": status_check,
             }
+            current_ring = current_status = current_ip = None
 
     return rings_info
 
@@ -177,7 +185,7 @@ def check_eth_interfaces(eth_interfaces: List[str]):
 
 def check_if_ha_is_enabled():
     command = UFM_HA_CLUSTER_COMMAND.format("is-ha")
-    ret_code, stdout, _ = _run_command(command)
+    ret_code, stdout = _run_command(command)
     if ret_code != 0 or not (stdout.lower() == "yes"):
         print("HA is not enabled")
         return False
@@ -187,7 +195,7 @@ def check_if_ha_is_enabled():
 
 def check_pcs_status():
     command = "pcs status"
-    return_code, _, _ = _run_command(command)
+    return_code, _ = _run_command(command)
     if return_code != 0:
         print("pcs status is not ok, return code is {return_code}")
         return False
@@ -215,16 +223,18 @@ def check_if_service_is_active(service_name: str):
     service_name for example : pacemaker
     """
     command = SYSTEMCTL_IS_ACTIVE_COMMAND.format(service_name)
-    _, stdout, _ = _run_command(command)
+    _, stdout = _run_command(command)
     if stdout == "active":
+        print(f"Service {service_name} is active")
         return True
     else:
+        print(f"Service {service_name} is not active")
         return False
 
 
 def get_ufm_ha_cluster_status_string():
     command = UFM_HA_CLUSTER_COMMAND.format("status")
-    ret_code, stdout, _ = _run_command(command)
+    ret_code, stdout = _run_command(command)
     if ret_code != 0:
         print("Failed to get ha cluster status")
         return ""
@@ -237,9 +247,10 @@ def check_drdb_resource(cluster_status: str):
     drdb_resource_status = _get_status_value_from_ha_cluster_status(
         cluster_status, "DRBD_RESOURCE"
     )
-    if drdb_resource_status != "ha_data":
+    if drdb_resource_status != "[ha_data]":
         print(f"DRDB RESOURCE status is {drdb_resource_status} and not ha_data")
         return False
+    print("DRDB RESOURCE status is ok (ha_data)")
     return True
 
 
@@ -249,11 +260,12 @@ def check_drbd_connectivity(cluster_status: str):
     drbd_connectivity_status = _get_status_value_from_ha_cluster_status(
         cluster_status, "DRBD_CONNECTIVITY"
     )
-    if drbd_connectivity_status != "connected":
+    if drbd_connectivity_status != "[connected]":
         print(
             f"DRBD CONNECTIVITY status is {drbd_connectivity_status} and not Connected"
         )
         return False
+    print("DRBD CONNECTIVITY status is ok (Connected)")
     return True
 
 
@@ -263,14 +275,15 @@ def check_drbd_disk_state(cluster_status: str):
     drbd_disk_state = _get_status_value_from_ha_cluster_status(
         cluster_status, "DISK_STATE"
     )
-    if drbd_disk_state != "uptodate":
+    if drbd_disk_state != "[uptodate]":
         print(f"DRBD DISK STATE status is {drbd_disk_state} and not UpToDate")
         return False
+    print("DRBD DISK STATE status is ok (UpToDate)")
     return True
 
 def get_is_standby_node():
     command = UFM_HA_CLUSTER_COMMAND.format("is-master")
-    _, stdout, _ = _run_command(command)
+    _, stdout = _run_command(command)
     #Not checking the ret code since it is 1 when running on the standby node
     if stdout != "standby":
         print(f"Not a standby node but {stdout}")
@@ -310,27 +323,28 @@ def main(args):
     is_standby_node = get_is_standby_node()
     pacemaker_status = check_pcs_status()
     corosync_rings_status = check_corosync_rings_status()
-    # corosync_service_stats = check_if_service_is_active("corosync")
-    # pacemaker_service_status = check_if_service_is_active("pacemaker")
-    # pcsd_service_status = check_if_service_is_active("pcsd")
+    corosync_service_stats = check_if_service_is_active("corosync")
+    pacemaker_service_status = check_if_service_is_active("pacemaker")
+    pcsd_service_status = check_if_service_is_active("pcsd")
 
-    # ha_cluster_status_string = get_ufm_ha_cluster_status_string()
-    # drdb_resures_status = check_drdb_resource(ha_cluster_status_string)
-    # drdb_connectivty_status = check_drbd_connectivity(ha_cluster_status_string)
-    # drdb_disk_usage_status = check_drbd_disk_state(ha_cluster_status_string)
-    # if not all(
-    #     [
-    #         pacemaker_status,
-    #         corosync_rings_status,
-    #         corosync_service_stats,
-    #         pacemaker_service_status,
-    #         pcsd_service_status,
-    #         drdb_resures_status,
-    #         drdb_connectivty_status,
-    #         drdb_disk_usage_status,
-    #     ]
-    # ):
-    #     sys.exit(1)
+    ha_cluster_status_string = get_ufm_ha_cluster_status_string()
+    drdb_resures_status = check_drdb_resource(ha_cluster_status_string)
+    drdb_connectivty_status = check_drbd_connectivity(ha_cluster_status_string)
+    drdb_disk_usage_status = check_drbd_disk_state(ha_cluster_status_string)
+    if not all(
+        [
+            pacemaker_status,
+            corosync_rings_status,
+            corosync_service_stats,
+            pacemaker_service_status,
+            pcsd_service_status,
+            drdb_resures_status,
+            drdb_connectivty_status,
+            drdb_disk_usage_status,
+        ]
+    ):
+        sys.exit(1)
+    print("All checks passed")
 
 
 if __name__ == "__main__":
