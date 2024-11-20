@@ -148,6 +148,21 @@ def _get_status_value_from_ha_cluster_status(command_output: str, keyword: str):
             return line.split(":", 1)[-1].strip().lower()
     return None
 
+def _get_ib_to_ml_map():
+    ret_code, stdout = _run_command("ibdev2netdev")
+    if ret_code != 0:
+        print("Failed to run ibdev2netdev")
+        return {}
+    line_regex = re.compile(r"^([\w\d_]+) port \d ==> ([\w\d]+)")
+    lines = stdout.splitlines()
+    ib_to_mp = {}
+    for line in lines:
+        cur_line_match = line_regex.match(line)
+        if cur_line_match:
+            mlx_port = cur_line_match.group(1)
+            ib_port = cur_line_match.group(2)
+            ib_to_mp[ib_port] = mlx_port
+    return ib_to_mp
 
 #############################################################
 # This are the "main" functions
@@ -156,11 +171,16 @@ def _get_status_value_from_ha_cluster_status(command_output: str, keyword: str):
 def check_ib_interfaces(ib_interfaces: List[str]):
     result = True
     ib_interfaces_status = _run_and_parse_ibstat()
+    ib_to_ml_map = _get_ib_to_ml_map()
     for ib_interface in ib_interfaces:
-        if not ib_interface in ib_interfaces_status:
+        ib_interface_to_validate = ib_interface
+        if not ib_interface.startswith("mlx"):
+            if ib_interface in ib_to_ml_map:
+                ib_interface_to_validate = ib_to_ml_map[ib_interface]
+        if ib_interface_to_validate not in ib_interfaces_status:
             print(f"{ib_interface} is not in the list of IB interfaces")
             result = False
-        elif not _check_ib_interface(ib_interface, ib_interfaces_status):
+        elif not _check_ib_interface(ib_interface_to_validate, ib_interfaces_status):
             print(f"IB interface {ib_interface} is not active {ib_interfaces_status[ib_interface]}")
             result = False
     if result:
@@ -172,7 +192,7 @@ def check_eth_interfaces(eth_interfaces: List[str]):
     interfaces_status = _run_and_parse_ip_link_show()
     result = True
     for interface in eth_interfaces:
-        if not interface in interfaces_status:
+        if interface not in interfaces_status:
             print(f"{interface} is not in the list of ether interfaces")
             result = False
         elif interfaces_status[interface] != "up":
@@ -307,6 +327,8 @@ def parse_arguments():
         required=True,
         help="Specify one or more management interfaces (at least one is required)"
     )
+
+    parser.add_argument('--version', action='version', version='%(prog)s 1.0.0')
 
     args = parser.parse_args()
     return args
