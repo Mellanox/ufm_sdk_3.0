@@ -13,6 +13,7 @@ import logging
 
 LOGGER = None
 
+
 def setup_logger(name, level=logging.INFO):
     """
     Function to set up a logger that outputs to the console.
@@ -20,9 +21,9 @@ def setup_logger(name, level=logging.INFO):
     :param level: Logging level (default is INFO).
     :return: Configured logger instance.
     """
-    global LOGGER # pylint: disable=global-statement
+    global LOGGER  # pylint: disable=global-statement
 
-    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
 
     # Create console handler
     console_handler = logging.StreamHandler()

@@ -17,7 +17,8 @@ import shutil
 from typing import Set
 import loganalyze.logger as log
 
-def delete_folders(folders: Set[str], until_folder:str):
+
+def delete_folders(folders: Set[str], until_folder: str):
     """
     Delete all the folders in the folders param, and their parents until reaching the
     until_folder folder
@@ -31,7 +32,9 @@ def delete_folders(folders: Set[str], until_folder:str):
             except FileNotFoundError:
                 log.LOGGER.debug(f"Error: {cur_dir} does not exist.")
             except PermissionError:
-                log.LOGGER.debug(f"Error: Insufficient permissions to delete {cur_dir}.")
+                log.LOGGER.debug(
+                    f"Error: Insufficient permissions to delete {cur_dir}."
+                )
             except NotADirectoryError:
                 log.LOGGER.debug(f"Error: {cur_dir} is not a directory.")
             except OSError as e:
@@ -41,12 +44,12 @@ def delete_folders(folders: Set[str], until_folder:str):
             cur_dir = os.path.dirname(cur_dir)
 
 
-def delete_files_by_types(folder:str, file_types:set[str]):
+def delete_files_by_types(folder: str, file_types: set[str]):
     """
     Given a folder and file types, for example svg and png, it will delete all
     files that end with .svg and .png in the given folder.
     """
-    
+
     for file_type in file_types:
         search_pattern = f"*.{file_type}"
         all_files_in_dir_by_type = glob.glob(os.path.join(folder, search_pattern))

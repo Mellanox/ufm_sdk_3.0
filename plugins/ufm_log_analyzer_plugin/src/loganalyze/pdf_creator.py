@@ -48,7 +48,9 @@ class PDFCreator(FPDF):
         x, y = x_start, y_start
         for image_path in self._images_path:
             if os.path.exists(image_path):
-                self.image(image_path, x=x, y=y, w=image_width, h=image_height, type="PNG")
+                self.image(
+                    image_path, x=x, y=y, w=image_width, h=image_height, type="PNG"
+                )
                 y += image_height + spacing
                 if y > self.h - image_height - 20:
                     self.add_page()
@@ -68,13 +70,15 @@ class PDFCreator(FPDF):
 
         if title:
             self.set_font("Arial", "B", 12)
-            self.cell(0, 10, title, 0, 1, 'C')
+            self.cell(0, 10, title, 0, 1, "C")
             self.ln(5)
 
         self.set_font("Arial", "", 10)
 
-        table_data = [[str(item.get(header, '')) for header in headers] for item in data_list]
-        table_str = tabulate(table_data, headers=headers, tablefmt='plain')
+        table_data = [
+            [str(item.get(header, "")) for header in headers] for item in data_list
+        ]
+        table_str = tabulate(table_data, headers=headers, tablefmt="plain")
 
         self.multi_cell(0, 10, table_str)
         self.ln(10)
@@ -86,7 +90,7 @@ class PDFCreator(FPDF):
 
         if title:
             self.set_font("Arial", "B", 12)
-            self.cell(0, 10, title, 0, 1, 'C')
+            self.cell(0, 10, title, 0, 1, "C")
             self.ln(5)
 
         num_columns = len(data_frame.columns)
@@ -98,7 +102,9 @@ class PDFCreator(FPDF):
             self.set_font("Arial", "", 12)
 
         # Converting and removing the row number as it is not needed
-        table_str = tabulate(data_frame.values, headers=data_frame.columns, tablefmt='plain')
+        table_str = tabulate(
+            data_frame.values, headers=data_frame.columns, tablefmt="plain"
+        )
 
         self.multi_cell(0, 10, table_str)
         self.ln(10)

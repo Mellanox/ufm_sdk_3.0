@@ -29,7 +29,7 @@ class BaseExtractor:
         return None
 
     @staticmethod
-    def _split_based_on_dir(files:Set[str]):
+    def _split_based_on_dir(files: Set[str]):
         single_name_logs = set()
         logs_with_dirs = {}
         for log_name in files:
@@ -44,7 +44,10 @@ class BaseExtractor:
         return single_name_logs, logs_with_dirs
 
     @abstractmethod
-    def extract_files(self, files_to_extract: List[str],
-                      directories_to_extract: List[str],
-                      destination: str):
+    def extract_files(
+        self,
+        files_to_extract: List[str],
+        directories_to_extract: List[str],
+        destination: str,
+    ):
         pass
