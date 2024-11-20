@@ -29,10 +29,9 @@ def _run_command(command: str):
             command,
             shell=True,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
             universal_newlines=True,
         )
-        return result.returncode, result.stdout.strip(), result.stderr.strip()
+        return result.returncode, result.stdout.replace("\t","").strip()
     except Exception as e:
         return -1, "", str(e)
 
@@ -112,7 +111,8 @@ def _run_and_parse_corosync_rings():
     current_ring = None
 
     ring_id_regex = re.compile(r"^RING ID (\d+)")
-    status_regex = re.compile(r"^\s+id\s+= (\S+)\s+status\s+= (.+)")
+    id_ip_regex = re.compile(r"id\s+= ([\d\.]+)")
+    status_regex = re.compile(r"id\s+= (\S+)\s+status\s+= (.+)")
 
     for line in lines:
         ring_match = ring_id_regex.match(line)
@@ -309,7 +309,7 @@ def main(args):
         sys.exit(1)
     is_standby_node = get_is_standby_node()
     pacemaker_status = check_pcs_status()
-    # corosync_rings_status = check_corosync_rings_status()
+    corosync_rings_status = check_corosync_rings_status()
     # corosync_service_stats = check_if_service_is_active("corosync")
     # pacemaker_service_status = check_if_service_is_active("pacemaker")
     # pcsd_service_status = check_if_service_is_active("pcsd")
