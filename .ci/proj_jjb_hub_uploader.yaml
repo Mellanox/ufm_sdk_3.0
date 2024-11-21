@@ -60,7 +60,7 @@
         - bool:
             name: "DEBUG"
             default: "true"
-            description: "Enable additional info in logs."
+            description: "Enable additional info in logs.  ONLY FOLLOWING USERS CAN UPLOAD bitkin,afok,kobib,drorl,tlerner,omarj,samerd,atolikin,atabachnik,eylonk,lennyv,asafb,sspormas,mkianovsky,asafb"
     pipeline-scm:
         scm:
             - git:
