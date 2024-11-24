@@ -255,7 +255,7 @@ class StandbyNodeHealthChecker:
         return result
 
     @classmethod
-    def _parse_corsync_rings_old_output(clsm, corosync_output_lines: List[str]):
+    def _parse_corsync_rings_old_output(cls, corosync_output_lines: List[str]):
         # This function handles the old ouptut of corsync, for example:
         # Printing ring status.
         # Local node ID 2
@@ -280,7 +280,10 @@ class StandbyNodeHealthChecker:
                 current_ip = ring_ip.group(1)
             old_status_match = status_regex.match(line)
             print(
-                f"current ring {current_ring} current ip {current_ring} old status {old_status_match} line {line}"
+                f"current ring {current_ring} "
+                f"current ip {current_ring} "
+                f"old status {old_status_match} " 
+                f"line {line}"
             )
             if current_ring and current_ip and old_status_match is not None:
                 status_text = old_status_match.group(1)
@@ -331,7 +334,9 @@ class StandbyNodeHealthChecker:
                 status_check = link_enabled == "1" and link_connected == "1"
                 rings_info[f"Link {current_ring} Node {node_id}"] = {
                     "ip": current_ip,
-                    "status_text": f"node {node_id} link enabled:{link_enabled} link connected:{link_connected}",
+                    "status_text": f"node {node_id} "
+                                   f"link enabled:{link_enabled} "
+                                   f"link connected:{link_connected}",
                     "status_check": status_check,
                 }
         return rings_info
