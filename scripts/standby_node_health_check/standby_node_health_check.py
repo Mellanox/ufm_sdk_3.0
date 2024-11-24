@@ -443,11 +443,11 @@ def main(args):
     )
     if not standby_node_checker.run_basic_checks():
         print("Due to previous failures, stopping the test")
-        # sys.exit(1)
+        sys.exit(1)
 
     if not standby_node_checker.check_if_standby_node():
         print("The tool should only be run on Standby node")
-        # sys.exit(1)
+        sys.exit(1)
 
     if not standby_node_checker.run_advanced_checks():
         sys.exit(1)
