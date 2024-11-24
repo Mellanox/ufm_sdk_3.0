@@ -276,7 +276,6 @@ class StandbyNodeHealthChecker:
             if old_status_match:
                 current_status = old_status_match.group(1)
             elif new_status_match:
-                
             id_ip_match = id_ip_regex.match(line)
             if id_ip_match:
                 current_ip = id_ip_match.group(1)
