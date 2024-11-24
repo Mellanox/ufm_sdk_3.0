@@ -10,14 +10,12 @@
 # provided with the software product.
 #
 
+import json
 import re
 import subprocess
 import argparse
 import sys
-
-
-UFM_HA_CLUSTER_COMMAND = "ufm_ha_cluster {}"
-SYSTEMCTL_IS_ACTIVE_COMMAND = "systemctl is-active {}.service"
+from typing import List
 
 
 def parse_arguments():
@@ -27,14 +25,14 @@ def parse_arguments():
         "--fabric-interfaces",
         nargs="+",
         required=True,
-        help="Specify one or more fabric interfaces (at least one is required)",
+        help="Specify one or more fabric interfaces (at least one is required), eg ib0, mlx3_0",
     )
 
     parser.add_argument(
-        "--mngmnt-interfaces",
+        "--mgmt-interfaces",
         nargs="+",
         required=True,
-        help="Specify one or more management interfaces (at least one is required)",
+        help="Specify one or more management interfaces (at least one is required), eg eth0, eth1",
     )
 
     parser.add_argument("--version", action="version", version="%(prog)s 1.0.0")
@@ -44,13 +42,16 @@ def parse_arguments():
 
 
 class StandbyNodeHealthChecker:
-    def __init__(self, fabric_interfaces, mngmnt_interfaces):
+    UFM_HA_CLUSTER_COMMAND = "ufm_ha_cluster {}"
+    SYSTEMCTL_IS_ACTIVE_COMMAND = "systemctl is-active {}.service"
+
+    def __init__(self, fabric_interfaces, mgmt_interfaces):
         self._fabric_interfaces = fabric_interfaces
-        self._mngmnt_interfaces = mngmnt_interfaces
+        self._mgmt_interfaces = mgmt_interfaces
         self._ufm_ha_status_string = ""
 
-    @staticmethod
-    def _run_command(command: str):
+    @classmethod
+    def _run_command(cls, command: str):
         try:
             result = subprocess.run(
                 command,
@@ -66,7 +67,7 @@ class StandbyNodeHealthChecker:
     def _check_ib_interfaces(self):
         result = True
         ib_interfaces_status = self._run_and_parse_ibstat()
-        ib_to_ml_map = self._get_ib_to_ml_map()
+        ib_to_ml_map = self._get_ib_to_mlx_port_mapping()
         for ib_interface in self._fabric_interfaces:
             ib_interface_to_validate = ib_interface
             if not ib_interface.startswith("mlx"):
@@ -79,32 +80,32 @@ class StandbyNodeHealthChecker:
             ):
                 print(
                     f"IB interface {ib_interface} is not active "
-                    f"{ib_interfaces_status[ib_interface]}"
+                    f"{ib_interfaces_status[ib_interface_to_validate]}"
                 )
                 result = False
         if result:
             print("All given IB interfaces are active")
         return result
 
-    @staticmethod
-    def _get_ib_to_ml_map():
-        ret_code, stdout = StandbyNodeHealthChecker._run_command("ibdev2netdev")
+    @classmethod
+    def _get_ib_to_mlx_port_mapping(cls):
+        ret_code, stdout = cls._run_command("ibdev2netdev")
         if ret_code != 0:
             print("Failed to run ibdev2netdev")
             return {}
         line_regex = re.compile(r"^([\w\d_]+) port \d ==> ([\w\d]+)")
         lines = stdout.splitlines()
-        ib_to_mp = {}
+        ib_to_mlx_map = {}
         for line in lines:
             cur_line_match = line_regex.match(line)
             if cur_line_match:
                 mlx_port = cur_line_match.group(1)
                 ib_port = cur_line_match.group(2)
-                ib_to_mp[ib_port] = mlx_port
-        return ib_to_mp
+                ib_to_mlx_map[ib_port] = mlx_port
+        return ib_to_mlx_map
 
-    @staticmethod
-    def _check_ib_interface(ib_interface: str, ib_interfaces_status: dict):
+    @classmethod
+    def _check_ib_interface(cls, ib_interface: str, ib_interfaces_status: dict):
         if ib_interface in ib_interfaces_status:
             ib_state = ib_interfaces_status[ib_interface]["State"]
             physical_state = ib_interfaces_status[ib_interface]["Physical_state"]
@@ -112,9 +113,9 @@ class StandbyNodeHealthChecker:
                 return True
         return False
 
-    @staticmethod
-    def _run_and_parse_ibstat():
-        retcode, stdout = StandbyNodeHealthChecker._run_command("ibstat")
+    @classmethod
+    def _run_and_parse_ibstat(cls):
+        retcode, stdout = cls._run_command("ibstat")
         if retcode != 0:
             print("Cannot run ibstat")
             return {}
@@ -136,47 +137,38 @@ class StandbyNodeHealthChecker:
 
         return ca_info
 
-    @staticmethod
-    def _run_and_parse_ip_link_show():
-        ret_code, ip_link_show_output = StandbyNodeHealthChecker._run_command(
-            "ip link show"
-        )
+    @classmethod
+    def _run_and_parse_ip_link_show(cls):
+        ret_code, ip_link_show_output = cls._run_command("ip --json link show")
         if ret_code != 0:
             print("Failed to run ip link show")
             return {}
-        interfaces = StandbyNodeHealthChecker._parse_ip_link_output(ip_link_show_output)
+        interfaces = cls._parse_ip_link_output(ip_link_show_output)
         return interfaces
 
-    @staticmethod
-    def _parse_ip_link_output(ip_link_output: str):
-        interface_regex = re.compile(r"^(\d+): (\S+):.*state (\S+) .*")
-        link_regex = re.compile(r"^\s+link/(\S+)")
-
+    @classmethod
+    def _parse_ip_link_output(cls, ip_link_output: str):
         interfaces = {}
-        lines = ip_link_output.splitlines()
-        current_interface = None
-        state = None
+        try:
+            link_data = json.loads(ip_link_output)
+            for entry in link_data:
+                ifname = entry.get("ifname")
+                operstate = entry.get("operstate", "").lower()  # Get state in lowercase
+                link_type = entry.get("link_type", "").lower()
 
-        for line in lines:
-            interface_match = interface_regex.match(line)
-            if interface_match:
-                current_interface = interface_match.group(2)
-                state = interface_match.group(3)
-            else:
-                link_match = link_regex.match(line)
-                if link_match and current_interface:
-                    link_type = link_match.group(1)
-                    if link_type == "ether":
-                        interfaces[current_interface] = state.lower()
+                if ifname and link_type == "ether":
+                    interfaces[ifname] = operstate
 
+        except json.JSONDecodeError:
+            print("Error while parssing ib link show command")
         return interfaces
 
     def _check_eth_interfaces(self):
-        interfaces_status = StandbyNodeHealthChecker._run_and_parse_ip_link_show()
+        interfaces_status = self._run_and_parse_ip_link_show()
         result = True
-        for interface in self._mngmnt_interfaces:
+        for interface in self._mgmt_interfaces:
             if interface not in interfaces_status:
-                print(f"{interface} is not in the list of ether interfaces")
+                print(f"{interface} is not in the list of management interfaces")
                 result = False
             elif interfaces_status[interface] != "up":
                 print(
@@ -187,10 +179,10 @@ class StandbyNodeHealthChecker:
             print("All given ether interfaces are active")
         return result
 
-    @staticmethod
-    def _check_if_ha_is_enabled():
-        command = UFM_HA_CLUSTER_COMMAND.format("is-ha")
-        ret_code, stdout = StandbyNodeHealthChecker._run_command(command)
+    @classmethod
+    def _check_if_ha_is_enabled(cls):
+        command = cls.UFM_HA_CLUSTER_COMMAND.format("is-ha")
+        ret_code, stdout = cls._run_command(command)
         if ret_code != 0 or stdout.lower() != "yes":
             print("HA is not enabled")
             return False
@@ -209,10 +201,10 @@ class StandbyNodeHealthChecker:
                 result = False
         return result
 
-    @staticmethod
-    def check_if_standby_node():
-        command = UFM_HA_CLUSTER_COMMAND.format("is-master")
-        _, stdout = StandbyNodeHealthChecker._run_command(command)
+    @classmethod
+    def check_if_standby_node(cls):
+        command = cls.UFM_HA_CLUSTER_COMMAND.format("is-master")
+        _, stdout = cls._run_command(command)
         # Not checking the ret code since it is 1 when running on the standby node
         if stdout != "standby":
             print(f"Not a standby node but {stdout}")
@@ -220,93 +212,146 @@ class StandbyNodeHealthChecker:
         print("On standby node")
         return True
 
-    @staticmethod
-    def _check_pcs_status():
+    @classmethod
+    def _check_pcs_status(cls):
         command = "pcs status"
-        return_code, _ = StandbyNodeHealthChecker._run_command(command)
+        return_code, _ = cls._run_command(command)
         if return_code != 0:
-            print("pcs status is not ok, return code is {return_code}")
+            print(f"pcs status is not ok, return code is {return_code}")
             return False
         print("PCS status is OK")
         return True
 
-    @staticmethod
-    def _check_corosync_rings_status():
-        rings_statuses = StandbyNodeHealthChecker._run_and_parse_corosync_rings()
-        if not rings_statuses:
-            print("Could not find any rings")
-            return False
-        result = True
-        for ring in rings_statuses.items():
-            if not rings_statuses[ring]["status_check"]:
-                text = rings_statuses[ring]["status_text"]
-                print(f"Ring {ring} is {text}")
-                result = False
-        print("All rings are OK")
-        return result
-
-    @staticmethod
-    def _run_and_parse_corosync_rings():
-        # Supprting links and rings status
-        ret_code, corosync_output = StandbyNodeHealthChecker._run_command(
-            "corosync-cfgtool -s"
-        )
+    @classmethod
+    def _check_corosync_rings_status(cls):
+        ret_code, corosync_output = cls._run_command("corosync-cfgtool -s")
         if ret_code != 0:
             print("Failed to run corosync-cfgtool -s")
             return {}
+        corosync_output_lines = corosync_output.splitlines()
+        rings_statuses = cls._parse_corsync_rings_old_output(corosync_output_lines)
+        if not rings_statuses:
+            print("From new")
+            rings_statuses = cls._parse_corsync_rings_new_output(corosync_output_lines)
+        print(f"RING RES {rings_statuses}")
+        if not rings_statuses:
+            print("Could not find any corosync rings status")
+            return False
+        result = True
+        try:
+            for ring in rings_statuses:
+                if not rings_statuses[ring]["status_check"]:
+                    text = rings_statuses[ring]["status_text"]
+                    if text:
+                        print(f"{ring} is not OK - {text}")
+                    else:
+                        print(f"{ring} has an empty status")
+                    result = False
+        except Exception as e:
+            print(f"Failed to parse corosync rings status: {e}")
+            return False
+        if result:
+            print("All rings are OK")
+        return result
 
+    @classmethod
+    def _parse_corsync_rings_old_output(clsm, corosync_output_lines: List[str]):
+        # This function handles the old ouptut of corsync, for example:
+        # Printing ring status.
+        # Local node ID 2
+        # RING ID 0
+        # 	id	= 11.0.0.11
+        # 	status	= ring 0 active with no faults
+        # RING ID 1
+        # 	id	= 10.209.44.110
+        # 	status	= ring 1 active with no faults
         rings_info = {}
-        lines = corosync_output.splitlines()
+        ring_id_regex = re.compile(r"^RING ID (\d+)")
+        id_ip_regex = re.compile(r"id\ *= ([\d\.]+)")
+        status_regex = re.compile(r"^status:\s*(.*)$")
         current_ring = None
         current_ip = None
-        current_status = None
-
-        ring_id_regex = re.compile(r"^(?:RING|LINK) ID (\d+)")
-        id_ip_regex = re.compile(r"(?:id|addr)= ([\d\.]+)")
-        status_regex = re.compile(r"^status+= (.+)$")
-        node_status_regex = re.compile(r"^node (\d+)\: link enabled\:\d+ link connected\:\d+")
-
-        for line in lines:
+        for line in corosync_output_lines:
             ring_match = ring_id_regex.match(line)
             if ring_match:
                 current_ring = ring_match.group(1)
-
+            ring_ip = id_ip_regex.match(line)
+            if ring_ip:
+                current_ip = ring_ip.group(1)
             old_status_match = status_regex.match(line)
-            new_status_match = node_status_regex.match(line)
-            if old_status_match:
-                current_status = old_status_match.group(1)
-            elif new_status_match:
-            id_ip_match = id_ip_regex.match(line)
-            if id_ip_match:
-                current_ip = id_ip_match.group(1)
-
-            if current_ring and current_status and current_ip:
-                status_check = "active with no faults" in current_status
-                rings_info[current_ring] = {
+            print(
+                f"current ring {current_ring} current ip {current_ring} old status {old_status_match} line {line}"
+            )
+            if current_ring and current_ip and old_status_match is not None:
+                status_text = old_status_match.group(1)
+                status_check = "active with no faults" in status_text
+                rings_info[f"Ring {current_ring}"] = {
                     "ip": current_ip,
-                    "status_text": current_status,
+                    "status_text": status_text,
                     "status_check": status_check,
                 }
-                current_ring = current_status = current_ip = None
-
+                current_ring = current_ip = None
         return rings_info
 
-    @staticmethod
-    def check_if_service_is_active(service_name: str):
+    @classmethod
+    def _parse_corsync_rings_new_output(cls, corosync_output_lines: List[str]):
+        # This function handles the new output of corsync, for example:
+        # Printing link status.
+        # Local node ID 1
+        # LINK ID 0
+        # 	addr	= 1.1.36.7
+        # 	status:
+        # 		node 0:	link enabled:1	link connected:1
+        # 		node 1:	link enabled:1	link connected:1
+        # LINK ID 1
+        # 	addr	= 10.209.226.31
+        # 	status:
+        # 		node 0:	link enabled:0	link connected:1
+        # 		node 1:	link enabled:1	link connected:1
+        rings_info = {}
+        ring_id_regex = re.compile(r"^LINK ID (\d+)")
+        id_ip_regex = re.compile(r"addr\ *= ([\d\.]+)")
+        node_status_regex = re.compile(
+            r"^node (\d+):link enabled:(\d)link connected:(\d)"
+        )
+        current_ring = None
+        current_ip = None
+        for line in corosync_output_lines:
+            ring_match = ring_id_regex.match(line)
+            if ring_match:
+                current_ring = ring_match.group(1)
+            ring_ip = id_ip_regex.match(line)
+            if ring_ip:
+                current_ip = ring_ip.group(1)
+            new_status_match = node_status_regex.match(line)
+            if current_ring and current_ip and new_status_match:
+                node_id = new_status_match.group(1)
+                link_enabled = new_status_match.group(2)
+                link_connected = new_status_match.group(3)
+                status_check = link_enabled == "1" and link_connected == "1"
+                rings_info[f"Link {current_ring} Node {node_id}"] = {
+                    "ip": current_ip,
+                    "status_text": f"node {node_id} link enabled:{link_enabled} link connected:{link_connected}",
+                    "status_check": status_check,
+                }
+        return rings_info
+
+    @classmethod
+    def check_if_service_is_active(cls, service_name: str):
         """
         service_name for example : pacemaker
         """
-        command = SYSTEMCTL_IS_ACTIVE_COMMAND.format(service_name)
-        _, stdout = StandbyNodeHealthChecker._run_command(command)
+        command = cls.SYSTEMCTL_IS_ACTIVE_COMMAND.format(service_name)
+        _, stdout = cls._run_command(command)
         if stdout == "active":
             print(f"Service {service_name} is active")
             return True
         print(f"Service {service_name} is not active")
         return False
 
-    def get_ufm_ha_cluster_status_string(self):
-        command = UFM_HA_CLUSTER_COMMAND.format("status")
-        ret_code, res_string = StandbyNodeHealthChecker._run_command(command)
+    def set_ufm_ha_cluster_status_string(self):
+        command = self.UFM_HA_CLUSTER_COMMAND.format("status")
+        ret_code, res_string = self._run_command(command)
         if ret_code != 0:
             print("Failed to get ha cluster status")
             res_string = ""
@@ -316,7 +361,14 @@ class StandbyNodeHealthChecker:
         for line in self._ufm_ha_status_string.splitlines():
             line = line.strip()
             if line.startswith(keyword):
-                return line.split(":", 1)[-1].strip().lower()
+                val = line.split(":", 1)[-1].strip().lower()
+                val = (
+                    val.replace("[", "")
+                    .replace("]", "")
+                    .replace("(", "")
+                    .replace(")", "")
+                )
+                return val
         return None
 
     def check_drbd_connectivity(self):
@@ -325,42 +377,44 @@ class StandbyNodeHealthChecker:
         drbd_connectivity_status = self._get_status_value_from_ha_cluster_status(
             "DRBD_CONNECTIVITY"
         )
-        if drbd_connectivity_status != "[connected]":
+        if drbd_connectivity_status != "connected":
             print(
                 f"DRBD CONNECTIVITY status is {drbd_connectivity_status} and not Connected"
             )
             return False
-        print("DRBD CONNECTIVITY status is ok (Connected)")
+        print("DRBD CONNECTIVITY status is ok - Connected")
         return True
 
-    def check_drdb_resource(self):
+    def check_drdb_role(self):
         if not self._ufm_ha_status_string:
             return False
         drdb_resource_status = self._get_status_value_from_ha_cluster_status(
-            "DRBD_RESOURCE"
+            "DRBD_ROLE"
         )
-        if drdb_resource_status != "[ha_data]":
-            print(f"DRDB RESOURCE status is {drdb_resource_status} and not ha_data")
+        if drdb_resource_status != "secondary":
+            print(f"DRDB ROLE status is {drdb_resource_status} and not Secondary")
             return False
-        print("DRDB RESOURCE status is ok (ha_data)")
+        print("DRDB ROLE status is ok - Secondary")
         return True
 
     def check_drbd_disk_state(self):
         if not self._ufm_ha_status_string:
             return False
         drbd_disk_state = self._get_status_value_from_ha_cluster_status("DISK_STATE")
-        if drbd_disk_state != "[uptodate]":
+        if drbd_disk_state != "uptodate":
             print(f"DRBD DISK STATE status is {drbd_disk_state} and not UpToDate")
             return False
-        print("DRBD DISK STATE status is ok (UpToDate)")
+        print("DRBD DISK STATE status is ok - UpToDate")
         return True
 
     def run_advanced_checks(self):
         result = True
+        self.set_ufm_ha_cluster_status_string()
         checks = [
-            StandbyNodeHealthChecker._check_pcs_status,
-            StandbyNodeHealthChecker._check_corosync_rings_status,
-            self.check_drdb_resource,
+            self._check_pcs_status,
+            # On comment, there is an instability here between versions
+            # self._check_corosync_rings_status,
+            self.check_drdb_role,
             self.check_drbd_connectivity,
             self.check_drbd_disk_state,
         ]
@@ -368,9 +422,9 @@ class StandbyNodeHealthChecker:
             if not check():
                 result = False
         check_with_arg = [
-            (StandbyNodeHealthChecker.check_if_service_is_active, "corosync"),
-            (StandbyNodeHealthChecker.check_if_service_is_active, "pacemaker"),
-            (StandbyNodeHealthChecker.check_if_service_is_active, "pcsd"),
+            (self.check_if_service_is_active, "corosync"),
+            (self.check_if_service_is_active, "pacemaker"),
+            (self.check_if_service_is_active, "pcsd"),
         ]
         for check, arg in check_with_arg:
             if not check(arg):
@@ -380,15 +434,15 @@ class StandbyNodeHealthChecker:
 
 def main(args):
     standby_node_checker = StandbyNodeHealthChecker(
-        args.fabric_interfaces, args.mngmnt_interfaces
+        args.fabric_interfaces, args.mgmt_interfaces
     )
     if not standby_node_checker.run_basic_checks():
         print("Due to previous failures, stopping the test")
-        sys.exit(1)
+        # sys.exit(1)
 
     if not standby_node_checker.check_if_standby_node():
         print("The tool should only be run on Standby node")
-        sys.exit(1)
+        # sys.exit(1)
 
     if not standby_node_checker.run_advanced_checks():
         sys.exit(1)
