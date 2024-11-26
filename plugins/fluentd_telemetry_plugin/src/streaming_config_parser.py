@@ -23,7 +23,6 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
     UFM_TELEMETRY_ENDPOINT_SECTION_XDR_MODE = "xdr_mode"
     UFM_TELEMETRY_ENDPOINT_SECTION_XDR_PORTS_TYPE = "xdr_ports_types"
     UFM_TELEMETRY_ENDPOINT_SECTION_XDR_PORTS_TYPE_SPLITTER = ";"
-    UFM_TELEMETRY_ENDPOINT_SECTION_TIMEOUT = "timeout"
 
     FLUENTD_ENDPOINT_SECTION = "fluentd-endpoint"
     FLUENTD_ENDPOINT_SECTION_HOST = "host"
@@ -37,6 +36,7 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
     STREAMING_SECTION_STREAM_ONLY_NEW_SAMPLES = "stream_only_new_samples"
     STREAMING_SECTION_ENABLE_CACHED_STREAM_ON_TELEMETRY_FAIL = "enable_cached_stream_on_telemetry_fail"
     STREAMING_SECTION_ENABLED = "enabled"
+    STREAMING_SECTION_TELEMETRY_REQUEST_TIMEOUT = "TELEMETRY_REQUEST_TIMEOUT"
 
     META_FIELDS_SECTION = "meta-fields"
 
@@ -72,10 +72,10 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
                                      self.UFM_TELEMETRY_ENDPOINT_SECTION,
                                      self.UFM_TELEMETRY_ENDPOINT_SECTION_XDR_PORTS_TYPE,
                                      "legacy;aggregated;plane")
-    def get_telemetry_timeout(self):
+    def get_streaming_telemetry_request_timeout(self):
         return self.safe_get_int(None,
-                                 self.UFM_TELEMETRY_ENDPOINT_SECTION,
-                                 self.UFM_TELEMETRY_ENDPOINT_SECTION_TIMEOUT,
+                                 self.STREAMING_SECTION,
+                                 self.STREAMING_SECTION_TELEMETRY_REQUEST_TIMEOUT,
                                  60)
     def get_streaming_interval(self):
         return self.get_config_value(None,
