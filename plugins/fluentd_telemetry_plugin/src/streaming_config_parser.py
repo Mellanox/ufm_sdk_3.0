@@ -76,7 +76,7 @@ class UFMTelemetryStreamingConfigParser(ConfigParser):
         return self.safe_get_int(None,
                                  self.UFM_TELEMETRY_ENDPOINT_SECTION,
                                  self.UFM_TELEMETRY_ENDPOINT_SECTION_TIMEOUT,
-                                 '60')
+                                 60)
     def get_streaming_interval(self):
         return self.get_config_value(None,
                                      self.UFM_TELEMETRY_ENDPOINT_SECTION,
