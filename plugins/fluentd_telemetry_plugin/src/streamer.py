@@ -51,6 +51,9 @@ class UFMTelemetryStreaming(Singleton):
         self.telem_parser = TelemetryParser(self.config_parser, self.streaming_metrics_mgr,
                                             self.last_streamed_data_sample_per_endpoint,
                                             self.attributes_mngr)
+        self.init_streaming_attributes()
+
+    def init_streaming_attributes(self):
         self.attributes_mngr.init_streaming_attributes(self.telem_parser,
                                                        self.ufm_telemetry_endpoints, self.config_parser)
 
