@@ -75,7 +75,7 @@ class TelemetryParser:
         url = f'http://{_host}:{_port}/{_url}'
         logging.info('Send UFM Telemetry Endpoint Request, Method: GET, URL: %s', url)
         try:
-            response = requests.get(url)  # pylint: disable=missing-timeout
+            response = requests.get(url, timeout=self.config_parser.get_telemetry_timeout())  # pylint: disable=missing-timeout
             response.raise_for_status()
             actual_content_size = len(response.content)
             expected_content_size = int(response.headers.get('Content-Length', actual_content_size))
