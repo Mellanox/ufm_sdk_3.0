@@ -11,7 +11,7 @@ COPY utils/ ${BASE_PATH}/utils/
 COPY ufm_sdk_tools/ ${BASE_PATH}/ufm_sdk_tools/
 
 COPY ${SRC_BASE_DIR}/conf/supervisord.conf /etc/supervisor/conf.d/
-COPY ${SRC_BASE_DIR}/scripts/init.sh ${SRC_BASE_DIR}/scripts/deinit.sh /
+COPY ${SRC_BASE_DIR}/scripts/init.sh ${SRC_BASE_DIR}/scripts/deinit.sh ${SRC_BASE_DIR}/scripts/upgrade.sh /
 COPY ${SRC_BASE_DIR}/conf/tfs_httpd_proxy.conf ${SRC_BASE_DIR}/conf/fluentd_telemetry_plugin.cfg ${SRC_BASE_DIR}/conf/fluentd.conf ${BASE_PATH}/
 
 COPY ${SRC_BASE_DIR}/lib/libfluent-bit.so ${SRC_BASE_DIR}/lib/libraw_msgpack_api.so  ${TELEMETRY_BASE_PATH}/collectx/lib/
