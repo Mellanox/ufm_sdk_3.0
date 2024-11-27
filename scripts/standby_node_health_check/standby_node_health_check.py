@@ -417,8 +417,7 @@ class StandbyNodeHealthChecker:
         self.set_ufm_ha_cluster_status_string()
         checks = [
             self._check_pcs_status,
-            # On comment, there is an instability here between versions
-            # self._check_corosync_rings_status,
+            self._check_corosync_rings_status,
             self.check_drdb_role,
             self.check_drbd_connectivity,
             self.check_drbd_disk_state,
