@@ -56,5 +56,49 @@ class Logger:
                            ''.join(['--{0} '.format(arg) for arg in argv]),
                            LOG_LEVELS.ERROR)
 
+    @staticmethod
+    def log_debug(msg):
+        """
+        Logs a debug message.
+        Args:
+            msg (str): Message to log.
+        """
+        Logger.log_message(msg, LOG_LEVELS.DEBUG)
 
+    @staticmethod
+    def log_info(msg):
+        """
+        Logs an info message.
+        Args:
+            msg (str): Message to log.
+        """
+        Logger.log_message(msg, LOG_LEVELS.INFO)
+
+    @staticmethod
+    def log_warning(msg):
+        """
+        Logs a warning message.
+        Args:
+            msg (str): Message to log.
+        """
+        Logger.log_message(msg, LOG_LEVELS.WARNING)
+
+
+    @staticmethod
+    def log_error(msg):
+        """
+        Logs an error message.
+        Args:
+            msg (str): Message to log.
+        """
+        Logger.log_message(msg, LOG_LEVELS.ERROR)
+
+    @staticmethod
+    def log_critical(msg):
+        """
+        Logs a critical message.
+        Args:
+            msg (str): Message to log.
+        """
+        Logger.log_message(msg, LOG_LEVELS.FATAL)
 
