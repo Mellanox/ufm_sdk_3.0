@@ -193,3 +193,38 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
             self._log_data_sorted["type"] == "timeout_dump_core"
         ]
         return {"Amount": len(core_dumps)}
+
+    def full_analysis(self):
+        images, _, _ = super().full_analysis()
+        dataframes_for_pdf = []
+        lists_to_add = []
+        dataframes_for_pdf.append(
+            (
+                f"{self.telemetry_type} Telemetry iteration time",
+                self.get_last_iterations_time_stats(),
+            )
+        )
+        
+        dataframes_for_pdf.append(
+            (
+                f"{self.telemetry_type} "
+                "Telemetry iteration first and last timestamps",
+                self.get_first_last_iteration_timestamp(),
+            )
+        )
+        dataframes_for_pdf.append(
+            (
+                f"{self.telemetry_type} Telemetry fabric size",
+                self.get_number_of_switches_and_ports(),
+            )
+        )
+
+        lists_to_add.append(
+                (
+                    [self.get_number_of_core_dumps()],
+                    f"{self.telemetry_type} "
+                    "number of core dumps found in the logs",
+                    ["Amount"],
+                )
+            )
+        return images, dataframes_for_pdf, lists_to_add

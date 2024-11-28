@@ -17,6 +17,7 @@
 import os
 from io import StringIO
 from fpdf import FPDF
+import pandas as pd
 from tabulate import tabulate
 
 
@@ -85,7 +86,8 @@ class PDFCreator(FPDF):
 
     def add_dataframe_as_text(self, data_frame, title=None):
         """Adds a DataFrame to the PDF as aligned text without row numbers."""
-        if data_frame is None or data_frame.empty:
+        print(data_frame)
+        if data_frame is None or not isinstance(data_frame, pd.DataFrame) or data_frame.empty:
             return
 
         if title:

@@ -156,7 +156,7 @@ class BaseImageCreator:
                 except:  # pylint: disable=bare-except
                     pass
 
-        return self._images_created if len(self._images_created) > 0 else []
+        return self._images_created if len(self._images_created) > 0 else [], [], []
 
 
 class BaseAnalyzer(BaseImageCreator):

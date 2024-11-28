@@ -13,6 +13,9 @@
 # pylint: disable=missing-module-docstring
 
 
+from plugins.ufm_log_analyzer_plugin.src.loganalyze.log_analyzers.ibdiagnet_log_analyzer import IBDIAGNETLogAnalyzer
+
+
 class UFMTopAnalyzer:
     def __init__(self):
         self._analyzers = []
@@ -20,13 +23,21 @@ class UFMTopAnalyzer:
     def add_analyzer(self, analyzer):
         self._analyzers.append(analyzer)
 
-    def full_analysis(self):
+    def full_analysis_all_analyzers(self):
         """
         Returns a list of all the graphs created and their title
         """
         graphs_and_titles = []
+        dataframes = []
+        lists_to_add = []
         for analyzer in self._analyzers:
-            tmp_images_list = analyzer.full_analysis()
-            if len(tmp_images_list) > 0:
-                graphs_and_titles.extend(tmp_images_list)
-        return graphs_and_titles
+            tmp_images_list, tmp_dataframes, tmp_lists = analyzer.full_analysis()
+            graphs_and_titles.extend(tmp_images_list) if tmp_images_list else None
+            dataframes.extend(tmp_dataframes) if tmp_dataframes else None
+            lists_to_add.extend(tmp_lists) if tmp_lists else None
+
+        has_ibdiagnet_analyzer = any(isinstance(instance, IBDIAGNETLogAnalyzer) for instance in self._analyzers)
+        if not has_ibdiagnet_analyzer:
+            dataframes.append(("Fabric info", ("No Fabric Info found")))
+
+        return graphs_and_titles, dataframes, lists_to_add

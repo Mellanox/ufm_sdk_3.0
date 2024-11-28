@@ -152,3 +152,15 @@ class EventsLogAnalyzer(BaseAnalyzer):
         self._save_pivot_data_in_bars(
             pivot_links_data, "Time", "Number of Events", "Link up/down events", "Event"
         )
+
+    def full_analysis(self):
+        images, _, _ = super().full_analysis()
+        critical_events_headers = ["timestamp", "event_type", "event", "count"]
+        lists = [
+            (
+                self.get_critical_event_bursts(),
+                "More than 5 events burst over a minute",
+                critical_events_headers,
+            )
+        ]
+        return images, [], lists
