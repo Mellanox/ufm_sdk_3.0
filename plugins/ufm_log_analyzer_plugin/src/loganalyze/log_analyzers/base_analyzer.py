@@ -57,6 +57,8 @@ class BaseImageCreator:
     def _save_data_based_on_timestamp(
         self, data_to_plot, x_label, y_label, title, large_sample=False
     ):
+        if len(data_to_plot) == 0:
+            return
         with plt.ion():
             log.LOGGER.debug(f"saving {title}")
             plt.figure(figsize=(12, 6))
