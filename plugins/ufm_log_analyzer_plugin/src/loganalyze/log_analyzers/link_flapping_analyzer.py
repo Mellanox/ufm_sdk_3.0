@@ -144,5 +144,5 @@ class LinkFlappingAnalyzer(BaseImageCreator):
     def full_analysis(self):
         link_flapping_last_week = self.get_link_flapping_last_week()
         images, _, _ = super().full_analysis()
-        df = [("Link Flapping past week", link_flapping_last_week,)]
+        df = [("Link Flapping last week", link_flapping_last_week,)]
         return images, df, []

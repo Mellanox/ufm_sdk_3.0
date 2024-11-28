@@ -33,6 +33,6 @@ class IBDIAGNETLogAnalyzer(BaseAnalyzer):
         Returns a list of all the graphs created and their title
         """
         self.print_fabric_size()
-        fabric_info = (self.get_fabric_size())
+        fabric_info = self.get_fabric_size()
         tmp_df = [("Fabric info", fabric_info)]
         return [], tmp_df, []

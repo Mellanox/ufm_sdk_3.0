@@ -204,7 +204,7 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
                 self.get_last_iterations_time_stats(),
             )
         )
-        
+
         dataframes_for_pdf.append(
             (
                 f"{self.telemetry_type} "

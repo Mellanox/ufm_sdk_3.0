@@ -13,7 +13,8 @@
 # pylint: disable=missing-module-docstring
 
 
-from plugins.ufm_log_analyzer_plugin.src.loganalyze.log_analyzers.ibdiagnet_log_analyzer import IBDIAGNETLogAnalyzer
+from plugins.ufm_log_analyzer_plugin.src.loganalyze.log_analyzers.ibdiagnet_log_analyzer\
+    import IBDIAGNETLogAnalyzer
 
 
 class UFMTopAnalyzer:
@@ -32,11 +33,12 @@ class UFMTopAnalyzer:
         lists_to_add = []
         for analyzer in self._analyzers:
             tmp_images_list, tmp_dataframes, tmp_lists = analyzer.full_analysis()
-            graphs_and_titles.extend(tmp_images_list) if tmp_images_list else None
-            dataframes.extend(tmp_dataframes) if tmp_dataframes else None
-            lists_to_add.extend(tmp_lists) if tmp_lists else None
+            graphs_and_titles.extend(tmp_images_list)
+            dataframes.extend(tmp_dataframes)
+            lists_to_add.extend(tmp_lists)
 
-        has_ibdiagnet_analyzer = any(isinstance(instance, IBDIAGNETLogAnalyzer) for instance in self._analyzers)
+        has_ibdiagnet_analyzer = any(isinstance(instance, IBDIAGNETLogAnalyzer) \
+                                     for instance in self._analyzers)
         if not has_ibdiagnet_analyzer:
             dataframes.append(("Fabric info", ("No Fabric Info found")))
 
