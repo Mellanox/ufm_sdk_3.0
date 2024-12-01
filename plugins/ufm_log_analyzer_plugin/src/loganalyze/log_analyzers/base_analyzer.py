@@ -159,7 +159,6 @@ class BaseImageCreator:
                     )
                 except:  # pylint: disable=bare-except
                     pass
-        return
     
     def get_images_created(self):
         return self._images_created

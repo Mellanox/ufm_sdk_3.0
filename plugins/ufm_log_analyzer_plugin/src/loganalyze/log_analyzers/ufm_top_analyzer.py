@@ -13,11 +13,6 @@
 # pylint: disable=missing-module-docstring
 
 
-from plugins.ufm_log_analyzer_plugin.src.loganalyze.log_analyzers.ibdiagnet_log_analyzer import (
-    IBDIAGNETLogAnalyzer,
-)
-
-
 class UFMTopAnalyzer:
     def __init__(self):
         self._analyzers = []

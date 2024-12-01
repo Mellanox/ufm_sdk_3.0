@@ -19,7 +19,7 @@ from typing import List
 from pathlib import Path
 import pandas as pd
 from utils.netfix.link_flapping import get_link_flapping
-from loganalyze.log_analyzers.base_analyzer import BaseAnalyzer, BaseImageCreator
+from loganalyze.log_analyzers.base_analyzer import BaseImageCreator
 import loganalyze.logger as log
 
 FILE_NAME_PATTERN = r"^secondary_(5m|1h|1d|1w)_(\d{14})\.gz$"
@@ -144,6 +144,5 @@ class LinkFlappingAnalyzer(BaseImageCreator):
     def full_analysis(self):
         super().full_analysis()
         link_flapping_last_week = self.get_link_flapping_last_week()
-        df = [
-            ("Link Flapping last week", link_flapping_last_week)]
+        df = [("Link Flapping last week", link_flapping_last_week)]
         self._dataframes_for_pdf.extend(df)
