@@ -52,12 +52,14 @@ class BaseImageCreator:
     def __init__(self, dest_image_path):
         self._dest_image_path = dest_image_path
         self._images_created = []
+        self._dataframes_for_pdf = []
+        self._txt_for_pdf = []
         self._funcs_for_analysis = set()
 
     def _save_data_based_on_timestamp(
         self, data_to_plot, x_label, y_label, title, large_sample=False
     ):
-        if len(data_to_plot) == 0:
+        if data_to_plot.empty:
             return
         with plt.ion():
             log.LOGGER.debug(f"saving {title}")
@@ -157,9 +159,16 @@ class BaseImageCreator:
                     )
                 except:  # pylint: disable=bare-except
                     pass
-
-        return self._images_created if len(self._images_created) > 0 else [], [], []
-
+        return
+    
+    def get_images_created(self):
+        return self._images_created
+    
+    def get_dataframes_for_pdf(self):
+        return self._dataframes_for_pdf
+    
+    def get_txt_for_pdf(self):
+        return self._txt_for_pdf
 
 class BaseAnalyzer(BaseImageCreator):
     """

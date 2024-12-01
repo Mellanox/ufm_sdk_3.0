@@ -154,13 +154,11 @@ class EventsLogAnalyzer(BaseAnalyzer):
         )
 
     def full_analysis(self):
-        images, _, _ = super().full_analysis()
+        super().full_analysis()
         critical_events_headers = ["timestamp", "event_type", "event", "count"]
-        lists = [
-            (
-                self.get_critical_event_bursts(),
-                "More than 5 events burst over a minute",
-                critical_events_headers,
-            )
-        ]
-        return images, [], lists
+        txt_to_add = (
+            self.get_critical_event_bursts(),
+            "More than 5 events burst over a minute",
+            critical_events_headers,
+        )
+        self._txt_for_pdf.append(txt_to_add)

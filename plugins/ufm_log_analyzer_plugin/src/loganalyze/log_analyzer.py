@@ -369,7 +369,7 @@ if __name__ == "__main__":
         end = time.perf_counter()
         log.LOGGER.debug(f"Took {end-start:.3f} to load the parsed data")
 
-        all_images_outputs_and_title, dataframes_for_pdf, lists_to_add = (
+        all_images_outputs_and_title, dataframes_for_pdf, txt_for_pdf = (
             ufm_top_analyzer.full_analysis_all_analyzers()
         )
 
@@ -393,7 +393,7 @@ if __name__ == "__main__":
         pdf = PDFCreator(pdf_path, pdf_header, png_images, text_to_show_in_pdf)
 
         # PDF creator gets all the images and to add to the report
-        pdf.create_pdf(dataframes_for_pdf, lists_to_add)
+        pdf.create_pdf(dataframes_for_pdf, txt_for_pdf)
         # Generated a report that can be located in the destination
         log.LOGGER.info("Analysis is done, please see the following outputs:")
         for image, title in images_and_title_to_present:

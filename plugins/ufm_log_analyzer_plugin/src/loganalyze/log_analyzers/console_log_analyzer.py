@@ -111,4 +111,4 @@ class ConsoleLogAnalyzer(BaseAnalyzer):
         Returns a list of all the graphs created and their title
         """
         self.print_exceptions()
-        return super().full_analysis()
+        super().full_analysis()

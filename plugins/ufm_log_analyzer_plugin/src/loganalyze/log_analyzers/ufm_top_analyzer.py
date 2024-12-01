@@ -29,19 +29,15 @@ class UFMTopAnalyzer:
         """
         Returns a list of all the graphs created and their title
         """
+        for analyzer in self._analyzers:
+            analyzer.full_analysis()
+
         graphs_and_titles = []
         dataframes = []
-        lists_to_add = []
+        txt = []
         for analyzer in self._analyzers:
-            tmp_images_list, tmp_dataframes, tmp_lists = analyzer.full_analysis()
-            graphs_and_titles.extend(tmp_images_list)
-            dataframes.extend(tmp_dataframes)
-            lists_to_add.extend(tmp_lists)
+            graphs_and_titles.extend(analyzer.get_images_created())
+            dataframes.extend(analyzer.get_dataframes_for_pdf())
+            txt.extend(analyzer.get_txt_for_pdf())
 
-        has_ibdiagnet_analyzer = any(
-            isinstance(instance, IBDIAGNETLogAnalyzer) for instance in self._analyzers
-        )
-        if not has_ibdiagnet_analyzer:
-            dataframes.append(("Fabric info", ("No Fabric Info found")))
-
-        return graphs_and_titles, dataframes, lists_to_add
+        return graphs_and_titles, dataframes, txt

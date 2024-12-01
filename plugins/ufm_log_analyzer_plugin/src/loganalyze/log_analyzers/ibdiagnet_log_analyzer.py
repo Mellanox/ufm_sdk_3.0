@@ -34,5 +34,4 @@ class IBDIAGNETLogAnalyzer(BaseAnalyzer):
         """
         self.print_fabric_size()
         fabric_info = self.get_fabric_size()
-        tmp_df = [("Fabric info", fabric_info)]
-        return [], tmp_df, []
+        self._dataframes_for_pdf.append(("Fabric info", fabric_info))
