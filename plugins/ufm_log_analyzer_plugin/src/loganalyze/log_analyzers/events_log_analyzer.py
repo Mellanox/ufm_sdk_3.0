@@ -107,12 +107,7 @@ class EventsLogAnalyzer(BaseAnalyzer):
             "Critical Event Bursts",
         )
 
-        # Convert the result to a list of dictionaries for returning
-        burst_list = bursts.rename(columns={"minute": "timestamp"}).to_dict(
-            orient="records"
-        )
-
-        return burst_list
+        return bursts
 
     def plot_critical_events_per_aggregation_time(self):
         critical_events = self.get_events_by_log_level("CRITICAL")
@@ -155,10 +150,8 @@ class EventsLogAnalyzer(BaseAnalyzer):
 
     def full_analysis(self):
         super().full_analysis()
-        critical_events_headers = ["timestamp", "event_type", "event", "count"]
         txt_to_add = (
-            self.get_critical_event_bursts(),
             "More than 5 events burst over a minute",
-            critical_events_headers,
+            self.get_critical_event_bursts()
         )
-        self._txt_for_pdf.append(txt_to_add)
+        self._dataframes_for_pdf.append(txt_to_add)
