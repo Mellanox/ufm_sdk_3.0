@@ -371,7 +371,7 @@ if __name__ == "__main__":
 
         all_images_outputs_and_title, dataframes_for_pdf, lists_to_add = (
             ufm_top_analyzer.full_analysis_all_analyzers()
-            )
+        )
 
         png_images = []
         images_and_title_to_present = []

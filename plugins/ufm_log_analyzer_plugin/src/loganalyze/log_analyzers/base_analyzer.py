@@ -227,11 +227,14 @@ class BaseAnalyzer(BaseImageCreator):
             temp_file = csv_file + ".temp"
             BaseAnalyzer._remove_empty_lines_from_csv(csv_file)
             fixed_lines = 0
-            with open(
-                csv_file, "r", newline="", encoding=DataConstants.UTF8ENCODING
-            ) as infile, open(
-                temp_file, "w", newline="", encoding=DataConstants.UTF8ENCODING
-            ) as outfile:
+            with (
+                open(
+                    csv_file, "r", newline="", encoding=DataConstants.UTF8ENCODING
+                ) as infile,
+                open(
+                    temp_file, "w", newline="", encoding=DataConstants.UTF8ENCODING
+                ) as outfile,
+            ):
                 reader = csv.reader(infile)
                 writer = csv.writer(outfile)
                 current_line = None

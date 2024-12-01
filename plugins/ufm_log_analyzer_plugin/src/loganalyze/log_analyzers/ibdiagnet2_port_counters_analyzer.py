@@ -222,8 +222,7 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
         lists_to_add.append(
             (
                 [self.get_number_of_core_dumps()],
-                f"{self.telemetry_type} "
-                "number of core dumps found in the logs",
+                f"{self.telemetry_type} " "number of core dumps found in the logs",
                 ["Amount"],
             )
         )
