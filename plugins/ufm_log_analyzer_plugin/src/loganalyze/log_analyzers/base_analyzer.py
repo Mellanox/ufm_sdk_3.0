@@ -169,6 +169,7 @@ class BaseImageCreator:
     def get_txt_for_pdf(self):
         return self._txt_for_pdf
 
+
 class BaseAnalyzer(BaseImageCreator):
     """
     Analyzer class that gives all the logs the
