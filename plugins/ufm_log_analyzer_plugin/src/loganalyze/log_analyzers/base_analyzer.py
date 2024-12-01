@@ -159,13 +159,13 @@ class BaseImageCreator:
                     )
                 except:  # pylint: disable=bare-except
                     pass
-    
+
     def get_images_created(self):
         return self._images_created
-    
+
     def get_dataframes_for_pdf(self):
         return self._dataframes_for_pdf
-    
+
     def get_txt_for_pdf(self):
         return self._txt_for_pdf
 
