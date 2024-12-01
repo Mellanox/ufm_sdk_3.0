@@ -150,5 +150,8 @@ class EventsLogAnalyzer(BaseAnalyzer):
 
     def full_analysis(self):
         super().full_analysis()
-        txt_to_add = ("More than 5 events burst over a minute", self.get_critical_event_bursts())
-        self._dataframes_for_pdf.append(txt_to_add)
+        df_to_add = (
+            "More than 5 events burst over a minute",
+            self.get_critical_event_bursts(),
+        )
+        self._dataframes_for_pdf.append(df_to_add)
