@@ -369,8 +369,10 @@ if __name__ == "__main__":
         end = time.perf_counter()
         log.LOGGER.debug(f"Took {end-start:.3f} to load the parsed data")
 
-        all_images_outputs_and_title, dataframes_for_pdf, lists_to_add = \
+        all_images_outputs_and_title, dataframes_for_pdf, lists_to_add = (
             ufm_top_analyzer.full_analysis_all_analyzers()
+            )
+
         png_images = []
         images_and_title_to_present = []
         for image_title in all_images_outputs_and_title:

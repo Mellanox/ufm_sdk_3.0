@@ -220,11 +220,11 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
         )
 
         lists_to_add.append(
-                (
-                    [self.get_number_of_core_dumps()],
-                    f"{self.telemetry_type} "
-                    "number of core dumps found in the logs",
-                    ["Amount"],
-                )
+            (
+                [self.get_number_of_core_dumps()],
+                f"{self.telemetry_type} "
+                "number of core dumps found in the logs",
+                ["Amount"],
             )
+        )
         return images, dataframes_for_pdf, lists_to_add
