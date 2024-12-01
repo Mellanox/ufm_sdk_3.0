@@ -145,9 +145,5 @@ class LinkFlappingAnalyzer(BaseImageCreator):
         super().full_analysis()
         link_flapping_last_week = self.get_link_flapping_last_week()
         df = [
-            (
-                "Link Flapping last week",
-                link_flapping_last_week
-            )
-        ]
+            ("Link Flapping last week", link_flapping_last_week)]
         self._dataframes_for_pdf.extend(df)
