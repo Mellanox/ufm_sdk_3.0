@@ -231,9 +231,7 @@ class StandbyNodeHealthChecker:
         corosync_output_lines = corosync_output.splitlines()
         rings_statuses = cls._parse_corsync_rings_old_output(corosync_output_lines)
         if not rings_statuses:
-            print("From new")
             rings_statuses = cls._parse_corsync_rings_new_output(corosync_output_lines)
-        print(f"RING RES {rings_statuses}")
         if not rings_statuses:
             print("Could not find any corosync rings status")
             return False
@@ -268,7 +266,7 @@ class StandbyNodeHealthChecker:
         rings_info = {}
         ring_id_regex = re.compile(r"^RING ID (\d+)")
         id_ip_regex = re.compile(r"id\ *= ([\d\.]+)")
-        status_regex = re.compile(r"^status:\s*(.*)$")
+        status_regex = re.compile(r"^status(?:=|:)\s*(.*)$")
         current_ring = None
         current_ip = None
         for line in corosync_output_lines:
@@ -278,15 +276,9 @@ class StandbyNodeHealthChecker:
             ring_ip = id_ip_regex.match(line)
             if ring_ip:
                 current_ip = ring_ip.group(1)
-            old_status_match = status_regex.match(line)
-            print(
-                f"current ring {current_ring} "
-                f"current ip {current_ring} "
-                f"old status {old_status_match} " 
-                f"line {line}"
-            )
-            if current_ring and current_ip and old_status_match is not None:
-                status_text = old_status_match.group(1)
+            status_match = status_regex.match(line)
+            if current_ring and current_ip and status_match is not None:
+                status_text = status_match.group(1)
                 status_check = "active with no faults" in status_text
                 rings_info[f"Ring {current_ring}"] = {
                     "ip": current_ip,
