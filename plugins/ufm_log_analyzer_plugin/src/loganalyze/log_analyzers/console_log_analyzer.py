@@ -31,7 +31,7 @@ class ConsoleLogAnalyzer(BaseAnalyzer):
         self._funcs_for_analysis = {
             self.print_exceptions_per_time_count,
             self.print_exceptions,
-            }
+        }
 
     @staticmethod
     def _extract_ufm_version(logs_csvs):

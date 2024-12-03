@@ -153,11 +153,3 @@ class EventsLogAnalyzer(BaseAnalyzer):
         self._save_pivot_data_in_bars(
             pivot_links_data, "Time", "Number of Events", "Link up/down events", "Event"
         )
-
-    def full_analysis(self):
-        super().full_analysis()
-        df_to_add = (
-            "More than 5 events burst over a minute",
-            self.get_critical_event_bursts(),
-        )
-        self._dataframes_for_pdf.append(df_to_add)
