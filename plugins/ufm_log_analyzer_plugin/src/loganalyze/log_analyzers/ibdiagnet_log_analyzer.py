@@ -36,4 +36,3 @@ class IBDIAGNETLogAnalyzer(BaseAnalyzer):
     def full_analysis(self):
         super().full_analysis()
         self.print_fabric_size()
-

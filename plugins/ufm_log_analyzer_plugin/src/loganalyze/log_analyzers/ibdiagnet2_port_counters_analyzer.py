@@ -223,4 +223,3 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
                 ["Amount"],
             )
         )
-
