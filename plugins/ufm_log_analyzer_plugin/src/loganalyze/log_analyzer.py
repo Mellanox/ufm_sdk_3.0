@@ -391,9 +391,8 @@ if __name__ == "__main__":
         )
 
         pdf = PDFCreator(pdf_path, pdf_header, png_images, text_to_show_in_pdf)
-
-        # PDF creator gets all the images and to add to the report
         pdf.create_pdf(dataframes_for_pdf, txt_for_pdf)
+
         # Generated a report that can be located in the destination
         log.LOGGER.info("Analysis is done, please see the following outputs:")
         for image, title in images_and_title_to_present:

@@ -107,8 +107,5 @@ class ConsoleLogAnalyzer(BaseAnalyzer):
         )
 
     def full_analysis(self):
-        """
-        Returns a list of all the graphs created and their title
-        """
         self.print_exceptions()
         super().full_analysis()

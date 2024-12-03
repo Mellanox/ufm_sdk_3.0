@@ -28,6 +28,7 @@ class EventsLogAnalyzer(BaseAnalyzer):
             self.plot_critical_events_per_aggregation_time,
             self.plot_link_up_down_count_per_aggregation_time,
             self.plot_top_n_critical_events_over_time,
+            self.get_critical_event_bursts
         }
 
     # Function to split "object_id" into "device" and "description"
@@ -107,7 +108,12 @@ class EventsLogAnalyzer(BaseAnalyzer):
             "Critical Event Bursts",
         )
 
-        return bursts
+        # Add bursts to dataframes_for_pdf
+        df_to_add = (
+            "More than 5 events burst over a minute",
+            bursts,
+        )
+        self._dataframes_for_pdf.append(df_to_add)
 
     def plot_critical_events_per_aggregation_time(self):
         critical_events = self.get_events_by_log_level("CRITICAL")
