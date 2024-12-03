@@ -34,11 +34,13 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
             self._log_data_sorted[col] = pd.to_numeric(
                 self._log_data_sorted[col], errors="coerce"
             ).astype("Int64")
-        self._funcs_for_analysis = {self.plot_iteration_time_over_time,
-                                    self.save_last_iterations_time_stats,
-                                    self.save_first_last_iteration_timestamp,
-                                    self.save_number_of_switches_and_ports,
-                                    self.save_number_of_core_dumps}
+        self._funcs_for_analysis = {
+            self.plot_iteration_time_over_time,
+            self.save_last_iterations_time_stats,
+            self.save_first_last_iteration_timestamp,
+            self.save_number_of_switches_and_ports,
+            self.save_number_of_core_dumps,
+        }
         # Based on the log path, decided if this is primary or secondary
         if "ufm_logs" in logs_csvs[0]:
             self.telemetry_type = "primary"
@@ -221,4 +223,4 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
                 ["Amount"],
             )
         )
-        
+

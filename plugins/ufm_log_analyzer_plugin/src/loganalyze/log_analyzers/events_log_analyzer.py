@@ -28,7 +28,7 @@ class EventsLogAnalyzer(BaseAnalyzer):
             self.plot_critical_events_per_aggregation_time,
             self.plot_link_up_down_count_per_aggregation_time,
             self.plot_top_n_critical_events_over_time,
-            self.get_critical_event_bursts
+            self.get_critical_event_bursts,
         }
 
     # Function to split "object_id" into "device" and "description"
