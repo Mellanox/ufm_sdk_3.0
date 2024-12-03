@@ -105,6 +105,7 @@ class ConsoleLogAnalyzer(BaseAnalyzer):
             "Amount of exceptions",
             "Exceptions count",
         )
+
     def full_analysis(self):
         super().full_analysis()
         self.print_exceptions()
