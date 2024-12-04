@@ -20,6 +20,7 @@ import loganalyze.logger as log
 class IBDIAGNETLogAnalyzer(BaseAnalyzer):
     def __init__(self, logs_csvs: List[str], hours: int, dest_image_path):
         super().__init__(logs_csvs, hours, dest_image_path, sort_timestamp=False)
+        self._funcs_for_analysis = {self.save_fabric_size}
 
     def print_fabric_size(self):
         fabric_info = self.get_fabric_size()
@@ -28,9 +29,10 @@ class IBDIAGNETLogAnalyzer(BaseAnalyzer):
     def get_fabric_size(self):
         return self._log_data_sorted
 
+    def save_fabric_size(self):
+        fabric_info = self.get_fabric_size()
+        self._dataframes_for_pdf.append(("Fabric info", fabric_info))
+
     def full_analysis(self):
-        """
-        Returns a list of all the graphs created and their title
-        """
+        super().full_analysis()
         self.print_fabric_size()
-        return []

@@ -43,11 +43,14 @@ class ConsoleLogAnalyzer(BaseAnalyzer):
             temp_file = csv_file + ".temp"
 
             # Open the input CSV file for reading
-            with open(
-                csv_file, mode="r", newline="", encoding=DataConstants.UTF8ENCODING
-            ) as infile, open(
-                temp_file, mode="w", newline="", encoding=DataConstants.UTF8ENCODING
-            ) as outfile:
+            with (
+                open(
+                    csv_file, mode="r", newline="", encoding=DataConstants.UTF8ENCODING
+                ) as infile,
+                open(
+                    temp_file, mode="w", newline="", encoding=DataConstants.UTF8ENCODING
+                ) as outfile,
+            ):
                 reader = csv.DictReader(infile)
                 fieldnames = reader.fieldnames  # Get the header from the CSV
                 writer = csv.DictWriter(outfile, fieldnames=fieldnames)
@@ -104,8 +107,5 @@ class ConsoleLogAnalyzer(BaseAnalyzer):
         )
 
     def full_analysis(self):
-        """
-        Returns a list of all the graphs created and their title
-        """
+        super().full_analysis()
         self.print_exceptions()
-        return super().full_analysis()

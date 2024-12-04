@@ -34,7 +34,13 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
             self._log_data_sorted[col] = pd.to_numeric(
                 self._log_data_sorted[col], errors="coerce"
             ).astype("Int64")
-        self._funcs_for_analysis = {self.plot_iteration_time_over_time}
+        self._funcs_for_analysis = {
+            self.plot_iteration_time_over_time,
+            self.save_last_iterations_time_stats,
+            self.save_first_last_iteration_timestamp,
+            self.save_number_of_switches_and_ports,
+            self.save_number_of_core_dumps,
+        }
         # Based on the log path, decided if this is primary or secondary
         if "ufm_logs" in logs_csvs[0]:
             self.telemetry_type = "primary"
@@ -52,7 +58,7 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
         ]["data"].unique()
         return unique_collectx_versions
 
-    def get_number_of_switches_and_ports(self):
+    def save_number_of_switches_and_ports(self):
         """
         Generate summary statistics for 'total_devices_ports' data.
         This function calculates the average, maximum, minimum
@@ -100,7 +106,12 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
 
         summary_df = pd.DataFrame(summary_stats)
 
-        return summary_df
+        self._dataframes_for_pdf.append(
+            (
+                f"{self.telemetry_type} telemetry fabric size",
+                summary_df,
+            )
+        )
 
     def analyze_iteration_time(self, threshold=0.15):
         """
@@ -160,17 +171,29 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
         self._last_timestamp_of_logs = last_timestamp
         return stats_df
 
-    def get_first_last_iteration_timestamp(self):
+    def save_first_last_iteration_timestamp(self):
         if not self._first_timestamp_of_logs or not self._last_timestamp_of_logs:
             self.analyze_iteration_time()
         times = {
             "first": str(self._first_timestamp_of_logs),
             "last": str(self._last_timestamp_of_logs),
         }
-        return pd.DataFrame([times])
+        first_last_it = pd.DataFrame([times])
+        self._dataframes_for_pdf.append(
+            (
+                f"{self.telemetry_type} "
+                "telemetry iteration first and last timestamps",
+                first_last_it,
+            )
+        )
 
-    def get_last_iterations_time_stats(self):
-        return self._iteration_time_stats
+    def save_last_iterations_time_stats(self):
+        self._dataframes_for_pdf.append(
+            (
+                f"{self.telemetry_type} telemetry iteration time",
+                self._iteration_time_stats(),
+            )
+        )
 
     def plot_iteration_time_over_time(self):
         if self._iteration_time_data is None:
@@ -188,8 +211,15 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
                 large_sample=True,
             )
 
-    def get_number_of_core_dumps(self):
+    def save_number_of_core_dumps(self):
         core_dumps = self._log_data_sorted[
             self._log_data_sorted["type"] == "timeout_dump_core"
         ]
-        return {"Amount": len(core_dumps)}
+        num = {"Amount": len(core_dumps)}
+        self._txt_for_pdf.append(
+            (
+                [num],
+                f"{self.telemetry_type} number of core dumps found in the logs",
+                ["Amount"],
+            )
+        )

@@ -141,6 +141,5 @@ class LinkFlappingAnalyzer(BaseImageCreator):
             pivot_table, "Time", "Count", "Link Flapping Count", None
         )
 
-    def full_analysis(self):
-        self.get_link_flapping_last_week()
-        return super().full_analysis()
+        # Save link_flapping in dataframes_for_pdf
+        self._dataframes_for_pdf.extend([("Link Flapping last week", link_flapping)])

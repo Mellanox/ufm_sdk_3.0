@@ -52,11 +52,15 @@ class BaseImageCreator:
     def __init__(self, dest_image_path):
         self._dest_image_path = dest_image_path
         self._images_created = []
+        self._dataframes_for_pdf = []
+        self._txt_for_pdf = []
         self._funcs_for_analysis = set()
 
     def _save_data_based_on_timestamp(
         self, data_to_plot, x_label, y_label, title, large_sample=False
     ):
+        if data_to_plot.empty:
+            return
         with plt.ion():
             log.LOGGER.debug(f"saving {title}")
             plt.figure(figsize=(12, 6))
@@ -156,7 +160,14 @@ class BaseImageCreator:
                 except:  # pylint: disable=bare-except
                     pass
 
-        return self._images_created if len(self._images_created) > 0 else []
+    def get_images_created(self):
+        return self._images_created
+
+    def get_dataframes_for_pdf(self):
+        return self._dataframes_for_pdf
+
+    def get_txt_for_pdf(self):
+        return self._txt_for_pdf
 
 
 class BaseAnalyzer(BaseImageCreator):
@@ -194,11 +205,14 @@ class BaseAnalyzer(BaseImageCreator):
     def _remove_empty_lines_from_csv(input_file):
         temp_file = input_file + ".temp"
 
-        with open(
-            input_file, "r", newline="", encoding=DataConstants.UTF8ENCODING
-        ) as infile, open(
-            temp_file, "w", newline="", encoding=DataConstants.UTF8ENCODING
-        ) as outfile:
+        with (
+            open(
+                input_file, "r", newline="", encoding=DataConstants.UTF8ENCODING
+            ) as infile,
+            open(
+                temp_file, "w", newline="", encoding=DataConstants.UTF8ENCODING
+            ) as outfile,
+        ):
             reader = csv.reader(infile)
             writer = csv.writer(outfile)
 
@@ -222,11 +236,14 @@ class BaseAnalyzer(BaseImageCreator):
             temp_file = csv_file + ".temp"
             BaseAnalyzer._remove_empty_lines_from_csv(csv_file)
             fixed_lines = 0
-            with open(
-                csv_file, "r", newline="", encoding=DataConstants.UTF8ENCODING
-            ) as infile, open(
-                temp_file, "w", newline="", encoding=DataConstants.UTF8ENCODING
-            ) as outfile:
+            with (
+                open(
+                    csv_file, "r", newline="", encoding=DataConstants.UTF8ENCODING
+                ) as infile,
+                open(
+                    temp_file, "w", newline="", encoding=DataConstants.UTF8ENCODING
+                ) as outfile,
+            ):
                 reader = csv.reader(infile)
                 writer = csv.writer(outfile)
                 current_line = None
