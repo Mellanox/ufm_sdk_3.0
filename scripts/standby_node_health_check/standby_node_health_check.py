@@ -14,8 +14,36 @@ import json
 import re
 import subprocess
 import argparse
+import logging
 import sys
 from typing import List
+
+
+def configure_logger():
+    logger_name = "standby_node_checker"
+    logger = logging.getLogger(logger_name)
+
+    if not logger.hasHandlers():
+        logger.setLevel(logging.INFO)
+
+        handler = logging.StreamHandler()
+
+        formatter = logging.Formatter(
+            fmt="%(asctime)s %(levelname)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+        )
+        handler.setFormatter(formatter)
+
+        logger.addHandler(handler)
+
+    return logger
+
+
+logger = configure_logger()
+
+
+def set_log_level(log_level):
+    numeric_level = getattr(logging, log_level.upper(), logging.INFO)
+    logger.setLevel(numeric_level)
 
 
 def parse_arguments():
@@ -29,12 +57,18 @@ def parse_arguments():
     )
 
     parser.add_argument(
-        "--mgmt-interfaces",
-        nargs="+",
+        "--mgmt-interface",
         required=True,
-        help="Specify one or more management interfaces (at least one is required), eg eth0, eth1",
+        help="Specify one management interfaces (at least one is required), eg eth0",
     )
 
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        default="INFO",
+        help="Set the logging level.",
+    )
     parser.add_argument("--version", action="version", version="%(prog)s 1.0.0")
 
     args = parser.parse_args()
@@ -44,19 +78,43 @@ def parse_arguments():
 class StandbyNodeHealthChecker:
     UFM_HA_CLUSTER_COMMAND = "ufm_ha_cluster {}"
     SYSTEMCTL_IS_ACTIVE_COMMAND = "systemctl is-active {}.service"
+    IS_HA_COMMAND = UFM_HA_CLUSTER_COMMAND.format("is-ha")
+    IS_MASTER_COMMAND = UFM_HA_CLUSTER_COMMAND.format("is-master")
+    HA_STATUS_COMMAND = UFM_HA_CLUSTER_COMMAND.format("status")
+    IBDEV2NETDEV_COMMAND = "ibdev2netdev"
+    IBSTAT_COMMAND = "ibstat"
+    IP_LINK_SHOW_COMMAND = "ip --json link show"
+    PCS_STATUS_COMMAND = "pcs status"
+    COROSYNC_RINGS_COMMAND = "corosync-cfgtool -s"
 
-    def __init__(self, fabric_interfaces, mgmt_interfaces):
+    IBDEV2NETDEV_REGEX = re.compile(r"^([\w\d_]+) port \d ==> ([\w\d]+)")
+    OLD_CORSYNC_RING_ID_REGEX = re.compile(r"^RING ID (\d+)")
+    OLD_CORSYNC_RING_IP_REGEX = re.compile(r"id\ *= ([\d\.]+)")
+    OLD_CORSTNC_STATUS_REGEX = re.compile(r"^status(?:=|:)\s*(.*)$")
+
+    NEW_CORSYNC_RING_ID_REGEX = re.compile(r"^LINK ID (\d+)")
+    NEW_CORSYNC_RING_ID_IP_REGEX = re.compile(r"addr\ *= ([\d\.]+)")
+    NEW_CORSYNC_STATUS_REGEX = re.compile(
+        r"^node (\d+):link enabled:(\d)link connected:(\d)"
+    )
+
+    def __init__(self, fabric_interfaces, mgmt_interface):
         self._fabric_interfaces = fabric_interfaces
-        self._mgmt_interfaces = mgmt_interfaces
+        self._mgmt_interface = mgmt_interface
         self._ufm_ha_status_string = ""
+        self._summary_actions = []
 
     @classmethod
     def _run_command(cls, command: str):
+        """
+        The command is a string and we need to split it into an array"""
         try:
+            command = command.split(" ")
             result = subprocess.run(
                 command,
-                shell=True,
+                shell=False,
                 stdout=subprocess.PIPE,
+                # stderr=subprocess.STDOUT,
                 universal_newlines=True,
                 check=False,
             )
@@ -73,31 +131,32 @@ class StandbyNodeHealthChecker:
             if not ib_interface.startswith("mlx"):
                 ib_interface_to_validate = ib_to_ml_map.get(ib_interface, ib_interface)
             if ib_interface_to_validate not in ib_interfaces_status:
-                print(f"{ib_interface} is not in the list of IB interfaces")
+                logger.warning("%s is not in the list of IB interfaces", ib_interface)
                 result = False
             elif not self._check_ib_interface(
                 ib_interface_to_validate, ib_interfaces_status
             ):
-                print(
-                    f"IB interface {ib_interface} is not active "
-                    f"{ib_interfaces_status[ib_interface_to_validate]}"
+                logger.warning(
+                    "IB interface %s is not active",
+                    ib_interface,
                 )
                 result = False
+            else:
+                logger.info("%s is active", ib_interface)
         if result:
-            print("All given IB interfaces are active")
+            logger.info("All given IB interfaces are active")
         return result
 
     @classmethod
     def _get_ib_to_mlx_port_mapping(cls):
-        ret_code, stdout = cls._run_command("ibdev2netdev")
+        ret_code, stdout = cls._run_command(cls.IBDEV2NETDEV_COMMAND)
         if ret_code != 0:
-            print("Failed to run ibdev2netdev")
+            logger.error("Failed to run ibdev2netdev")
             return {}
-        line_regex = re.compile(r"^([\w\d_]+) port \d ==> ([\w\d]+)")
         lines = stdout.splitlines()
         ib_to_mlx_map = {}
         for line in lines:
-            cur_line_match = line_regex.match(line)
+            cur_line_match = cls.IBDEV2NETDEV_REGEX.match(line)
             if cur_line_match:
                 mlx_port = cur_line_match.group(1)
                 ib_port = cur_line_match.group(2)
@@ -115,9 +174,9 @@ class StandbyNodeHealthChecker:
 
     @classmethod
     def _run_and_parse_ibstat(cls):
-        retcode, stdout = cls._run_command("ibstat")
+        retcode, stdout = cls._run_command(cls.IBSTAT_COMMAND)
         if retcode != 0:
-            print("Cannot run ibstat")
+            logger.error("Cannot run ibstat")
             return {}
         lines = stdout.splitlines()
         ca_info = {}
@@ -139,9 +198,9 @@ class StandbyNodeHealthChecker:
 
     @classmethod
     def _run_and_parse_ip_link_show(cls):
-        ret_code, ip_link_show_output = cls._run_command("ip --json link show")
+        ret_code, ip_link_show_output = cls._run_command(cls.IP_LINK_SHOW_COMMAND)
         if ret_code != 0:
-            print("Failed to run ip link show")
+            logger.error("Failed to run ip link show")
             return {}
         interfaces = cls._parse_ip_link_output(ip_link_show_output)
         return interfaces
@@ -160,80 +219,111 @@ class StandbyNodeHealthChecker:
                     interfaces[ifname] = operstate
 
         except json.JSONDecodeError:
-            print("Error while parssing ib link show command")
+            logger.error("Error while parssing ib link show command")
         return interfaces
 
-    def _check_eth_interfaces(self):
+    def _check_mgmt_interface(self):
         interfaces_status = self._run_and_parse_ip_link_show()
         result = True
-        for interface in self._mgmt_interfaces:
-            if interface not in interfaces_status:
-                print(f"{interface} is not in the list of management interfaces")
-                result = False
-            elif interfaces_status[interface] != "up":
-                print(
-                    f"Interface {interface} is not active {interfaces_status[interface]}"
-                )
-                result = False
+        if self._mgmt_interface not in interfaces_status:
+            logger.warning(
+                "%s is not in the list of management interfaces", self._mgmt_interface
+            )
+            result = False
+        elif interfaces_status[self._mgmt_interface] != "up":
+            logger.warning(
+                "Interface %s is not active %s",
+                self._mgmt_interface,
+                interfaces_status[self._mgmt_interface],
+            )
+            result = False
+        else:
+            logger.info("%s is active", self._mgmt_interface)
         if result:
-            print("All given ether interfaces are active")
+            logger.info("The given management interface is active")
         return result
 
-    @classmethod
-    def _check_if_ha_is_enabled(cls):
-        command = cls.UFM_HA_CLUSTER_COMMAND.format("is-ha")
-        ret_code, stdout = cls._run_command(command)
+    def _check_if_ha_is_enabled(self):
+        logger.info("Checking if ha is enabled")
+        ret_code, stdout = self._run_command(self.IS_HA_COMMAND)
         if ret_code != 0 or stdout.lower() != "yes":
-            print("HA is not enabled")
+            logger.error("HA is not enabled")
+            self._summary_actions.append("HA cluster is not enabled")
             return False
-        print("HA is enabled")
+        logger.info("HA is enabled")
         return True
 
-    def run_basic_checks(self):
-        result = True
-        checks = [
-            self._check_ib_interfaces,
-            self._check_eth_interfaces,
-            self._check_if_ha_is_enabled,
-        ]
-        for check in checks:
-            if not check():
-                result = False
-        return result
+    def run_all_checks(self):
+        logger.info("Checking HA status")
+        self._check_if_ha_is_enabled()
+        self._check_if_standby_node()
+        self._check_interfaces()
+        self._check_pcs_status()
+        self._check_services()
+        self._check_drbd()
 
-    @classmethod
-    def check_if_standby_node(cls):
-        command = cls.UFM_HA_CLUSTER_COMMAND.format("is-master")
-        _, stdout = cls._run_command(command)
+    def _check_drbd(self):
+        logger.info("Checking DRBD")
+        self.set_ufm_ha_cluster_status_string()
+        drdb_passed = (
+            self.check_drdb_role()
+            and self.check_drbd_connectivity()
+            and self.check_drbd_disk_state()
+        )
+        if not drdb_passed:
+            self._summary_actions.append("DRDB is not healthy")
+
+    def _check_services(self):
+        logger.info("Checking HA services status")
+        tests_passed = (
+            self.check_if_service_is_active("corosync")
+            and self._check_corosync_rings_status()
+            and self.check_if_service_is_active("pacemaker")
+            and self.check_if_service_is_active("pcsd")
+        )
+        if not tests_passed:
+            self._summary_actions.append("Some critical services are down")
+
+    def _check_interfaces(self):
+        logger.info("Checking interfaces status")
+        interfaces_passed = self._check_ib_interfaces() and self._check_mgmt_interface()
+        if not interfaces_passed:
+            logger.error("Some interfaces checks failed")
+            self._summary_actions.append("IB/Mgmt interfaces are down")
+
+    def _check_if_standby_node(self):
+        _, stdout = self._run_command(self.IS_MASTER_COMMAND)
         # Not checking the ret code since it is 1 when running on the standby node
         if stdout != "standby":
-            print(f"Not a standby node but {stdout}")
+            logger.error("Not a standby node but %s", stdout)
+            self._summary_actions.append("Not on the standby Node")
             return False
-        print("On standby node")
+        logger.info("Success - On standby node")
         return True
 
-    @classmethod
-    def _check_pcs_status(cls):
-        command = "pcs status"
-        return_code, _ = cls._run_command(command)
+    def _check_pcs_status(self):
+        logger.info("Checking PCS status")
+        return_code, _ = self._run_command(self.PCS_STATUS_COMMAND)
         if return_code != 0:
-            print(f"pcs status is not ok, return code is {return_code}")
+            logger.error("pcs status is not ok, return code is %s", return_code)
+            self._summary_actions.append("PCS is down")
             return False
-        print("PCS status is OK")
+        logger.info("PCS status is OK")
         return True
 
     @classmethod
     def _check_corosync_rings_status(cls):
-        ret_code, corosync_output = cls._run_command("corosync-cfgtool -s")
+        logger.info("Checking HA interfaces")
+        ret_code, corosync_output = cls._run_command(cls.COROSYNC_RINGS_COMMAND)
         if ret_code != 0:
-            print("Failed to run corosync-cfgtool -s")
+            logger.error("Failed to run corosync-cfgtool -s")
             return {}
         corosync_output_lines = corosync_output.splitlines()
         rings_statuses = cls._parse_corsync_rings_old_output(corosync_output_lines)
         if not rings_statuses:
             rings_statuses = cls._parse_corsync_rings_new_output(corosync_output_lines)
         if not rings_statuses:
-            print("Could not find any corosync rings status")
+            logger.error("Could not find any corosync rings status")
             return False
         result = True
         try:
@@ -241,15 +331,15 @@ class StandbyNodeHealthChecker:
                 if not rings_statuses[ring]["status_check"]:
                     text = rings_statuses[ring]["status_text"]
                     if text:
-                        print(f"{ring} is not OK - {text}")
+                        logger.error("%s is not OK - %s", ring, text)
                     else:
-                        print(f"{ring} has an empty status")
+                        logger.error("%s has an empty status", ring)
                     result = False
-        except Exception as e:
-            print(f"Failed to parse corosync rings status: {e}")
+        except Exception:
+            logger.exception("Failed to parse corosync rings status")
             return False
         if result:
-            print("All rings are OK")
+            logger.info("All corosync rings are OK")
         return result
 
     @classmethod
@@ -264,19 +354,16 @@ class StandbyNodeHealthChecker:
         # 	id	= 10.209.44.110
         # 	status	= ring 1 active with no faults
         rings_info = {}
-        ring_id_regex = re.compile(r"^RING ID (\d+)")
-        id_ip_regex = re.compile(r"id\ *= ([\d\.]+)")
-        status_regex = re.compile(r"^status(?:=|:)\s*(.*)$")
         current_ring = None
         current_ip = None
         for line in corosync_output_lines:
-            ring_match = ring_id_regex.match(line)
+            ring_match = cls.OLD_CORSYNC_RING_ID_REGEX.match(line)
             if ring_match:
                 current_ring = ring_match.group(1)
-            ring_ip = id_ip_regex.match(line)
+            ring_ip = cls.OLD_CORSYNC_RING_IP_REGEX.match(line)
             if ring_ip:
                 current_ip = ring_ip.group(1)
-            status_match = status_regex.match(line)
+            status_match = cls.OLD_CORSTNC_STATUS_REGEX.match(line)
             if current_ring and current_ip and status_match is not None:
                 status_text = status_match.group(1)
                 status_check = "active with no faults" in status_text
@@ -304,21 +391,16 @@ class StandbyNodeHealthChecker:
         # 		node 0:	link enabled:0	link connected:1
         # 		node 1:	link enabled:1	link connected:1
         rings_info = {}
-        ring_id_regex = re.compile(r"^LINK ID (\d+)")
-        id_ip_regex = re.compile(r"addr\ *= ([\d\.]+)")
-        node_status_regex = re.compile(
-            r"^node (\d+):link enabled:(\d)link connected:(\d)"
-        )
         current_ring = None
         current_ip = None
         for line in corosync_output_lines:
-            ring_match = ring_id_regex.match(line)
+            ring_match = cls.NEW_CORSYNC_RING_ID_REGEX.match(line)
             if ring_match:
                 current_ring = ring_match.group(1)
-            ring_ip = id_ip_regex.match(line)
+            ring_ip = cls.NEW_CORSYNC_RING_ID_IP_REGEX.match(line)
             if ring_ip:
                 current_ip = ring_ip.group(1)
-            new_status_match = node_status_regex.match(line)
+            new_status_match = cls.NEW_CORSYNC_STATUS_REGEX.match(line)
             if current_ring and current_ip and new_status_match:
                 node_id = new_status_match.group(1)
                 link_enabled = new_status_match.group(2)
@@ -327,8 +409,8 @@ class StandbyNodeHealthChecker:
                 rings_info[f"Link {current_ring} Node {node_id}"] = {
                     "ip": current_ip,
                     "status_text": f"node {node_id} "
-                                   f"link enabled:{link_enabled} "
-                                   f"link connected:{link_connected}",
+                    f"link enabled:{link_enabled} "
+                    f"link connected:{link_connected}",
                     "status_check": status_check,
                 }
         return rings_info
@@ -341,16 +423,15 @@ class StandbyNodeHealthChecker:
         command = cls.SYSTEMCTL_IS_ACTIVE_COMMAND.format(service_name)
         _, stdout = cls._run_command(command)
         if stdout == "active":
-            print(f"Service {service_name} is active")
+            logger.info("Service %s is active", service_name)
             return True
-        print(f"Service {service_name} is not active")
+        logger.error("Service %s is not active", service_name)
         return False
 
     def set_ufm_ha_cluster_status_string(self):
-        command = self.UFM_HA_CLUSTER_COMMAND.format("status")
-        ret_code, res_string = self._run_command(command)
+        ret_code, res_string = self._run_command(self.HA_STATUS_COMMAND)
         if ret_code != 0:
-            print("Failed to get ha cluster status")
+            logger.error("Failed to get ha cluster status")
             res_string = ""
         self._ufm_ha_status_string = res_string
 
@@ -375,11 +456,12 @@ class StandbyNodeHealthChecker:
             "DRBD_CONNECTIVITY"
         )
         if drbd_connectivity_status != "connected":
-            print(
-                f"DRBD CONNECTIVITY status is {drbd_connectivity_status} and not Connected"
+            logger.error(
+                "DRBD CONNECTIVITY status is %s and not Connected",
+                drbd_connectivity_status,
             )
             return False
-        print("DRBD CONNECTIVITY status is ok - Connected")
+        logger.info("DRBD CONNECTIVITY status is ok - Connected")
         return True
 
     def check_drdb_role(self):
@@ -389,9 +471,21 @@ class StandbyNodeHealthChecker:
             "DRBD_ROLE"
         )
         if drdb_resource_status != "secondary":
-            print(f"DRDB ROLE status is {drdb_resource_status} and not Secondary")
+            logger.error(
+                "DRDB ROLE status is %s and not Secondary", drdb_resource_status
+            )
             return False
-        print("DRDB ROLE status is ok - Secondary")
+        logger.info("DRDB ROLE status is ok - Secondary")
+        return True
+
+    def print_summary_information(self):
+        logger.info("")
+        logger.info("Executive summary:")
+        if len(self._summary_actions) > 0:
+            for row in self._summary_actions:
+                logger.info(row)
+            return False
+        logger.info("This standby node is configured correctly")
         return True
 
     def check_drbd_disk_state(self):
@@ -399,52 +493,28 @@ class StandbyNodeHealthChecker:
             return False
         drbd_disk_state = self._get_status_value_from_ha_cluster_status("DISK_STATE")
         if drbd_disk_state != "uptodate":
-            print(f"DRBD DISK STATE status is {drbd_disk_state} and not UpToDate")
+            logger.error(
+                "DRBD DISK STATE status is %d and not UpToDate", drbd_disk_state
+            )
             return False
-        print("DRBD DISK STATE status is ok - UpToDate")
+        logger.info("DRBD DISK STATE status is ok - UpToDate")
         return True
-
-    def run_advanced_checks(self):
-        result = True
-        self.set_ufm_ha_cluster_status_string()
-        checks = [
-            self._check_pcs_status,
-            self._check_corosync_rings_status,
-            self.check_drdb_role,
-            self.check_drbd_connectivity,
-            self.check_drbd_disk_state,
-        ]
-        for check in checks:
-            if not check():
-                result = False
-        check_with_arg = [
-            (self.check_if_service_is_active, "corosync"),
-            (self.check_if_service_is_active, "pacemaker"),
-            (self.check_if_service_is_active, "pcsd"),
-        ]
-        for check, arg in check_with_arg:
-            if not check(arg):
-                result = False
-        return result
 
 
 def main(args):
     standby_node_checker = StandbyNodeHealthChecker(
-        args.fabric_interfaces, args.mgmt_interfaces
+        args.fabric_interfaces, args.mgmt_interface
     )
-    if not standby_node_checker.run_basic_checks():
-        print("Due to previous failures, stopping the test")
-        sys.exit(1)
+    logger.info("Starting the standby node health checks")
 
-    if not standby_node_checker.check_if_standby_node():
-        print("The tool should only be run on Standby node")
-        sys.exit(1)
+    standby_node_checker.run_all_checks()
+    logger.info("Done running the standby node health checks")
 
-    if not standby_node_checker.run_advanced_checks():
-        sys.exit(1)
-    print("All checks passed")
+    any_failures = standby_node_checker.print_summary_information()
+    sys.exit(not any_failures)
 
 
 if __name__ == "__main__":
     args = parse_arguments()
+    set_log_level(args.log_level)
     main(args)
