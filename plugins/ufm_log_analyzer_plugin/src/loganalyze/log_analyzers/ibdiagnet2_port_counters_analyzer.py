@@ -129,7 +129,8 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
         filtered_data = filtered_data[["type", "timestamp", "data"]]
         filtered_data["data"] = pd.to_numeric(filtered_data["data"], errors="coerce")
 
-        filtered_data = filtered_data[filtered_data["data"] >= threshold]
+        if self.telemetry_type == "primary":
+            filtered_data = filtered_data[filtered_data["data"] >= threshold]
         filtered_data["timestamp"] = pd.to_datetime(
             filtered_data["timestamp"], errors="coerce"
         )
