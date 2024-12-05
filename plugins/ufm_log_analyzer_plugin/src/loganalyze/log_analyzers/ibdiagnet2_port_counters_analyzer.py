@@ -40,7 +40,7 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
             self.save_first_last_iteration_timestamp,
             self.save_number_of_switches_and_ports,
             self.save_number_of_core_dumps,
-            self.save_collectx_versions
+            self.save_collectx_versions,
         }
         # Based on the log path, decided if this is primary or secondary
         if "ufm_logs" in logs_csvs[0]:
@@ -59,7 +59,7 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
         ]["data"].unique()
         self._dataframes_for_pdf.append(
             (
-                f"{self.telemetry_type} telemetry collectx versions",
+                f"collectx versions found in {self.telemetry_type} telemetry log",
                 unique_collectx_versions,
             )
         )
