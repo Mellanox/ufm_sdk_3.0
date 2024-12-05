@@ -12,6 +12,7 @@
 
 import json
 import re
+import signal
 import subprocess
 import argparse
 import logging
@@ -513,8 +514,17 @@ def main(args):
     any_failures = standby_node_checker.print_summary_information()
     sys.exit(not any_failures)
 
+def handle_sigterm(a,b):
+    print("SIGTERM received. Exiting...")
+    sys.exit(1)
+
+
 
 if __name__ == "__main__":
-    args = parse_arguments()
-    set_log_level(args.log_level)
-    main(args)
+    try:
+        signal.signal(signal.SIGTERM, handle_sigterm)
+        args = parse_arguments()
+        set_log_level(args.log_level)
+        main(args)
+    except Exception as e:
+        logger.fatal("Fatal while running the tests", exc_info=True)
