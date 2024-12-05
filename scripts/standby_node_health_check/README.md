@@ -14,8 +14,7 @@ This script is meant to help a UFM HA user, to make sure that his standby server
 1. checking if all given fabric interface are up.
 2. Checking if all given management interface are up.
 3. Checking ufm ha is configured.
-4. If one of the previous validation fails, stop and set the return code is 1.
-5. Checking if the node is a standby, if not, stop and set the return code is 1.
+5. Checking if the node is a standby.
 6. Checking Pacemaker status.
 7. Checking corosync service is active.
 8. Checking pacemaker service is active.
