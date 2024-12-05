@@ -514,10 +514,10 @@ def main(args):
     any_failures = standby_node_checker.print_summary_information()
     sys.exit(not any_failures)
 
-def handle_sigterm(a,b):
+
+def handle_sigterm(_, __):
     print("SIGTERM received. Exiting...")
     sys.exit(1)
-
 
 
 if __name__ == "__main__":
