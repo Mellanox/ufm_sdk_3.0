@@ -28,7 +28,10 @@ class ConsoleLogAnalyzer(BaseAnalyzer):
         self.fix_lines_with_no_timestamp(logs_csvs)
         super().__init__(logs_csvs, hours, dest_image_path, sort_timestamp)
         self._log_data_sorted.dropna(subset=["data"], inplace=True)
-        self._funcs_for_analysis = {self.print_exceptions_per_time_count}
+        self._funcs_for_analysis = {
+            self.print_exceptions_per_time_count,
+            self.save_ufm_versions,
+        }
 
     @staticmethod
     def _extract_ufm_version(logs_csvs):
@@ -104,6 +107,11 @@ class ConsoleLogAnalyzer(BaseAnalyzer):
             "Time",
             "Amount of exceptions",
             "Exceptions count",
+    )
+
+    def save_ufm_versions(self):
+        self._txt_for_pdf.append(
+            f"Used ufm version in console log {self.ufm_versions}{os.linesep}"
         )
 
     def full_analysis(self):

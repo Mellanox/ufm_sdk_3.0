@@ -53,6 +53,7 @@ class BaseImageCreator:
         self._dest_image_path = dest_image_path
         self._images_created = []
         self._dataframes_for_pdf = []
+        self._lists_for_pdf = []
         self._txt_for_pdf = []
         self._funcs_for_analysis = set()
 
@@ -165,6 +166,9 @@ class BaseImageCreator:
 
     def get_dataframes_for_pdf(self):
         return self._dataframes_for_pdf
+    
+    def get_lists_for_pdf(self):
+        return self._lists_for_pdf
 
     def get_txt_for_pdf(self):
         return self._txt_for_pdf

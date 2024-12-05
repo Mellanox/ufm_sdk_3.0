@@ -28,6 +28,8 @@ from pathlib import Path
 import traceback
 from typing import Callable, List, Set, Tuple
 
+from numpy import extract
+
 
 from loganalyze.log_analyzers.base_analyzer import BaseImageCreator
 from loganalyze.logs_extraction.directory_extractor import DirectoryExtractor
@@ -369,7 +371,7 @@ if __name__ == "__main__":
         end = time.perf_counter()
         log.LOGGER.debug(f"Took {end-start:.3f} to load the parsed data")
 
-        all_images_outputs_and_title, dataframes_for_pdf, txt_for_pdf = (
+        all_images_outputs_and_title, dataframes_for_pdf, lists_for_pdf, txt_for_pdf = (
             ufm_top_analyzer.full_analysis_all_analyzers()
         )
 
@@ -385,13 +387,8 @@ if __name__ == "__main__":
         pdf_path = os.path.join(args.destination, "UFM_Dump_analysis.pdf")
         pdf_header = f"{os.path.basename(args.location)}, hours={args.hours}"
 
-        used_ufm_version = console_log_analyzer.ufm_versions
-        text_to_show_in_pdf = (
-            f"Used ufm version in console log {used_ufm_version}{os.linesep}"
-        )
-
-        pdf = PDFCreator(pdf_path, pdf_header, png_images, text_to_show_in_pdf)
-        pdf.create_pdf(dataframes_for_pdf, txt_for_pdf)
+        pdf = PDFCreator(pdf_path, pdf_header, png_images, txt_for_pdf)
+        pdf.create_pdf(dataframes_for_pdf, lists_for_pdf)
 
         # Generated a report that can be located in the destination
         log.LOGGER.info("Analysis is done, please see the following outputs:")

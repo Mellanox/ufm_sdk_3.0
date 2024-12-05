@@ -22,12 +22,12 @@ from tabulate import tabulate
 
 
 class PDFCreator(FPDF):
-    def __init__(self, pdf_path, pdf_header, images_path, fabric_stats_list):
+    def __init__(self, pdf_path, pdf_header, images_path, txt_list):
         super().__init__()
         self._pdf_path = pdf_path
         self._pdf_header = pdf_header
         self._images_path = images_path
-        self._fabric_stats_list = fabric_stats_list
+        self._txt_list = txt_list
 
     def header(self):
         self.set_font("Arial", "B", 12)
@@ -60,7 +60,8 @@ class PDFCreator(FPDF):
     def add_text(self):
         self.set_font("Arial", "", 12)
         output = StringIO()
-        print(self._fabric_stats_list, file=output)
+        for txt in self._txt_list:
+            print(txt, file=output)
         text = output.getvalue().strip()
         self.multi_cell(0, 10, text)
 
