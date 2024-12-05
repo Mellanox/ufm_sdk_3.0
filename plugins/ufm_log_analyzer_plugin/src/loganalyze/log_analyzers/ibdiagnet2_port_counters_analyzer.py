@@ -59,7 +59,7 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
             self._log_data_sorted["type"] == "collectx_version"
         ]["data"].unique()
         self._txt_for_pdf.append(
-                f"collectx versions found in {self.telemetry_type} telemetry log \
+            f"collectx versions found in {self.telemetry_type} telemetry log \
                 {set(unique_collectx_versions)}"
         )
 
