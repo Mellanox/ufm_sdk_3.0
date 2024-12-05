@@ -107,7 +107,7 @@ class ConsoleLogAnalyzer(BaseAnalyzer):
             "Time",
             "Amount of exceptions",
             "Exceptions count",
-    )
+        )
 
     def save_ufm_versions(self):
         self._txt_for_pdf.append(

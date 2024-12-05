@@ -28,9 +28,6 @@ from pathlib import Path
 import traceback
 from typing import Callable, List, Set, Tuple
 
-from numpy import extract
-
-
 from loganalyze.log_analyzers.base_analyzer import BaseImageCreator
 from loganalyze.logs_extraction.directory_extractor import DirectoryExtractor
 from loganalyze.log_analyzers.ufm_top_analyzer import UFMTopAnalyzer

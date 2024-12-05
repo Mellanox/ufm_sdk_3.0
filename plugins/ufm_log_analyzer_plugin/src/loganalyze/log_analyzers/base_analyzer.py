@@ -166,7 +166,7 @@ class BaseImageCreator:
 
     def get_dataframes_for_pdf(self):
         return self._dataframes_for_pdf
-    
+
     def get_lists_for_pdf(self):
         return self._lists_for_pdf
 
