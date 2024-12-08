@@ -75,6 +75,7 @@ jobs:
 
         cd $SCRIPT_DIR
 
+        pip install -r src/loganalyze/requirements.txt
         pip install pytest
 
         pytest --maxfail=1 --disable-warnings -q  # Runs pytest with limited output
