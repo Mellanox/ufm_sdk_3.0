@@ -29,10 +29,12 @@ class UFMTopAnalyzer:
 
         graphs_and_titles = []
         dataframes = []
+        lists = []
         txt = []
         for analyzer in self._analyzers:
             graphs_and_titles.extend(analyzer.get_images_created())
             dataframes.extend(analyzer.get_dataframes_for_pdf())
+            lists.extend(analyzer.get_lists_for_pdf())
             txt.extend(analyzer.get_txt_for_pdf())
 
-        return graphs_and_titles, dataframes, txt
+        return graphs_and_titles, dataframes, lists, txt

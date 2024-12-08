@@ -40,7 +40,9 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
             self.save_first_last_iteration_timestamp,
             self.save_number_of_switches_and_ports,
             self.save_number_of_core_dumps,
+            self.save_collectx_versions,
         }
+
         # Based on the log path, decided if this is primary or secondary
         if "ufm_logs" in logs_csvs[0]:
             self.telemetry_type = "primary"
@@ -52,11 +54,14 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
         self._first_timestamp_of_logs = None
         self._last_timestamp_of_logs = None
 
-    def get_collectx_versions(self):
+    def save_collectx_versions(self):
         unique_collectx_versions = self._log_data_sorted[
             self._log_data_sorted["type"] == "collectx_version"
         ]["data"].unique()
-        return unique_collectx_versions
+        self._txt_for_pdf.append(
+            f"collectx versions found in {self.telemetry_type} telemetry log \
+                {set(unique_collectx_versions)}"
+        )
 
     def save_number_of_switches_and_ports(self):
         """
@@ -217,7 +222,7 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
             self._log_data_sorted["type"] == "timeout_dump_core"
         ]
         num = {"Amount": len(core_dumps)}
-        self._txt_for_pdf.append(
+        self._lists_for_pdf.append(
             (
                 [num],
                 f"{self.telemetry_type} number of core dumps found in the logs",
