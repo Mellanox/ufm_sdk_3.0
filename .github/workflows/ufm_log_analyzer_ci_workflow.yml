@@ -53,3 +53,26 @@ jobs:
         pip install ruff==0.7.3
 
         ruff format --diff --check src/loganalyze
+
+  pytest:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+
+    - name: Run Pytest
+      run: |
+        SCRIPT_DIR="plugins/ufm_log_analyzer_plugin"
+        # Set PYTHONPATH to include src directory and two levels up for utils
+        PYTHONPATH="$(realpath $SCRIPT_DIR/src):$(realpath $SCRIPT_DIR/../../)"
+        export PYTHONPATH
+
+        cd $SCRIPT_DIR
+
+        pytest --maxfail=1 --disable-warnings -q  # Runs pytest with limited output
