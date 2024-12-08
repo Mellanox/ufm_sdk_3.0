@@ -185,7 +185,11 @@ class BaseAnalyzer(BaseImageCreator):
     ):
         super().__init__(dest_image_path)
         dataframes = [pd.read_csv(ufm_log) for ufm_log in logs_csvs]
-        df = pd.concat(dataframes, ignore_index=True)
+        if dataframes:
+            df = pd.concat(dataframes, ignore_index=True)
+        else:
+            df = pd.DataFrame()  # Return an empty DataFrame if dataframes is empty
+
         if sort_timestamp:
             df[DataConstants.TIMESTAMP] = pd.to_datetime(df[DataConstants.TIMESTAMP])
             max_timestamp = df[DataConstants.TIMESTAMP].max()
