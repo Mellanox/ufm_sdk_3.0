@@ -4,4 +4,3 @@ matplotlib
 IPython
 fpdf2
 tabulate
-pytest
