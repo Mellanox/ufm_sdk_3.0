@@ -8,10 +8,10 @@ This script is meant to help a UFM HA user, to make sure that his standby server
 2. No prequesition are needed
 3. The script is meant to run on a standby node only.
 4. Place the script in a directory, for example under `/tmp`
-5. Run the command `python3 standby_node_health_check --fabric-interfaces ib0 ib1 --mgmt-interfaces ens192`
+5. Run the command `python3 standby_node_health_check --fabric-interfaces ib0 ib1 --mgmt-interface ens192`
 
 ## What the script is checking
-1. checking if all given fabric interface are up.
+1. checking if all given fabric interfaces are up.
 2. Checking if all given management interface are up.
 3. Checking ufm ha is configured.
 5. Checking if the node is a standby.

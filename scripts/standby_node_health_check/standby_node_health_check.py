@@ -21,7 +21,7 @@ from typing import List
 
 
 def configure_logger():
-    logger_name = "standby_node_checker"
+    logger_name = "standby_node_health_checker"
     logger = logging.getLogger(logger_name)
 
     if not logger.hasHandlers():
@@ -88,6 +88,8 @@ class StandbyNodeHealthChecker:
     PCS_STATUS_COMMAND = "pcs status"
     COROSYNC_RINGS_COMMAND = "corosync-cfgtool -s"
 
+    # This regex is used to translte the output of ibdev2netdev, in case
+    # The user inputs ibx, we use it to find the matching mlx interface
     IBDEV2NETDEV_REGEX = re.compile(r"^([\w\d_]+) port \d ==> ([\w\d]+)")
     OLD_CORSYNC_RING_ID_REGEX = re.compile(r"^RING ID (\d+)")
     OLD_CORSYNC_RING_IP_REGEX = re.compile(r"id\ *= ([\d\.]+)")
@@ -126,11 +128,11 @@ class StandbyNodeHealthChecker:
     def _check_ib_interfaces(self):
         result = True
         ib_interfaces_status = self._run_and_parse_ibstat()
-        ib_to_ml_map = self._get_ib_to_mlx_port_mapping()
+        ib_to_mlx_map = self._get_ib_to_mlx_port_mapping()
         for ib_interface in self._fabric_interfaces:
             ib_interface_to_validate = ib_interface
             if not ib_interface.startswith("mlx"):
-                ib_interface_to_validate = ib_to_ml_map.get(ib_interface, ib_interface)
+                ib_interface_to_validate = ib_to_mlx_map.get(ib_interface, ib_interface)
             if ib_interface_to_validate not in ib_interfaces_status:
                 logger.warning("%s is not in the list of IB interfaces", ib_interface)
                 result = False
@@ -482,6 +484,7 @@ class StandbyNodeHealthChecker:
     def print_summary_information(self):
         logger.info("")
         logger.info("Executive summary:")
+        # If there is anything in the summary actions it means we have failures
         if len(self._summary_actions) > 0:
             for row in self._summary_actions:
                 logger.info(row)
