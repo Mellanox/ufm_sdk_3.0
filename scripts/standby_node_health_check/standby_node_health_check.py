@@ -91,15 +91,17 @@ class StandbyNodeHealthChecker:
     # This regex is used to translte the output of ibdev2netdev, in case
     # The user inputs ibx, we use it to find the matching mlx interface
     IBDEV2NETDEV_REGEX = re.compile(r"^([\w\d_]+) port \d ==> ([\w\d]+)")
-    OLD_CORSYNC_RING_ID_REGEX = re.compile(r"^RING ID (\d+)")
-    OLD_CORSYNC_RING_IP_REGEX = re.compile(r"id\ *= ([\d\.]+)")
-    OLD_CORSTNC_STATUS_REGEX = re.compile(r"^status(?:=|:)\s*(.*)$")
+    CORSYNC_OPTION1_RING_ID_REGEX = re.compile(r"^RING ID (\d+)")
+    CORSYNC_OPTION1_RING_IP_REGEX = re.compile(r"id\ *= ([\d\.]+)")
+    CORSYNC_OPTION1_STATUS_REGEX = re.compile(r"^status(?:=|:)\s*(.*)$")
 
-    NEW_CORSYNC_RING_ID_REGEX = re.compile(r"^LINK ID (\d+)")
-    NEW_CORSYNC_RING_ID_IP_REGEX = re.compile(r"addr\ *= ([\d\.]+)")
-    NEW_CORSYNC_STATUS_REGEX = re.compile(
+    CORSYNC_OPTION2_RING_ID_REGEX = re.compile(r"^LINK ID (\d+)")
+    CORSYNC_OPTION2_RING_ID_IP_REGEX = re.compile(r"addr\ *= ([\d\.]+)")
+    CORSYNC_OPTION2_STATUS_REGEX = re.compile(
         r"^node (\d+):link enabled:(\d)link connected:(\d)"
     )
+
+    CORSYNC_OPTION3_STATUS_REGEX = re.compile(r"nodeid:\s*\d+:\s*(?!localhost)(\w+)")
 
     def __init__(self, fabric_interfaces, mgmt_interface):
         self._fabric_interfaces = fabric_interfaces
@@ -322,9 +324,15 @@ class StandbyNodeHealthChecker:
             logger.error("Failed to run corosync-cfgtool -s")
             return {}
         corosync_output_lines = corosync_output.splitlines()
-        rings_statuses = cls._parse_corsync_rings_old_output(corosync_output_lines)
-        if not rings_statuses:
-            rings_statuses = cls._parse_corsync_rings_new_output(corosync_output_lines)
+        checks_to_run = [
+            cls._parse_corsync_rings_output_option1,
+            cls._parse_corsync_rings_output_option2,
+            cls._parse_corsync_rings_output_option3,
+        ]
+        for check_option in checks_to_run:
+            rings_statuses = check_option(corosync_output_lines)
+            if rings_statuses:
+                break
         if not rings_statuses:
             logger.error("Could not find any corosync rings status")
             return False
@@ -346,8 +354,8 @@ class StandbyNodeHealthChecker:
         return result
 
     @classmethod
-    def _parse_corsync_rings_old_output(cls, corosync_output_lines: List[str]):
-        # This function handles the old ouptut of corsync, for example:
+    def _parse_corsync_rings_output_option1(cls, corosync_output_lines: List[str]):
+        # This function handles the another output of corsync, for example:
         # Printing ring status.
         # Local node ID 2
         # RING ID 0
@@ -360,13 +368,13 @@ class StandbyNodeHealthChecker:
         current_ring = None
         current_ip = None
         for line in corosync_output_lines:
-            ring_match = cls.OLD_CORSYNC_RING_ID_REGEX.match(line)
+            ring_match = cls.CORSYNC_OPTION1_RING_ID_REGEX.match(line)
             if ring_match:
                 current_ring = ring_match.group(1)
-            ring_ip = cls.OLD_CORSYNC_RING_IP_REGEX.match(line)
+            ring_ip = cls.CORSYNC_OPTION1_RING_IP_REGEX.match(line)
             if ring_ip:
                 current_ip = ring_ip.group(1)
-            status_match = cls.OLD_CORSTNC_STATUS_REGEX.match(line)
+            status_match = cls.CORSYNC_OPTION1_STATUS_REGEX.match(line)
             if current_ring and current_ip and status_match is not None:
                 status_text = status_match.group(1)
                 status_check = "active with no faults" in status_text
@@ -379,8 +387,8 @@ class StandbyNodeHealthChecker:
         return rings_info
 
     @classmethod
-    def _parse_corsync_rings_new_output(cls, corosync_output_lines: List[str]):
-        # This function handles the new output of corsync, for example:
+    def _parse_corsync_rings_output_option2(cls, corosync_output_lines: List[str]):
+        # This function handles another output of corsync, for example:
         # Printing link status.
         # Local node ID 1
         # LINK ID 0
@@ -397,26 +405,64 @@ class StandbyNodeHealthChecker:
         current_ring = None
         current_ip = None
         for line in corosync_output_lines:
-            ring_match = cls.NEW_CORSYNC_RING_ID_REGEX.match(line)
+            ring_match = cls.CORSYNC_OPTION2_RING_ID_REGEX.match(line)
             if ring_match:
                 current_ring = ring_match.group(1)
-            ring_ip = cls.NEW_CORSYNC_RING_ID_IP_REGEX.match(line)
+            ring_ip = cls.CORSYNC_OPTION2_RING_ID_IP_REGEX.match(line)
             if ring_ip:
                 current_ip = ring_ip.group(1)
-            new_status_match = cls.NEW_CORSYNC_STATUS_REGEX.match(line)
-            if current_ring and current_ip and new_status_match:
-                node_id = new_status_match.group(1)
-                link_enabled = new_status_match.group(2)
-                link_connected = new_status_match.group(3)
+            status_match = cls.CORSYNC_OPTION2_STATUS_REGEX.match(line)
+            if current_ring and current_ip and status_match:
+                node_id = status_match.group(1)
+                link_enabled = status_match.group(2)
+                link_connected = status_match.group(3)
                 status_check = link_enabled == "1" and link_connected == "1"
                 rings_info[f"Link {current_ring} Node {node_id}"] = {
                     "ip": current_ip,
-                    "status_text": f"node {node_id} "
+                    "status_text": f"node {node_id}"
                     f"link enabled:{link_enabled} "
                     f"link connected:{link_connected}",
                     "status_check": status_check,
                 }
         return rings_info
+
+    @classmethod
+    def _parse_corsync_rings_output_option3(cls, corosync_output_lines: List[str]):
+        # This function handles another output of corsync, for example:
+        # Local node ID 2, transport knet
+        # LINK ID 0 udp
+        # 	addr	= 10.209.226.116
+        # 	status:
+        # 		nodeid:          1:	connected
+        # 		nodeid:          2:	localhost
+        # LINK ID 1 udp
+        # 	addr	= 1.1.36.14
+        # 	status:
+        # 		nodeid:          1:	connected
+        # 		nodeid:          2:	localhost
+        rings_info = {}
+        current_ring = None
+        current_ip = None
+        for line in corosync_output_lines:
+            ring_match = cls.CORSYNC_OPTION2_RING_ID_REGEX.match(line)
+            if ring_match:
+                current_ring = ring_match.group(1)
+            ring_ip = cls.CORSYNC_OPTION2_RING_ID_IP_REGEX.match(line)
+            if ring_ip:
+                current_ip = ring_ip.group(1)
+            status_match = cls.CORSYNC_OPTION3_STATUS_REGEX.match(line)
+            if current_ring and current_ip and status_match:
+                link_connected = status_match.group(1)
+                status_check = link_connected == "connected"
+                rings_info[f"Link {current_ring}"] = {
+                    "ip": current_ip,
+                    "status_text": f"link {current_ring}"
+                    f"link connected:{link_connected}",
+                    "status_check": status_check,
+                }
+        return rings_info
+
+
 
     @classmethod
     def check_if_service_is_active(cls, service_name: str):
