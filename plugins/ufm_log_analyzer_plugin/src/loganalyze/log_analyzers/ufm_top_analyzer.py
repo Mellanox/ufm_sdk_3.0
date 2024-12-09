@@ -20,13 +20,21 @@ class UFMTopAnalyzer:
     def add_analyzer(self, analyzer):
         self._analyzers.append(analyzer)
 
-    def full_analysis(self):
+    def full_analysis_all_analyzers(self):
         """
         Returns a list of all the graphs created and their title
         """
-        graphs_and_titles = []
         for analyzer in self._analyzers:
-            tmp_images_list = analyzer.full_analysis()
-            if len(tmp_images_list) > 0:
-                graphs_and_titles.extend(tmp_images_list)
-        return graphs_and_titles
+            analyzer.full_analysis()
+
+        graphs_and_titles = []
+        dataframes = []
+        lists = []
+        txt = []
+        for analyzer in self._analyzers:
+            graphs_and_titles.extend(analyzer.get_images_created())
+            dataframes.extend(analyzer.get_dataframes_for_pdf())
+            lists.extend(analyzer.get_lists_for_pdf())
+            txt.extend(analyzer.get_txt_for_pdf())
+
+        return graphs_and_titles, dataframes, lists, txt

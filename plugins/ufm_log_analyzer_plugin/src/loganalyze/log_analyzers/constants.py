@@ -10,6 +10,7 @@
 # provided with the software product.
 #
 
+
 class DataConstants:
     AGGREGATIONTIME = "aggregated_by_time"
     TIMESTAMP = "timestamp"

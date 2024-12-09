@@ -14,19 +14,29 @@ import pandas as pd
 import numpy as np
 from loganalyze.log_analyzers.base_analyzer import BaseAnalyzer
 
-class RestApiAnalyzer(BaseAnalyzer):
 
-    def __init__(self, logs_csvs: List[str], hours: int, dest_image_path: str, sort_timestamp=True):
+class RestApiAnalyzer(BaseAnalyzer):
+    def __init__(
+        self,
+        logs_csvs: List[str],
+        hours: int,
+        dest_image_path: str,
+        sort_timestamp=True,
+    ):
         super().__init__(logs_csvs, hours, dest_image_path, sort_timestamp)
-        #Removing all the request coming from the ufm itself
-        self._log_data_sorted = self._log_data_sorted.loc\
-            [self._log_data_sorted['user'] != 'ufmsystem']
-        #Splitting the URL for better analysis
+        # Removing all the request coming from the ufm itself
+        self._log_data_sorted = self._log_data_sorted.loc[
+            self._log_data_sorted["user"] != "ufmsystem"
+        ]
+        # Splitting the URL for better analysis
         if not self._log_data_sorted.empty:
-            self._log_data_sorted[['uri', 'query_params']] = self._log_data_sorted['url']\
-                .apply(self.split_url_to_uri_and_query_params).apply(pd.Series)
-            self._have_duration = self._have_data_in_column('duration')
-            self._have_user = self._have_data_in_column('user')
+            self._log_data_sorted[["uri", "query_params"]] = (
+                self._log_data_sorted["url"]
+                .apply(self.split_url_to_uri_and_query_params)
+                .apply(pd.Series)
+            )
+            self._have_duration = self._have_data_in_column("duration")
+            self._have_user = self._have_data_in_column("user")
             self._funcs_for_analysis = {self.analyze_endpoints_freq}
 
     @staticmethod
@@ -50,19 +60,22 @@ class RestApiAnalyzer(BaseAnalyzer):
         return self._log_data_sorted[column].notna().all()
 
     def analyze_endpoints_freq(self, endpoints_count_to_show=10):
-        by_uri_per_time = self._log_data_sorted.groupby(['uri',
-                                                         'aggregated_by_time']).size().reset_index(
-                                                             name='amount_per_uri')
-        total_amount_per_uri = by_uri_per_time.groupby('uri')['amount_per_uri'].sum()
+        by_uri_per_time = (
+            self._log_data_sorted.groupby(["uri", "aggregated_by_time"])
+            .size()
+            .reset_index(name="amount_per_uri")
+        )
+        total_amount_per_uri = by_uri_per_time.groupby("uri")["amount_per_uri"].sum()
         top_x_uris = total_amount_per_uri.nlargest(endpoints_count_to_show).index
-        data_to_show = by_uri_per_time.pivot(index='aggregated_by_time',
-                                             columns='uri',
-                                             values='amount_per_uri').fillna(0)
+        data_to_show = by_uri_per_time.pivot(
+            index="aggregated_by_time", columns="uri", values="amount_per_uri"
+        ).fillna(0)
         data_to_show = data_to_show[top_x_uris]
 
-        return self._save_pivot_data_in_bars(data_to_show,
-                                                      "time",
-                                                      "requests count",
-                                                      f"Top {endpoints_count_to_show} "\
-                                                        "requests count over time",
-                                                      "legend")
+        return self._save_pivot_data_in_bars(
+            data_to_show,
+            "time",
+            "requests count",
+            f"Top {endpoints_count_to_show} " "requests count over time",
+            "legend",
+        )

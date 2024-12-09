@@ -12,10 +12,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@main
+      uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@main
+      uses: actions/setup-python@v4
       with:
         python-version: 3.9
 
@@ -28,9 +28,28 @@ jobs:
 
         cd $SCRIPT_DIR
 
-        # Install dependencies
         pip install -r src/loganalyze/requirements.txt
         pip install pylint==3.2.6
 
-        # Run PyLint
         pylint --rcfile=src/loganalyze/.pylintrc src/loganalyze
+
+  ruff:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+
+    - name: Install and run Ruff
+      run: |
+        SCRIPT_DIR="plugins/ufm_log_analyzer_plugin"
+        cd $SCRIPT_DIR
+
+        pip install ruff==0.7.3
+
+        ruff format --diff --check src/loganalyze

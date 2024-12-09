@@ -38,13 +38,13 @@ FETCH_TELEMETRY_DATA = re.compile(
 
 UFM_STATE_CHANGE = re.compile(r"^.*UFM daemon.*$")
 
-UFM_VERSION_REGEX = re.compile(
-    r"^\d+\.\d+\.\d+ build \d+$"
-)
+UFM_VERSION_REGEX = re.compile(r"^\d+\.\d+\.\d+ build \d+$")
+
 
 def ufm_version(match: Match):
     ufm_version_text = match.group()
     return (None, "ufm_version", ufm_version_text)
+
 
 def console_log_exception(match: Match):
     timestamp = match.group(1)

@@ -25,9 +25,11 @@ import loganalyze.logger as log
 class UFMLogAnalyzer(BaseAnalyzer):
     def __init__(self, logs_csvs: List[str], hours: int, dest_image_path):
         super().__init__(logs_csvs, hours, dest_image_path)
-        self._funcs_for_analysis = {self.full_analyze_ufm_loading_time,
-                                    self.full_telemetry_processing_time_report,
-                                    self.full_analyze_fabric_analysis_time}
+        self._funcs_for_analysis = {
+            self.full_analyze_ufm_loading_time,
+            self.full_telemetry_processing_time_report,
+            self.full_analyze_fabric_analysis_time,
+        }
 
     def full_analyze_ufm_loading_time(self):
         ufm_started_logs = self._log_data_sorted[
@@ -87,8 +89,12 @@ class UFMLogAnalyzer(BaseAnalyzer):
 
             # Print statistics
             log.LOGGER.debug(f"Mean Time: {mean_time:.2f} seconds")
-            log.LOGGER.debug(f"Maximum Time: {max_time:.2f} seconds at {max_time_occurrence}")
-            log.LOGGER.debug(f"Minimum Time: {min_time:.2f} seconds at {min_time_occurrence}")
+            log.LOGGER.debug(
+                f"Maximum Time: {max_time:.2f} seconds at {max_time_occurrence}"
+            )
+            log.LOGGER.debug(
+                f"Minimum Time: {min_time:.2f} seconds at {min_time_occurrence}"
+            )
 
         # Print timestamps with missing 'Completed' logs
         if len(missing_completed_logs) > 0:
@@ -225,11 +231,15 @@ class UFMLogAnalyzer(BaseAnalyzer):
         ]
 
         # Sort the telemetry logs by timestamp
-        telemetry_logs_sorted = telemetry_logs.sort_values(by=DataConstants.TIMESTAMP).copy()
+        telemetry_logs_sorted = telemetry_logs.sort_values(
+            by=DataConstants.TIMESTAMP
+        ).copy()
 
         # Extract the processing time and convert to float
         telemetry_logs_sorted["processing_time"] = (
-            telemetry_logs_sorted[DataConstants.DATA].str.extract(r"(\d+(\.\d+)?)")[0].astype(float)
+            telemetry_logs_sorted[DataConstants.DATA]
+            .str.extract(r"(\d+(\.\d+)?)")[0]
+            .astype(float)
         )
 
         # Calculate statistics
@@ -250,8 +260,12 @@ class UFMLogAnalyzer(BaseAnalyzer):
 
         # Print the statistics
         log.LOGGER.debug(f"Mean Processing Time: {mean_time}")
-        log.LOGGER.debug(f"Maximum Processing Time: {max_time} at {max_time_occurrence}")
-        log.LOGGER.debug(f"Minimum Processing Time: {min_time} at {min_time_occurrence}")
+        log.LOGGER.debug(
+            f"Maximum Processing Time: {max_time} at {max_time_occurrence}"
+        )
+        log.LOGGER.debug(
+            f"Minimum Processing Time: {min_time} at {min_time_occurrence}"
+        )
 
         # Set the index to timestamp for resampling, converting to DateTimeIndex
         telemetry_logs_sorted[DataConstants.TIMESTAMP] = pd.to_datetime(
@@ -270,8 +284,5 @@ class UFMLogAnalyzer(BaseAnalyzer):
         # Plot the data within the filtered time range
         title = "Telemetry processing time"
         self._save_data_based_on_timestamp(
-            minutely_mean_processing_time,
-            "Time",
-            "Processing Time (s)",
-            title
+            minutely_mean_processing_time, "Time", "Processing Time (s)", title
         )

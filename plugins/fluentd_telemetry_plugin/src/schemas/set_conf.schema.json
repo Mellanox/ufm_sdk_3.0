@@ -120,6 +120,11 @@
         },
         "enabled": {
           "type": "boolean"
+        },
+        "telemetry_request_timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "err_message": "[streaming - telemetry_request_timeout] attribute should be an integer greater than 0"
         }
       }
     },

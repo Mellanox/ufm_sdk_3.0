@@ -17,8 +17,10 @@ from loganalyze.log_parsing.ufm_log import ufm_log_regex_cls
 from loganalyze.log_parsing.ibdiagnet_log_regex import ibdiagnet_log_regex_cls
 from loganalyze.log_parsing.console_log_regex import console_log_regex_cls
 from loganalyze.log_parsing.rest_api_log_regex import rest_api_log_regex_cls
-from loganalyze.log_parsing.ibdiagnet2_port_counters_log_regex import \
-    ibdiagnet2_primary_log_regex_cls, ibdiagnet2_secondary_log_regex_cls
+from loganalyze.log_parsing.ibdiagnet2_port_counters_log_regex import (
+    ibdiagnet2_primary_log_regex_cls,
+    ibdiagnet2_secondary_log_regex_cls,
+)
 
 logs = [
     event_log_regex_cls,
@@ -28,7 +30,7 @@ logs = [
     console_log_regex_cls,
     rest_api_log_regex_cls,
     ibdiagnet2_secondary_log_regex_cls,
-    ibdiagnet2_primary_log_regex_cls
+    ibdiagnet2_primary_log_regex_cls,
 ]
 
 logs_regex_csv_headers_list = []

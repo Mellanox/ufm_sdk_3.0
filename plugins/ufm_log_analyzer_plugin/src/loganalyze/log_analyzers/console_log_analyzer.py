@@ -28,7 +28,10 @@ class ConsoleLogAnalyzer(BaseAnalyzer):
         self.fix_lines_with_no_timestamp(logs_csvs)
         super().__init__(logs_csvs, hours, dest_image_path, sort_timestamp)
         self._log_data_sorted.dropna(subset=["data"], inplace=True)
-        self._funcs_for_analysis = {self.print_exceptions_per_time_count}
+        self._funcs_for_analysis = {
+            self.print_exceptions_per_time_count,
+            self.save_ufm_versions,
+        }
 
     @staticmethod
     def _extract_ufm_version(logs_csvs):
@@ -43,14 +46,14 @@ class ConsoleLogAnalyzer(BaseAnalyzer):
             temp_file = csv_file + ".temp"
 
             # Open the input CSV file for reading
-            with open(csv_file,
-                      mode='r',
-                      newline='',
-                      encoding=DataConstants.UTF8ENCODING) as infile, \
-                open(temp_file,
-                     mode='w',
-                     newline='',
-                     encoding=DataConstants.UTF8ENCODING) as outfile:
+            with (
+                open(
+                    csv_file, mode="r", newline="", encoding=DataConstants.UTF8ENCODING
+                ) as infile,
+                open(
+                    temp_file, mode="w", newline="", encoding=DataConstants.UTF8ENCODING
+                ) as outfile,
+            ):
                 reader = csv.DictReader(infile)
                 fieldnames = reader.fieldnames  # Get the header from the CSV
                 writer = csv.DictWriter(outfile, fieldnames=fieldnames)
@@ -60,10 +63,10 @@ class ConsoleLogAnalyzer(BaseAnalyzer):
 
                 # Iterate through each row in the input CSV
                 for row in reader:
-                    if row['type'] == 'ufm_version':
+                    if row["type"] == "ufm_version":
                         # If the type is 'ufm_version',
                         # save the row and don't write it to the new file
-                        ufm_versions.add(row['data'])
+                        ufm_versions.add(row["data"])
                     else:
                         # Write the row to the new CSV file
                         writer.writerow(row)
@@ -106,9 +109,11 @@ class ConsoleLogAnalyzer(BaseAnalyzer):
             "Exceptions count",
         )
 
+    def save_ufm_versions(self):
+        self._txt_for_pdf.append(
+            f"Used ufm version in console log {self.ufm_versions}{os.linesep}"
+        )
+
     def full_analysis(self):
-        """
-        Returns a list of all the graphs created and their title
-        """
+        super().full_analysis()
         self.print_exceptions()
-        return super().full_analysis()

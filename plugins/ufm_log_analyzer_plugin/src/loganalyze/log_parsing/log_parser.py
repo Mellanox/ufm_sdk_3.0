@@ -16,7 +16,8 @@ import re
 from typing import Callable, Tuple, List
 import gzip
 
-class LogParser: # pylint: disable=too-few-public-methods
+
+class LogParser:  # pylint: disable=too-few-public-methods
     """
     Basic class for parsing logs
     """

@@ -12,6 +12,7 @@
 # pylint: disable=missing-function-docstring
 # pylint: disable=missing-module-docstring
 
+import logging
 import os
 import csv
 import shutil
@@ -21,10 +22,17 @@ from typing import List
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib
 import matplotlib.dates as mdates
 
 from loganalyze.log_analyzers.constants import DataConstants
 import loganalyze.logger as log
+
+# This makes sure the user does not see the warning from plotting
+logging.getLogger("matplotlib").setLevel(logging.ERROR)
+matplotlib.use(
+    "Agg"
+)  # This allows to run the tool on servers without graphic card/headless
 
 pd.set_option("display.max_colwidth", None)
 warnings.filterwarnings("ignore")
@@ -44,11 +52,16 @@ class BaseImageCreator:
     def __init__(self, dest_image_path):
         self._dest_image_path = dest_image_path
         self._images_created = []
+        self._dataframes_for_pdf = []
+        self._lists_for_pdf = []
+        self._txt_for_pdf = []
         self._funcs_for_analysis = set()
 
     def _save_data_based_on_timestamp(
-        self, data_to_plot, x_label, y_label, title
+        self, data_to_plot, x_label, y_label, title, large_sample=False
     ):
+        if data_to_plot.empty:
+            return
         with plt.ion():
             log.LOGGER.debug(f"saving {title}")
             plt.figure(figsize=(12, 6))
@@ -61,7 +74,10 @@ class BaseImageCreator:
             # Set the locator to show ticks every hour and the formatter to
             # include both date and time
             ax = plt.gca()
-            ax.xaxis.set_major_locator(mdates.HourLocator())
+            if large_sample:
+                ax.xaxis.set_major_locator(mdates.HourLocator(interval=24))
+            else:
+                ax.xaxis.set_major_locator(mdates.HourLocator())
             ax.xaxis.set_minor_locator(
                 mdates.MinuteLocator(interval=15)
             )  # Add minor ticks every 15 minutes
@@ -82,11 +98,12 @@ class BaseImageCreator:
                 bbox={"facecolor": "white", "alpha": 0.5},
             )
 
-
             generic_file_name = f"{title}".replace(" ", "_").replace("/", "_")
             images_created = []
             for img_type in self._images_type:
-                cur_img = os.path.join(self._dest_image_path,f"{generic_file_name}.{img_type}")
+                cur_img = os.path.join(
+                    self._dest_image_path, f"{generic_file_name}.{img_type}"
+                )
                 log.LOGGER.debug(f"Saving {cur_img}")
                 plt.savefig(cur_img, format=img_type)
                 images_created.append(cur_img)
@@ -94,7 +111,7 @@ class BaseImageCreator:
             self._images_created.extend(images_list_with_title)
             plt.close()
 
-    def _save_pivot_data_in_bars(  # pylint: disable=too-many-arguments
+    def _save_pivot_data_in_bars(
         self, pivoted_data, x_label, y_label, title, legend_title
     ):
         if pivoted_data.empty:
@@ -112,7 +129,9 @@ class BaseImageCreator:
             generic_file_name = f"{title}".replace(" ", "_").replace("/", "_")
             images_created = []
             for img_type in self._images_type:
-                cur_img = os.path.join(self._dest_image_path,f"{generic_file_name}.{img_type}")
+                cur_img = os.path.join(
+                    self._dest_image_path, f"{generic_file_name}.{img_type}"
+                )
                 log.LOGGER.debug(f"Saving {cur_img}")
                 plt.savefig(cur_img, format=img_type)
                 images_created.append(cur_img)
@@ -130,17 +149,29 @@ class BaseImageCreator:
             # In case a function is raising an exception.
             try:
                 func()
-            except: # pylint: disable=bare-except
+            except:  # pylint: disable=bare-except
                 function_name = func.__name__
                 try:
                     class_name = ""
                     if "." in func.__qualname__:
-                        class_name = func.__qualname__.split('.')[0]
-                    log.LOGGER.debug(f"Error when calling {function_name} {class_name}, skipping")
-                except: # pylint: disable=bare-except
+                        class_name = func.__qualname__.split(".")[0]
+                    log.LOGGER.debug(
+                        f"Error when calling {function_name} {class_name}, skipping"
+                    )
+                except:  # pylint: disable=bare-except
                     pass
 
-        return self._images_created if len(self._images_created) > 0 else []
+    def get_images_created(self):
+        return self._images_created
+
+    def get_dataframes_for_pdf(self):
+        return self._dataframes_for_pdf
+
+    def get_lists_for_pdf(self):
+        return self._lists_for_pdf
+
+    def get_txt_for_pdf(self):
+        return self._txt_for_pdf
 
 
 class BaseAnalyzer(BaseImageCreator):
@@ -149,14 +180,12 @@ class BaseAnalyzer(BaseImageCreator):
     ability to print/save images and filter data
     """
 
-
     def __init__(
         self,
         logs_csvs: List[str],
         hours: int,
         dest_image_path: str,
-        sort_timestamp=True
-
+        sort_timestamp=True,
     ):
         super().__init__(dest_image_path)
         dataframes = [pd.read_csv(ufm_log) for ufm_log in logs_csvs]
@@ -168,8 +197,9 @@ class BaseAnalyzer(BaseImageCreator):
             # Filter logs to include only those within the last 'hours' from the max timestamp
             filtered_logs = df[df[DataConstants.TIMESTAMP] >= start_time]
             data_sorted = filtered_logs.sort_values(by=DataConstants.TIMESTAMP)
-            data_sorted[DataConstants.AGGREGATIONTIME] = \
-                        data_sorted[DataConstants.TIMESTAMP].dt.floor(self.time_interval)
+            data_sorted[DataConstants.AGGREGATIONTIME] = data_sorted[
+                DataConstants.TIMESTAMP
+            ].dt.floor(self.time_interval)
             self._log_data_sorted = data_sorted
         else:
             self._log_data_sorted = df
@@ -179,9 +209,14 @@ class BaseAnalyzer(BaseImageCreator):
     def _remove_empty_lines_from_csv(input_file):
         temp_file = input_file + ".temp"
 
-        with open(input_file, "r", newline="", encoding=DataConstants.UTF8ENCODING) as infile, open(
-            temp_file, "w", newline="", encoding=DataConstants.UTF8ENCODING
-        ) as outfile:
+        with (
+            open(
+                input_file, "r", newline="", encoding=DataConstants.UTF8ENCODING
+            ) as infile,
+            open(
+                temp_file, "w", newline="", encoding=DataConstants.UTF8ENCODING
+            ) as outfile,
+        ):
             reader = csv.reader(infile)
             writer = csv.writer(outfile)
 
@@ -205,10 +240,14 @@ class BaseAnalyzer(BaseImageCreator):
             temp_file = csv_file + ".temp"
             BaseAnalyzer._remove_empty_lines_from_csv(csv_file)
             fixed_lines = 0
-            with open(csv_file, "r", newline="", encoding=DataConstants.UTF8ENCODING) \
-                as infile, open(
-                            temp_file, "w", newline="", encoding=DataConstants.UTF8ENCODING
-                                ) as outfile:
+            with (
+                open(
+                    csv_file, "r", newline="", encoding=DataConstants.UTF8ENCODING
+                ) as infile,
+                open(
+                    temp_file, "w", newline="", encoding=DataConstants.UTF8ENCODING
+                ) as outfile,
+            ):
                 reader = csv.reader(infile)
                 writer = csv.writer(outfile)
                 current_line = None

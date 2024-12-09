@@ -28,7 +28,6 @@ from pathlib import Path
 import traceback
 from typing import Callable, List, Set, Tuple
 
-
 from loganalyze.log_analyzers.base_analyzer import BaseImageCreator
 from loganalyze.logs_extraction.directory_extractor import DirectoryExtractor
 from loganalyze.log_analyzers.ufm_top_analyzer import UFMTopAnalyzer
@@ -44,6 +43,9 @@ from loganalyze.log_analyzers.events_log_analyzer import EventsLogAnalyzer
 from loganalyze.log_analyzers.console_log_analyzer import ConsoleLogAnalyzer
 from loganalyze.log_analyzers.rest_api_log_analyzer import RestApiAnalyzer
 from loganalyze.log_analyzers.link_flapping_analyzer import LinkFlappingAnalyzer
+from loganalyze.log_analyzers.ibdiagnet2_port_counters_analyzer import (
+    Ibdiagnet2PortCountersAnalyzer,
+)
 
 from loganalyze.pdf_creator import PDFCreator
 from loganalyze.utils.common import delete_files_by_types
@@ -63,23 +65,22 @@ LOGS_TO_EXTRACT = [
     "console.log",
     "rest_api.log",
     "ufm_logs/ibdiagnet2_port_counters.log",
-    "secondary_telemetry/ibdiagnet2_port_counters.log"
+    "secondary_telemetry/ibdiagnet2_port_counters.log",
 ]
 
-DIRECTORIES_TO_EXTRACT = [
-    "telemetry_samples"
-]
+DIRECTORIES_TO_EXTRACT = ["telemetry_samples"]
+
 
 def run_both_functions(parser_func, action_func, save_func):
     parser_func(action_func)
     save_func()
 
 
-def create_parsers_processes(log_files_and_regex: List[
-            Tuple[str, List[str], Callable[[Tuple], None], Callable]
-        ],):
+def create_parsers_processes(
+    log_files_and_regex: List[Tuple[str, List[str], Callable[[Tuple], None], Callable]],
+):
     """
-    Per log files, creates the log parser process class that will 
+    Per log files, creates the log parser process class that will
     handle that log.
     """
     processes = []
@@ -97,7 +98,7 @@ def create_parsers_processes(log_files_and_regex: List[
     return processes
 
 
-def run_parsers_processes(processes:List[Process]):
+def run_parsers_processes(processes: List[Process]):
     """
     Runs all the parsing process and waits for the to finish
     """
@@ -130,8 +131,9 @@ def create_logs_regex_csv_handler_list(logs: Set[str]):
                 else:
                     csv_path = file_as_path.with_suffix(cur_path_suffix + ".csv")
                 csv_handler = CsvHandler(csv_headers, csv_path)
-                result_list.append((path, patterns_and_fn,
-                                    csv_handler.add_line, csv_handler.save_file))
+                result_list.append(
+                    (path, patterns_and_fn, csv_handler.add_line, csv_handler.save_file)
+                )
     return result_list
 
 
@@ -148,16 +150,17 @@ def sorting_logs(log_path):
     return count
 
 
-def get_files_in_dest_by_type(location: str,
-                              base_name: str,
-                              extraction_level: int,
-                              file_type="csv"):
+def get_files_in_dest_by_type(
+    location: str, base_name: str, extraction_level: int, file_type="csv"
+):
     """
     Return a list of all the files by type that were parsed and part of the current
     extraction level requested
     """
     files_by_type = glob.glob(os.path.join(location, f"*.{file_type}"))
-    matched_files = [file for file in files_by_type if base_name in os.path.basename(file)]
+    matched_files = [
+        file for file in files_by_type if base_name in os.path.basename(file)
+    ]
     full_paths = [os.path.abspath(file) for file in matched_files]
     sorted_files = sorted(full_paths, key=sorting_logs)
     sliced_files = sorted_files[: (extraction_level + 1)]
@@ -204,24 +207,24 @@ def parse_args():
     parser.add_argument(
         "--skip-tar-extract",
         action="store_true",
-        help="If the location is to an existing extracted tar, skip the " \
-            "tar extraction and only copy the needed logs. Default is False"
+        help="If the location is to an existing extracted tar, skip the "
+        "tar extraction and only copy the needed logs. Default is False",
     )
     parser.add_argument(
-        '--interval',
+        "--interval",
         type=str,
-        nargs='?',
-        default='1h',
-        choices=['1min', '10min', '1h', '24h'],
+        nargs="?",
+        default="1h",
+        choices=["1min", "10min", "1h", "24h"],
         help="Time interval for the graphs. Choices are: '1min'- Every minute, "
-             "'10min'- Every ten minutes, '1h'- Every one hour, "
-             "'24h'- Every 24 hours. Default is '1H'."
+        "'10min'- Every ten minutes, '1h'- Every one hour, "
+        "'24h'- Every 24 hours. Default is '1H'.",
     )
     parser.add_argument(
-        '--log-level',
+        "--log-level",
         help="Tool log level, default is CRITICAL",
-        default='INFO',
-        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
     )
 
     return parser.parse_args()
@@ -244,18 +247,20 @@ def add_extraction_levels_to_files_set(
     return combined_logs_named
 
 
-def create_analyzer(parsed_args, full_extracted_logs_list,
-                    ufm_top_analyzer_obj, log_name,  analyzer_clc):
+def create_analyzer(
+    parsed_args, full_extracted_logs_list, ufm_top_analyzer_obj, log_name, analyzer_clc
+):
     """
     Create the analyzer based on the given inputs.
     Also adds it to the top_analyzer so it can be used
     in the full report.
     Returns the created analyzer
     """
-    if log_name in full_extracted_logs_list:
-        log_csvs = get_files_in_dest_by_type(parsed_args.destination,
-                                             log_name,
-                                             parsed_args.extract_level)
+    # Checking the base name since some logs in the list are with a directory name
+    if any(os.path.basename(log) == log_name for log in full_extracted_logs_list):
+        log_csvs = get_files_in_dest_by_type(
+            parsed_args.destination, log_name, parsed_args.extract_level
+        )
         analyzer = analyzer_clc(log_csvs, parsed_args.hours, parsed_args.destination)
         ufm_top_analyzer_obj.add_analyzer(analyzer)
         return analyzer
@@ -265,8 +270,10 @@ def create_analyzer(parsed_args, full_extracted_logs_list,
 if __name__ == "__main__":
     args = parse_args()
     log.setup_logger("Logs_analyzer", args.log_level)
-    log.LOGGER.info("Starting analysis, this might take a few minutes"
-                    " depending on the amount of data in the logs")
+    log.LOGGER.info(
+        "Starting analysis, this might take a few minutes"
+        " depending on the amount of data in the logs"
+    )
     if not os.path.exists(args.location):
         log.LOGGER.critical(f"-E- Cannot find dump file at {args.location}")
         sys.exit(1)
@@ -287,7 +294,9 @@ if __name__ == "__main__":
         )
 
         if len(failed_extract) > 0:
-            log.LOGGER.debug(f"Failed to get some logs - {failed_extract}, skipping them")
+            log.LOGGER.debug(
+                f"Failed to get some logs - {failed_extract}, skipping them"
+            )
         logs_regex_csv_handler_list = create_logs_regex_csv_handler_list(
             logs_to_work_with
         )
@@ -296,54 +305,74 @@ if __name__ == "__main__":
         run_parsers_processes(parsers_processes)
         log.LOGGER.debug("Done saving all CSV files")
 
-
         # Setting the time granularity for the graphs
         BaseImageCreator.time_interval = args.interval
 
         # Analyze the CSV and be able to query the data
         start = time.perf_counter()
         log.LOGGER.debug("Starting analyzing the data")
-        partial_create_analyzer = partial(create_analyzer,
-                                          parsed_args=args,
-                                          full_extracted_logs_list=full_logs_list,
-                                          ufm_top_analyzer_obj=ufm_top_analyzer)
+        partial_create_analyzer = partial(
+            create_analyzer,
+            parsed_args=args,
+            full_extracted_logs_list=logs_to_work_with,
+            ufm_top_analyzer_obj=ufm_top_analyzer,
+        )
 
         # Creating the analyzer for each log
         # By assigning them, a user can query the data via
         # the interactive session
-        ibdiagnet_analyzer = partial_create_analyzer(log_name="ibdiagnet2.log",
-                                                     analyzer_clc=IBDIAGNETLogAnalyzer)
+        ibdiagnet_analyzer = partial_create_analyzer(
+            log_name="ibdiagnet2.log", analyzer_clc=IBDIAGNETLogAnalyzer
+        )
 
-        event_log_analyzer = partial_create_analyzer(log_name="event.log",
-                                                     analyzer_clc=EventsLogAnalyzer)
+        event_log_analyzer = partial_create_analyzer(
+            log_name="event.log", analyzer_clc=EventsLogAnalyzer
+        )
 
-        ufm_health_analyzer = partial_create_analyzer(log_name="ufmhealth.log",
-                                                     analyzer_clc=UFMHealthAnalyzer)
+        ufm_health_analyzer = partial_create_analyzer(
+            log_name="ufmhealth.log", analyzer_clc=UFMHealthAnalyzer
+        )
 
-        ufm_log_analyzer = partial_create_analyzer(log_name="ufm.log",
-                                                   analyzer_clc=UFMLogAnalyzer)
+        ufm_log_analyzer = partial_create_analyzer(
+            log_name="ufm.log", analyzer_clc=UFMLogAnalyzer
+        )
 
-        console_log_analyzer = partial_create_analyzer(log_name="console.log",
-                                                       analyzer_clc=ConsoleLogAnalyzer)
+        console_log_analyzer = partial_create_analyzer(
+            log_name="console.log", analyzer_clc=ConsoleLogAnalyzer
+        )
 
-        rest_api_log_analyzer = partial_create_analyzer(log_name="rest_api.log",
-                                                        analyzer_clc=RestApiAnalyzer)
-        second_telemetry_samples = get_files_in_dest_by_type(args.destination,
-                                                                 "secondary_",
-                                                                 1000,
-                                                                 "gz")
+        rest_api_log_analyzer = partial_create_analyzer(
+            log_name="rest_api.log", analyzer_clc=RestApiAnalyzer
+        )
+
+        ibdianget_2_ports_primary_analyzer = partial_create_analyzer(
+            log_name="ufm_logs_ibdiagnet2_port_counters.log",
+            analyzer_clc=Ibdiagnet2PortCountersAnalyzer,
+        )
+
+        ibdianget_2_ports_secondary_analyzer = partial_create_analyzer(
+            log_name="secondary_telemetry_ibdiagnet2_port_counters.log",
+            analyzer_clc=Ibdiagnet2PortCountersAnalyzer,
+        )
+
+        second_telemetry_samples = get_files_in_dest_by_type(
+            args.destination, "secondary_", 1000, "gz"
+        )
         if len(second_telemetry_samples):
-
-            links_flapping_analyzer = LinkFlappingAnalyzer(second_telemetry_samples,
-                                                       args.destination)
+            links_flapping_analyzer = LinkFlappingAnalyzer(
+                second_telemetry_samples, args.destination
+            )
             ufm_top_analyzer.add_analyzer(links_flapping_analyzer)
         else:
-            links_flapping_analyzer = None # pylint: disable=invalid-name
+            links_flapping_analyzer = None  # pylint: disable=invalid-name
         end = time.perf_counter()
         log.LOGGER.debug(f"Took {end-start:.3f} to load the parsed data")
 
-        all_images_outputs_and_title = ufm_top_analyzer.full_analysis()
-        png_images =[]
+        all_images_outputs_and_title, dataframes_for_pdf, lists_for_pdf, txt_for_pdf = (
+            ufm_top_analyzer.full_analysis_all_analyzers()
+        )
+
+        png_images = []
         images_and_title_to_present = []
         for image_title in all_images_outputs_and_title:
             image, title = image_title
@@ -353,47 +382,28 @@ if __name__ == "__main__":
                 images_and_title_to_present.append((image, title))
         # Next section is to create a summary PDF
         pdf_path = os.path.join(args.destination, "UFM_Dump_analysis.pdf")
-        pdf_header = (
-            f"{os.path.basename(args.location)}, hours={args.hours}"
-        )
+        pdf_header = f"{os.path.basename(args.location)}, hours={args.hours}"
 
-        used_ufm_version = console_log_analyzer.ufm_versions
-        text_to_show_in_pdf = f"Used ufm version in console log {used_ufm_version}"
-        fabric_info = "fabric info:" + os.linesep + str(ibdiagnet_analyzer.get_fabric_size()) \
-                        if ibdiagnet_analyzer else "No Fabric Info found" # pylint: disable=invalid-name
-        if links_flapping_analyzer:
-            link_flapping = links_flapping_analyzer.get_link_flapping_last_week() \
-                            if links_flapping_analyzer else "No link flapping info"
-            text_to_show_in_pdf += os.linesep + str(fabric_info) + os.linesep + \
-            "Link Flapping:" + os.linesep + str(link_flapping)
+        pdf = PDFCreator(pdf_path, pdf_header, png_images, txt_for_pdf)
+        pdf.create_pdf(dataframes_for_pdf, lists_for_pdf)
 
-        critical_events_burst = event_log_analyzer.get_critical_event_bursts()
-        critical_events_text = "The minute           event_type     event    count" # pylint: disable=invalid-name
-        for critical_event in critical_events_burst:
-            timestamp = critical_event['timestamp']
-            event_type = critical_event['event_type']
-            event = critical_event['event']
-            counter = critical_event['count']
-            event_text = f"{timestamp} {event_type} {event} {counter}"
-            critical_events_text = critical_events_text + os.linesep + event_text
-
-        text_to_show_in_pdf += os.linesep + os.linesep + "More than 5 events burst over a minute:" \
-            + os.linesep + critical_events_text
-
-        # PDF creator gets all the images and to add to the report
-        pdf = PDFCreator(pdf_path, pdf_header, png_images, text_to_show_in_pdf)
-        pdf.created_pdf()
         # Generated a report that can be located in the destination
         log.LOGGER.info("Analysis is done, please see the following outputs:")
         for image, title in images_and_title_to_present:
             log.LOGGER.info(f"{title}: {image}")
         log.LOGGER.info(f"Summary PDF was created! you can open here at {pdf_path}")
+
+        if args.interactive:
+            import IPython
+
+            IPython.embed()
+
         # Clean some unended files created during run
         files_types_to_delete = set()
-        files_types_to_delete.add("png") #png images created for PDF report
-        files_types_to_delete.add("log") #logs taken from the logs
-        files_types_to_delete.add("csv") #tmp csv + telemetery samples
-        files_types_to_delete.add("gz") #gz files of logs and samples
+        files_types_to_delete.add("png")  # png images created for PDF report
+        files_types_to_delete.add("log")  # logs taken from the logs
+        files_types_to_delete.add("csv")  # tmp csv + telemetery samples
+        files_types_to_delete.add("gz")  # gz files of logs and samples
         delete_files_by_types(args.destination, files_types_to_delete)
 
     except Exception as exc:
