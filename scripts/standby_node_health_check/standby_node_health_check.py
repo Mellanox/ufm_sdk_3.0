@@ -462,8 +462,6 @@ class StandbyNodeHealthChecker:
                 }
         return rings_info
 
-
-
     @classmethod
     def check_if_service_is_active(cls, service_name: str):
         """
