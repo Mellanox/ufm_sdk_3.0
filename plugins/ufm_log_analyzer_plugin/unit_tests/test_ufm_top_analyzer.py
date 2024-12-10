@@ -32,14 +32,14 @@ def test_add_analyzer(analyzer):
     mock_analyzer_2 = "Analyzer2"
 
     # Initially, the list should be empty
-    assert len(analyzer._analyzers) == 0  # pylint: disable=protected-access
+    assert len(analyzer._analyzers) == 0
 
     # Add first analyzer and check the length
     analyzer.add_analyzer(mock_analyzer_1)
-    assert len(analyzer._analyzers) == 1  # pylint: disable=protected-access
-    assert mock_analyzer_1 in analyzer._analyzers  # pylint: disable=protected-access
+    assert len(analyzer._analyzers) == 1
+    assert mock_analyzer_1 in analyzer._analyzers
 
     # Add second analyzer and check the updated length
     analyzer.add_analyzer(mock_analyzer_2)
-    assert len(analyzer._analyzers) == 2  # pylint: disable=protected-access
-    assert mock_analyzer_2 in analyzer._analyzers  # pylint: disable=protected-access
+    assert len(analyzer._analyzers) == 2
+    assert mock_analyzer_2 in analyzer._analyzers

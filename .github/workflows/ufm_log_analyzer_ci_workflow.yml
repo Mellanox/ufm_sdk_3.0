@@ -78,4 +78,4 @@ jobs:
         pip install -r src/loganalyze/requirements.txt
         pip install pytest
 
-        pytest
+        pytest /unit_tests

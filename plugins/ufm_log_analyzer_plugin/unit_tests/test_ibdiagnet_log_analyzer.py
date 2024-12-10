@@ -34,8 +34,8 @@ def analyzer():
 def test_get_fabric_size(analyzer):
     # Mock the _log_data_sorted attribute
     expected_fabric_size = {"switch_count": 10, "link_count": 50}  # Example data
-    analyzer._log_data_sorted = expected_fabric_size  # pylint: disable=protected-access
+    analyzer._log_data_sorted = expected_fabric_size
 
     # Call the method and check the result
     result = analyzer.get_fabric_size()
-    assert result == expected_fabric_size
+    assert result == expected_fabric_size, "get_fabric_size should return _log_data_sorted"

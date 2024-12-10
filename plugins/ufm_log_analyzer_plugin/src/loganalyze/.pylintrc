@@ -9,3 +9,6 @@ disable=missing-function-docstring,
 [DESIGN]
 max-locals=20
 max-args=8
+
+[unit_tests/*]
+disable=protected-access
