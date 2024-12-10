@@ -13,12 +13,6 @@
 # @date:   Dec 08, 2024
 
 import pytest
-import sys
-import os
-
-sys.path.append(os.getcwd())
-sys.path.append("/".join(os.getcwd().split("/")[:-1]))
-sys.path.append("/".join(os.getcwd().split("/")[:-1]) + "/src")
 
 from loganalyze.log_analyzers.ufm_top_analyzer import UFMTopAnalyzer
 

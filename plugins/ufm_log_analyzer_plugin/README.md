@@ -75,4 +75,17 @@ This logic will show links that:
 
 ![Tool flow](img/loganalzer.png)
 
+## Testing
 
+There is a folder named `unit_tests`, this folder contains some unit tests, to run the tests follow these steps:
+
+1. Make sure you have `pytest` installed. If not, you can install it using `pip`:
+
+   ```bash
+   pip install pytest
+2. Navigate to the root directory of the log analyzer project:
+    ```bash
+    cd plugins/ufm_log_analyzer_plugin
+3. Run `pytest` to execute the tests:
+    ```bash
+    pytest unit_tests

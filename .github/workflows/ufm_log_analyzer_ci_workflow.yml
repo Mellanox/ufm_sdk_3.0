@@ -1,7 +1,7 @@
 name: Ufm log analyzer CI Workflow
 
 on: 
-  push:
+  pull_request:
     paths:
       - 'plugins/ufm_log_analyzer_plugin/**'
       - '.github/workflows/ufm_log_analyzer_ci_workflow.yml'

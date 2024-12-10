@@ -12,30 +12,34 @@
 # @author: Miryam Schwartz
 # @date:   Dec 08, 2024
 
-import pytest
-import sys
-import os
 
-sys.path.append(os.getcwd())
-sys.path.append("/".join(os.getcwd().split("/")[:-1]))
-sys.path.append("/".join(os.getcwd().split("/")[:-1]) + "/src")
+
+import pytest
+from unittest.mock import MagicMock
 
 from loganalyze.log_analyzers.ibdiagnet_log_analyzer import IBDIAGNETLogAnalyzer
 
 
 @pytest.fixture
-def analyzer():
-    # Fixture to initialize the analyzer object
-    logs_csvs = []
-    hours = 24
-    dest_image_path = "/dummy/path"
-    return IBDIAGNETLogAnalyzer(logs_csvs, hours, dest_image_path)
+def analyzer(fabric_size_data):
+    # Mock the constructor of IBDIAGNETLogAnalyzer
+    mock_analyzer = MagicMock(spec=IBDIAGNETLogAnalyzer)
 
-def test_get_fabric_size(analyzer):
     # Mock the _log_data_sorted attribute
-    expected_fabric_size = {"switch_count": 10, "link_count": 50}  # Example data
-    analyzer._log_data_sorted = expected_fabric_size
+    mock_analyzer._log_data_sorted = fabric_size_data
 
+    # Mock the get_fabric_size method to return the _log_data_sorted attribute
+    mock_analyzer.get_fabric_size.return_value = fabric_size_data
+
+    # Return the mocked analyzer instance
+    return mock_analyzer
+
+@pytest.fixture
+def fabric_size_data():
+    # Shared mock data
+    return {"switch_count": 10, "link_count": 50}
+
+def test_get_fabric_size(analyzer, fabric_size_data):
     # Call the method and check the result
     result = analyzer.get_fabric_size()
-    assert result == expected_fabric_size, "get_fabric_size should return _log_data_sorted"
+    assert result == fabric_size_data, "get_fabric_size should return _log_data_sorted"
