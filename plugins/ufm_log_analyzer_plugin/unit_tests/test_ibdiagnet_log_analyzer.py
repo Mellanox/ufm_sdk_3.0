@@ -12,32 +12,25 @@
 # @author: Miryam Schwartz
 # @date:   Dec 08, 2024
 
-
-
 import pytest
-from unittest.mock import MagicMock
 
 from loganalyze.log_analyzers.ibdiagnet_log_analyzer import IBDIAGNETLogAnalyzer
 
-
-@pytest.fixture
-def analyzer(fabric_size_data):
-    # Mock the constructor of IBDIAGNETLogAnalyzer
-    mock_analyzer = MagicMock(spec=IBDIAGNETLogAnalyzer)
-
-    # Mock the _log_data_sorted attribute
-    mock_analyzer._log_data_sorted = fabric_size_data
-
-    # Mock the get_fabric_size method to return the _log_data_sorted attribute
-    mock_analyzer.get_fabric_size.return_value = fabric_size_data
-
-    # Return the mocked analyzer instance
-    return mock_analyzer
+# Define a test-specific subclass
+class TestIBDIAGNETLogAnalyzer(IBDIAGNETLogAnalyzer):
+    def __init__(self, fabric_size_data):
+        # Do not call the parent constructor, set up only what's needed for the test
+        self._log_data_sorted = fabric_size_data
 
 @pytest.fixture
 def fabric_size_data():
     # Shared mock data
     return {"switch_count": 10, "link_count": 50}
+
+@pytest.fixture
+def analyzer(fabric_size_data):
+    # Return an instance of the test-specific subclass
+    return TestIBDIAGNETLogAnalyzer(fabric_size_data)
 
 def test_get_fabric_size(analyzer, fabric_size_data):
     # Call the method and check the result
