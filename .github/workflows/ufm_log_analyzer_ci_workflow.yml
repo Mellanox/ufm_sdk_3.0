@@ -1,14 +1,14 @@
 name: Ufm log analyzer CI Workflow
 
 on: 
-  push:
+  pull_request:
     paths:
       - 'plugins/ufm_log_analyzer_plugin/**'
       - '.github/workflows/ufm_log_analyzer_ci_workflow.yml'
 
 jobs:
   pylint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
     - name: Checkout code
@@ -34,7 +34,7 @@ jobs:
         pylint --rcfile=src/loganalyze/.pylintrc src/loganalyze
 
   ruff:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
     - name: Checkout code
@@ -53,3 +53,29 @@ jobs:
         pip install ruff==0.7.3
 
         ruff format --diff --check src/loganalyze
+
+  pytest:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+
+    - name: Run Pytest
+      run: |
+        SCRIPT_DIR="plugins/ufm_log_analyzer_plugin"
+        # Set PYTHONPATH to include src directory and two levels up for utils
+        PYTHONPATH="$(realpath $SCRIPT_DIR/src):$(realpath $SCRIPT_DIR/../../)"
+        export PYTHONPATH
+
+        cd $SCRIPT_DIR
+
+        pip install -r src/loganalyze/requirements.txt
+        pip install pytest==8.3.4
+
+        pytest unit_tests
