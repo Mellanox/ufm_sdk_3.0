@@ -29,10 +29,8 @@ def fabric_size_data():
 
 @pytest.fixture
 def analyzer(fabric_size_data):
-    # Return an instance of the test-specific subclass
     return TestIBDIAGNETLogAnalyzer(fabric_size_data)
 
 def test_get_fabric_size(analyzer, fabric_size_data):
-    # Call the method and check the result
     result = analyzer.get_fabric_size()
     assert result == fabric_size_data, "get_fabric_size should return _log_data_sorted"

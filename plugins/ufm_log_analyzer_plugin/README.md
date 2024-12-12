@@ -79,8 +79,8 @@ This logic will show links that:
 
 There is a folder named `unit_tests`, this folder contains some unit tests, to run the tests follow these steps:
 
-1. Make sure you have `pytest` installed. If not, you can install it using `pip`:
-
+1. Inside the project virtual environment, make sure you have `pytest` installed.
+  If not, you can install it using `pip`:
    ```bash
    pip install pytest
 2. Navigate to the root directory of the log analyzer project:
