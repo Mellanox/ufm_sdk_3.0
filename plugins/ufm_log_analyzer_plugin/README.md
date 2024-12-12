@@ -82,7 +82,7 @@ There is a folder named `unit_tests`, this folder contains some unit tests, to r
 1. Inside the project virtual environment, make sure you have `pytest` installed.
   If not, you can install it using `pip`:
    ```bash
-   pip install pytest
+   python3 -m pip install pytest 
 2. Navigate to the root directory of the log analyzer project:
     ```bash
     cd plugins/ufm_log_analyzer_plugin
