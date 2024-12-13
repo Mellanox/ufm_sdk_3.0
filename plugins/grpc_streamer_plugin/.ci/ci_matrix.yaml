@@ -19,6 +19,7 @@ runs_on_dockers:
 runs_on_agents:
   - nodeLabel: 'UFM-POC'
 
+
 steps:
   - name: pylint
     containerSelector: "{name: 'swx_static'}"
