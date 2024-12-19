@@ -48,6 +48,7 @@ class DumpFilesExtractor(BaseExtractor):
         failed_extract = set()
         folders_to_remove = set()
         single_log_name, logs_with_dirs = self._split_based_on_dir(files_to_extract)
+
         for member in opened_file:
             base_name = os.path.basename(member.name)
             full_dir_path = os.path.dirname(member.name)
@@ -82,6 +83,8 @@ class DumpFilesExtractor(BaseExtractor):
                         logs_with_dirs[parent_dir_name].discard(original_base_name)
                         if len(logs_with_dirs[parent_dir_name]) == 0:
                             del logs_with_dirs[parent_dir_name]
+
+
 
         files_extracted = files_went_over.difference(failed_extract)
         # When extracting the files from the tar, they are also taken with their
@@ -125,20 +128,39 @@ class DumpFilesExtractor(BaseExtractor):
             ]
             for inner_tar_name in inner_tar_files:
                 with outer_tar.extractfile(inner_tar_name) as inner_tar_stream:
+
+                    # Check if the inner stream can be read
+                    try:
+                        # Read some bytes to verify the file is not corrupted
+                        inner_tar_stream.peek(1)  # Peek at the first byte
+                    except Exception as e:
+                        log.Logger.info(f"Error reading inner tar file {inner_tar_name}: {e}")
+                        continue  # Skip this file if it's invalid
+
                     inner_file_open_mode = (
                         "r:gz" if self.is_gzip_file_obj(inner_tar_stream) else "r:"
                     )
-                    with tarfile.open(
-                        fileobj=inner_tar_stream, mode=inner_file_open_mode
-                    ) as inner_tar:
-                        extracted_files, failed_files = self._get_files_from_tar(
-                            inner_tar,
-                            files_to_extract,
-                            directories_to_extract,
-                            destination,
-                        )
-                        if len(extracted_files) > 0:
-                            return extracted_files, failed_files
+
+                    try:
+
+                        with tarfile.open(
+                            fileobj=inner_tar_stream, mode=inner_file_open_mode
+                        ) as inner_tar:
+                            extracted_files, failed_files = self._get_files_from_tar(
+                                inner_tar,
+                                files_to_extract,
+                                directories_to_extract,
+                                destination,
+                            )
+                            if len(extracted_files) > 0:
+                                return extracted_files, failed_files
+
+
+                    except EOFError as e:
+                        log.logger.info(f"EOFError in inner tar {inner_tar_name}: {e}")
+                        continue  # Handle the EOFError and continue with the next file
+
+
             # If we got to this point, we might have a simple tar, try to extract from it
             return self._get_files_from_tar(
                 outer_tar, files_to_extract, directories_to_extract, destination
