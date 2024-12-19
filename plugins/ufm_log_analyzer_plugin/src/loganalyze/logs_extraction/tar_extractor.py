@@ -126,16 +126,6 @@ class DumpFilesExtractor(BaseExtractor):
             ]
             for inner_tar_name in inner_tar_files:
                 with outer_tar.extractfile(inner_tar_name) as inner_tar_stream:
-                    # Check if the inner stream can be read
-                    try:
-                        # Read some bytes to verify the file is not corrupted
-                        inner_tar_stream.peek(1)  # Peek at the first byte
-                    except Exception as e:
-                        log.LOGGER.info(
-                            "Error reading inner tar file %s: %s", inner_tar_name, e
-                        )
-                        continue  # Skip this file if it's invalid
-
                     inner_file_open_mode = (
                         "r:gz" if self.is_gzip_file_obj(inner_tar_stream) else "r:"
                     )
