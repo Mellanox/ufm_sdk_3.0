@@ -134,7 +134,7 @@ class DumpFilesExtractor(BaseExtractor):
                         # Read some bytes to verify the file is not corrupted
                         inner_tar_stream.peek(1)  # Peek at the first byte
                     except Exception as e:
-                        log.Logger.info(f"Error reading inner tar file {inner_tar_name}: {e}")
+                        log.Logger.info("Error reading inner tar file %s: %s", inner_tar_name, e)
                         continue  # Skip this file if it's invalid
 
                     inner_file_open_mode = (
@@ -157,10 +157,8 @@ class DumpFilesExtractor(BaseExtractor):
 
 
                     except EOFError as e:
-                        log.logger.info(f"EOFError in inner tar {inner_tar_name}: {e}")
-                        continue  # Handle the EOFError and continue with the next file
-
-
+                        log.LOGGER.info("EOFError in inner tar %s: %s", inner_tar_name, e)
+                        continue
             # If we got to this point, we might have a simple tar, try to extract from it
             return self._get_files_from_tar(
                 outer_tar, files_to_extract, directories_to_extract, destination
