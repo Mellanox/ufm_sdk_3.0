@@ -84,8 +84,6 @@ class DumpFilesExtractor(BaseExtractor):
                         if len(logs_with_dirs[parent_dir_name]) == 0:
                             del logs_with_dirs[parent_dir_name]
 
-
-
         files_extracted = files_went_over.difference(failed_extract)
         # When extracting the files from the tar, they are also taken with their
         # directories from inside the tar, there is no way to only take the file
@@ -128,13 +126,14 @@ class DumpFilesExtractor(BaseExtractor):
             ]
             for inner_tar_name in inner_tar_files:
                 with outer_tar.extractfile(inner_tar_name) as inner_tar_stream:
-
                     # Check if the inner stream can be read
                     try:
                         # Read some bytes to verify the file is not corrupted
                         inner_tar_stream.peek(1)  # Peek at the first byte
                     except Exception as e:
-                        log.Logger.info("Error reading inner tar file %s: %s", inner_tar_name, e)
+                        log.LOGGER.info(
+                            "Error reading inner tar file %s: %s", inner_tar_name, e
+                        )
                         continue  # Skip this file if it's invalid
 
                     inner_file_open_mode = (
@@ -142,7 +141,6 @@ class DumpFilesExtractor(BaseExtractor):
                     )
 
                     try:
-
                         with tarfile.open(
                             fileobj=inner_tar_stream, mode=inner_file_open_mode
                         ) as inner_tar:
@@ -155,9 +153,10 @@ class DumpFilesExtractor(BaseExtractor):
                             if len(extracted_files) > 0:
                                 return extracted_files, failed_files
 
-
                     except EOFError as e:
-                        log.LOGGER.info("EOFError in inner tar %s: %s", inner_tar_name, e)
+                        log.LOGGER.info(
+                            "EOFError in inner tar %s: %s", inner_tar_name, e
+                        )
                         continue
             # If we got to this point, we might have a simple tar, try to extract from it
             return self._get_files_from_tar(
