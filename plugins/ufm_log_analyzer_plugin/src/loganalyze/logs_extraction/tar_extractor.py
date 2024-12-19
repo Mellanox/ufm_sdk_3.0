@@ -48,6 +48,7 @@ class DumpFilesExtractor(BaseExtractor):
         failed_extract = set()
         folders_to_remove = set()
         single_log_name, logs_with_dirs = self._split_based_on_dir(files_to_extract)
+
         for member in opened_file:
             base_name = os.path.basename(member.name)
             full_dir_path = os.path.dirname(member.name)
@@ -128,17 +129,25 @@ class DumpFilesExtractor(BaseExtractor):
                     inner_file_open_mode = (
                         "r:gz" if self.is_gzip_file_obj(inner_tar_stream) else "r:"
                     )
-                    with tarfile.open(
-                        fileobj=inner_tar_stream, mode=inner_file_open_mode
-                    ) as inner_tar:
-                        extracted_files, failed_files = self._get_files_from_tar(
-                            inner_tar,
-                            files_to_extract,
-                            directories_to_extract,
-                            destination,
+
+                    try:
+                        with tarfile.open(
+                            fileobj=inner_tar_stream, mode=inner_file_open_mode
+                        ) as inner_tar:
+                            extracted_files, failed_files = self._get_files_from_tar(
+                                inner_tar,
+                                files_to_extract,
+                                directories_to_extract,
+                                destination,
+                            )
+                            if len(extracted_files) > 0:
+                                return extracted_files, failed_files
+
+                    except EOFError as e:
+                        log.LOGGER.info(
+                            "EOFError in inner tar %s: %s", inner_tar_name, e
                         )
-                        if len(extracted_files) > 0:
-                            return extracted_files, failed_files
+                        continue
             # If we got to this point, we might have a simple tar, try to extract from it
             return self._get_files_from_tar(
                 outer_tar, files_to_extract, directories_to_extract, destination
