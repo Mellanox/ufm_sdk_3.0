@@ -72,10 +72,20 @@ class RestApiAnalyzer(BaseAnalyzer):
         ).fillna(0)
         data_to_show = data_to_show[top_x_uris]
 
+        # Extract only the path part after the domain and protocol from each URL
+        suffix_mapping = {}
+        for uri in top_x_uris:
+            parsed_uri = urlparse(uri)
+            suffix = parsed_uri.path.lstrip("/")  # Remove the leading slash if any
+            suffix_mapping[uri] = suffix
+
+        # Rename the columns in the data to use the suffix
+        data_to_show.rename(columns=suffix_mapping, inplace=True)
+
         return self._save_pivot_data_in_bars(
             data_to_show,
             "time",
             "requests count",
-            f"Top {endpoints_count_to_show} " "requests count over time",
-            "legend",
+            f"Top {endpoints_count_to_show} api requests count over time",
+            "path",
         )

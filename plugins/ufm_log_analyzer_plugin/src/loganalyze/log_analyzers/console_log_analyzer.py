@@ -110,8 +110,10 @@ class ConsoleLogAnalyzer(BaseAnalyzer):
         )
 
     def save_ufm_versions(self):
+        if not self.ufm_versions:
+            self.ufm_versions = "Not found"
         self._txt_for_pdf.append(
-            f"Used ufm version in console log {self.ufm_versions}{os.linesep}"
+            f"Used ufm version in console log: {self.ufm_versions}"
         )
 
     def full_analysis(self):
