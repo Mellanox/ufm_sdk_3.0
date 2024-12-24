@@ -31,7 +31,7 @@ class IBDIAGNETLogAnalyzer(BaseAnalyzer):
 
     def save_fabric_size(self):
         fabric_info = self.get_fabric_size()
-        self._dataframes_for_pdf.append(("Fabric info", fabric_info))
+        self._dataframes_for_pdf.append(("Fabric info from ibdiagnet", fabric_info))
 
     def full_analysis(self):
         super().full_analysis()
