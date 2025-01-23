@@ -36,7 +36,7 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
             ).astype("Int64")
         self._funcs_for_analysis = {
             self.plot_iteration_time_over_time,
-            self.save_last_iterations_time_stats,
+            self.save_iterations_time_stats,
             self.save_first_last_iteration_timestamp,
             self.save_number_of_switches_and_ports,
             self.save_number_of_core_dumps,
@@ -193,11 +193,11 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
             )
         )
 
-    def save_last_iterations_time_stats(self):
+    def save_iterations_time_stats(self):
         self._dataframes_for_pdf.append(
             (
                 f"{self.telemetry_type} telemetry iteration time",
-                self._iteration_time_stats(),
+                self._iteration_time_stats,
             )
         )
 
