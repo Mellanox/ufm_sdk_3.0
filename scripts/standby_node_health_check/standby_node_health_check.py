@@ -16,6 +16,7 @@ import signal
 import subprocess
 import argparse
 import logging
+from logging.handlers import SysLogHandler
 import sys
 from typing import List
 
@@ -36,6 +37,13 @@ def configure_logger():
 
         logger.addHandler(handler)
 
+        syslog_handler = SysLogHandler(address=("/dev/log"))
+        syslog_formatter = logging.Formatter(
+            fmt="ufm_node_health_checker : [%(process)d]: %(levelname)s: %(message)s"
+        )
+        syslog_handler.setFormatter(syslog_formatter)
+        syslog_handler.setLevel(logging.WARNING)
+        logger.addHandler(syslog_handler)
     return logger
 
 
@@ -43,8 +51,16 @@ logger = configure_logger()
 
 
 def set_log_level(log_level):
+    """
+    Change the log level to the stdout logger.
+    This function does not changes the log level for the
+    syslog logger.
+    """
     numeric_level = getattr(logging, log_level.upper(), logging.INFO)
-    logger.setLevel(numeric_level)
+    for handler in logger.handlers:
+        if isinstance(handler, logging.StreamHandler):
+            handler.setLevel(numeric_level)
+            break
 
 
 def parse_arguments():
@@ -119,7 +135,6 @@ class UFMNodeHealthChecker:
                 command,
                 shell=False,
                 stdout=subprocess.PIPE,
-                # stderr=subprocess.STDOUT,
                 universal_newlines=True,
                 check=False,
             )
@@ -299,7 +314,9 @@ class UFMNodeHealthChecker:
         _, stdout = self._run_command(self.IS_MASTER_COMMAND)
         # Not checking the ret code since it is 1 when running on the standby node
         if stdout != "standby" and stdout != "master":
-            error_msg = f"The script is not running on master or standby-node, but on {stdout}"
+            error_msg = (
+                f"The script is not running on master or standby-node, but on {stdout}"
+            )
             logger.error(error_msg)
             self._summary_actions.append(error_msg)
             return False
@@ -518,16 +535,14 @@ class UFMNodeHealthChecker:
             "DRBD_ROLE"
         )
         if node_type == "master" and drdb_resource_status != "primary":
-            logger.error(
-                "DRBD ROLE status is %s and not Primary", drdb_resource_status
-            )
+            logger.error("DRBD ROLE status is %s and not Primary", drdb_resource_status)
             return False
         if node_type == "standby" and drdb_resource_status != "secondary":
             logger.error(
                 "DRDB ROLE status is %s and not Secondary", drdb_resource_status
             )
             return False
-        logger.info("DRDB ROLE status is ok - %s",drdb_resource_status)
+        logger.info("DRDB ROLE status is ok - %s", drdb_resource_status)
         return True
 
     def print_summary_information(self):
@@ -555,9 +570,7 @@ class UFMNodeHealthChecker:
 
 
 def main(args):
-    ufm_node_checker = UFMNodeHealthChecker(
-        args.fabric_interfaces, args.mgmt_interface
-    )
+    ufm_node_checker = UFMNodeHealthChecker(args.fabric_interfaces, args.mgmt_interface)
     logger.info("Starting the ufm node health checks")
 
     ufm_node_checker.run_all_checks()
@@ -578,5 +591,5 @@ if __name__ == "__main__":
         args = parse_arguments()
         set_log_level(args.log_level)
         main(args)
-    except Exception as e:
+    except Exception:
         logger.fatal("Fatal while running the tests", exc_info=True)
