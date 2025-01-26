@@ -14,14 +14,21 @@ This script is meant to help a UFM HA user, to make sure that his master or stan
 1. checking if all given fabric interfaces are up.
 2. Checking if all given management interface are up.
 3. Checking ufm ha is configured.
-5. Checking if the node is a standby.
+5. Checking if the node is master or a standby.
 6. Checking Pacemaker status.
 7. Checking corosync service is active.
 8. Checking pacemaker service is active.
 9. Checking pcsd service is active.
-10. Checking the DRBD role is Secondary.
+10. Checking the DRBD role is primary or Secondary (depending if we are on master ot standby).
 11. DRBD connectivity state is Connected.
 12. DRBD disk state is UpToDate.
 13. If any of the previous tests fails, stop and set the return code is 1.
 
 Note - In case that all tests have passed, the return code is 0.
+
+## Logging
+The script output all it's logs to the screen. 
+They user can change the log level, during run time by passing the `--log-level` parameter.
+The default log level is `INFO`.
+
+In addition, all the warnings and errors are also send to the local syslog.
