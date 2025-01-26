@@ -1,13 +1,13 @@
-# Stand by node health check
+# UFM node health check
 
 ## What
-This script is meant to help a UFM HA user, to make sure that his standby server is configured correctly and ready to become the new Master, in case of failover.
+This script is meant to help a UFM HA user, to make sure that his master or standby node is configured correctly and ready.
 
 ## How to run
-1. Using python 3.6 and above
-2. No prequesition are needed
-3. The script is meant to run on a standby node only.
-4. Place the script in a directory, for example under `/tmp`
+1. Using python 3.6 and above.
+2. No prerequisites are needed.
+3. The script is meant to run on a master or standby node only.
+4. Place the script in a directory, for example under `/tmp`.
 5. Run the command `python3 standby_node_health_check --fabric-interfaces ib0 ib1 --mgmt-interface ens192`
 
 ## What the script is checking
