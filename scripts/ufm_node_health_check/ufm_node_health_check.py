@@ -103,6 +103,11 @@ class UFMNodeHealthChecker:
     IP_LINK_SHOW_COMMAND = "ip --json link show"
     PCS_STATUS_COMMAND = "pcs status"
     COROSYNC_RINGS_COMMAND = "corosync-cfgtool -s"
+    MASTER_STRING = "master"
+    STANDBY_STRING = "standby"
+    DRDB_STATUS_STRING = "uptodate"
+    PRIMARY_STRING = "primary"
+    SECONDARY_STRING = "secondary"
 
     # This regex is used to translte the output of ibdev2netdev, in case
     # The user inputs ibx, we use it to find the matching mlx interface
@@ -124,6 +129,7 @@ class UFMNodeHealthChecker:
         self._mgmt_interface = mgmt_interface
         self._ufm_ha_status_string = ""
         self._summary_actions = []
+        self.node_type = None
 
     @classmethod
     def _run_command(cls, command: str):
@@ -275,17 +281,17 @@ class UFMNodeHealthChecker:
 
     def run_all_checks(self):
         self._check_if_ha_is_enabled()
-        node_type = self._check_if_standby_node()
+        self._check_and_set_node_type()
         self._check_interfaces()
         self._check_pcs_status()
         self._check_services()
-        self._check_drbd(node_type)
+        self._check_drbd()
 
-    def _check_drbd(self, node_type):
+    def _check_drbd(self):
         logger.info("Checking DRBD")
         self.set_ufm_ha_cluster_status_string()
         drdb_passed = (
-            self.check_drdb_role(node_type)
+            self.check_drdb_role()
             and self.check_drbd_connectivity()
             and self.check_drbd_disk_state()
         )
@@ -310,18 +316,20 @@ class UFMNodeHealthChecker:
             logger.error("Some interfaces checks failed")
             self._summary_actions.append("IB/Mgmt interfaces are down")
 
-    def _check_if_standby_node(self):
+    def _check_and_set_node_type(self):
         _, stdout = self._run_command(self.IS_MASTER_COMMAND)
         # Not checking the ret code since it is 1 when running on the standby node
-        if stdout != "standby" and stdout != "master":
+        if stdout != self.STANDBY_STRING and stdout != self.MASTER_STRING:
             error_msg = (
-                f"The script is not running on master or standby-node, but on {stdout}"
+                f"The script is not running on master or standby-node, but on {stdout}."
+                "Please make sure to run it on one of the UFM HA cluster nodes."
             )
             logger.error(error_msg)
             self._summary_actions.append(error_msg)
             return False
+        self.node_type = stdout
         logger.info("Success - The script is running on a %s node", stdout)
-        return stdout
+        return True
 
     def _check_pcs_status(self):
         logger.info("Checking PCS status")
@@ -528,16 +536,27 @@ class UFMNodeHealthChecker:
         logger.info("DRBD CONNECTIVITY status is ok - Connected")
         return True
 
-    def check_drdb_role(self, node_type):
+    def check_drdb_role(self):
         if not self._ufm_ha_status_string:
             return False
         drdb_resource_status = self._get_status_value_from_ha_cluster_status(
             "DRBD_ROLE"
         )
-        if node_type == "master" and drdb_resource_status != "primary":
+        if not self.node_type:
+            logger.warning(
+                "Skipping drdb ROLE check since we or an unkown node type drdb ROLE check since we or an unkown node type"
+            )
+            return False
+        if (
+            self.node_type == self.MASTER_STRING
+            and drdb_resource_status != self.PRIMARY_STRING
+        ):
             logger.error("DRBD ROLE status is %s and not Primary", drdb_resource_status)
             return False
-        if node_type == "standby" and drdb_resource_status != "secondary":
+        if (
+            self.node_type == self.STANDBY_STRING
+            and drdb_resource_status != self.SECONDARY_STRING
+        ):
             logger.error(
                 "DRDB ROLE status is %s and not Secondary", drdb_resource_status
             )
@@ -553,14 +572,14 @@ class UFMNodeHealthChecker:
             for row in self._summary_actions:
                 logger.info(row)
             return False
-        logger.info("This standby node is configured correctly")
+        logger.info("This UFM node is configured correctly")
         return True
 
     def check_drbd_disk_state(self):
         if not self._ufm_ha_status_string:
             return False
         drbd_disk_state = self._get_status_value_from_ha_cluster_status("DISK_STATE")
-        if drbd_disk_state != "uptodate":
+        if drbd_disk_state != self.DRDB_STATUS_STRING:
             logger.error(
                 "DRBD DISK STATE status is %d and not UpToDate", drbd_disk_state
             )
