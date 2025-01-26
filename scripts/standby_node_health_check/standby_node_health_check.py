@@ -298,7 +298,7 @@ class UFMNodeHealthChecker:
     def _check_if_standby_node(self):
         _, stdout = self._run_command(self.IS_MASTER_COMMAND)
         # Not checking the ret code since it is 1 when running on the standby node
-        if stdout != "standby" or stdout != "master":
+        if stdout != "standby" and stdout != "master":
             error_msg = f"The script is not running on master or standby-node, but on {stdout}"
             logger.error(error_msg)
             self._summary_actions.append(error_msg)
