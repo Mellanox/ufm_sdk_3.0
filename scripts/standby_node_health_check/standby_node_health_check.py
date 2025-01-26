@@ -76,7 +76,7 @@ def parse_arguments():
     return args
 
 
-class StandbyNodeHealthChecker:
+class UFMNodeHealthChecker:
     UFM_HA_CLUSTER_COMMAND = "ufm_ha_cluster {}"
     SYSTEMCTL_IS_ACTIVE_COMMAND = "systemctl is-active {}.service"
     IS_HA_COMMAND = UFM_HA_CLUSTER_COMMAND.format("is-ha")
@@ -259,19 +259,18 @@ class StandbyNodeHealthChecker:
         return True
 
     def run_all_checks(self):
-        logger.info("Checking HA status")
         self._check_if_ha_is_enabled()
-        self._check_if_standby_node()
+        node_type = self._check_if_standby_node()
         self._check_interfaces()
         self._check_pcs_status()
         self._check_services()
-        self._check_drbd()
+        self._check_drbd(node_type)
 
-    def _check_drbd(self):
+    def _check_drbd(self, node_type):
         logger.info("Checking DRBD")
         self.set_ufm_ha_cluster_status_string()
         drdb_passed = (
-            self.check_drdb_role()
+            self.check_drdb_role(node_type)
             and self.check_drbd_connectivity()
             and self.check_drbd_disk_state()
         )
@@ -299,12 +298,13 @@ class StandbyNodeHealthChecker:
     def _check_if_standby_node(self):
         _, stdout = self._run_command(self.IS_MASTER_COMMAND)
         # Not checking the ret code since it is 1 when running on the standby node
-        if stdout != "standby":
-            logger.error("Not a standby node but %s", stdout)
-            self._summary_actions.append("Not on the standby Node")
+        if stdout != "standby" or stdout != "master":
+            error_msg = f"The script is not running on master or standby-node, but on {stdout}"
+            logger.error(error_msg)
+            self._summary_actions.append(error_msg)
             return False
-        logger.info("Success - On standby node")
-        return True
+        logger.info("Success - The script is running on a %s node", stdout)
+        return stdout
 
     def _check_pcs_status(self):
         logger.info("Checking PCS status")
@@ -511,18 +511,23 @@ class StandbyNodeHealthChecker:
         logger.info("DRBD CONNECTIVITY status is ok - Connected")
         return True
 
-    def check_drdb_role(self):
+    def check_drdb_role(self, node_type):
         if not self._ufm_ha_status_string:
             return False
         drdb_resource_status = self._get_status_value_from_ha_cluster_status(
             "DRBD_ROLE"
         )
-        if drdb_resource_status != "secondary":
+        if node_type == "master" and drdb_resource_status != "primary":
+            logger.error(
+                "DRBD ROLE status is %s and not Primary", drdb_resource_status
+            )
+            return False
+        if node_type == "standby" and drdb_resource_status != "secondary":
             logger.error(
                 "DRDB ROLE status is %s and not Secondary", drdb_resource_status
             )
             return False
-        logger.info("DRDB ROLE status is ok - Secondary")
+        logger.info("DRDB ROLE status is ok - %s",drdb_resource_status)
         return True
 
     def print_summary_information(self):
@@ -550,15 +555,15 @@ class StandbyNodeHealthChecker:
 
 
 def main(args):
-    standby_node_checker = StandbyNodeHealthChecker(
+    ufm_node_checker = UFMNodeHealthChecker(
         args.fabric_interfaces, args.mgmt_interface
     )
-    logger.info("Starting the standby node health checks")
+    logger.info("Starting the ufm node health checks")
 
-    standby_node_checker.run_all_checks()
-    logger.info("Done running the standby node health checks")
+    ufm_node_checker.run_all_checks()
+    logger.info("Done running the ufm node health checks")
 
-    any_failures = standby_node_checker.print_summary_information()
+    any_failures = ufm_node_checker.print_summary_information()
     sys.exit(not any_failures)
 
 
