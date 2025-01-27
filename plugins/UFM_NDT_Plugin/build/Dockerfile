@@ -18,7 +18,7 @@ COPY ufm_sim_web_service/ ${BASE_PATH}/ufm_sim_web_service/
 
 
 COPY config/supervisord.conf /etc/supervisor/conf.d/
-COPY config/init.sh config/deinit.sh config/ui_build.sh /
+COPY config/init.sh config/deinit.sh config/ui_build.sh config/upgrade.sh /
 COPY config/ndt_logrotate.conf /etc/logrotate.d/ndt
 COPY config/ndt_httpd_proxy.conf config/ndt.conf config/ufm_plugin_ndt_httpd.conf config/ndt_ui_conf.json ${BASE_PATH}/
 

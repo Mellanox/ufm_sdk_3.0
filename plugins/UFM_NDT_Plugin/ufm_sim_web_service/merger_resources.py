@@ -289,12 +289,15 @@ class MergerVerifyNDT(Compare):
                                                               ndt_links,
                                                               ndt_links_reversed)
             # Add to report entries with duplicated node description
-            if duplicated_nd_list and "report" not in report_content:
-                report_content["report"] = []
+            if duplicated_nd_list:
+                if "report" not in report_content or not isinstance(report_content["report"], list):
+                    report_content["report"] = []
+                report_content["status"] = "Completed with errors"
             for duplicated_nd_entry in duplicated_nd_list:
-                report_item = {"category": "duplicated node description",
-                           "description": duplicated_nd_entry.split(",")[-1].strip("\"")}
-                report_content["report"].append(report_item)
+                if duplicated_nd_entry:
+                    report_item = {"category": "duplicated node description",
+                               "description": duplicated_nd_entry.split(",")[-1].strip("\"")}
+                    report_content["report"].append(report_item)
             report_content["NDT_file"] = os.path.basename(ndt_file_name)
             topoconfig_creation_status, message, failed_ports = create_topoconfig_file(links_info,
                       ndt_file_name, self.switch_patterns + self.host_patterns)
