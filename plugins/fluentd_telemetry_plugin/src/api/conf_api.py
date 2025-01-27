@@ -170,6 +170,6 @@ class StreamingConfigurationsAPI(BaseAPIApplication):
             self.streamer.streaming_attributes[key] = value
         try:
             self.streamer.update_saved_streaming_attributes(self.streamer.streaming_attributes)
-        except Exception as error:
+        except InvalidConfRequest as error:
             make_response(error, HTTPStatus.BAD_REQUEST)
         return make_response('set streaming attributes has been done successfully')

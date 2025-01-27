@@ -28,6 +28,7 @@ from monitor_streaming_mgr import MonitorStreamingMgr
 from telemetry_attributes_manager import TelemetryAttributesManager
 from telemetry_constants import UFMTelemetryConstants
 from telemetry_parser import TelemetryParser
+from api import InvalidConfRequest
 
 # pylint: disable=no-name-in-module,import-error
 from utils.utils import Utils
@@ -101,10 +102,11 @@ class UFMTelemetryStreaming(Singleton):
         for name, array in [("port", ports), ("url", urls), ("interval" ,intervals), ("message_tag_name", msg_tags),\
                              ("xdr_mode", xdr_mode), ("xdr_ports_types", xdr_ports_types)]:
             if len(array)!= expected_amount:
-                error_message += f"setting under ufm-telemetry-endpoint {name} for multi telemetry, expected {len(hosts)} options got {len(array)}."
-        
+                error_message += f"setting under ufm-telemetry-endpoint {name} for multi telemetry,"\
+                  +"expected {len(hosts)} options got {len(array)}."
+
         if len(error_message)>0:
-            raise Exception(error_message)
+            raise InvalidConfRequest(error_message)
 
         endpoints = []
         for i, value in enumerate(hosts):
