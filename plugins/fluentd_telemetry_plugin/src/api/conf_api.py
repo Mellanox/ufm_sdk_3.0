@@ -168,5 +168,8 @@ class StreamingConfigurationsAPI(BaseAPIApplication):
             if current_attr_obj is None:
                 raise InvalidConfRequest(f'The streaming attribute : {key} not found in the attributes list')
             self.streamer.streaming_attributes[key] = value
-        self.streamer.update_saved_streaming_attributes(self.streamer.streaming_attributes)
+        try:
+            self.streamer.update_saved_streaming_attributes(self.streamer.streaming_attributes)
+        except Exception as error:
+            make_response(error, HTTPStatus.BAD_REQUEST)
         return make_response('set streaming attributes has been done successfully')
