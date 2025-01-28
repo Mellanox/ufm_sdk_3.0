@@ -97,16 +97,15 @@ class UFMTelemetryStreaming(Singleton):
         intervals = self.streaming_interval.split(splitter)
         msg_tags = self.fluentd_msg_tag.split(splitter)
 
-        error_message = ""
+        items_missing_length = []
         expected_amount = len(hosts)
         for name, array in [("port", ports), ("url", urls), ("interval" ,intervals), ("message_tag_name", msg_tags),\
                              ("xdr_mode", xdr_mode), ("xdr_ports_types", xdr_ports_types)]:
             if len(array)!= expected_amount:
-                error_message += f"setting under ufm-telemetry-endpoint {name} for multi telemetry,"\
-                  +"expected {len(hosts)} options got {len(array)}."
-
-        if len(error_message)>0:
-            raise InvalidConfRequest(error_message)
+                items_missing_length.append(name)
+        if len(items_missing_length)>0:
+            raise InvalidConfRequest(f"setting under ufm-telemetry for the following field {items_missing_length}"\
+                f"for multi telemetry. they need to have {expected_amount}")
 
         endpoints = []
         for i, value in enumerate(hosts):
