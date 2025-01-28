@@ -16,6 +16,7 @@ import signal
 import subprocess
 import argparse
 import logging
+from logging.handlers import SysLogHandler
 import sys
 from typing import List
 
@@ -36,6 +37,13 @@ def configure_logger():
 
         logger.addHandler(handler)
 
+        syslog_handler = SysLogHandler(address=("/dev/log"))
+        syslog_formatter = logging.Formatter(
+            fmt="ufm_node_health_checker : [%(process)d]: %(levelname)s: %(message)s"
+        )
+        syslog_handler.setFormatter(syslog_formatter)
+        syslog_handler.setLevel(logging.WARNING)
+        logger.addHandler(syslog_handler)
     return logger
 
 
@@ -43,8 +51,16 @@ logger = configure_logger()
 
 
 def set_log_level(log_level):
+    """
+    Change the log level to the stdout logger.
+    This function does not changes the log level for the
+    syslog logger.
+    """
     numeric_level = getattr(logging, log_level.upper(), logging.INFO)
-    logger.setLevel(numeric_level)
+    for handler in logger.handlers:
+        if isinstance(handler, logging.StreamHandler):
+            handler.setLevel(numeric_level)
+            break
 
 
 def parse_arguments():
@@ -76,7 +92,7 @@ def parse_arguments():
     return args
 
 
-class StandbyNodeHealthChecker:
+class UFMNodeHealthChecker:
     UFM_HA_CLUSTER_COMMAND = "ufm_ha_cluster {}"
     SYSTEMCTL_IS_ACTIVE_COMMAND = "systemctl is-active {}.service"
     IS_HA_COMMAND = UFM_HA_CLUSTER_COMMAND.format("is-ha")
@@ -87,6 +103,11 @@ class StandbyNodeHealthChecker:
     IP_LINK_SHOW_COMMAND = "ip --json link show"
     PCS_STATUS_COMMAND = "pcs status"
     COROSYNC_RINGS_COMMAND = "corosync-cfgtool -s"
+    MASTER_STRING = "master"
+    STANDBY_STRING = "standby"
+    DRDB_STATUS_STRING = "uptodate"
+    PRIMARY_STRING = "primary"
+    SECONDARY_STRING = "secondary"
 
     # This regex is used to translte the output of ibdev2netdev, in case
     # The user inputs ibx, we use it to find the matching mlx interface
@@ -108,6 +129,7 @@ class StandbyNodeHealthChecker:
         self._mgmt_interface = mgmt_interface
         self._ufm_ha_status_string = ""
         self._summary_actions = []
+        self.node_type = None
 
     @classmethod
     def _run_command(cls, command: str):
@@ -119,7 +141,6 @@ class StandbyNodeHealthChecker:
                 command,
                 shell=False,
                 stdout=subprocess.PIPE,
-                # stderr=subprocess.STDOUT,
                 universal_newlines=True,
                 check=False,
             )
@@ -259,9 +280,8 @@ class StandbyNodeHealthChecker:
         return True
 
     def run_all_checks(self):
-        logger.info("Checking HA status")
         self._check_if_ha_is_enabled()
-        self._check_if_standby_node()
+        self._check_and_set_node_type()
         self._check_interfaces()
         self._check_pcs_status()
         self._check_services()
@@ -296,14 +316,19 @@ class StandbyNodeHealthChecker:
             logger.error("Some interfaces checks failed")
             self._summary_actions.append("IB/Mgmt interfaces are down")
 
-    def _check_if_standby_node(self):
+    def _check_and_set_node_type(self):
         _, stdout = self._run_command(self.IS_MASTER_COMMAND)
         # Not checking the ret code since it is 1 when running on the standby node
-        if stdout != "standby":
-            logger.error("Not a standby node but %s", stdout)
-            self._summary_actions.append("Not on the standby Node")
+        if stdout != self.STANDBY_STRING and stdout != self.MASTER_STRING:
+            error_msg = (
+                f"The script is not running on master or standby-node, but on {stdout}."
+                "Please make sure to run it on one of the UFM HA cluster nodes."
+            )
+            logger.error(error_msg)
+            self._summary_actions.append(error_msg)
             return False
-        logger.info("Success - On standby node")
+        self.node_type = stdout
+        logger.info("Success - The script is running on a %s node", stdout)
         return True
 
     def _check_pcs_status(self):
@@ -517,12 +542,26 @@ class StandbyNodeHealthChecker:
         drdb_resource_status = self._get_status_value_from_ha_cluster_status(
             "DRBD_ROLE"
         )
-        if drdb_resource_status != "secondary":
+        if not self.node_type:
+            logger.warning(
+                "Skipping drdb ROLE check since we or an unkown node type"
+            )
+            return False
+        if (
+            self.node_type == self.MASTER_STRING
+            and drdb_resource_status != self.PRIMARY_STRING
+        ):
+            logger.error("DRBD ROLE status is %s and not Primary", drdb_resource_status)
+            return False
+        if (
+            self.node_type == self.STANDBY_STRING
+            and drdb_resource_status != self.SECONDARY_STRING
+        ):
             logger.error(
                 "DRDB ROLE status is %s and not Secondary", drdb_resource_status
             )
             return False
-        logger.info("DRDB ROLE status is ok - Secondary")
+        logger.info("DRDB ROLE status is ok - %s", drdb_resource_status)
         return True
 
     def print_summary_information(self):
@@ -533,14 +572,14 @@ class StandbyNodeHealthChecker:
             for row in self._summary_actions:
                 logger.info(row)
             return False
-        logger.info("This standby node is configured correctly")
+        logger.info("This UFM node is configured correctly")
         return True
 
     def check_drbd_disk_state(self):
         if not self._ufm_ha_status_string:
             return False
         drbd_disk_state = self._get_status_value_from_ha_cluster_status("DISK_STATE")
-        if drbd_disk_state != "uptodate":
+        if drbd_disk_state != self.DRDB_STATUS_STRING:
             logger.error(
                 "DRBD DISK STATE status is %d and not UpToDate", drbd_disk_state
             )
@@ -550,15 +589,13 @@ class StandbyNodeHealthChecker:
 
 
 def main(args):
-    standby_node_checker = StandbyNodeHealthChecker(
-        args.fabric_interfaces, args.mgmt_interface
-    )
-    logger.info("Starting the standby node health checks")
+    ufm_node_checker = UFMNodeHealthChecker(args.fabric_interfaces, args.mgmt_interface)
+    logger.info("Starting the ufm node health checks")
 
-    standby_node_checker.run_all_checks()
-    logger.info("Done running the standby node health checks")
+    ufm_node_checker.run_all_checks()
+    logger.info("Done running the ufm node health checks")
 
-    any_failures = standby_node_checker.print_summary_information()
+    any_failures = ufm_node_checker.print_summary_information()
     sys.exit(not any_failures)
 
 
@@ -573,5 +610,5 @@ if __name__ == "__main__":
         args = parse_arguments()
         set_log_level(args.log_level)
         main(args)
-    except Exception as e:
+    except Exception:
         logger.fatal("Fatal while running the tests", exc_info=True)
