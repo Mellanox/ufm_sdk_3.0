@@ -544,7 +544,7 @@ class UFMNodeHealthChecker:
         )
         if not self.node_type:
             logger.warning(
-                "Skipping drdb ROLE check since we or an unkown node type drdb ROLE check since we or an unkown node type"
+                "Skipping drdb ROLE check since we or an unkown node type"
             )
             return False
         if (

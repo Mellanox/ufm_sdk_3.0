@@ -27,7 +27,7 @@ This script is meant to help a UFM HA user, to make sure that his master or stan
 Note - In case that all tests have passed, the return code is 0.
 
 ## Logging
-The script output all it's logs to the screen. 
+The script output all its logs to the screen. 
 They user can change the log level, during run time by passing the `--log-level` parameter.
 The default log level is `INFO`.
 
