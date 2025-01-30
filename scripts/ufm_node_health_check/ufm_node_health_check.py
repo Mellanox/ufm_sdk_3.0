@@ -1,5 +1,5 @@
 #
-# Copyright © 2013-2024 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright © 2013-2025 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -37,10 +37,22 @@ def configure_logger():
 
         logger.addHandler(handler)
 
-        syslog_handler = SysLogHandler(address=("/dev/log"))
-        syslog_formatter = logging.Formatter(
-            fmt="ufm_node_health_checker : [%(process)d]: %(levelname)s: %(message)s"
-        )
+        syslog_handler = None
+        try:
+            # First attempt /dev/log (default for most Unix-like systems)
+            syslog_handler = SysLogHandler(address="/dev/log")
+        except Exception:
+            try:
+                # Fallback for Red Hat or others that use /var/run/syslog
+                syslog_handler = SysLogHandler(address="/var/run/syslog")
+            except Exception:
+                logger.warning("Syslog is not available on this system.")
+
+        if syslog_handler:
+            syslog_formatter = logging.Formatter(
+                fmt="ufm_node_health_checker : [%(process)d]: %(levelname)s: %(message)s"
+            )
+
         syslog_handler.setFormatter(syslog_formatter)
         syslog_handler.setLevel(logging.WARNING)
         logger.addHandler(syslog_handler)
@@ -543,9 +555,7 @@ class UFMNodeHealthChecker:
             "DRBD_ROLE"
         )
         if not self.node_type:
-            logger.warning(
-                "Skipping drdb ROLE check since we or an unkown node type"
-            )
+            logger.warning("Skipping drdb ROLE check since we or an unkown node type")
             return False
         if (
             self.node_type == self.MASTER_STRING
