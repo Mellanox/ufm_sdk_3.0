@@ -22,7 +22,7 @@ from typing import List
 
 
 def configure_logger():
-    logger_name = "standby_node_health_checker"
+    logger_name = "ufm_node_health_checker"
     logger = logging.getLogger(logger_name)
 
     if not logger.hasHandlers():
