@@ -5,7 +5,7 @@ from http import HTTPStatus
 from flask import make_response, request
 from api import InvalidConfRequest
 from api.base_api import BaseAPIApplication
-from streamer import UFMTelemetryStreaming
+from streamer import UFMTelemetryStreaming, InvalidConfSetting
 from streaming_scheduler import StreamingScheduler
 
 # pylint: disable=no-name-in-module,import-error
@@ -168,5 +168,8 @@ class StreamingConfigurationsAPI(BaseAPIApplication):
             if current_attr_obj is None:
                 raise InvalidConfRequest(f'The streaming attribute : {key} not found in the attributes list')
             self.streamer.streaming_attributes[key] = value
-        self.streamer.update_saved_streaming_attributes(self.streamer.streaming_attributes)
+        try:
+            self.streamer.update_saved_streaming_attributes(self.streamer.streaming_attributes)
+        except InvalidConfSetting as error:
+            raise InvalidConfRequest(str(error)) from error
         return make_response('set streaming attributes has been done successfully')
