@@ -2,10 +2,10 @@
 
 set -eE
 
-if [ "$EUID" -ne 0 ]
-  then echo "Please run the script as root"
-  exit
-fi
+#if [ "$EUID" -ne 0 ]
+#  then echo "Please run the script as root"
+#  exit
+#fi
 
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 PARENT_DIR=$(realpath "${SCRIPT_DIR}/../../../")
