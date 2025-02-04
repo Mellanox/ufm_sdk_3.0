@@ -32,7 +32,7 @@ IBDIAGNET_TARBALL_FILE_PREFIX = "ibdignet_output"
 TOPOCONFIG_DIRECTORY = "/config/topoconfig"
 IBDIAGNET_OUT_DIRECTORY = "/tmp/ndt_plugin"
 IBDIAGNET_LOG_FILE = "%s/%s" % (IBDIAGNET_OUT_DIRECTORY, "ibdiagnet2.log")
-IBDIAGNET_COMMAND = "ibdiagnet -o %s --enable_switch_dup_guid --skip dup_node_desc,lids,sm,nodes_info,pkey,pm,temp_sensing,virt" % IBDIAGNET_OUT_DIRECTORY
+IBDIAGNET_COMMAND = "ibdiagnet -o %s --enable_switch_dup_guid --skip lids,sm,nodes_info,pkey,pm,temp_sensing,virt" % IBDIAGNET_OUT_DIRECTORY
 IBDIAGNET_PORT_VERIFICATION_COMMAND = "ibdiagnet -o %s --discovery_only" % IBDIAGNET_OUT_DIRECTORY
 CHECK_DUPLICATED_GUIDS_COMMAND = "cat %s | grep \"Node GUID = .* is duplicated at\"" % (IBDIAGNET_LOG_FILE)
 IBDIAGNET_OUT_NET_DUMP_FILE_PATH = "%s/ibdiagnet2.net_dump" % IBDIAGNET_OUT_DIRECTORY
