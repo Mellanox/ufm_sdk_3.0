@@ -1,7 +1,9 @@
 - project:
     name: ufm_sdk_3.0
     jjb_proj_ci: "ufm_sdk_3.0"
-    jjb_git: git@github.com:Mellanox/ufm_sdk_3.0.git
+    jjb_git_repo: Mellanox/ufm_sdk_3.0
+    jjb_git_ssh: "git@github.com:{jjb_git_repo}.git"
+    jjb_git_https: "https://github.com/{jjb_git_repo}"
     jjb_owner: "Benny Itkin"
     jobs:
       - "{jjb_proj_ci}"
@@ -10,6 +12,8 @@
     name: "{jjb_proj_ci}"
     project-type: pipeline
     properties:
+      - github:
+          url: "{jjb_git_https}"
       - build-discarder:
           days-to-keep: 10
           num-to-keep: 10
@@ -17,7 +21,7 @@
           keep-system-variables: true
           properties-content: |
             jjb_proj={jjb_proj_ci}
-            REPOSITORY="{jjb_git}"
+            REPOSITORY="{jjb_git_ssh}"
             PROJECT_NAME=UFM-NDT
     description: Do NOT edit this job through the Web GUI !
     concurrent: true
@@ -72,12 +76,12 @@
     pipeline-scm:
       scm:
         - git:
-            url: "{jjb_git}"
+            url: "{jjb_git_ssh}"
             credentials-id: "0b0ea4b8-2b37-427b-bc3f-b68c41a341f7"
             branches: ["$sha1"]
             refspec: "+refs/pull/*:refs/remotes/origin/pr/*"
             browser: githubweb
-            browser-url: "{jjb_git}"
+            browser-url: "{jjb_git_https}"
             shallow-clone: true
             submodule:
               recursive: true
