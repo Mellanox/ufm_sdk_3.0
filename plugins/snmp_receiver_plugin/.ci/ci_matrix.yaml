@@ -49,7 +49,7 @@ steps:
   - name: load plugin
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
-      sudo service opensmd start
+      sudo systemctl start opensmd
       plugins/snmp_receiver_plugin/.ci/do_load_plugin.sh
     parallel: false
 
@@ -62,7 +62,7 @@ steps:
   - name: run client tests
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
-      sudo service rsyslog restart
+      sudo systemctl restart rsyslog
       sleep 30
       cd plugins/snmp_receiver_plugin/tests
       python3 snmp_test.py --host $SERVER_HOST
