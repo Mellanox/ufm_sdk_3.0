@@ -273,7 +273,7 @@ def check_comparison_report(comparison_type):
 
 # TODO: add ssh?
 def syslog_message_count(message):
-    syslog_proc = subprocess.Popen(["cat", "/var/log/messages"],
+    syslog_proc = subprocess.Popen(["sudo", "cat", "/var/log/messages"],
                                    stdout=subprocess.PIPE)
     grep_proc = subprocess.run(['grep', message], stdin=syslog_proc.stdout,
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.splitlines()
