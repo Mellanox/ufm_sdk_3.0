@@ -11,7 +11,7 @@ RUN apt update && apt -y install supervisor python3 python3-pip mc
 # removing to avoid vulnerabilities
 RUN apt -y remove linux-libc-dev
 
-RUN python3 -m pip install pyasn1==0.4.8 pysnmp requests flask flask_restful aiohttp
+RUN python3 -m pip install pyasn1==0.4.8 pysnmp==4.4.12 requests flask flask_restful aiohttp
 
 COPY mibs/ ${BASE_PATH}/mibs/
 COPY snmp_server/ ${BASE_PATH}/snmp_server/
