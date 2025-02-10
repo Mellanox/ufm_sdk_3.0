@@ -14,7 +14,7 @@ SHELL ["/bin/bash", "-c"]
 COPY ${SRC_BASE_DIR}/ ${BASE_PATH}/${SRC_BASE_DIR}/
 COPY ${SRC_BASE_DIR}/conf/supervisord.conf /etc/supervisor/conf.d/
 COPY ${SRC_BASE_DIR}/conf/ufm_consumer_plugin.conf /
-COPY ${SRC_BASE_DIR}/scripts/init.sh ${SRC_BASE_DIR}/scripts/deinit.sh ${SRC_BASE_DIR}/scripts/start_ufm.sh /
+COPY ${SRC_BASE_DIR}/scripts/init.sh ${SRC_BASE_DIR}/scripts/deinit.sh ${SRC_BASE_DIR}/scripts/start_ufm.sh ${SRC_BASE_DIR}/scripts/upgrade.sh /
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
