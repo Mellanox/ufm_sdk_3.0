@@ -2,10 +2,10 @@
 
 set -eE
 
-if [ "$EUID" -ne 0 ]
-  then echo "Please run the script as root"
-  exit
-fi
+#if [ "$EUID" -ne 0 ]
+#  then echo "Please run the script as root"
+#  exit
+#fi
 
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 PARENT_DIR=$(realpath "${SCRIPT_DIR}/../../../")
@@ -99,7 +99,7 @@ function build_docker_image()
 pushd ${SCRIPT_DIR}
 
 BUILD_DIR=$(create_out_dir)
-
+cp -r ../../../ufm_sdk_tools ${BUILD_DIR}
 cp Dockerfile ${BUILD_DIR}
 cp -r config ${BUILD_DIR}
 cp -r ../ufm_sim_web_service ${BUILD_DIR}
