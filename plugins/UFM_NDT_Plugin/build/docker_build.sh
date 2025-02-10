@@ -99,7 +99,7 @@ function build_docker_image()
 pushd ${SCRIPT_DIR}
 
 BUILD_DIR=$(create_out_dir)
-
+cp -r ../../../ufm_sdk_tools ${BUILD_DIR}
 cp Dockerfile ${BUILD_DIR}
 cp -r config ${BUILD_DIR}
 cp -r ../ufm_sim_web_service ${BUILD_DIR}

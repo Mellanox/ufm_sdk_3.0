@@ -15,12 +15,12 @@ RUN apt-get update && apt upgrade -y && apt-get -y install supervisor python3 py
 RUN python3 -m pip install flask flask_restful requests pandas twisted apscheduler pyDes "tzlocal<3.0"
 
 COPY ufm_sim_web_service/ ${BASE_PATH}/ufm_sim_web_service/
-
+COPY ufm_sdk_tools/ ${BASE_PATH}/ufm_sdk_tools/
 
 COPY config/supervisord.conf /etc/supervisor/conf.d/
 COPY config/init.sh config/deinit.sh config/ui_build.sh config/upgrade.sh /
 COPY config/ndt_logrotate.conf /etc/logrotate.d/ndt
-COPY config/ndt_httpd_proxy.conf config/ndt.conf config/ufm_plugin_ndt_httpd.conf config/ndt_ui_conf.json config/cfg_files_merge.py ${BASE_PATH}/
+COPY config/ndt_httpd_proxy.conf config/ndt.conf config/ufm_plugin_ndt_httpd.conf config/ndt_ui_conf.json ${BASE_PATH}/
 
 RUN /ui_build.sh
 
