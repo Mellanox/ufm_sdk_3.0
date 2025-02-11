@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 #This script allows run UFM simulator
 
 GetOpts() {
@@ -57,4 +57,5 @@ status=0
 /etc/init.d/ufmd $hamode health_stop > /dev/null || status=$((status + 1 ))
 /etc/init.d/ufmd $hamode ufmprd_start > /dev/null || status=$((status + 1 ))
 /opt/ufm/opensm/sbin/ibpm -t 50 -m 5 -c /opt/ufm/data/records.conf -n 40000 -l /opt/ufm/files/log/ibpm.log || status=$((status + 1 ))
+echo "status=$status"
 exit $status
