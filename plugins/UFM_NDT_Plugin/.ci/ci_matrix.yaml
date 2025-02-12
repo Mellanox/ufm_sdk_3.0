@@ -126,19 +126,6 @@ steps:
     parallel: false
 
 
-  - name: restart ndt plugin
-    agentSelector: "{nodeLabel: 'UFM-POC'}"
-    run: |
-      # restart ufm plugin after simulator start
-      # verify container is down
-      ssh -4 root@${SERVER_HOST} '/opt/ufm/scripts/manage_ufm_plugins.sh stop -p ndt'
-      ssh -4 root@${SERVER_HOST} '/opt/ufm/scripts/manage_ufm_plugins.sh show'
-      sleep 10
-      ssh -4 root@${SERVER_HOST} '/opt/ufm/scripts/manage_ufm_plugins.sh start -p ndt'
-      ssh -4 root@${SERVER_HOST} '/opt/ufm/scripts/manage_ufm_plugins.sh show'
-    parallel: false
-
-
   - name: run client tests
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
