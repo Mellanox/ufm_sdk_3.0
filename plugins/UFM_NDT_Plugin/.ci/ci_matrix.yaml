@@ -86,7 +86,10 @@ steps:
 
   - name: add plugin
     agentSelector: "{nodeLabel: 'UFM-POC'}"
-    run: plugins/UFM_NDT_Plugin/.ci/do_add_plugin.sh
+    run: |
+      plugins/UFM_NDT_Plugin/.ci/do_add_plugin.sh
+      sleep 10
+      ssh -4 root@${SERVER_HOST} '/opt/ufm/scripts/manage_ufm_plugins.sh show'
     parallel: false
 
 
@@ -130,7 +133,7 @@ steps:
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
       # sudo systemctl restart rsyslog
-      # sleep 30
+      sleep 30
       # for some reason some hostnames default to faulty ipv6 forcing script to use ipv4
       SERVER_IP=$(ping -4 $SERVER_HOST -c 1 -s 16 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1)
       export SERVER_HOST=$SERVER_IP
