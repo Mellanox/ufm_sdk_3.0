@@ -128,6 +128,15 @@ steps:
       fi
     parallel: false
 
+  - name: restart ndt
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: |
+      # After starting the simulator the plugin will be stopped
+      sleep 30
+      ssh -4 root@${SERVER_HOST} '/opt/ufm/scripts/manage_ufm_plugins.sh start -p ndt'
+      ssh -4 root@${SERVER_HOST} '/opt/ufm/scripts/manage_ufm_plugins.sh show'
+    parallel: false
+
 
   - name: run client tests
     agentSelector: "{nodeLabel: 'UFM-POC'}"
