@@ -21,8 +21,9 @@ send -- "exit\r"
 sleep 10
 EOF
 echo "End of expect"
-cd /$WORKSPACE/logs
-tar -zxvf $(ls /$WORKSPACE/logs/sysdump-ufm-appliance*.tgz)
+cd $WORKSPACE/logs
+ls $WORKSPACE/logs/
+tar -zxvf $(ls $WORKSPACE/logs/*.tgz)
 rm -rf sysdump-ufm-appliance*.tgz
 cd sysdump-ufm-appliance*
 tar -zxvf ufm-sysdump*
