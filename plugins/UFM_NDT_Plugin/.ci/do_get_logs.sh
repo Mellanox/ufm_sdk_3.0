@@ -13,7 +13,7 @@ send -- "config terminal\r"
 expect "/(config/) # "
 send -- "debug generate dump\r"
 expect "/(config/) # "
-send -- "file debug-dump upload latest scp://root:3tango@${NODE_NAME}:/$WORKSPACE\r"
+send -- "file debug-dump upload latest scp://root:3tango@${NODE_NAME}:/$WORKSPACE/logs\r"
 expect "/(config/) # "
 send -- "file debug-dump delete latest\r"
 expect "/(config/) # "
@@ -22,7 +22,6 @@ sleep 10
 EOF
 echo "End of expect"
 cd $WORKSPACE/logs
-ls $WORKSPACE/logs/
 tar -zxvf $(ls $WORKSPACE/logs/*.tgz)
 rm -rf sysdump-ufm-appliance*.tgz
 cd sysdump-ufm-appliance*
