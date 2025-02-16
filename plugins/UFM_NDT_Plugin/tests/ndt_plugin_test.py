@@ -57,7 +57,6 @@ def make_request(request_type, resource, payload=None, user="admin", password=DE
     if payload is None:
         payload = {}
     request = "https://{}/ufmRest{}/plugin/ndt/{}".format(HOST_IP, rest_version, resource)
-    print(f"Request: {request}")
     response = None
     if request_type == POST:
         response = requests.post(request, verify=False, headers=headers, auth=(user, password), json=payload)

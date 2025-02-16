@@ -12,7 +12,7 @@ expect "# "
 send -- "config terminal\r"
 expect "/(config/) # "
 send -- "debug generate dump\r"
-expect "/(config/) # "
+expect -timeout 60 "/(config/) # "
 send -- "file debug-dump upload latest scp://root:3tango@${NODE_NAME}:/$WORKSPACE/logs\r"
 expect "/(config/) # "
 send -- "file debug-dump delete latest\r"
@@ -21,13 +21,13 @@ send -- "exit\r"
 sleep 10
 EOF
 echo "End of expect"
-cd $WORKSPACE/logs
-tar -zxvf $(ls $WORKSPACE/logs/*.tgz)
-rm -rf sysdump-ufm-appliance*.tgz
-cd sysdump-ufm-appliance*
-tar -zxvf ufm-sysdump*
-cd ufm-sysdump*/ufm_logs
-cp ndt.log $WORKSPACE/logs
-cd ../../../
-rm -rf sysdump-ufm-appliance*
+sudo cd $WORKSPACE/logs
+sudo tar -zxvf $(ls $WORKSPACE/logs/*.tgz)
+sudo rm -rf sysdump-ufm-appliance*.tgz
+sudo cd sysdump-ufm-appliance*
+sudo tar -zxvf ufm-sysdump*
+sudo cd ufm-sysdump*/ufm_logs
+sudo cp ndt.log $WORKSPACE/logs
+sudo cd ../../../
+sudo rm -rf sysdump-ufm-appliance*
 
