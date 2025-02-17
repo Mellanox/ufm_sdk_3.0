@@ -41,8 +41,10 @@ def get_rest_version(auth_type):
     elif auth_type == TOKEN:
         return "V3"
 
+
 def make_request(host_ip, request, auth_type, auth, payload, headers, cert):
     request_string = "https://{}/ufmRest{}/plugin/ndt/{}".format(host_ip, get_rest_version(auth_type), request)
+
     verify = True if cert else False
     if request in [NDTS, REPORTS, VERSION, HELP] or re.match(REPORT_ID_PATTERN, request):
         response = requests.get(request_string, verify=verify, headers=headers, auth=auth, cert=cert)
