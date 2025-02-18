@@ -11,6 +11,7 @@ kubernetes:
 
 credentials:
   - {credentialsId: '2c8fd3fe-df05-4f6f-9d1f-f1896d611434', usernameVariable: 'REST_USER', passwordVariable: 'PASSWORD'}
+  - {credentialsId: 'e4ba8d7a-d304-4c01-aff9-90de67d97efc', usernameVariable: 'GH_USER', passwordVariable: 'GH_TOKEN'}
 
 volumes:
   - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
@@ -55,7 +56,7 @@ steps:
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
       cd plugins/UFM_NDT_Plugin/build
-      bash -x ./docker_build.sh
+      sudo bash -x ./docker_build.sh
       cp ufm-plugin-ndt* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
     parallel: false
 
@@ -78,34 +79,74 @@ steps:
   - name: load plugin
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
-      service opensmd start
       plugins/UFM_NDT_Plugin/.ci/do_load_plugin.sh
     parallel: false
 
 
   - name: add plugin
     agentSelector: "{nodeLabel: 'UFM-POC'}"
-    run: plugins/UFM_NDT_Plugin/.ci/do_add_plugin.sh
+    run: |
+      plugins/UFM_NDT_Plugin/.ci/do_add_plugin.sh
+      sleep 10
+      ssh -4 root@${SERVER_HOST} '/opt/ufm/scripts/manage_ufm_plugins.sh show'
     parallel: false
 
 
-  - name: start simulation
+  - name: start simulator
     agentSelector: "{nodeLabel: 'UFM-POC'}"
+    credentialsId: 'e4ba8d7a-d304-4c01-aff9-90de67d97efc'
     run: | 
-      cd /auto/UFM/tmp/ufm_verification/tests/test_with_sim/performance
-      IP_SERVER=$(ping $SERVER_HOST -c 1 -s 16 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-      python run_simulator.py -s $IP_SERVER --topology_path ibnetdiscover_director.txt
+      if [ -z "${GH_TOKEN}" ]; then
+        echo "GH_TOKEN env variable is not set wont be able to retrieve simulator from UFM repo, exiting..."
+        exit 1
+      fi
+      [ -e /tmp/sim_temp ] && rm -rf /tmp/sim_temp
+      mkdir -p /tmp/sim_temp
+      cp plugins/UFM_NDT_Plugin/.ci/simulator/simulator.sh /tmp/sim_temp
+      pushd /tmp/sim_temp
+      # get the latest ibnetdiscover_director.txt file
+      curl -H "Authorization: token ${GH_TOKEN}" \
+           -H 'Accept: application/vnd.github.v3.raw' \
+            https://api.github.com/repos/Mellanox/UFM/contents/simulation/ibnetdiscover_files/ibnetdiscover_director.txt -O
+      if [ ! -e ./ibnetdiscover_director.txt ] || [ ! -e ./simulator.sh ]; then
+        echo "runsim.sh or ibnetdiscover_director.txt are missing, exiting..."
+        exit 1
+      fi
+      # the server SERVER_HOST should have password-less access no need to set password, use -4 flag to force ipv4
+      ssh -4 root@${SERVER_HOST} 'rm -rf /root/simulation'
+      ssh -4 root@${SERVER_HOST} 'mkdir -p /root/simulation'
+      scp -4 simulator.sh ibnetdiscover_director.txt root@${SERVER_HOST}:/root/simulation/
+      popd
+      rm -rf /tmp/sim_temp
+      # start the simulator in background on remote all FD must be redirected so that ssh wont hang
+      ssh -4 root@${SERVER_HOST} 'cd /root/simulation; chmod +x /root/simulation/simulator.sh; /root/simulation/simulator.sh -s /root/simulation/ibnetdiscover_director.txt &>/tmp/simulator.log < /dev/null &'
+      if [ $? -ne 0 ]; then
+        echo "Something went wrong while starting teh simulator on ${SERVER_HOST}, exiting..."
+         ssh -4 root@${SERVER_HOST} 'cat /tmp/simulator.log ; rm -rf /tmp/simulator.log'
+        exit 1
+      fi
+    parallel: false
+
+  - name: restart ndt
+    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    run: |
+      # After starting the simulator the plugin will be stopped
+      sleep 30
+      ssh -4 root@${SERVER_HOST} '/opt/ufm/scripts/manage_ufm_plugins.sh start -p ndt'
+      ssh -4 root@${SERVER_HOST} '/opt/ufm/scripts/manage_ufm_plugins.sh show'
     parallel: false
 
 
   - name: run client tests
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: |
-      service rsyslog restart
       sleep 30
-      export SERVER_HOST=$SERVER_HOST
+      # for some reason some hostnames default to faulty ipv6 forcing script to use ipv4
+      SERVER_IP=$(ping -4 $SERVER_HOST -c 1 -s 16 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+      export SERVER_HOST=$SERVER_IP
       cd plugins/UFM_NDT_Plugin/tests
-      python3 ndt_plugin_test.py --host $SERVER_HOST
+      ssh -4 root@${SERVER_HOST} '/opt/ufm/scripts/manage_ufm_plugins.sh show'
+      sudo python3 ndt_plugin_test.py --host $SERVER_IP
     parallel: false
 
 
@@ -127,6 +168,8 @@ steps:
     agentSelector: "{nodeLabel: 'UFM-POC'}"
     run: | 
       plugins/UFM_NDT_Plugin/.ci/finish_simulation.sh
+      # clean simulator files
+      ssh -4 root@${SERVER_HOST} 'rm -rf /root/simulation; rm -rf /tmp/simulator.log'
     parallel: false
 
 
