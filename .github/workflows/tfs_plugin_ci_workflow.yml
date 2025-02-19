@@ -25,4 +25,5 @@ jobs:
 
     - name: Run pytests
       run: |
+        pip install pytest
         pytest plugins/fluentd_telemetry_plugin/tests
