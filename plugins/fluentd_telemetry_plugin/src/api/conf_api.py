@@ -25,8 +25,8 @@ class StreamingConfigurationsAPI(BaseAPIApplication):
         # self.conf_schema_path = "plugins/fluentd_telemetry_plugin/src/schemas/set_conf.schema.json"
         # self.conf_attributes_schema_path = "plugins/fluentd_telemetry_plugin/src/schemas/set_attributes.schema.json"
 
-        self.conf_schema_path = "fluentd_telemetry_plugin/src/schemas/set_conf.schema.json"
-        self.conf_attributes_schema_path = "fluentd_telemetry_plugin/src/schemas/set_attributes.schema.json"
+        self.conf_schema_path = "plugins/fluentd_telemetry_plugin/src/schemas/set_conf.schema.json"
+        self.conf_attributes_schema_path = "plugins/fluentd_telemetry_plugin/src/schemas/set_attributes.schema.json"
 
     def _get_routes(self):
         return {
