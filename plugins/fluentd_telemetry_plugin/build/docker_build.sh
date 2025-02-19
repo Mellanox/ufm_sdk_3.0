@@ -84,7 +84,7 @@ function build_docker_image()
     docker images | grep ${image_with_prefix}
     printf "\n\n\n"
 
-    echo "docker save ${image_with_prefix_and_version} | gzip > ${out_dir}/${full_image_version}-docker.img.gz"
+    echo "docker save ${image_with_prefix_and_version} | gzip > ${out_dir}/${full_image_version}-container.tgz"
     docker save ${image_with_prefix_and_version} | gzip > ${out_dir}/${full_image_version}-docker.img.gz
     exit_code=$?
     if [ $exit_code -ne 0 ]; then
