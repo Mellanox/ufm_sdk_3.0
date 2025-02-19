@@ -22,3 +22,7 @@ jobs:
         pip install pylint
     - name: Run PyLint
       run: pylint --rcfile=plugins/fluentd_telemetry_plugin/.pylintrc plugins/fluentd_telemetry_plugin
+
+    - name: Run pytests
+      run: |
+        pytest plugins/fluentd_telemetry_plugin/tests
