@@ -26,7 +26,6 @@ class BaseTestTfs:
     enabled = True
     endpoints = None
     bind = '0.0.0.0'
-    
 
     def __init__(self):
         self.ufm_server = None
@@ -75,7 +74,7 @@ class BaseTestTfs:
     def stop_server(self):
         if self.server_process:
             os.kill(self.server_process.pid,signal.SIGKILL)
-    
+
     def prepare_environment(self):
         config_folder = "/config"
         os.makedirs(config_folder, exist_ok=True)
@@ -90,11 +89,10 @@ class BaseTestTfs:
                 shutil.copy(source_file, destination_filename)
 
         self.run_fluentd()
-    
+
     def prepare_fluentd(self, protocol="forward", bind='0.0.0.0'):
         general_utils.run_command_status("docker stop $(docker ps -q)", self.fluent_host)
         os.makedirs("/tmp/fluentd",exist_ok=True)
-            
         general_utils.run_command_status("docker pull fluent/fluentd:edge", self.fluent_host)
         conf = f"""<source>
   @type {protocol}
@@ -115,32 +113,41 @@ class BaseTestTfs:
             if not os.path.exists(log_file):
                 open(log_file,'a',encoding='utf-8').close() # touch log_file
 
-            subprocess.run(["docker","run","-i","--rm","--network","host","-v",f"{config_folder}:/fluentd/etc",
-                            docker_image,"-c","/fluentd/etc/fluentd.conf","-v"],
+            subprocess.run((f"docker run -i --rm --network host -v {config_folder}:/fluentd/etc "+
+                            f"{docker_image} -c /fluentd/etc/fluentd.conf").split(),
                             stdout=open(log_file,"a",encoding="utf-8"),stderr=subprocess.STDOUT,check=False)
 
             print("fluentd container is running")
         except subprocess.CalledProcessError as error:
             print(f"Error occurred while running fluentd docker container: {error}")
 
+    def stop_fluentd(self):
+        try:
+            subprocess.run("docker rm -f fluentd".split(),stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,check=False)
+        except subprocess.CalledProcessError as error:
+            print(f"Error occurred while stopping fluentd docker container: {error}")
+
+    def set_conf_from_json(self,body):
+        url = f'http://localhost:{self.port}/conf'
+        response = requests.post(url, body=json.dumps(body), headers={"Content-Type": "application/json"},timeout=20)
+        return response.text, response.status_code
+
     def set_conf(self, compressed_streaming=False, c_fluent_streamer=True, meta=False):
         # compressed_streaming True for using HTTP protocol / False for using Forward protocol
         # c_fluent_streamer True for using C library / False for using python library
-        body = BaseTestTfs.configure_body(self.tele_host, self.tele_url, self.tele_port,
+        body = BaseTestTfs.configure_body_conf(self.tele_host, self.tele_url, self.tele_port,
                                                self.fluent_host, self.fluent_port, self.interval,
                                                self.bulk_streaming, self.stream_only_new_samples, compressed_streaming,
                                                c_fluent_streamer, self.enabled, meta, endpoints_array=self.endpoints)
-        url = f'http://localhost:{self.port}/conf'
-        response = requests.post(url, body=json.dumps(body), headers={"Content-Type": "application/json"})
-        return response.text, response.status_code
-    
+        return self.set_conf_from_json(body)
+
     def get_conf(self):
         url = f'http://localhost:{self.port}/conf'
-        response = requests.get(url, headers={"Content-Type": "application/json"})
+        response = requests.get(url, headers={"Content-Type": "application/json"},timeout=20)
         return response.json(), response.status_code
-    
+
     @staticmethod
-    def configure_body(tele_host, tele_url, tele_port,
+    def configure_body_conf(tele_host, tele_url, tele_port,
                            fluent_host, fluent_port, interval,
                            bulk_streaming, stream_only_new_samples, compressed_streaming, c_fluent_streamer, enabled,
                            meta=False,
@@ -182,8 +189,7 @@ class BaseTestTfs:
         else:
             self.handleError("Message is not Expected")
 
-    def verify_streaming(self, stream=False, bulk=False, not_bulk=False, meta=False, constants=False,
-                         info_labels=False):
+    def verify_streaming(self, stream=False, bulk=False, not_bulk=False, meta=False, constants=False,info_labels=False):
         if not self.tag_msg:
             self.tag_msg = "UFM_Telemetry_Streaming"
         rc, stdout_before, stderr = general_utils.run_command_status("cat /tmp/tfs.log", self.fluent_host)
@@ -234,7 +240,8 @@ class BaseTestTfs:
         """
         Verify streaming with http protocol, or with forward python/c protocol using {ip_protocol}
         """
-        self.set_conf(compressed_streaming=using_http_streamer, c_fluent_streamer=using_c_fluent_streamer)  # Forward protocol using Python forward library
+        self.set_conf(compressed_streaming=using_http_streamer, c_fluent_streamer=using_c_fluent_streamer)  
+        # Forward protocol using Python forward library
         self.sleep(10)
         if ip_protocol == "ipv6":
             self.bind = "::"
