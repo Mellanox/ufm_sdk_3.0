@@ -6,6 +6,12 @@ This is to explain how to Monitor Infiniband Telemetry using [Grafana](https://g
 
 we use Prometheus server to pull data from UFM Telemetry (Prometheus endpoint) and present it on Grafana dashboard
 
+Overview
+--------------------------------------------------------
+
+NVIDIA UFM Telemetry platform provides network validation tools to monitor network performance and conditions, capturing and streaming rich real-time network telemetry information, application workload usage to an on-premise or cloud-based database for further analysis. As a fabric manager, the UFM Telemetry holds a real-time network telemetry information of the network topology. This information should be monitored, over time (as it can change with time) towards a monitoring system like Grafana. In order to do so, we present UFM Telemetry Grafana Plugin.
+
+
 Prerequisites
 --------------------------------------------------------
 
