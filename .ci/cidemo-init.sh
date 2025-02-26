@@ -1,6 +1,5 @@
 #!/bin/bash -x
 git config --global safe.directory "$WORKSPACE"
-cd .ci
 # You can print specific environment variables here if required
 
 # Get the list of changed files
@@ -12,6 +11,8 @@ changes_excluding_gitmodules_and_root_ci=$(echo "$changed_files" | grep -v -e '.
 
 # Check if changes exist and only in a single plugin directory (including its .ci directory)
 if [ -n "$changes_excluding_gitmodules_and_root_ci" ] && [ $(echo "$changes_excluding_gitmodules_and_root_ci" | cut -d '/' -f1,2 | uniq | wc -l) -eq 1 ]; then
+    cd .ci
+
     # Get the plugin directory name
     plugin_dir_name=$(echo "$changes_excluding_gitmodules_and_root_ci" | cut -d '/' -f1,2 | uniq)
 
