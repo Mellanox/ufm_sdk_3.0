@@ -25,9 +25,7 @@ if [ -n "$changes_excluding_gitmodules_and_root_ci" ] && [ $(echo "$changes_excl
         if [[ "$JENKINS_URL" == *"nbuprod.blsm.nvidia.com"* ]]; then
             sed -i '/^kubernetes:/,/^[[:space:]]/c\
 kubernetes:\
-  cloud: il-ipp-blossom-prod\
-  nodeSelector: "kubernetes.io\/arch=amd64" \
-  namespace: swx
+  cloud: swx-k8s
 ' matrix_job_ci.yaml
         fi
     else
