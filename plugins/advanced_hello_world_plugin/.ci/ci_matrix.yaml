@@ -1,34 +1,22 @@
 ---
 job: ufm-advanced-hello-world-plugin
 
-registry_host: harbor.mellanox.com
-registry_path: /swx-storage/ci-demo
-registry_auth: swx-storage
-
 env:
   plugin_dir: advanced_hello_world_plugin
   plugin_name: ufm-plugin-advanced_hello_world
   DOCKER_CLI_EXPERIMENTAL: enabled
 
-credentials:
-  - {credentialsId: 'collectx1', usernameVariable: 'COLLECTX_USER', passwordVariable: 'COLLECTX_PASS'}
 runs_on_agents:
   - nodeLabel: 'UFM-CI-UBUNTU18'
-
-runs_on_dockers:
-   - {file: '.ci/Dockerfile', arch: 'x86_64', name: 'plugin_worker', tag: 'latest'}
 
 steps:
   - name: Build Plugin
     agentSelector: "{nodeLabel: 'UFM-CI-UBUNTU18'}"
-    credentialsId: 'collectx1'
     run: |
       sudo -u swx-jenkins mkdir -p /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
-      docker login harbor.mellanox.com --username ${COLLECTX_USER} --password ${COLLECTX_PASS}
       cd plugins/$plugin_dir/build
       bash -x ./docker_build.sh latest /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
       ls -l /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
-      docker logout
       echo 'All done';
     parallel: true
 
