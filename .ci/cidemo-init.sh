@@ -7,7 +7,7 @@ cd .ci
 changed_files=$(git diff --name-only remotes/origin/$ghprbTargetBranch)
 
 # Check for changes excluding .gitmodules and root .ci directory
-git_submodules="$(git submodule | awk '{print "^"$2}' | paste -sd '|' -)"
+git_submodules="$(git submodule | awk '{print "^"$2}' | paste -sd '|' -)" # Enabled submodule tracking in blossom, and ,ow it catchs changes in submodule and causes incorrect plugin recognition, so this line removes the submodule directory change listing in the changes_excluding_gitmodules_and_root_ci list
 changes_excluding_gitmodules_and_root_ci=$(echo "$changed_files" | grep -v -e '.gitmodules' -e '^scripts/' -e '.gitignore' -e '^\.ci/' -e '^\.github/workflows' -e '\utils' -e '\plugins/ufm_log_analyzer_plugin' | grep -vE "${git_submodules}")
 
 # Check if changes exist and only in a single plugin directory (including its .ci directory)
