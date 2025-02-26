@@ -5,6 +5,14 @@ git config --global safe.directory "$WORKSPACE"
 # Get the list of changed files
 changed_files=$(git diff --name-only remotes/origin/$ghprbTargetBranch)
 
+changed_files='.ci/cidemo-init.sh
+plugins/UFM_NDT_Plugin/ufm_sim_web_service/ndt-ui/sms-ui-suite
+plugins/advanced_hello_world_plugin/.ci/ci_matrix.yaml
+plugins/bright_plugin/src/bright-ui/sms-ui-suite
+ufm_sdk_tools
+utils/fluentd'
+JENKINS_URL='https://nbuprod.blsm.nvidia.com/swx-ufm/'
+
 # Check for changes excluding .gitmodules and root .ci directory
 git_submodules="$(git submodule | awk '{print "^"$2}' | paste -sd '|' -)" # Enabled submodule tracking in blossom, and ,ow it catchs changes in submodule and causes incorrect plugin recognition, so this line removes the submodule directory change listing in the changes_excluding_gitmodules_and_root_ci list
 changes_excluding_gitmodules_and_root_ci=$(echo "$changed_files" | grep -v -e '.gitmodules' -e '^scripts/' -e '.gitignore' -e '^\.ci/' -e '^\.github/workflows' -e '\utils' -e '\plugins/ufm_log_analyzer_plugin' | grep -vE "${git_submodules}")
@@ -23,10 +31,12 @@ if [ -n "$changes_excluding_gitmodules_and_root_ci" ] && [ $(echo "$changes_excl
 
         # If running on blossom change kubernetes cloud
         if [[ "$JENKINS_URL" == *"nbuprod.blsm.nvidia.com"* ]]; then
-                sed -i '/^kubernetes:/,/^[^[:space:]]/d; /^kubernetes:$/a\
+            sed -i .bck '/^kubernetes:/,/^[[:space:]]/c\
+kubernetes:\
   cloud: il-ipp-blossom-prod\
-  nodeSelector: "kubernetes.io\/arch=amd64"ß\
-  namespace: swx' matrix_job_ci.yaml
+  nodeSelector: "kubernetes.io\/arch=amd64" \
+  namespace: swx
+' matrix_job_ci.yaml
         fi
     else
         # Print error message and exit with error status
