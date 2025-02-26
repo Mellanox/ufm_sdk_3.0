@@ -19,14 +19,14 @@ if [ -n "$changes_excluding_gitmodules_and_root_ci" ] && [ $(echo "$changes_excl
     # Check if the plugin's CI file exists
     if [ -f "../$plugin_dir_name/.ci/ci_matrix.yaml" ]; then
         # Create symbolic link to the plugin's CI file
-        ln -snf ../$plugin_dir_name/.ci/ci_matrix.yaml ç.yaml
+        ln -snf ../$plugin_dir_name/.ci/ci_matrix.yaml matrix_job_ci.yaml
 
         # If running on blossom change kubernetes cloud
         if [[ "$JENKINS_URL" == *"nbuprod.blsm.nvidia.com"* ]]; then
                 sed -i '/^kubernetes:/,/^[^[:space:]]/d; /^kubernetes:$/a\
   cloud: il-ipp-blossom-prod\
   nodeSelector: "kubernetes.io\/arch=amd64"ß\
-  namespace: swx' "$FILE"
+  namespace: swx' matrix_job_ci.yaml
         fi
     else
         # Print error message and exit with error status
