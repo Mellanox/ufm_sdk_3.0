@@ -7,7 +7,8 @@ cd .ci
 changed_files=$(git diff --name-only remotes/origin/$ghprbTargetBranch)
 
 # Check for changes excluding .gitmodules and root .ci directory
-changes_excluding_gitmodules_and_root_ci=$(echo "$changed_files" | grep -v -e '.gitmodules' -e '^scripts/' -e '.gitignore' -e '^\.ci/' -e '^\.github/workflows' -e '\utils' -e '\plugins/ufm_log_analyzer_plugin') #Removing ufm_log_analyzer_plugin as for now it does not need a formal build
+git_submodules="$(git submodule | awk '{print "^"$2}' | paste -sd '|' -)"
+changes_excluding_gitmodules_and_root_ci=$(echo "$changed_files" | grep -v -e '.gitmodules' -e '^scripts/' -e '.gitignore' -e '^\.ci/' -e '^\.github/workflows' -e '\utils' -e '\plugins/ufm_log_analyzer_plugin' | grep -vE "${git_submodules}")
 
 # Check if changes exist and only in a single plugin directory (including its .ci directory)
 if [ -n "$changes_excluding_gitmodules_and_root_ci" ] && [ $(echo "$changes_excluding_gitmodules_and_root_ci" | cut -d '/' -f1,2 | uniq | wc -l) -eq 1 ]; then
