@@ -31,7 +31,7 @@ if [ -n "$changes_excluding_gitmodules_and_root_ci" ] && [ $(echo "$changes_excl
 
         # If running on blossom change kubernetes cloud
         if [[ "$JENKINS_URL" == *"nbuprod.blsm.nvidia.com"* ]]; then
-            sed -i .bck '/^kubernetes:/,/^[[:space:]]/c\
+            sed -i '/^kubernetes:/,/^[[:space:]]/c\
 kubernetes:\
   cloud: il-ipp-blossom-prod\
   nodeSelector: "kubernetes.io\/arch=amd64" \
