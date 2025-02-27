@@ -26,4 +26,5 @@ jobs:
     - name: Run pytests
       run: |
         pip install pytest
+        docker pull fluent/fluentd:edge
         pytest plugins/fluentd_telemetry_plugin/tests

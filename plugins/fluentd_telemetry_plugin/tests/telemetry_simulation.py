@@ -128,7 +128,7 @@ def main():
     parser.add_argument('--update_interval', type=float, default=1.0, help='')
     parser.add_argument('--max_changing', type=int, default=10, help='')
     parser.add_argument('--port', type=int, default=9007, help='')
-    parser.add_argument('--paths', nargs='+', default=["/csv/xcset/ib_basic_debug"], help='')
+    parser.add_argument('--paths', nargs='+', default=["/csv/metrics"], help='')
 
     args = parser.parse_args()
     server_address = ('', args.port)
