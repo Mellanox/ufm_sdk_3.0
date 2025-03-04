@@ -20,7 +20,7 @@ class TelemetryData:
         self.generate_headers(columns)
         if max_changes:
             self.max_changes = max_changes
-        else:
+        elif max_changes == 0 or max_changes is None:
             self.max_changes = len(columns)
         self.path = path
         self.data = [[random.randint(0,100) for _ in range(columns)] for _ in range(rows)]

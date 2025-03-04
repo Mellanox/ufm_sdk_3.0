@@ -31,10 +31,14 @@ class BaseTestTfs:
         self.ufm_server = None
         self.simulation_process = None
         self.server_process = None
+        self.simulation_paths = None
         self.port=8981
         self.prepare_environment()
+    
+    def get_simulation_url(self) -> List[str]:
+        return [f"http://127.0.0.1:9007/{endpoint_url}" for endpoint_url in self.simulation_paths]
 
-    def run_simulation(self, rows=10, simulation_paths=None) -> bool:
+    def run_simulation(self, rows=10, simulation_paths=None, max_changing=0, interval=1.0) -> bool:
         """start the simulation with 10 rows and one telemetry
 
         Args:
@@ -48,9 +52,11 @@ class BaseTestTfs:
             return False
         if simulation_paths is None:
             simulation_paths = ["/csv/metrics"]
+        self.simulation_paths = simulation_paths
         current_directory = os.path.dirname(os.path.abspath(__file__))
         try:
-            command = ["python","telemetry_simulation.py","--rows",rows,"--paths"]+simulation_paths
+            command = ["python","telemetry_simulation.py","--rows",rows,"--max_changing",max_changing,
+                       "--update_interval",interval,"--paths"]+simulation_paths
             self.simulation_process = subprocess.Popen(command, cwd=current_directory,
                 stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
             time.sleep(2)
@@ -267,8 +273,14 @@ class BaseTestTfs:
             self.handleError("Message is not Expected")
 
     def read_data(self):
-        _, stdout, _ = general_utils.run_command_status(f"cat {self.log_filename}", self.fluent_host)
-        return stdout
+        with open(self.log_filename,'r',encoding='utf-8') as log_file:
+            lines = log_file.read().splitlines()
+            last_line = lines[-1]
+        return last_line
+    
+    def extract_data_from_line(self,last_line):
+        all_data = last_line.split('"values":')[1][:-1] # take the values and remove the } at the end.
+        return json.load(all_data)
 
     def verify_streaming(self, stream=False, bulk=False, meta=False, constants=False,
                          info_labels=False, tag_msg="UFM_Telemetry_Streaming") -> Tuple[bool,str]:

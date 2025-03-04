@@ -34,12 +34,24 @@ def check_data_test(setup_conf):
     """
         Test getting data from 2 endpoints at the same time
     """
+    tag_msg1 = "ib_basic_debug"
+    tag_msg2 = "low_freq_debug"
     simulation_endpoint1 = ["127.0.0.1", "csv/xcset/ib_basic_debug", 9007,
-                             50, "ib_basic_debug", False, 'legacy']
+                             50, tag_msg1, False, 'legacy']
     simulation_endpoint2 = ["127.0.0.1", "csv/xcset/low_freq_debug", 9007,
-                             50, "low_freq_debug", False, 'legacy']
+                             50, tag_msg2, False, 'legacy']
     _, return_code = setup_conf.set_conf(BaseTestTfs.configure_body_conf(
         endpoints_array=[simulation_endpoint1, simulation_endpoint2]))
     assert return_code == 200
 
     data = setup_conf.read_data()
+    tag_msg_in_data = [False,False]
+    for msg in data.splitlines():
+        if tag_msg1 in msg:
+            tag_msg_in_data[0] = True
+        if tag_msg2 in msg:
+            tag_msg_in_data[1] = True
+    
+    assert tag_msg_in_data[0] and tag_msg_in_data[1],\
+        f"Cannot read the tag message from both endpoints: {tag_msg1}:{tag_msg_in_data[0]},"\
+            +f"{tag_msg2}:{tag_msg_in_data[1]}."
