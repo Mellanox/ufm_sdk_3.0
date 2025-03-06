@@ -22,3 +22,9 @@ jobs:
         pip install pylint
     - name: Run PyLint
       run: pylint --rcfile=plugins/fluentd_telemetry_plugin/.pylintrc plugins/fluentd_telemetry_plugin
+
+    - name: Run pytests
+      run: |
+        pip install pytest
+        docker pull fluent/fluentd:edge
+        PYTHONPATH=${PWD} pytest plugins/fluentd_telemetry_plugin/tests
