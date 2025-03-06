@@ -22,10 +22,12 @@ from pythoncm.settings import Settings
 from pythoncm import entity
 
 from utils.logger import Logger, LOG_LEVELS
-from utils.singleton import Singleton
 from utils.utils import Utils
 from mgr.bright_configurations_mgr import BrightConfigParser
 from resources.bright_job_resource import BrightJobResource
+
+# pylint: disable=no-name-in-module,import-error
+from ufm_sdk_tools.src.utils.singleton import SingletonMeta
 
 
 class BCMConnectionStatus(enum.Enum):
@@ -40,12 +42,12 @@ class BCMConnectionError(Exception):
         Exception.__init__(self, message)
 
 
-class BrightDataMgr(Singleton):
+class BrightDataMgr(metaclass=SingletonMeta):
 
     SAVED_DATA_PATH = '/data/historical_bright_data.json'
 
     def __init__(self):
-        self.conf = BrightConfigParser.getInstance()
+        self.conf = BrightConfigParser()
         self.bright_cluster = None
         self.status = BCMConnectionStatus.Disabled
         self.status_err_msg = ''

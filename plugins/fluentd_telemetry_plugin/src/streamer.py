@@ -31,7 +31,7 @@ from telemetry_parser import TelemetryParser
 
 # pylint: disable=no-name-in-module,import-error
 from utils.utils import Utils
-from utils.singleton import Singleton
+from ufm_sdk_tools.src.utils.singleton import SingletonMeta
 
 class InvalidConfSetting(Exception):
     """InvalidConfSetting Exception class for problem with the configuration file or updating"""
@@ -41,7 +41,7 @@ class InvalidConfSetting(Exception):
 
 
 #pylint: disable=too-many-instance-attributes
-class UFMTelemetryStreaming(Singleton):
+class UFMTelemetryStreaming(metaclass=SingletonMeta):
     """
     UFMTelemetryStreaming class
     to manage/control the streaming

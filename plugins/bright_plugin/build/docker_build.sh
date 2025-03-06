@@ -106,6 +106,7 @@ echo ${IMAGE_VERSION} > ../../bright_plugin/version
 BUILD_DIR=$(create_out_dir)
 cp Dockerfile ${BUILD_DIR}
 cp -r ../../../utils ${BUILD_DIR}
+cp -r ../../../ufm_sdk_tools ${BUILD_DIR}
 cp -r ../../bright_plugin ${BUILD_DIR}
 
 echo "BUILD_DIR    : [${BUILD_DIR}]"

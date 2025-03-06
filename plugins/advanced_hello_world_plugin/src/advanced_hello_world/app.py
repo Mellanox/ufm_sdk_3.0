@@ -37,7 +37,7 @@ def _init_logs(config_parser):
 if __name__ == '__main__':
     try:
 
-        conf = HelloWorldConfigParser.getInstance()
+        conf = HelloWorldConfigParser()
         _init_logs(conf)
 
     except ValueError as ve:

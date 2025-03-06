@@ -39,10 +39,10 @@ def _init_logs(config_parser):
 if __name__ == '__main__':
     try:
 
-        conf = BrightConfigParser.getInstance()
+        conf = BrightConfigParser()
         _init_logs(conf)
 
-        polling_mgr = BrightDataPollingMgr.getInstance()
+        polling_mgr = BrightDataPollingMgr()
         polling_started = polling_mgr.trigger_polling()
         if not polling_started:
             Logger.log_message('The Bright Cluster Data polling was not started, '

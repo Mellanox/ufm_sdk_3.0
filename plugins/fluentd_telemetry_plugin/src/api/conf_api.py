@@ -19,8 +19,8 @@ class StreamingConfigurationsAPI(BaseAPIApplication):
     def __init__(self, conf):
         super(StreamingConfigurationsAPI, self).__init__()  # pylint: disable=super-with-arguments
         self.conf = conf
-        self.scheduler = StreamingScheduler.getInstance()
-        self.streamer = UFMTelemetryStreaming.getInstance()
+        self.scheduler = StreamingScheduler()
+        self.streamer = UFMTelemetryStreaming()
         #to debug
         # self.conf_schema_path = "plugins/fluentd_telemetry_plugin/src/schemas/set_conf.schema.json"
         # self.conf_attributes_schema_path = "plugins/fluentd_telemetry_plugin/src/schemas/set_attributes.schema.json"

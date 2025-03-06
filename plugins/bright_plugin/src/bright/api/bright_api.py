@@ -31,8 +31,8 @@ class BrightAPI(BaseAPIApplication):
 
     def __init__(self):
         super(BrightAPI, self).__init__()
-        self.bright_data_mgr = BrightDataMgr.getInstance()
-        self.bright_data_polling_mgr = BrightDataPollingMgr.getInstance()
+        self.bright_data_mgr = BrightDataMgr()
+        self.bright_data_polling_mgr = BrightDataPollingMgr()
 
     def _get_error_handlers(self):
         return [
