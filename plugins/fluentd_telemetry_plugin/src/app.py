@@ -49,9 +49,9 @@ if __name__ == '__main__':
 
     STREAMER = None
     try:
-        STREAMER = UFMTelemetryStreaming.getInstance(_config_parser)
+        STREAMER = UFMTelemetryStreaming(_config_parser)
         if _config_parser.get_enable_streaming_flag():
-            scheduler = StreamingScheduler.getInstance()
+            scheduler = StreamingScheduler()
             job_id = scheduler.start_streaming()
             logging.info("Streaming has been started successfully")
         else:

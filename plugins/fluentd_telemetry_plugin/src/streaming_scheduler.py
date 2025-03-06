@@ -19,7 +19,7 @@ from streamer import UFMTelemetryStreaming
 from apscheduler.schedulers.background import BackgroundScheduler
 
 # pylint: disable=no-name-in-module,import-error
-from utils.singleton import Singleton
+from ufm_sdk_tools.src.utils.singleton import SingletonMeta
 
 
 class StreamingAlreadyRunning(Exception):
@@ -30,7 +30,7 @@ class NoRunningStreamingInstance(Exception):
     """NoRunningStreamingInstance Exception class"""
 
 
-class StreamingScheduler(Singleton):
+class StreamingScheduler(metaclass=SingletonMeta):
     """
     StreamingScheduler class
     """
@@ -40,7 +40,7 @@ class StreamingScheduler(Singleton):
         self.streaming_jobs = None
 
     def start_streaming(self, update_attributes=False):
-        streamer = UFMTelemetryStreaming.getInstance()
+        streamer = UFMTelemetryStreaming()
         streamer.clear_cached_streaming_data()
         if update_attributes:
             streamer.init_streaming_attributes()

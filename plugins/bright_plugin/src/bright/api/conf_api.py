@@ -29,8 +29,8 @@ class UFMBrightPluginConfigurationsAPI(BaseAPIApplication):
 
     def __init__(self):
         super(UFMBrightPluginConfigurationsAPI, self).__init__()
-        self.conf = BrightConfigParser.getInstance()
-        self.bright_data_mgr = BrightDataMgr.getInstance()
+        self.conf = BrightConfigParser()
+        self.bright_data_mgr = BrightDataMgr()
 
         # for debugging
         # self.conf_schema_path = "plugins/bright_plugin/src/bright/schemas/set_conf.schema.json"
@@ -91,7 +91,7 @@ class UFMBrightPluginConfigurationsAPI(BaseAPIApplication):
                 # if the payload contains the bright-config.enabled flag, update the polling
                 enabled = bright_config_payload_section.get(self.conf.BRIGHT_CONFIG_SECTION_ENABLED, None)
                 if enabled is not None:
-                    polling_mgr = BrightDataPollingMgr.getInstance()
+                    polling_mgr = BrightDataPollingMgr()
                     polling_mgr.trigger_polling()
             _response = self._append_bright_connection_info(self.conf.conf_to_dict(self.conf_schema_path))
             return make_response(_response)
