@@ -27,4 +27,4 @@ jobs:
       run: |
         pip install pytest
         docker pull fluent/fluentd:edge
-        python -m pytest --pythonpath=. plugins/fluentd_telemetry_plugin/tests
+        PYTHONPATH=${PWD} pytest plugins/fluentd_telemetry_plugin/tests
