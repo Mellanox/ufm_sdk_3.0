@@ -52,8 +52,8 @@ class BaseTestTfs:
         self.simulation_paths = simulation_paths
         current_directory = os.path.dirname(os.path.abspath(__file__))
         try:
-            command = ["python","telemetry_simulation.py","--rows",rows,"--max_changing",max_changing,
-                       "--update_interval",interval,"--paths"]+simulation_paths
+            command = ["python","telemetry_simulation.py","--rows", rows, "--max_changing", max_changing,
+                       "--update_interval",interval,"--paths"] + simulation_paths
             self.simulation_process = subprocess.Popen(command, cwd=current_directory,
                 stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
             time.sleep(2)
@@ -115,16 +115,15 @@ class BaseTestTfs:
         if os.path.exists(config_folder_src):
             for file_name in os.listdir(config_folder_src):
                 source_file = os.path.join(config_folder_src, file_name)
-                destination_filename = os.path.join(config_folder,file_name)
+                destination_filename = os.path.join(config_folder, file_name)
                 shutil.copy(source_file, destination_filename)
-
 
     def prepare_fluentd(self, protocol="forward", bind='0.0.0.0') -> None:
         """
         pull the fluend image and create the configuration for the fluent
         """
         self.stop_fluentd()
-        os.makedirs("/tmp/fluentd",exist_ok=True)
+        os.makedirs("/tmp/fluentd", exist_ok=True)
         conf = f"""<source>
   @type {protocol}
   bind {str(bind)}
@@ -133,10 +132,10 @@ class BaseTestTfs:
 <match **>
   @type stdout
 </match>"""
-        with open("/config/fluentd.conf",'x',encoding='utf-8') as conf_file:
+        with open("/config/fluentd.conf", 'x', encoding='utf-8') as conf_file:
             conf_file.write(conf)
 
-    def run_fluentd(self)->None:
+    def run_fluentd(self) -> None:
         """
         Start the fluent container with the configuration and put the output in log.
         Remove the previous fluent log and create new empty one.
@@ -146,12 +145,12 @@ class BaseTestTfs:
         try:
             if os.path.exists(self.log_filename):
                 os.remove(self.log_filename) # remove previous log
-            open(self.log_filename,'a',encoding='utf-8').close() # create new log_file
+            open(self.log_filename, 'a', encoding='utf-8').close() # create new log_file
 
             subprocess.run((f"docker run -i --rm --network host -v {config_folder}:/fluentd/etc "+
                             f"{docker_image} -c /fluentd/etc/fluentd.conf").split(),
-                            stdout=open(self.log_filename,"a",encoding="utf-8"),
-                            stderr=subprocess.STDOUT,check=False)
+                            stdout=open(self.log_filename, "a", encoding="utf-8"),
+                            stderr=subprocess.STDOUT, check=False)
             time.sleep(5)
             print("fluentd container is running")
         except subprocess.CalledProcessError as error:
@@ -162,12 +161,12 @@ class BaseTestTfs:
         stop and remove the fluentd container
         """
         try:
-            subprocess.run("docker rm -f fluentd".split(),stdout=subprocess.DEVNULL,
-                           stderr=subprocess.DEVNULL,check=False)
+            subprocess.run("docker rm -f fluentd".split(), stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL, check=False)
         except subprocess.CalledProcessError as error:
             print(f"Error occurred while stopping fluentd docker container: {error}")
 
-    def set_conf_from_json(self,body:dict,extension:str="") -> Tuple[Dict,int]:
+    def set_conf_from_json(self, body:dict, extension:str="") -> Tuple[Dict, int]:
         """
         send a port request to the local tfs server, with possibility to run attribute configuration as well
 
@@ -180,10 +179,10 @@ class BaseTestTfs:
         """
         url = f'http://localhost:{self.port}/conf{extension}'
         response = requests.post(url, body=json.dumps(body),
-                    headers={"Content-Type": "application/json"},timeout=20)
+                    headers={"Content-Type": "application/json"}, timeout=20)
         return response.text, response.status_code
 
-    def set_conf(self, compressed_streaming=False, c_fluent_streamer=True, meta=False) -> Tuple[Dict,int]:
+    def set_conf(self, compressed_streaming=False, c_fluent_streamer=True, meta=False) -> Tuple[Dict, int]:
         """
         modify the server configuration from the basic configuration.
         compressed_streaming True for using HTTP protocol / False for using Forward protocol
@@ -195,12 +194,12 @@ class BaseTestTfs:
                     c_fluent_streamer, self.enabled, meta, endpoints_array=self.endpoints)
         return self.set_conf_from_json(body)
 
-    def get_conf(self,extension:str="") -> Tuple[Dict,int]:
+    def get_conf(self,extension:str="") -> Tuple[Dict, int]:
         """
         get the configuration from the server
         """
         url = f'http://localhost:{self.port}/conf{extension}'
-        response = requests.get(url, headers={"Content-Type": "application/json"},timeout=20)
+        response = requests.get(url, headers={"Content-Type": "application/json"}, timeout=20)
         return response.json(), response.status_code
 
     @staticmethod
@@ -261,27 +260,27 @@ class BaseTestTfs:
             basic_config["meta-field"] = meta
         return basic_config
 
+    def read_data(self) -> str:
+        """
+        return the last line from the log file.
 
-    @staticmethod
-    def validate_rest_body(self, msg, expected_ms):
-        logging.info("Comparing %s ?= %s" % (msg, expected_ms))
-        if msg == expected_ms:
-            logging.info("Message is Expected")
-        else:
-            self.handleError("Message is not Expected")
-
-    def read_data(self):
-        with open(self.log_filename,'r',encoding='utf-8') as log_file:
+        Returns:
+            str: last line from the log file
+        """
+        with open(self.log_filename, 'r', encoding='utf-8') as log_file:
             lines = log_file.read().splitlines()
             last_line = lines[-1]
         return last_line
     
-    def extract_data_from_line(self,last_line):
+    def extract_data_from_line(self, last_line) -> Dict:
+        """
+        return only the values from str
+        """
         all_data = last_line.split('"values":')[1][:-1] # take the values and remove the } at the end.
         return json.load(all_data)
 
     def verify_streaming(self, stream=False, bulk=False, meta=False, constants=False,
-                         info_labels=False, tag_msg="UFM_Telemetry_Streaming") -> Tuple[bool,str]:
+                         info_labels=False, tag_msg="UFM_Telemetry_Streaming") -> Tuple[bool, str]:
         """
         Verify the tfs telemetry streaming using the args.
 

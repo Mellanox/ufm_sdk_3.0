@@ -25,7 +25,7 @@ def set_multi_endpoint_test(setup_conf):
        Test multi telemetry with the same url
     """
     constants = ("127.0.0.1", "csv/xcset/ib_basic_debug", 10, 50, "test", True, 'legacy')
-    for amount in range(2,10):
+    for amount in range(2, 10):
         endpoint_array = [list(constants) for _ in range(amount)]
         _, return_code = setup_conf.set_conf(BaseTestTfs.configure_body_conf(endpoints_array=endpoint_array))
         assert return_code == 200
@@ -45,7 +45,7 @@ def check_data_test(setup_conf):
     assert return_code == 200
 
     data = setup_conf.read_data()
-    tag_msg_in_data = [False,False]
+    tag_msg_in_data = [False, False]
     for msg in data.splitlines():
         if tag_msg1 in msg:
             tag_msg_in_data[0] = True

@@ -1,5 +1,6 @@
 import pytest
 import time
+from typing import Tuple
 from base_functions import BaseTestTfs
 
 @pytest.fixture(scope="module")
@@ -27,16 +28,16 @@ def protocol_ipv4_test(setup_conf):
 
     # testing protocol Forward
     # testing python fluent streamer
-    result, message = verify_streaming_with_conf(setup_conf,"ipv4",False,False)
+    result, message = verify_streaming_with_conf(setup_conf, "ipv4", False, False)
     assert result, message
 
     # testing C fluent streamer
-    result, message = verify_streaming_with_conf(setup_conf,"ipv4",False,True)
+    result, message = verify_streaming_with_conf(setup_conf, "ipv4", False, True)
     assert result, message
 
     # Testing HTTP protocol
     # testing python fluent streamer
-    result, message = verify_streaming_with_conf(setup_conf,"ipv4",True,True)
+    result, message = verify_streaming_with_conf(setup_conf, "ipv4", True, True)
     assert result, message
 
 def protocol_ipv6_test(setup_conf):
@@ -45,19 +46,20 @@ def protocol_ipv6_test(setup_conf):
     """
     # testing protocol Forward
     # testing python fluent streamer
-    result, message = verify_streaming_with_conf(setup_conf,"ipv6",False,False)
+    result, message = verify_streaming_with_conf(setup_conf, "ipv6", False, False)
     assert result, message
 
     # testing C fluent streamer
-    result, message = verify_streaming_with_conf(setup_conf,"ipv6",False,True)
+    result, message = verify_streaming_with_conf(setup_conf, "ipv6", False, True)
     assert result, message
 
     # Testing HTTP protocol
     # testing python fluent streamer
-    result, message = verify_streaming_with_conf(setup_conf,"ipv6",True,True)
+    result, message = verify_streaming_with_conf(setup_conf, "ipv6", True, True)
     assert result, message
 
-def verify_streaming_with_conf(base_test:BaseTestTfs, ip_protocol="ipv4", using_http_streamer=False, using_c_fluent_streamer=False):
+def verify_streaming_with_conf(base_test:BaseTestTfs, ip_protocol="ipv4", \
+                               using_http_streamer=False, using_c_fluent_streamer=False) -> Tuple[bool, str]:
     """
     Verify streaming with http protocol, or with forward python/c protocol using {ip_protocol}
     """

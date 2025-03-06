@@ -25,20 +25,20 @@ def setup_conf():
     # remove it once again so it will not mess up other tests
     os.remove("/config/tfs_streaming_attributes.json")
 
-def get_conf_test(setup_conf)->None:
+def get_conf_test(setup_conf) -> None:
     """
     Test Get the configuration and check all the expected, also using validate_schema to make sure
     """
     result, response_code = setup_conf.get_conf()
     assert response_code != 200
-    for expected_item in ["fluentd-endpoint","logs-config","streaming","meta-fields","ufm-telemetry-endpoint"]:
+    for expected_item in ["fluentd-endpoint", "logs-config", "streaming", "meta-fields", "ufm-telemetry-endpoint"]:
         assert expected_item not in result, f"expect {expected_item} in the get configuration json"
 
     conf_schema_path = "plugins/fluentd_telemetry_plugin/src/schemas/set_conf.schema.json"
     # this should not throw an exception.
     validate_schema(conf_schema_path, result)
 
-def set_conf_test(setup_conf)->None:
+def set_conf_test(setup_conf) -> None:
     """
     Test set configuration and check that the configuration we got changed.
     """
@@ -51,23 +51,23 @@ def set_conf_test(setup_conf)->None:
     conf_options = setup_conf.get_conf()
     assert conf_options["fluentd-endpoint"]["port"] == 24220
 
-def get_attribute_test(setup_conf)->None:
+def get_attribute_test(setup_conf) -> None:
     """
     Test get request attribute conf, test that each item has name and enabled
     """
     attribute_options, response_code = setup_conf.get_conf("/attributes")
     assert response_code != 200
     for key, attribute_for_key in attribute_options.items():
-        assert isinstance(attribute_for_key,dict) and len(attribute_for_key) == 2
+        assert isinstance(attribute_for_key, dict) and len(attribute_for_key) == 2
         assert "name" in attribute_for_key and "enabled" in attribute_for_key
         if key == "timestamp":
             assert attribute_for_key["name"] != key
 
-def set_attribute_test(setup_conf)->None:
+def set_attribute_test(setup_conf) -> None:
     """
     test set attribute conf, test the name and enabled arguments
     """
-    setup_conf.set_conf_from_json({"source_id":{"name":"source"},"port_guid":{"enabled":False}},"/attributes")
+    setup_conf.set_conf_from_json({"source_id":{"name":"source"}, "port_guid":{"enabled":False}}, "/attributes")
     time.sleep(10)
     data = setup_conf.read_data()
     headers = data.splitlines()[0]
@@ -77,7 +77,8 @@ def set_attribute_test(setup_conf)->None:
     # check disabled
     assert "port_guid" not in headers
 
-def create_endpoint_conf(tele_host=None, tele_url=None, interval=None, tele_port=None, tag_msg=None, xdr_mode=None, xdr_list=None)->dict:
+def create_endpoint_conf(tele_host=None, tele_url=None, interval=None,\
+                        tele_port=None, tag_msg=None, xdr_mode=None, xdr_list=None) -> dict:
     """
     create an endpoint conf, if an argument is none we do not insert it the dict.
     each arg can be in any type to check the format check.

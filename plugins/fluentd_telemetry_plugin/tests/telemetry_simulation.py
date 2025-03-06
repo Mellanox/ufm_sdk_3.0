@@ -51,9 +51,9 @@ class TelemetryData:
     def stop_updates(self):
         self.running = False
 
-    def generate_headers(self,num_of_columns:int):
+    def generate_headers(self, num_of_columns:int):
         headers = [] + PORT_HEADERS
-        random_index = random.randint(0,num_of_columns)
+        random_index = random.randint(0, num_of_columns)
         for index in range(num_of_columns):
             headers.append(HEADER_DEFAULT + "_" + str(random_index + index * num_of_columns))
         self.headers = headers
@@ -63,7 +63,7 @@ class TelemetryData:
         for row_index in range(rows_num):
             port_str = f'0x{random.randrange(16**16):016x}'
             # holds the prefix of each simulated csv rows , list of counters structures(will be filled further)
-            self.data[row_index] = ["",port_str,"",port_str,port_str,"1"] + self.data[row_index]
+            self.data[row_index] = ["", port_str, "", port_str, port_str, "1"] + self.data[row_index]
         return ports
     
     def generate_csv(self):
@@ -89,8 +89,7 @@ class TelemetryRequestHandler(http.server.SimpleHTTPRequestHandler):
         else:
             self.send_response(404)
             self.end_headers()
-        
-    
+
 class TelemetryServer:
     def __init__(self, server_address:tuple, telemetry_path:list, rows:int, columns:int, max_changes:int, interval:float):
         self.server_address = server_address
@@ -102,7 +101,7 @@ class TelemetryServer:
     
     def start(self):
         print(f"Starting serving telemetry on port {self.server_address[1]}")
-        for path,telemetry_data in self.telemetry_data.items():
+        for path, telemetry_data in self.telemetry_data.items():
             self.update_thread[path] = threading.Thread(target=telemetry_data.run_updates, daemon=True)
             self.update_thread[path].start()
             print(f"Serving at http://127.0.0.1:{self.server_address[1]}{path}")
