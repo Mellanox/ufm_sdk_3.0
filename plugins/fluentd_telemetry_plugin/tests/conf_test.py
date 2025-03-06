@@ -1,8 +1,8 @@
+import os
 import pytest
 import time
 from base_functions import BaseTestTfs
 from utils.json_schema_validator import validate_schema
-from ufm_sdk_tools.src.general_utils import general_utils
 
 @pytest.fixture(scope="module")
 def setup_conf():
@@ -13,7 +13,7 @@ def setup_conf():
     """
     base_test = BaseTestTfs()
     # remove the attributes file for a clear attribute test
-    general_utils.run_command_status("rm /config/tfs_streaming_attributes.json")
+    os.remove("/config/tfs_streaming_attributes.json")
     base_test.prepare_fluentd()
     base_test.run_simulation()
     result = base_test.run_server()
@@ -23,7 +23,7 @@ def setup_conf():
     base_test.stop_simulation()
     base_test.stop_fluentd()
     # remove it once again so it will not mess up other tests
-    general_utils.run_command_status("rm /config/tfs_streaming_attributes.json")
+    os.remove("/config/tfs_streaming_attributes.json")
 
 def get_conf_test(setup_conf)->None:
     """

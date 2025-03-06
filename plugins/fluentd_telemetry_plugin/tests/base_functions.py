@@ -8,9 +8,6 @@ import requests
 import signal
 from typing import Tuple,List,Dict
 
-from ufm_sdk_tools.src.general_utils import general_utils
-
-
 class BaseTestTfs:
     tele_host = "127.0.0.1"
     tele_url = "csv/metrics"
@@ -136,7 +133,8 @@ class BaseTestTfs:
 <match **>
   @type stdout
 </match>"""
-        general_utils.write_to_file('fluentd.conf', conf, "localhost", "/config/fluentd.conf")
+        with open("/config/fluentd.conf",'x',encoding='utf-8') as conf_file:
+            conf_file.write(conf)
 
     def run_fluentd(self)->None:
         """
