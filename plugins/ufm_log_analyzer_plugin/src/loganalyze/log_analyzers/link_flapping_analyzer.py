@@ -18,7 +18,7 @@ import shutil
 from typing import List
 from pathlib import Path
 import pandas as pd
-from utils.netfix.link_flapping import get_link_flapping
+from loganalyze.utils.netfix.link_flapping import get_link_flapping
 from loganalyze.log_analyzers.base_analyzer import BaseImageCreator
 import loganalyze.logger as log
 
