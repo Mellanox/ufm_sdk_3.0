@@ -89,3 +89,82 @@ There is a folder named `unit_tests`, this folder contains some unit tests, to r
 3. Run `pytest` to execute the tests:
     ```bash
     pytest unit_tests
+```
+
+## Deployment
+
+To create a deployment package for the UFM Log Analyzer Plugin, follow these steps:
+
+1. Ensure you're working with the latest main branch and create a release branch:
+   ```bash
+   git checkout main
+   git pull origin main
+   git checkout -b release/v1.x.x
+   ```
+
+2. Ensure you're in the root directory of the log analyzer project:
+   ```bash
+   cd plugins/ufm_log_analyzer_plugin
+   ```
+
+3. Update the version in the VERSION file:
+   ```bash
+   echo "1.x.x" > VERSION
+   git add VERSION
+   git commit -m "Bump version to 1.x.x"
+   git push origin release/v1.x.x
+   ```
+
+4. Create a Pull Request from `release/v1.x.x` to `main` branch
+   - Wait for PR approval and merge
+
+5. After the PR is merged, switch to the updated main branch:
+   ```bash
+   git checkout main
+   git pull origin main
+   ```
+
+6. Create a new version tag in git:
+   ```bash
+   VERSION=$(cat VERSION)
+   git tag -a ufm_log_analyzer_${VERSION} -m "UFM Log Analyzer version ${VERSION} release"
+   git push origin ufm_log_analyzer_${VERSION}
+   ```
+
+7. Create the deployment package in /tmp:
+   ```bash
+   VERSION=$(cat VERSION)
+   PACKAGE_NAME="ufm_log_analyzer_${VERSION}"
+   
+   # Clean up any previous attempts and python cache
+   rm -rf /tmp/${PACKAGE_NAME}
+   find . -type d -name "__pycache__" -exec rm -rf {} +
+   find . -type d -name ".ruff_cache" -exec rm -rf {} +
+   
+   # Create directory and copy files
+   mkdir -p /tmp/${PACKAGE_NAME}
+   
+   # Find and copy files while maintaining directory structure
+   find . -type f \
+       ! -path "./unit_tests/*" \
+       ! -path "./.git/*" \
+       ! -path "./.gitignore" \
+       ! -path "./.ruff_cache/*" \
+       ! -path "*/__pycache__/*" \
+       -exec bash -c '
+           mkdir -p /tmp/'${PACKAGE_NAME}'/$(dirname {})
+           cp {} /tmp/'${PACKAGE_NAME}'/{}
+       ' \;
+   
+   # Create the tar from the clean directory
+   cd /tmp
+   tar -czf ${PACKAGE_NAME}.tar.gz ${PACKAGE_NAME}
+   
+   # Clean up
+   rm -rf /tmp/${PACKAGE_NAME}
+   ```
+
+8. Copy the package to the release directory:
+   ```bash
+   cp /tmp/ufm_log_analyzer_${VERSION}.tar.gz /mswg/release/ufm/plugins/log_analyzer/
+   ```
