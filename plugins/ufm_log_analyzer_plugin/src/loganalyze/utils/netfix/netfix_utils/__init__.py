@@ -20,7 +20,7 @@ from pandas.api.types import is_numeric_dtype
 
 Phy_Manager_State_dict_str = {
     "Active_or_Linkup": "Active",
-    "Rx_disable": "RX_DISABLE" "",
+    "Rx_disable": "RX_DISABLE",
 }
 
 link_down_opcode_dict = {
