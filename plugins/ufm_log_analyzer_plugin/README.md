@@ -52,7 +52,7 @@ What is mandatory:
 1. `--location`.
 
 ## Which files are taken from the dump
-The following list: `event.log, ufmhealth.log, ufm.log, ibdiagnet2.log, console.log, rest_api.log and second telemetry samples`
+The following list: `event.log, ufmhealth.log, ufm.log, ibdiagnet2.log, console.log, rest_api.log, telemetry samples ibdiagnet2_port_counters.log (for primary and secondary telemetry)`
 
 Also, each log `tar` is taken, according to the `extract-level` flag.
 ## How it works
@@ -75,6 +75,13 @@ This logic will show links that:
 
 ![Tool flow](img/loganalzer.png)
 
+## Telemetry logs analysis
+For each telemetry instance log (primary and secondary) we will:
+1. Show how much time it took to collect the counters.
+2. Show the fabric size over time (average).
+3. Show the collectix version found in the logs.
+4. Indicate about core dumps that might have caused a restart.
+
 ## Testing
 
 There is a folder named `unit_tests`, this folder contains some unit tests, to run the tests follow these steps:
@@ -83,13 +90,16 @@ There is a folder named `unit_tests`, this folder contains some unit tests, to r
   If not, you can install it using `pip`:
    ```bash
    python3 -m pip install pytest 
+   ```
 2. Navigate to the root directory of the log analyzer project:
     ```bash
     cd plugins/ufm_log_analyzer_plugin
+    ```
 3. Run `pytest` to execute the tests:
     ```bash
     pytest unit_tests
-```
+    ```
+
 
 ## Deployment
 
