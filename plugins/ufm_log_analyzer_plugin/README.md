@@ -52,7 +52,7 @@ What is mandatory:
 1. `--location`.
 
 ## Which files are taken from the dump
-The following list: `event.log, ufmhealth.log, ufm.log, ibdiagnet2.log, console.log, rest_api.log, telemetry samples ibdiagnet2_port_counters.log (for primary and secondary telemetry)`
+The following list: `event.log, ufmhealth.log, ufm.log, ibdiagnet2.log, console.log, rest_api.log, telemetry samples and ibdiagnet2_port_counters.log (for primary and secondary telemetry)`
 
 Also, each log `tar` is taken, according to the `extract-level` flag.
 ## How it works
