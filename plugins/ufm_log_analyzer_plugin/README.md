@@ -161,6 +161,7 @@ To create a deployment package for the UFM Log Analyzer Plugin, follow these ste
        ! -path "./.gitignore" \
        ! -path "./.ruff_cache/*" \
        ! -path "*/__pycache__/*" \
+       ! -path "./src/loganalyze/.pylintrc" \
        -exec bash -c '
            mkdir -p /tmp/'${PACKAGE_NAME}'/$(dirname {})
            cp {} /tmp/'${PACKAGE_NAME}'/{}
