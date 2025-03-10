@@ -52,11 +52,11 @@ What is mandatory:
 1. `--location`.
 
 ## Which files are taken from the dump
-The following list: `event.log, ufmhealth.log, ufm.log, ibdiagnet2.log, console.log, rest_api.log and second telemetry samples`
+The following list: `event.log, ufmhealth.log, ufm.log, ibdiagnet2.log, console.log, rest_api.log, telemetry samples (taken from the second telemetry by the UFM) and ibdiagnet2_port_counters.log (for primary and secondary telemetry)`
 
 Also, each log `tar` is taken, according to the `extract-level` flag.
 ## How it works
-1. Given the list of logs to work with, they are extract from the dump to the destination directory.
+1. Given the list of logs to work with, they are extracted from the dump to the destination directory.
 2. Each log is being parsed, with his own unique set of regex's.
 3. Each parsed line is saved in a CSV file that represents the parsed line from the specific log.
 4. Once all logs are parsed, we use Pandas analyzer to load the CSV's and query them.
@@ -75,6 +75,13 @@ This logic will show links that:
 
 ![Tool flow](img/loganalzer.png)
 
+## Telemetry logs analysis
+For each telemetry instance log (primary and secondary) we will:
+1. Show how much time it took to collect the counters.
+2. Show the fabric size over time (average).
+3. Show the collectix version found in the logs.
+4. Indicate about core dumps that might have caused a restart.
+
 ## Testing
 
 There is a folder named `unit_tests`, this folder contains some unit tests, to run the tests follow these steps:
@@ -83,9 +90,91 @@ There is a folder named `unit_tests`, this folder contains some unit tests, to r
   If not, you can install it using `pip`:
    ```bash
    python3 -m pip install pytest 
+   ```
 2. Navigate to the root directory of the log analyzer project:
     ```bash
     cd plugins/ufm_log_analyzer_plugin
+    ```
 3. Run `pytest` to execute the tests:
     ```bash
     pytest unit_tests
+    ```
+
+
+## Deployment
+
+To create a deployment package for the UFM Log Analyzer Plugin, follow these steps:
+
+1. Ensure you're working with the latest main branch and create a release branch:
+   ```bash
+   git switch main
+   git pull origin main
+   git switch -c release/vX.X.X-X
+   ```
+
+2. Ensure you're in the root directory of the log analyzer project:
+   ```bash
+   cd plugins/ufm_log_analyzer_plugin
+   ```
+
+3. Update the version in the VERSION file:
+   ```bash
+   echo "X.X.X-X" > VERSION
+   git add VERSION
+   git commit -m "Bump version to X.X.X-X"
+   git push origin release/vX.X.X-X
+   ```
+
+4. Create a Pull Request from `release/vX.X.X-X` to `main` branch
+   - Wait for PR approval and merge
+
+5. After the PR is merged, switch to the updated main branch:
+   ```bash
+   git switch main
+   git pull origin main
+   ```
+
+6. Create a new version tag in git:
+   ```bash
+   VERSION=$(cat VERSION)
+   git tag -a ufm_log_analyzer_${VERSION} -m "UFM Log Analyzer version ${VERSION} release"
+   git push origin ufm_log_analyzer_${VERSION}
+   ```
+
+7. Create the deployment package in /tmp:
+   ```bash
+   VERSION=$(cat VERSION)
+   PACKAGE_NAME="ufm_log_analyzer_${VERSION}"
+   
+   # Clean up any previous attempts and python cache
+   rm -rf /tmp/${PACKAGE_NAME}
+   find . -type d -name "__pycache__" -exec rm -rf {} +
+   find . -type d -name ".ruff_cache" -exec rm -rf {} +
+   
+   # Create directory and copy files
+   mkdir -p /tmp/${PACKAGE_NAME}
+   
+   # Find and copy files while maintaining directory structure
+   find . -type f \
+       ! -path "./unit_tests/*" \
+       ! -path "./.git/*" \
+       ! -path "./.gitignore" \
+       ! -path "./.ruff_cache/*" \
+       ! -path "*/__pycache__/*" \
+       -exec bash -c '
+           mkdir -p /tmp/'${PACKAGE_NAME}'/$(dirname {})
+           cp {} /tmp/'${PACKAGE_NAME}'/{}
+       ' \;
+   
+   # Create the tar from the clean directory
+   cd /tmp
+   tar -czf ${PACKAGE_NAME}.tar.gz ${PACKAGE_NAME}
+   
+   # Clean up
+   rm -rf /tmp/${PACKAGE_NAME}
+   ```
+
+8. Copy the package to the release directory:
+   ```bash
+   cp /tmp/ufm_log_analyzer_${VERSION}.tar.gz /mswg/release/ufm/plugins/log_analyzer/
+   ```
