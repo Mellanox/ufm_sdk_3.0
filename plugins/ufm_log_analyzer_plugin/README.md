@@ -52,11 +52,11 @@ What is mandatory:
 1. `--location`.
 
 ## Which files are taken from the dump
-The following list: `event.log, ufmhealth.log, ufm.log, ibdiagnet2.log, console.log, rest_api.log, telemetry samples and ibdiagnet2_port_counters.log (for primary and secondary telemetry)`
+The following list: `event.log, ufmhealth.log, ufm.log, ibdiagnet2.log, console.log, rest_api.log, telemetry samples (taken from the second telemetry by the UFM) and ibdiagnet2_port_counters.log (for primary and secondary telemetry)`
 
 Also, each log `tar` is taken, according to the `extract-level` flag.
 ## How it works
-1. Given the list of logs to work with, they are extract from the dump to the destination directory.
+1. Given the list of logs to work with, they are extracted from the dump to the destination directory.
 2. Each log is being parsed, with his own unique set of regex's.
 3. Each parsed line is saved in a CSV file that represents the parsed line from the specific log.
 4. Once all logs are parsed, we use Pandas analyzer to load the CSV's and query them.
@@ -107,9 +107,9 @@ To create a deployment package for the UFM Log Analyzer Plugin, follow these ste
 
 1. Ensure you're working with the latest main branch and create a release branch:
    ```bash
-   git checkout main
+   git switch main
    git pull origin main
-   git checkout -b release/v1.x.x
+   git switch -c release/vX.X.X-X
    ```
 
 2. Ensure you're in the root directory of the log analyzer project:
@@ -119,18 +119,18 @@ To create a deployment package for the UFM Log Analyzer Plugin, follow these ste
 
 3. Update the version in the VERSION file:
    ```bash
-   echo "1.x.x" > VERSION
+   echo "X.X.X-X" > VERSION
    git add VERSION
-   git commit -m "Bump version to 1.x.x"
-   git push origin release/v1.x.x
+   git commit -m "Bump version to X.X.X-X"
+   git push origin release/vX.X.X-X
    ```
 
-4. Create a Pull Request from `release/v1.x.x` to `main` branch
+4. Create a Pull Request from `release/vX.X.X-X` to `main` branch
    - Wait for PR approval and merge
 
 5. After the PR is merged, switch to the updated main branch:
    ```bash
-   git checkout main
+   git switch main
    git pull origin main
    ```
 
