@@ -15,33 +15,15 @@
 
 set -eE
 
-cp /opt/ufm/ufm_plugin_tfs/fluentd.conf /config
-cp /opt/ufm/ufm_plugin_tfs/tfs_httpd_proxy.conf /config
-cp /opt/ufm/ufm_plugin_tfs/fluentd_telemetry_plugin.cfg /config
+cp /opt/ufm/ufm_plugin_tfs/* /config
 
-touch /config/tfs_shared_volumes.conf
-
-echo /opt/ufm/files/log/:/log > /config/tfs_shared_volumes.conf
-
-# UFM version test
-required_ufm_version=(6 8 0)
-echo "Required UFM version: ${required_ufm_version[0]}.${required_ufm_version[1]}.${required_ufm_version[2]}"
-
-if [ "$1" == "-ufm_version" ]; then
-    actual_ufm_version_string=$2
-    actual_ufm_version=(${actual_ufm_version_string//./ })
-    echo "Actual UFM version: ${actual_ufm_version[0]}.${actual_ufm_version[1]}.${actual_ufm_version[2]}"
-    if [ ${actual_ufm_version[0]} -ge ${required_ufm_version[0]} ] \
-    && [ ${actual_ufm_version[1]} -ge ${required_ufm_version[1]} ] \
-    && [ ${actual_ufm_version[2]} -ge ${required_ufm_version[2]} ]; then
-        echo "UFM version meets the requirements"
-        exit 0
-    else
-        echo "UFM version is older than required"
-        exit 1
-    fi
-else
-    exit 1
-fi
+if [[ "${READ_ONLY_FS}" == "true" ]]; then
+    PLUGIN_DATA_PATH=/opt/ufm/ufm_plugins_data/tfs
+    for vol in \
+    "${PLUGIN_DATA_PATH}/tmp:/tmp" 
+    do
+        echo "$vol" >> "/config/tfs_shared_volumes.conf"
+    done
+fi 
 
 exit 1
