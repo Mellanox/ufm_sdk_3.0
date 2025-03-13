@@ -15,7 +15,9 @@
 
 set -eE
 
-cp /opt/ufm/ufm_plugin_tfs/* /config
+mkdir -p /config
+cp /opt/ufm/ufm_plugin_tfs/*.conf /config
+cp fluentd_telemetry_plugin.cfg /config
 
 if [[ "${READ_ONLY_FS}" == "true" ]]; then
     PLUGIN_DATA_PATH=/opt/ufm/ufm_plugins_data/tfs
