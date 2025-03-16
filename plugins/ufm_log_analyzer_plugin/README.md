@@ -13,7 +13,7 @@ The tool is meant to run from a PC or a remote connection
 ### Prerequisites
 Install the needed Python dependencies
 ```
-python3 -m pip install -r src/requirements.txt
+python3 -m pip install -r plugins/ufm_log_analyzer_plugin/src/loganalyze/requirements_ubuntu.txtsrc/loganalyze/requirements.txt
 ```
 Install software for PDF creation:
 ```
