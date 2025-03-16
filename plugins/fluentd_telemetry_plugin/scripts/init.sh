@@ -15,16 +15,18 @@
 
 set -eE
 
-mkdir -p /config
-cp /opt/ufm/ufm_plugin_tfs/*.conf /config
-cp /opt/ufm/ufm_plugin_tfs/fluentd_telemetry_plugin.cfg /config
+CONFIG_FOLDER=/config
+
+mkdir -p $CONFIG_FOLDER
+cp /opt/ufm/ufm_plugin_tfs/*.conf $CONFIG_FOLDER
+cp /opt/ufm/ufm_plugin_tfs/fluentd_telemetry_plugin.cfg $CONFIG_FOLDER
 
 if [[ "${READ_ONLY_FS}" == "true" ]]; then
     PLUGIN_DATA_PATH=/opt/ufm/ufm_plugins_data/tfs
     for vol in \
     "${PLUGIN_DATA_PATH}/tmp:/tmp" 
     do
-        echo "$vol" >> "/config/tfs_shared_volumes.conf"
+        echo "$vol" >> "$CONFIG_FOLDER/tfs_shared_volumes.conf"
     done
 fi 
 
