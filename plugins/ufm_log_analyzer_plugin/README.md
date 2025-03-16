@@ -13,7 +13,7 @@ The tool is meant to run from a PC or a remote connection
 ### Prerequisites
 Install the needed Python dependencies
 ```
-python3 -m pip install -r src/loganalyze/requirements.txt
+python3 -m pip install -r src/requirements.txt
 ```
 Install software for PDF creation:
 ```
