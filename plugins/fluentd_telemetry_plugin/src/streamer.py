@@ -48,7 +48,7 @@ class UFMTelemetryStreaming(metaclass=SingletonMeta):
     to manage/control the streaming
     """
     def __init__(self, conf_parser=None):
-        
+
         if conf_parser is None:
             if hasattr(self, 'initialized'):
                 return
