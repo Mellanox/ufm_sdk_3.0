@@ -157,19 +157,19 @@ class StreamingConfigurationsAPI(BaseAPIApplication):
             return make_response(err_msg, HTTPStatus.INTERNAL_SERVER_ERROR)
 
     def get_streaming_attributes(self):
-        return make_response(self.streamer.streaming_attributes)
+        return make_response(self.streamer.attributes_mngr.streaming_attributes)
 
     def update_streaming_attributes(self):
         payload = request.json
         # validate the new payload
         validate_schema(self.conf_attributes_schema_path, payload)
         for key,value in payload.items():
-            current_attr_obj = self.streamer.streaming_attributes.get(key, None)
+            current_attr_obj = self.streamer.attributes_mngr.streaming_attributes.get(key, None)
             if current_attr_obj is None:
                 raise InvalidConfRequest(f'The streaming attribute : {key} not found in the attributes list')
-            self.streamer.streaming_attributes[key] = value
+            self.streamer.attributes_mngr.streaming_attributes[key] = value
         try:
-            self.streamer.update_saved_streaming_attributes(self.streamer.streaming_attributes)
+            self.streamer.attributes_mngr.update_saved_streaming_attributes()
         except InvalidConfSetting as error:
             raise InvalidConfRequest(str(error)) from error
         return make_response('set streaming attributes has been done successfully')

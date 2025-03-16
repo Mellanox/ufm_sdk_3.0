@@ -26,6 +26,7 @@ from requests.exceptions import ConnectionError  # pylint: disable=redefined-bui
 from fluentbit_writer import init_fb_writer
 from monitor_streaming_mgr import MonitorStreamingMgr
 from telemetry_attributes_manager import TelemetryAttributesManager
+from streaming_config_parser import UFMTelemetryStreamingConfigParser
 from telemetry_constants import UFMTelemetryConstants
 from telemetry_parser import TelemetryParser
 
@@ -46,9 +47,13 @@ class UFMTelemetryStreaming(metaclass=SingletonMeta):
     UFMTelemetryStreaming class
     to manage/control the streaming
     """
-
-    def __init__(self, conf_parser):
-
+    def __init__(self, conf_parser=None):
+        
+        if conf_parser is None:
+            if hasattr(self, 'initialized'):
+                return
+            conf_parser = UFMTelemetryStreamingConfigParser()
+        self.initialized = True
         self.config_parser = conf_parser
         self.last_streamed_data_sample_timestamp = None
         self.last_streamed_data_sample_per_endpoint = {}
