@@ -47,14 +47,9 @@ class UFMTelemetryStreaming(metaclass=SingletonMeta):
     UFMTelemetryStreaming class
     to manage/control the streaming
     """
-    def __init__(self, conf_parser=None):
-
-        if conf_parser is None:
-            if hasattr(self, 'initialized'):
-                return
-            conf_parser = UFMTelemetryStreamingConfigParser()
+    def __init__(self):
         self.initialized = True
-        self.config_parser = conf_parser
+        self.config_parser = UFMTelemetryStreamingConfigParser()
         self.last_streamed_data_sample_timestamp = None
         self.last_streamed_data_sample_per_endpoint = {}
         self.streaming_metrics_mgr = MonitorStreamingMgr()

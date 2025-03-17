@@ -49,7 +49,7 @@ if __name__ == '__main__':
 
     STREAMER = None
     try:
-        STREAMER = UFMTelemetryStreaming(_config_parser)
+        STREAMER = UFMTelemetryStreaming()
         if _config_parser.get_enable_streaming_flag():
             scheduler = StreamingScheduler()
             job_id = scheduler.start_streaming()
