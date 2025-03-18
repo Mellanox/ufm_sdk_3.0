@@ -38,7 +38,8 @@ if [[ "${READ_ONLY_FS}" == "true" ]]; then
 
     # Generate the shared volumes configuration
     for vol in \
-    "${PLUGIN_DATA_PATH}/tmp:/tmp" 
+    "${PLUGIN_DATA_PATH}/tmp:/tmp" \
+    "${PLUGIN_DATA_PATH}/var/tmp:/var/tmp" 
     do
         echo "$vol" >> "$SHARED_VOLUMES_PATH"
     done
