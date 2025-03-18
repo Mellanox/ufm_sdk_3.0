@@ -96,6 +96,9 @@ def get_ufm_switches():
             if not succeded(status_code):
                 logging.error(f"Failed to get switch {ip} credentials")
                 continue
+            if not response:
+                logging.error(f"Switch {ip} credentials are empty, please update them via UFM Web UI")
+                continue
             user = response[0]["user"]
             encrypted_credentials = response[0]["credentials"]
             credentials = cipher.decrypt(base64.b64decode(encrypted_credentials)).decode('utf-8')
@@ -162,7 +165,7 @@ class ConfigParser:
     logging.getLogger("requests").setLevel(logging.getLevelName(log_level))
     logging.getLogger("werkzeug").setLevel(logging.getLevelName(log_level))
 
-    gnmi_port = gnmi_events_config.getint("GNMI", "gnmi_port", fallback=162)
+    gnmi_port = gnmi_events_config.getint("GNMI", "gnmi_port", fallback=9339)
     if not gnmi_port:
         logging.error(f"Incorrect value for snmp_port")
         quit()
