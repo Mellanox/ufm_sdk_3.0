@@ -42,3 +42,4 @@ jobs:
         pip install pytest
         docker pull fluent/fluentd:edge
       # PYTHONPATH=${PWD} pytest plugins/fluentd_telemetry_plugin/tests/
+        echo "Pytest command was commented, skipping"
