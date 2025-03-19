@@ -31,11 +31,6 @@ cp "$TFS_PLUGIN_DIR"/fluentd_telemetry_plugin.cfg $CONFIG_PATH
 
 # If the file system is read-only non root
 if [[ "${READ_ONLY_FS}" == "true" ]]; then
-    # Create temporary directories
-    for dir in /data/var/tmp /data/tmp; do
-        mkdir -p "${dir}"
-    done
-
     # Generate the shared volumes configuration
     for vol in \
     "${PLUGIN_DATA_PATH}/tmp:/tmp" \
