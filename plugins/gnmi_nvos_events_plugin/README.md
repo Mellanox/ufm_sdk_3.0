@@ -1,7 +1,7 @@
 # Deployment
 
 ## UFM WEB UI
-- pull the plugin container with _docker pull mellanox/ufm-plugin-gnmi-events_;
+- pull the plugin container with _docker pull mellanox/ufm-plugin-gnmi-nvos-events_;
 - add the plugin through UFM WEB UI -> Settings -> Plugin Management;
 
 ## CLI
@@ -13,7 +13,7 @@
 - make sure that UFM is running with _show ufm status_;
   - if UFM is down then run it with _ufm start_;
 - make sure that GNMI NVOS Events plugin is disabled with _show ufm plugin_;
-- pull the plugin container with _docker pull mellanox/ufm-plugin-gnmi-events_;
+- pull the plugin container with _docker pull mellanox/ufm-plugin-gnmi-nvos-events_;
   - in case of HA load the plugin on the standby node as well;
 - on UFM Enterprise Appliance (e.g., gen3), open the default SNMP port with _ufw allow 162/udp_ (enter _\_shell_, if needed);
 - run _ufm plugin gnmi\_events add_ to enable the plugin;
@@ -21,13 +21,13 @@
 
 ### To deploy the plugin with UFM (SA or HA):
 - install the latest version of UFM;
-- run UFM with _service ufmd start_;
-- pull the plugin container with _docker pull mellanox/ufm-plugin-gnmi-events_;
+- run UFM with _systemctl start ufm-infra_;
+- pull the plugin container with _docker pull mellanox/ufm-plugin-gnmi-nvos-events_;
   - in case of HA load the plugin on the standby node as well;
 - run _/opt/ufm/scripts/manage\_ufm\_plugins.sh add -p gnmi\_events_ to enable the plugin;
 - check that plugin is up and running with _docker ps_;
 
-Log file gnmi_events.log is located in /opt/ufm/files/log on the host.
+Log file gnmi_nvos_events.log is located in /opt/ufm/files/log/plugins/gnmi-nvos-events on the host.
 
 # Usage
 

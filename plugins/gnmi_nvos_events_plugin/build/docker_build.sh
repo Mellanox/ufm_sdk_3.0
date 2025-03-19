@@ -10,7 +10,7 @@ fi
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 
 IMAGE_VERSION=$1
-IMAGE_NAME=ufm-plugin-gnmi-events
+IMAGE_NAME=ufm-plugin-gnmi-nvos-events
 OUT_DIR=$2
 RANDOM_HASH=$3
 
@@ -32,7 +32,7 @@ fi
 
 function create_out_dir()
 {
-    build_dir=$(mktemp --tmpdir -d ufm-plugin-gnmi-events_output_XXXXXXXX)
+    build_dir=$(mktemp --tmpdir -d ufm-plugin-gnmi-nvos-events_output_XXXXXXXX)
     chmod 777 ${build_dir}
     echo ${build_dir}
 }

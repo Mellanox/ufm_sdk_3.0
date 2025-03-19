@@ -1,5 +1,5 @@
 #
-# Copyright © 2013-2023 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright © 2013-2025 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -10,7 +10,7 @@
 # provided with the software product.
 #
 # @author: Alexander Tolikin
-# @date:   November, 2022
+# @date:   March, 2025
 #
 import base64
 import configparser
@@ -48,16 +48,13 @@ LOCAL_IP = get_local_ip()
 def succeded(status_code):
     return status_code in [HTTPStatus.OK, HTTPStatus.ACCEPTED]
 
-def get_request(resource, debug=False):
+def get_request(resource):
     request = PROTOCOL + '://' + HOST + resource
-    if debug:
-        logging.debug(f"GET {request}")
-    else:
-        logging.info(f"GET {request}")
+    logging.info("GET %s", request)
     try:
         session = requests.Session()
         session.headers = {"X-Remote-User": "ufmsystem"}
-        response = session.get(request, verify=False)
+        response = session.get(request, verify=False, timeout=10)
         return response.status_code, response.json()
     except Exception as e:
         error = f"{request} failed with exception: {e}"
@@ -65,9 +62,9 @@ def get_request(resource, debug=False):
 
 async def async_post(session, resource, json=None):
     request = PROTOCOL + '://' + HOST + resource
-    logging.info(f"POST {request}")
+    logging.info("POST %s", request)
     try:
-        async with session.post(request, json=json) as resp:
+        async with session.post(request, json=json, timeout=10) as resp:
             text = await resp.text()
             return resp.status, text
     except Exception as e:
@@ -78,7 +75,7 @@ def get_ufm_switches():
     resource = "/resources/systems?type=switch"
     status_code, json = get_request(resource)
     if not succeded(status_code):
-        logging.error(f"Failed to get list of UFM switches")
+        logging.error("Failed to get list of UFM switches")
         return {}
     new_key = RSA.generate(1024)
     public_key = new_key.publickey().export_key()
@@ -94,16 +91,20 @@ def get_ufm_switches():
             resource = f"/resources/systems/{guid}/credentials?credential_types=SSH_Switch&public_key={public_key}"
             status_code, response = get_request(resource)
             if not succeded(status_code):
-                logging.error(f"Failed to get switch {ip} credentials")
+                logging.error("Failed to get switch %s credentials", ip)
                 continue
             if not response:
-                logging.error(f"Switch {ip} credentials are empty, please update them via UFM Web UI")
+                logging.error("Switch %s credentials are empty, please update them via UFM Web UI", ip)
                 continue
-            user = response[0]["user"]
-            encrypted_credentials = response[0]["credentials"]
-            credentials = cipher.decrypt(base64.b64decode(encrypted_credentials)).decode('utf-8')
-            switch_dict[ip] = Switch(switch["system_name"], guid, ip, user, credentials)
-    logging.debug(f"List of switches in the fabric: {switch_dict.keys()}")
+            try:
+                user = response[0]["user"]
+                encrypted_credentials = response[0]["credentials"]
+                credentials = cipher.decrypt(base64.b64decode(encrypted_credentials)).decode('utf-8')
+                switch_dict[ip] = Switch(switch["system_name"], guid, ip, user, credentials)
+            except Exception as e:
+                logging.error("Failed to decrypt switch %s credentials: %s", ip, e)
+                continue
+    logging.debug("List of switches in the fabric: %s", list(switch_dict.keys()))
     return switch_dict
 
 class Switch:
@@ -139,18 +140,18 @@ class Severity:
             self.event_id = event_id
 
 class ConfigParser:
-    config_file = "../build/config/gnmi_events.conf"
-    log_file="gnmi_events.log"
-    httpd_config_file = "../build/config/gnmi_events_httpd_proxy.conf"
+    config_file = "../build/config/gnmi_nvos_events.conf"
+    log_file="gnmi_nvos_events.log"
+    httpd_config_file = "../build/config/gnmi_nvos_events_httpd_proxy.conf"
     throughput_file = "throughput.log"
-    # config_file = "/config/gnmi_events.conf"
-    # log_file="/log/gnmi_events.log"
-    # httpd_config_file = "/config/gnmi_events_httpd_proxy.conf"
+    # config_file = "/config/gnmi_nvos_events.conf"
+    # log_file="/log/gnmi_nvos_events.log"
+    # httpd_config_file = "/config/gnmi_nvos_events_httpd_proxy.conf"
     # throughput_file = "/data/throughput.log"
 
     gnmi_events_config = configparser.ConfigParser()
     if not os.path.exists(config_file):
-        logging.error(f"No config file {config_file} found!")
+        logging.error("No config file %s found!", config_file)
         quit()
     gnmi_events_config.read(config_file)
     log_level = gnmi_events_config.get("Log", "log_level")
@@ -167,13 +168,14 @@ class ConfigParser:
 
     gnmi_port = gnmi_events_config.getint("GNMI", "gnmi_port", fallback=9339)
     if not gnmi_port:
-        logging.error(f"Incorrect value for snmp_port")
+        logging.error("Incorrect value for snmp_port")
         quit()
 
     ufm_switches_update_interval = gnmi_events_config.getint("UFM", "ufm_switches_update_interval", fallback=60)
+    ufm_send_events_interval = gnmi_events_config.getint("UFM", "ufm_send_events_interval", fallback=10)
 
     if not os.path.exists(httpd_config_file):
-        logging.error(f"No config file {httpd_config_file} found!")
+        logging.error("No config file %s found!", httpd_config_file)
     port = 8750  # Default port
     try:
         with open(httpd_config_file, "r") as file:
@@ -181,4 +183,4 @@ class ConfigParser:
             if line and "=" in line:
                 port = int(line.split("=")[-1].strip())
     except (ValueError, IOError) as e:
-        logging.error(f"Failed to read port from {httpd_config_file}: {e}")
+        logging.error("Failed to read port from %s: %s", httpd_config_file, e)

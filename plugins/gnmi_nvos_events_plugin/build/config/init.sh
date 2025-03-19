@@ -12,5 +12,5 @@
 #
 
 set -eE
-cp -f /opt/ufm/gnmi_events_plugin/*.conf /config
+cp -f /opt/ufm/gnmi_nvos_events_plugin/*.conf /config
 exit 0

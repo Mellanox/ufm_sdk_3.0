@@ -1,5 +1,5 @@
 #
-# Copyright © 2013-2023 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright © 2013-2025 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -10,13 +10,13 @@
 # provided with the software product.
 #
 # @author: Alexander Tolikin
-# @date:   November, 2022
+# @date:   March, 2025
 #
 import asyncio
 from flask import Flask
 from flask_restful import Api
 from multiprocessing import Process, Manager
-import threading
+import signal
 import time
 # from twisted.web.wsgi import WSGIResource
 # from twisted.internet import reactor
@@ -91,7 +91,7 @@ if __name__ == "__main__":
     _loop = asyncio.get_event_loop()
     gnmi_events_web_server = GNMIEventsWebProc()
     try:
-        # signal.signal(signal.SIGTERM, gnmi_events_web_server.shutdown)
+        signal.signal(signal.SIGTERM, gnmi_events_web_server.shutdown)
         gnmi_events_web_server.start_web_server()
         _loop.run_forever()
     except KeyboardInterrupt:

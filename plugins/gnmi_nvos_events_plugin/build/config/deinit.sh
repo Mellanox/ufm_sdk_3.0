@@ -11,7 +11,7 @@
 # provided with the software product.
 #
 
-LOG_FILE=/log/gnmi_events.log
+LOG_FILE=/log/gnmi_nvos_events.log
 if test -f "$LOG_FILE"; then
     rm "$LOG_FILE"
 fi

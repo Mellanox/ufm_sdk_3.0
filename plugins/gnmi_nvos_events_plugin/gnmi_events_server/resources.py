@@ -1,5 +1,5 @@
 #
-# Copyright © 2013-2023 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright © 2013-2025 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -10,9 +10,8 @@
 # provided with the software product.
 #
 # @author: Alexander Tolikin
-# @date:   November, 2022
+# @date:   March, 2025
 #
-import csv
 from datetime import datetime
 from flask_restful import Resource
 from http import HTTPStatus
@@ -36,9 +35,13 @@ class UFMResource(Resource):
     def read_json_file(file_name):
         if not os.path.exists(file_name):
             return []
-        with open(file_name, "r", encoding="utf-8") as file:
-            # unhandled exception in case some of the files was changed manually
-            data = json.load(file)
+        try:
+            with open(file_name, "r", encoding="utf-8") as file:
+                # unhandled exception in case some of the files was changed manually
+                data = json.load(file)
+        except Exception as e:
+            logging.error("Failed to read JSON file %s: %s", file_name, e)
+            return []
         return data
 
     @staticmethod

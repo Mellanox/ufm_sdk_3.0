@@ -12,6 +12,7 @@ class GNMIEventsReceiver:
     SUBSCRIBE_CONF = {'subscription': [{'path': 'system-events', 'mode': 'ON_CHANGE'}]}
     TARGET = "nvos"
     def __init__(self, switch_dict={}):
+        # disable annoying warning when debugging, in production all requests will be secured
         import urllib3
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         self.switch_dict = switch_dict
@@ -32,7 +33,6 @@ class GNMIEventsReceiver:
                                                               switch.guid))
                 switch.socket_thread.start()
         if not self.throttling_thread:
-            # TODO: figure out why it works only whtn the thread started in callbacks context
             self.throttling_thread = threading.Thread(target=self.throttle_events)
             self.throttling_thread.start()
 
@@ -63,33 +63,37 @@ class GNMIEventsReceiver:
                         description = ""
                         resource = ""
                         for event in event_update:
-                            if event.get("path") == "state/text":
+                            path = event.get("path")
+                            if path == "state/text":
                                 description = event.get("val")
-                            if event.get("path") == "state/resource":
+                            elif path == "state/resource":
                                 resource = event.get("val")
-                            if event.get("path") == "state/severity":
+                            elif path == "state/severity":
                                 payload["event_id"] = helpers.Severity.LEVEL_TO_EVENT_ID.get(event.get("val"))
                         payload["description"] = f"{resource}: {description}" if resource else description
                         self.events.append(payload)
         except Exception as e:
-            logging.error(f"Failed to create gNMI socket for {ip}: {e}")
+            logging.error("Failed to create gNMI socket for %s: %s", ip, e)
 
     def throttle_events(self):
         while True:
             if not self.events:
                 continue
-            start_time = time.time()
+            start_time = time.perf_counter()
             asyncio.run(self.send_events())
-            end_time = time.time()
+            end_time = time.perf_counter()
             input_rate = self.traps_number / self.throttling_interval
             output_rate = self.traps_number / (end_time - start_time)
-            logging.warning(f"Input rate (agents -> plugin) is {input_rate} traps/second")
+            logging.warning("Input rate (agents -> plugin) is %s traps/second", input_rate)
             if input_rate > self.high_event_rate:
-                logging.warning(f"Input rate is high, some traps might be dropped")
-            logging.warning(f"Output rate (plugin -> UFM) is {output_rate} traps/second")
-            with open(helpers.ConfigParser.throughput_file, "a") as file:
-                file.write(f"Input rate (agents -> plugin) is {input_rate} traps/second\n")
-                file.write(f"Output rate (plugin -> UFM) is {output_rate} traps/second\n")
+                logging.warning("Input rate is high, some traps might be dropped")
+            logging.warning("Output rate (plugin -> UFM) is %s traps/second", output_rate)
+            try:
+                with open(helpers.ConfigParser.throughput_file, "a") as file:
+                    file.write("Input rate (agents -> plugin) is %s traps/second\n" % input_rate)
+                    file.write("Output rate (plugin -> UFM) is %s traps/second\n" % output_rate)
+            except Exception as e:
+                logging.error("Failed to write throughput to file: %s", e)
             self.traps_number = 0
             time.sleep(self.throttling_interval)
 
@@ -108,5 +112,5 @@ class GNMIEventsReceiver:
         resource = "/app/events/external_event"
         status_code, text = await helpers.async_post(session, resource, json=payload)
         if not helpers.succeded(status_code):
-            logging.error(f"Failed to send external event, status code: {status_code}, response: {text}")
-        logging.debug(f"Post external event status code: {status_code}, response: {text}")
+            logging.error("Failed to send external event, status code: %s, response: %s", status_code, text)
+        logging.debug("Post external event status code: %s, response: %s", status_code, text)
