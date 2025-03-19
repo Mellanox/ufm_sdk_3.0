@@ -36,7 +36,7 @@ jobs:
 
     - name: Install dependencies
       run: pip install -r plugins/fluentd_telemetry_plugin/requirements.txt
-    
+
     - name: Run pytests
       run: |
         pip install pytest
