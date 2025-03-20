@@ -33,8 +33,7 @@ cp "$TFS_PLUGIN_DIR"/fluentd_telemetry_plugin.cfg $CONFIG_PATH
 if [[ "${READ_ONLY_FS}" == "true" ]]; then
     # Generate the shared volumes configuration
     for vol in \
-    "${PLUGIN_DATA_PATH}/tmp:/tmp" \
-    "${PLUGIN_DATA_PATH}/var/tmp:/var/tmp" 
+    "${PLUGIN_DATA_PATH}/tmp:/tmp"
     do
         echo "$vol" >> "$SHARED_VOLUMES_PATH"
     done
