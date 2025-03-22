@@ -58,7 +58,7 @@ def get_request(resource):
         return response.status_code, response.json()
     except Exception as e:
         error = f"{request} failed with exception: {e}"
-        return HTTP_ERROR, {error}
+        return HTTP_ERROR, {"error": error}
 
 async def async_post(session, resource, json=None):
     request = PROTOCOL + '://' + HOST + resource
@@ -69,41 +69,58 @@ async def async_post(session, resource, json=None):
             return resp.status, text
     except Exception as e:
         error = f"{request} failed with exception: {e}"
-        return HTTP_ERROR, error
+        return HTTP_ERROR, {"error": error}
 
-def get_ufm_switches():
-    resource = "/resources/systems?type=switch"
-    status_code, json = get_request(resource)
-    if not succeded(status_code):
-        logging.error("Failed to get list of UFM switches")
-        return {}
+def generate_key_pair():
     new_key = RSA.generate(1024)
     public_key = new_key.publickey().export_key()
     public_key = quote(public_key, safe='')
     private_key = new_key.export_key()
     priv_key = RSA.import_key(private_key)
     cipher = PKCS1_OAEP.new(priv_key)
+    return public_key, cipher
+
+def get_credentials(resource):
+    logging.info("Get credentials %s", resource)
+    resource += f"public_key={ConfigParser.public_key}"
+    status_code, response = get_request(resource)
+    user = None
+    credentials = None
+    if not succeded(status_code):
+        logging.error("Failed to get credentials")
+    if not response:
+        logging.error("Credentials are empty, please update them via UFM Web UI")
+    try:
+        user = response[0]["user"]
+        encrypted_credentials = response[0]["credentials"]
+        credentials = ConfigParser.cipher.decrypt(base64.b64decode(encrypted_credentials)).decode('utf-8')
+    except Exception as e:
+        logging.error("Failed to decrypt global credentials: %s", e)
+    return user, credentials
+
+def get_ufm_switches(existing_switches={}):
+    resource = "/resources/systems?type=switch"
+    status_code, json = get_request(resource)
+    if not succeded(status_code):
+        logging.error("Failed to get list of UFM switches")
+        return {}
+    global_credentials_resource = f"/resources/sites/default/credentials?credential_types=SSH_Switch&"
+    global_user, global_credentials = get_credentials(global_credentials_resource)
     switch_dict = {}
     for switch in json:
         ip = switch["ip"]
         if not ip == EMPTY_IP:
             guid = switch["guid"]
-            resource = f"/resources/systems/{guid}/credentials?credential_types=SSH_Switch&public_key={public_key}"
-            status_code, response = get_request(resource)
-            if not succeded(status_code):
-                logging.error("Failed to get switch %s credentials", ip)
-                continue
-            if not response:
-                logging.error("Switch %s credentials are empty, please update them via UFM Web UI", ip)
-                continue
-            try:
-                user = response[0]["user"]
-                encrypted_credentials = response[0]["credentials"]
-                credentials = cipher.decrypt(base64.b64decode(encrypted_credentials)).decode('utf-8')
+            system_credentials_resource = f"/resources/systems/{guid}/credentials?credential_types=SSH_Switch&"
+            system_user, system_credentials = get_credentials(system_credentials_resource)
+            user = system_user if system_user else global_user
+            credentials = system_credentials if system_credentials else global_credentials
+            existing_switch = existing_switches.get(ip)
+            if existing_switch and existing_switch.user == user and existing_switch.credentials == credentials:
+                # do not update the switch since it's already initialized
+                switch_dict[ip] = existing_switch
+            else:
                 switch_dict[ip] = Switch(switch["system_name"], guid, ip, user, credentials)
-            except Exception as e:
-                logging.error("Failed to decrypt switch %s credentials: %s", ip, e)
-                continue
     logging.debug("List of switches in the fabric: %s", list(switch_dict.keys()))
     return switch_dict
 
@@ -140,23 +157,24 @@ class Severity:
             self.event_id = event_id
 
 class ConfigParser:
-    config_file = "../build/config/gnmi_nvos_events.conf"
-    log_file="gnmi_nvos_events.log"
-    httpd_config_file = "../build/config/gnmi_nvos_events_httpd_proxy.conf"
-    throughput_file = "throughput.log"
-    # config_file = "/config/gnmi_nvos_events.conf"
-    # log_file="/log/gnmi_nvos_events.log"
-    # httpd_config_file = "/config/gnmi_nvos_events_httpd_proxy.conf"
-    # throughput_file = "/data/throughput.log"
+    """
+    Class for the configuration parser that reads the configuration file and sets the log level and the log file.
+    """
+    # config_file = "../build/config/gnmi_nvos_events.conf"
+    # log_file="gnmi_nvos_events.log"
+    # httpd_config_file = "../build/config/gnmi_nvos_events_httpd_proxy.conf"
+    config_file = "/config/gnmi_nvos_events.conf"
+    log_file="/log/gnmi_nvos_events.log"
+    httpd_config_file = "/config/gnmi_nvos_events_httpd_proxy.conf"
 
     gnmi_events_config = configparser.ConfigParser()
     if not os.path.exists(config_file):
         logging.error("No config file %s found!", config_file)
         quit()
     gnmi_events_config.read(config_file)
-    log_level = gnmi_events_config.get("Log", "log_level")
-    log_file_max_size = gnmi_events_config.getint("Log", "log_file_max_size")
-    log_file_backup_count = gnmi_events_config.getint("Log", "log_file_backup_count")
+    log_level = gnmi_events_config.get("Log", "log_level", fallback="INFO")
+    log_file_max_size = gnmi_events_config.getint("Log", "log_file_max_size", fallback=10485760)
+    log_file_backup_count = gnmi_events_config.getint("Log", "log_file_backup_count", fallback=5)
     log_format = '%(asctime)-15s %(levelname)s %(message)s'
     logging.basicConfig(handlers=[RotatingFileHandler(log_file,
                                                       maxBytes=log_file_max_size,
@@ -171,8 +189,11 @@ class ConfigParser:
         logging.error("Incorrect value for snmp_port")
         quit()
 
-    ufm_switches_update_interval = gnmi_events_config.getint("UFM", "ufm_switches_update_interval", fallback=60)
+    ufm_switches_update_interval = gnmi_events_config.getint("UFM", "ufm_switches_update_interval", fallback=360)
     ufm_send_events_interval = gnmi_events_config.getint("UFM", "ufm_send_events_interval", fallback=10)
+    ufm_first_update_interval = gnmi_events_config.getint("UFM", "ufm_first_update_interval", fallback=180)
+
+    public_key, cipher = generate_key_pair()
 
     if not os.path.exists(httpd_config_file):
         logging.error("No config file %s found!", httpd_config_file)

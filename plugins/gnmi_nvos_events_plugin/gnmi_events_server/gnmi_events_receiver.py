@@ -9,22 +9,32 @@ import time
 import helpers
 
 class GNMIEventsReceiver:
+    """
+    Class for the GNMI events receiver that subscribes to the GNMI events
+    by creating sockets for every switch as a separate thread
+    and sends the events to the UFM as external events
+    """
+    # GNMI subscription configuration to get all system events on change
     SUBSCRIBE_CONF = {'subscription': [{'path': 'system-events', 'mode': 'ON_CHANGE'}]}
     TARGET = "nvos"
     def __init__(self, switch_dict={}):
         # disable annoying warning when debugging, in production all requests will be secured
         import urllib3
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        # dictionary of switches with their credentials and GUIDs
         self.switch_dict = switch_dict
         self.session = requests.Session()
         self.traps_number = 0
-        self.throttling_interval = 10
+        # throttling interval in which events are send to UFM in seconds
+        self.throttling_interval = helpers.ConfigParser.ufm_send_events_interval
         self.high_event_rate = 100
         self.throttling_thread = None
         self.events = []
 
-    def manager(self):
-        for ip, switch in self.switch_dict.items():
+    def create_socket_threads(self, switch_dict={}):
+        if not switch_dict:
+            switch_dict = self.switch_dict
+        for ip, switch in switch_dict.items():
             if not switch.socket_thread:
                 switch.socket_thread = threading.Thread(target=self.subscribe,
                                                         args=(ip,
@@ -32,11 +42,16 @@ class GNMIEventsReceiver:
                                                               switch.credentials,
                                                               switch.guid))
                 switch.socket_thread.start()
+
+    def run(self):
+        self.create_socket_threads()
         if not self.throttling_thread:
             self.throttling_thread = threading.Thread(target=self.throttle_events)
             self.throttling_thread.start()
 
-    def cleanup(self):
+    def cleanup(self, switch_dict={}):
+        if not switch_dict:
+            switch_dict = self.switch_dict
         for switch in self.switch_dict.values():
             if switch.socket_thread:
                 switch.socket_thread.join(timeout=self.throttling_interval)
@@ -49,12 +64,12 @@ class GNMIEventsReceiver:
                                     skip_verify=True) as gc:
                 events_stream = gc.subscribe_stream(subscribe=self.SUBSCRIBE_CONF, target=self.TARGET)
                 init = True
+                # this is a blocking loop that will wait for events from the switch.
+                # each time an event is triggered, the loop will execute
                 for event_dict in events_stream:
                     if init:
                         init = False
                         continue
-                    # print(json.dumps(event_dict, indent=4))
-                    # print("ENTRY END")
                     self.traps_number += 1
                     payload = {"object_name": guid, "otype": "Switch"}
                     event_update = event_dict.get("update")
@@ -71,32 +86,36 @@ class GNMIEventsReceiver:
                             elif path == "state/severity":
                                 payload["event_id"] = helpers.Severity.LEVEL_TO_EVENT_ID.get(event.get("val"))
                         payload["description"] = f"{resource}: {description}" if resource else description
+                        # append is thread safe
                         self.events.append(payload)
         except Exception as e:
             logging.error("Failed to create gNMI socket for %s: %s", ip, e)
 
     def throttle_events(self):
+        """
+        This function is used to throttle the events that come from switches and to send them to UFM.
+        """
         while True:
             if not self.events:
                 continue
+            logging.info("Got %s traps from switches to be sent to UFM", len(self.events))
             start_time = time.perf_counter()
             asyncio.run(self.send_events())
             end_time = time.perf_counter()
+            sending_duration = end_time - start_time
             input_rate = self.traps_number / self.throttling_interval
-            output_rate = self.traps_number / (end_time - start_time)
-            logging.warning("Input rate (agents -> plugin) is %s traps/second", input_rate)
+            output_rate = self.traps_number / sending_duration
+            logging.info("Input rate (agents -> plugin) is %s traps/second", input_rate)
             if input_rate > self.high_event_rate:
                 logging.warning("Input rate is high, some traps might be dropped")
-            logging.warning("Output rate (plugin -> UFM) is %s traps/second", output_rate)
-            try:
-                with open(helpers.ConfigParser.throughput_file, "a") as file:
-                    file.write("Input rate (agents -> plugin) is %s traps/second\n" % input_rate)
-                    file.write("Output rate (plugin -> UFM) is %s traps/second\n" % output_rate)
-            except Exception as e:
-                logging.error("Failed to write throughput to file: %s", e)
+            logging.info("Output rate (plugin -> UFM) is %s traps/second", output_rate)
             self.traps_number = 0
-            time.sleep(self.throttling_interval)
-
+            time_to_sleep = self.throttling_interval - sending_duration
+            if time_to_sleep > 0:
+                time.sleep(time_to_sleep)
+            else:
+                logging.warning("Sending duration is longer than throttling interval, some traps might be dropped")
+    
     async def send_events(self):
         async with aiohttp.ClientSession(headers={"X-Remote-User": "ufmsystem"}) as session:
             tasks = []

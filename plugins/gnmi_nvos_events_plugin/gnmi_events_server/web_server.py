@@ -15,8 +15,8 @@
 import asyncio
 from flask import Flask
 from flask_restful import Api
-from multiprocessing import Process, Manager
 import signal
+import threading
 import time
 # from twisted.web.wsgi import WSGIResource
 # from twisted.internet import reactor
@@ -27,6 +27,9 @@ import helpers
 from gnmi_events_receiver import GNMIEventsReceiver
 
 class GNMIEventsWebServer:
+    """
+    Class for the web server that receives GNMI events from the GNMI events receiver
+    """
     def __init__(self, switch_dict):
         self.port_number = helpers.ConfigParser.port
         self.app = Flask(__name__)
@@ -55,25 +58,31 @@ class GNMIEventsWebServer:
 
 
 class GNMIEventsWebProc:
-    """Main class of the GNMI Events web sim daemon
+    """
+    Main class of the GNMI Events web sim daemon,
+    that starts the web server and the GNMI events receiver in separate processes
     """
     def __init__(self):
         print("Starting GNMI Events web server", flush=True)
         self.loop = asyncio.get_event_loop()
-        self.manager = Manager()
-        switch_dict = helpers.get_ufm_switches()
-        self.switch_dict = self.manager.dict(switch_dict)
+        self.switch_dict = helpers.get_ufm_switches()
         self.web_server = GNMIEventsWebServer(self.switch_dict)
         self.gnmi_events_receiver = GNMIEventsReceiver(self.switch_dict)
-        self.gnmi_events_proc = Process(target=self.gnmi_events_receiver.manager)
-        self.gnmi_events_proc.start()
+        self.gnmi_events_receiver.run()
+        # sleep for 3 minutes before first update - wait for ibdiagnet report to finish
+        time.sleep(helpers.ConfigParser.ufm_first_update_interval)
+        self.switch_update_thread = threading.Thread(target=self._update_switches)
+        self.switch_update_thread.start()
 
     def _update_switches(self):
         while True:
-            new_switches = helpers.get_ufm_switches(self.switch_dict)
+            updated_switches = helpers.get_ufm_switches(self.switch_dict)
+            new_switches = set(updated_switches.items()) - set(self.switch_dict.items())
+            old_switches = set(self.switch_dict.items()) - set(updated_switches.items())
             if new_switches:
-                self.switch_dict.clear()
-                self.switch_dict.update(new_switches)
+                self.gnmi_events_receiver.create_socket_threads(dict(new_switches))
+            if old_switches:
+                self.gnmi_events_receiver.cleanup(dict(old_switches))
             time.sleep(helpers.ConfigParser.ufm_switches_update_interval)
 
     def start_web_server(self):
