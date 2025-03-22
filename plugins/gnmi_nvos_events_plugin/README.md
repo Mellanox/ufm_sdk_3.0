@@ -32,3 +32,15 @@ Log file gnmi_nvos_events.log is located in /opt/ufm/files/log/plugins/gnmi-nvos
 # Usage
 
 This plugin is listening to GNMI traps from all NVOS managed switches in the fabric and redirecting them as events to UFM.
+
+# Testing
+
+Upon a startup of the plugin, all managed switches in the fabric, that have an IP and SSH credentials (global or local), will be sending system events in "on change" mode to the plugin. The plugin then parses the events and sends them to UFM in the form of general external events.
+An example of a positive testing flow is the following:
+- start UFM;
+- load the plugin;
+- make sure IP of a switch is valid in Managed Elements > Devices tab, or set it manually via Device Access tab;
+- set global credentials through Settings > Device Access tab;
+- login to the switch;
+- reset any valid port (e.g., nv action reset platform transceiver sw1p1);
+- check the event(s) was received in Events & Alarms tab.
