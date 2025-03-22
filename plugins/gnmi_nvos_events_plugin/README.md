@@ -44,3 +44,6 @@ An example of a positive testing flow is the following:
 - login to the switch;
 - reset any valid port (e.g., nv action reset platform transceiver sw1p1);
 - check the event(s) was received in Events & Alarms tab.
+
+NOTE:
+- only the latest version of gnmi-server is supported, was tested on 4.13.0-3000
