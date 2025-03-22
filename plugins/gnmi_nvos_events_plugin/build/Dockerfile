@@ -11,6 +11,7 @@ RUN apt update && apt -y install supervisor python3 python3-pip mc
 # removing to avoid vulnerabilities
 RUN apt -y remove linux-libc-dev
 
+RUN python3 -m pip config set global.break-system-packages true
 RUN python3 -m pip install pygnmi requests flask flask_restful aiohttp pycryptodome
 
 COPY gnmi_events_server/ ${BASE_PATH}/gnmi_events_server/
