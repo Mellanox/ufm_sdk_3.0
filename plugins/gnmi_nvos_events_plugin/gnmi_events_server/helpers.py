@@ -80,24 +80,24 @@ def generate_key_pair():
     cipher = PKCS1_OAEP.new(priv_key)
     return public_key, cipher
 
-def get_credentials(resource, local=True):
-    credentials_type = "local" if local else "global"
-    logging.info("Get %s credentials %s", credentials_type, resource)
-    resource += f"public_key={ConfigParser.public_key}"
+def get_credentials(guid=None):
+    guid = guid if guid else "default"
+    resource = f"/resources/sites/{guid}/credentials?credential_types=SSH_Switch&public_key={ConfigParser.public_key}"
+    logging.info("Get %s credentials %s", guid, resource)
     status_code, response = get_request(resource)
     user = None
     credentials = None
     if not succeded(status_code):
-        logging.error("Failed to get credentials")
+        logging.error("Failed to get %s credentials" % guid)
     if not response:
-        logging.error("Credentials are empty, please update them via UFM Web UI")
+        logging.error("Empty %s credentials, please update them via UFM Web UI", guid)
     try:
         user = response[0]["user"]
         encrypted_credentials = response[0]["credentials"]
         credentials = ConfigParser.cipher.decrypt(base64.b64decode(encrypted_credentials)).decode('utf-8')
         logging.error("Decrypted %s credentials successfully")
     except Exception as e:
-        logging.error("Failed to decrypt %s credentials: %s", credentials_type, e)
+        logging.error("Failed to decrypt %s credentials: %s", guid, e)
     return user, credentials
 
 def get_ufm_switches(existing_switches={}):
@@ -106,15 +106,13 @@ def get_ufm_switches(existing_switches={}):
     if not succeded(status_code):
         logging.error("Failed to get list of UFM switches")
         return {}
-    global_credentials_resource = f"/resources/sites/default/credentials?credential_types=SSH_Switch&"
-    global_user, global_credentials = get_credentials(global_credentials_resource)
+    global_user, global_credentials = get_credentials()
     switch_dict = {}
     for switch in json:
         ip = switch["ip"]
         if not ip == EMPTY_IP:
             guid = switch["guid"]
-            system_credentials_resource = f"/resources/systems/{guid}/credentials?credential_types=SSH_Switch&"
-            system_user, system_credentials = get_credentials(system_credentials_resource)
+            system_user, system_credentials = get_credentials(guid)
             user = system_user if system_user else global_user
             credentials = system_credentials if system_credentials else global_credentials
             existing_switch = existing_switches.get(ip)
@@ -162,12 +160,12 @@ class ConfigParser:
     """
     Class for the configuration parser that reads the configuration file and sets the log level and the log file.
     """
-    # config_file = "../build/config/gnmi_nvos_events.conf"
-    # log_file="gnmi_nvos_events.log"
-    # httpd_config_file = "../build/config/gnmi_nvos_events_httpd_proxy.conf"
-    config_file = "/config/gnmi_nvos_events.conf"
-    log_file="/log/gnmi_nvos_events.log"
-    httpd_config_file = "/config/gnmi_nvos_events_httpd_proxy.conf"
+    config_file = "../build/config/gnmi_nvos_events.conf"
+    log_file="gnmi_nvos_events.log"
+    httpd_config_file = "../build/config/gnmi_nvos_events_httpd_proxy.conf"
+    # config_file = "/config/gnmi_nvos_events.conf"
+    # log_file="/log/gnmi_nvos_events.log"
+    # httpd_config_file = "/config/gnmi_nvos_events_httpd_proxy.conf"
 
     gnmi_events_config = configparser.ConfigParser()
     if not os.path.exists(config_file):
