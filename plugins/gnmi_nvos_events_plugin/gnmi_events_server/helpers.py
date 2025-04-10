@@ -80,8 +80,9 @@ def generate_key_pair():
     cipher = PKCS1_OAEP.new(priv_key)
     return public_key, cipher
 
-def get_credentials(resource):
-    logging.info("Get credentials %s", resource)
+def get_credentials(resource, local=True):
+    credentials_type = "local" if local else "global"
+    logging.info("Get %s credentials %s", credentials_type, resource)
     resource += f"public_key={ConfigParser.public_key}"
     status_code, response = get_request(resource)
     user = None
@@ -94,8 +95,9 @@ def get_credentials(resource):
         user = response[0]["user"]
         encrypted_credentials = response[0]["credentials"]
         credentials = ConfigParser.cipher.decrypt(base64.b64decode(encrypted_credentials)).decode('utf-8')
+        logging.error("Decrypted %s credentials successfully")
     except Exception as e:
-        logging.error("Failed to decrypt global credentials: %s", e)
+        logging.error("Failed to decrypt %s credentials: %s", credentials_type, e)
     return user, credentials
 
 def get_ufm_switches(existing_switches={}):
@@ -121,7 +123,7 @@ def get_ufm_switches(existing_switches={}):
                 switch_dict[ip] = existing_switch
             else:
                 switch_dict[ip] = Switch(switch["system_name"], guid, ip, user, credentials)
-    logging.debug("List of switches in the fabric: %s", list(switch_dict.keys()))
+    logging.info("List of switches in the fabric: %s", list(switch_dict.keys()))
     return switch_dict
 
 class Switch:
