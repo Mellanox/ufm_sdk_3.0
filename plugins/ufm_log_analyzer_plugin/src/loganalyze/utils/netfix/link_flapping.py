@@ -298,5 +298,5 @@ def get_link_flapping(prev_counters_csv, cur_counters_csv):
         )
         return linkdown_df1
     except Exception as e:
-        log.LOGGER.debug(f"Error getting link flapping: {e}")
+        log.LOGGER.debug("Error getting link flapping: %s", str(e))
         return pd.DataFrame()
