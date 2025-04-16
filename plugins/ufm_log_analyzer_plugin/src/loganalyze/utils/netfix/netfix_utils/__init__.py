@@ -130,7 +130,7 @@ def read_and_preprocessing_file(file_path: str):
     df_file = pd.read_csv(file_path, encoding="ISO-8859-1")
 
     if df_file.shape[0] == 0:
-        log.LOGGER.debug(" ERROR: empty file - %s", file_path)
+        log.LOGGER.debug("ERROR reading the file %s as it is empty", file_path)
 
     df_file = df_file.rename(columns={"Node_Description": "node_description"})
 
@@ -189,7 +189,7 @@ def read_and_preprocessing_file(file_path: str):
     ]
     for col in must_columns_in_files:
         if col not in df_file.columns:
-            log.LOGGER.debug("%s is missing in data !!!", col)
+            log.LOGGER.debug("Error as column %s is missing in data !!!", col)
 
     df_file = df_file[df_file.Port_Number != 65]
 
@@ -227,7 +227,7 @@ def read_and_preprocessing_file(file_path: str):
             df_file[col] = pd.to_numeric(df_file[col], errors="coerce")
             df_file.dropna(subset=[col], inplace=True)
         else:
-            log.LOGGER.debug("%s not exists in dataframe", col)
+            log.LOGGER.debug("Error as column %s not exists in dataframe", col)
 
     # add to df min /max/std of time since lase clear per switch/host name + add 'server_name' col
     df_file = get_time_since_last_clear_per_groups(df_file)
@@ -264,7 +264,7 @@ def get_time_since_last_clear_per_groups(df):
         mask = df.Device_ID.astype(str).str.contains("Connect")
 
     if not "Time_since_last_clear" in df.columns:
-        log.LOGGER.debug(" Time_since_last_clear not exists in df ")
+        log.LOGGER.debug("Error as Time_since_last_clear not exists in df")
         return df
 
     df.loc[mask, "server_name"] = df.loc[mask, "node_description"].apply(
