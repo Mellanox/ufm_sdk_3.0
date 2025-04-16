@@ -14,9 +14,8 @@ This is the main logic for identifying flapping links
 """
 
 from datetime import datetime
-import traceback
 import warnings
-
+import loganalyze.logger as log
 import pandas as pd
 from loganalyze.utils.netfix.netfix_utils import (
     read_and_preprocessing_file,
@@ -299,6 +298,5 @@ def get_link_flapping(prev_counters_csv, cur_counters_csv):
         )
         return linkdown_df1
     except Exception as e:
-        print(e)
-        traceback.print_exc()
+        log.LOGGER.debug("Error getting link flapping: %s", str(e))
         return pd.DataFrame()
