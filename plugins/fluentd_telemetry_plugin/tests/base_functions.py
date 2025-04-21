@@ -8,6 +8,22 @@ import requests
 import signal
 from typing import Tuple,List,Dict
 
+CONFIG_FOLDER = "/config"
+LOG_FOLDER = "/log"
+DEFAULT_TELEMETRY_HOST="127.0.0.1"
+DEFAULT_TELEMETRY_URL="csv/xcset/ib_basic_debug"
+DEFAULT_TELEMETRY_PORT="9007"
+DEFAULT_FLUENT_HOST="localhost"
+DEFAULT_FLUENT_PORT="24225"
+DEFAULT_INTERVAL="120"
+DEFAULT_BULK_STREAMING=True
+DEFAULT_STREAM_ONLY_NEW_SAMPLES=False
+DEFAULT_COMPRESS_STREAMING=False
+DEFAULT_C_FLUENT_STREAMING=True
+DEFAULT_STREAMING_ENABLED=True
+DEFAULT_META=False
+DEFAULT_TAG_MSG="UFM_Telemetry_Streaming"
+
 class BaseTestTfs:
     tele_host = "127.0.0.1"
     tele_url = "csv/metrics"
@@ -22,7 +38,7 @@ class BaseTestTfs:
     enabled = True
     endpoints = None
     bind = '0.0.0.0'
-    log_filename = "/log/tfs.log" # Log file location
+    log_filename = LOG_FOLDER + "/tfs.log" # Log file location
 
     def __init__(self):
         self.ufm_server = None
@@ -40,10 +56,10 @@ class BaseTestTfs:
 
         Args:
             rows (int, optional): number of rows in the simulation. Defaults to 10.
-            simulation_paths (list, optional): names of the simulation. Defaults to [].
+            simulation_paths (list, optional): names of the simulation. Defaults to None.
 
         Returns:
-            bool: iff successful return true
+            bool: if successful return true
         """
         if self.simulation_process is not None:
             return False
@@ -57,11 +73,11 @@ class BaseTestTfs:
             self.simulation_process = subprocess.Popen(command, cwd=current_directory,
                 stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
             time.sleep(2)
-            print(f"running simulation on pid {self.simulation_process.pid}")
+            logging.info(f"running simulation on pid {self.simulation_process.pid}")
             return True
         except FileNotFoundError as e:
-            print(f"could not run this process due to {e}")
-            print(self.simulation_process.stderr.readlines())
+            logging.error(f"could not run this process due to {e}")
+            logging.error(self.simulation_process.stderr.readlines())
             return False
 
     def run_server(self) -> int:
@@ -74,20 +90,23 @@ class BaseTestTfs:
             return -1
         command = ["python","plugins/fluentd_telemetry_plugin/src/app.py"]
         current_script_path_abs = os.path.abspath(__file__)
+        # we run the server from plugins folder, but we need to do popen to run in that folder,
+        # To reach the absolute path for plugin folder, I take the path of here and go back 3 folders.
+        # e.g ufm_sdk_3/plugins/fluentd_telemetry_plugin/tests/base_functions -> ufm_sdk_3/plugins.
         base_directory = current_script_path_abs
         for _ in range(3):
             base_directory = os.path.dirname(base_directory)
         try:
             self.server_process = subprocess.Popen(command,cwd=base_directory, text=True,
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            print(f"Started a server with PID: {self.server_process.pid}")
+            logging.info(f"Started a server with PID: {self.server_process.pid}")
             time.sleep(2)
             return self.server_process.pid
         except FileNotFoundError as error:
-            print(f"Failed to find app.py {error}, cwd {base_directory}")
+            logging.error(f"Failed to find app.py {error}, cwd {base_directory}")
             return -1
         except subprocess.SubprocessError as error:
-            print(f"An unspecified error occurred while trying to run server {error}")
+            logging.error(f"An unspecified error occurred while trying to run server {error}")
             return -1
 
     def stop_simulation(self) -> None:
@@ -107,15 +126,14 @@ class BaseTestTfs:
     def prepare_environment(self) -> None:
         """prepare the environment for the fluent and run the fluentd
         """
-        config_folder = "/config"
-        os.makedirs(config_folder, exist_ok=True)
-        os.makedirs("/log", exist_ok=True)
+        os.makedirs(CONFIG_FOLDER, exist_ok=True)
+        os.makedirs(LOG_FOLDER, exist_ok=True)
 
         config_folder_src = os.path.basename(os.path.basename(__file__))+"/conf/"
         if os.path.exists(config_folder_src):
             for file_name in os.listdir(config_folder_src):
                 source_file = os.path.join(config_folder_src, file_name)
-                destination_filename = os.path.join(config_folder, file_name)
+                destination_filename = os.path.join(CONFIG_FOLDER, file_name)
                 shutil.copy(source_file, destination_filename)
 
     def prepare_fluentd(self, protocol="forward", bind='0.0.0.0') -> None:
@@ -141,20 +159,19 @@ class BaseTestTfs:
         Remove the previous fluent log and create new empty one.
         """
         docker_image = "fluent/fluent:edge"
-        config_folder = "/config"
         try:
             if os.path.exists(self.log_filename):
                 os.remove(self.log_filename) # remove previous log
             open(self.log_filename, 'a', encoding='utf-8').close() # create new log_file
 
-            subprocess.run((f"docker run -i --rm --network host -v {config_folder}:/fluentd/etc "+
+            subprocess.run((f"docker run -i --rm --network host -v {CONFIG_FOLDER}:/fluentd/etc "+
                             f"{docker_image} -c /fluentd/etc/fluentd.conf").split(),
                             stdout=open(self.log_filename, "a", encoding="utf-8"),
                             stderr=subprocess.STDOUT, check=False)
             time.sleep(5)
-            print("fluentd container is running")
+            logging.info("fluentd container is running")
         except subprocess.CalledProcessError as error:
-            print(f"Error occurred while running fluentd docker container: {error}")
+            logging.error(f"Error occurred while running fluentd docker container: {error}")
 
     def stop_fluentd(self) -> None:
         """
@@ -164,7 +181,7 @@ class BaseTestTfs:
             subprocess.run("docker rm -f fluentd".split(), stdout=subprocess.DEVNULL,
                            stderr=subprocess.DEVNULL, check=False)
         except subprocess.CalledProcessError as error:
-            print(f"Error occurred while stopping fluentd docker container: {error}")
+            logging.error(f"Error occurred while stopping fluentd docker container: {error}")
 
     def set_conf_from_json(self, body:dict, extension:str="") -> Tuple[Dict, int]:
         """
@@ -188,7 +205,7 @@ class BaseTestTfs:
         compressed_streaming True for using HTTP protocol / False for using Forward protocol
         c_fluent_streamer True for using C library / False for using python library
         """
-        body = BaseTestTfs.configure_body_conf(self.tele_host, self.tele_url, self.tele_port,
+        body = self.configure_body_conf(self.tele_host, self.tele_url, self.tele_port,
                     self.fluent_host, self.fluent_port, self.interval,
                     self.bulk_streaming, self.stream_only_new_samples, compressed_streaming,
                     c_fluent_streamer, self.enabled, meta, endpoints_array=self.endpoints)
@@ -202,12 +219,7 @@ class BaseTestTfs:
         response = requests.get(url, headers={"Content-Type": "application/json"}, timeout=20)
         return response.json(), response.status_code
 
-    @staticmethod
-    def configure_body_conf(tele_host="127.0.0.1", tele_url="csv/xcset/ib_basic_debug", tele_port="9007",
-                           fluent_host="localhost", fluent_port="24225", interval="120",
-                           bulk_streaming=True, stream_only_new_samples=False, compressed_streaming=False, c_fluent_streamer=True, enabled=True,
-                           meta=False, tag_msg="UFM_Telemetry_Streaming",
-                           endpoints_array=None) -> Dict:
+    def configure_body_conf(self, change_dict:Dict[str, ], endpoints_array:List[Dict]=None) -> Dict:
         """
         create a body configuration using all the configuration options
 
@@ -232,32 +244,32 @@ class BaseTestTfs:
         """
         if not endpoints_array:
             endpoints = [{
-                "host": tele_host,
-                "url": tele_url,
-                "interval": int(interval),
-                "port": int(tele_port),
-                "message_tag_name": tag_msg,
+                "host": change_dict.get("host", DEFAULT_TELEMETRY_HOST),
+                "url": change_dict.get("url", DEFAULT_TELEMETRY_URL),
+                "interval": int(change_dict.get("interval", DEFAULT_INTERVAL)),
+                "port": int(change_dict.get("port", DEFAULT_TELEMETRY_PORT)),
+                "message_tag_name": change_dict.get("message_tag_name", DEFAULT_TAG_MSG),
             }]
         else:
             endpoints = endpoints_array
         basic_config = {
             "ufm-telemetry-endpoint": endpoints,
             "fluentd-endpoint": {
-                "host": fluent_host,
-                "port": int(fluent_port)
+                "host": change_dict.get("fluent_host", DEFAULT_FLUENT_HOST),
+                "port": int(change_dict.get("fluent_port", DEFAULT_FLUENT_PORT))
             },
             "streaming": {
-                "bulk_streaming": bulk_streaming,
-                "compressed_streaming": compressed_streaming,
-                "stream_only_new_samples": stream_only_new_samples,
-                "c_fluent_streamer": c_fluent_streamer,
+                "bulk_streaming": change_dict.get("bulk_streaming", DEFAULT_BULK_STREAMING)  ,
+                "compressed_streaming": change_dict.get("compressed_streaming", DEFAULT_COMPRESS_STREAMING),
+                "stream_only_new_samples": change_dict.get("stream_only_new_samples", DEFAULT_STREAM_ONLY_NEW_SAMPLES),
+                "c_fluent_streamer": change_dict.get("c_fluent_streamer", DEFAULT_C_FLUENT_STREAMER),
                 "enable_cached_stream_on_telemetry_fail": True,
-                "enabled": enabled,
+                "enabled": change_dict.get("enabled", DEFAULT_STREAMING_ENABLED),
                 "telemetry_request_timeout": 60,
             }
         }
-        if meta:
-            basic_config["meta-field"] = meta
+        if "meta" in change_dict:
+            basic_config["meta-field"] = change_dict["meta"]
         return basic_config
 
     def read_data(self) -> str:

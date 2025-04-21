@@ -43,3 +43,11 @@ jobs:
         docker pull fluent/fluentd:edge
         # PYTHONPATH=${PWD} pytest plugins/fluentd_telemetry_plugin/tests/
         echo "Pytest command was commented, skipping"
+
+    - name: Upload Logs  
+      if: always()  # Ensures logs are uploaded even if previous steps fail  
+      uses: actions/upload-artifact@v4  
+      with:  
+        name: pytest-logs  
+        path: /log/  
+        retention-days: 7  
