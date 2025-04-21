@@ -9,8 +9,8 @@ from urllib.parse import urlparse
 import threading
 
 HEADER_DEFAULT = "generated_header"
-PORT_HEADERS_AMOUNT = 6
 PORT_HEADERS = ["timestamp",'source_id', 'tag', 'node_guid', 'port_guid', 'port_num']
+PORT_HEADERS_AMOUNT = len(PORT_HEADERS)
 
 class TelemetryData:
     def __init__(self, rows:int, columns:int, max_changes:int=None, path:str="", update_interval:float=1.0):
