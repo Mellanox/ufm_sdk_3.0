@@ -25,10 +25,7 @@ readonly SHARED_VOLUMES_PATH="${CONFIG_PATH}/${PLUGIN_NAME}_shared_volumes.conf"
 # Create the config folder
 mkdir -p "$CONFIG_PATH"
 
-# Copy configuration files to the config folder
-cp "$TFS_PLUGIN_DIR"/*.conf $CONFIG_PATH
-cp "$TFS_PLUGIN_DIR"/fluentd_telemetry_plugin.cfg $CONFIG_PATH
-
+CP_ARGS="-a"
 # If the file system is read-only non root
 if [[ "${READ_ONLY_FS}" == "true" ]]; then
     # Generate the shared volumes configuration
@@ -37,6 +34,11 @@ if [[ "${READ_ONLY_FS}" == "true" ]]; then
     do
         echo "$vol" >> "$SHARED_VOLUMES_PATH"
     done
+    CP_ARGS="${CP_ARGS} --no-preserve=mode"
 fi 
+
+# Copy configuration files to the config folder
+cp $CP_ARGS "$TFS_PLUGIN_DIR"/*.conf $CONFIG_PATH
+cp $CP_ARGS "$TFS_PLUGIN_DIR"/fluentd_telemetry_plugin.cfg $CONFIG_PATH
 
 exit 0
