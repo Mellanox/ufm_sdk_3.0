@@ -34,7 +34,7 @@ if [[ "${READ_ONLY_FS}" == "true" ]]; then
     do
         echo "$vol" >> "$SHARED_VOLUMES_PATH"
     done
-    CP_ARGS="${CP_ARGS} --no-preserve=mode"
+    CP_ARGS="${CP_ARGS} --no-preserve=all"
 fi 
 
 # Copy configuration files to the config folder
