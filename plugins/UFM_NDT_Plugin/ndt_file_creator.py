@@ -24,7 +24,7 @@ REQUEST_ARGS = ["input_path", "include_down_ports", "include_error_ports", "brie
 #rack #,U height,#Fields:StartDevice,StartPort,StartDeviceLocation,EndDevice,EndPort,EndDeviceLocation,U height_1,LinkType,Speed,_2,Cable Length,_3,_4,_5,_6,_7,State,Domain
 #,,SwitchX -  Mellanox Technologies,Port 26,,r-ufm64 mlx5_0,Port 1,,,,,,,,,,,,Active,In-Scope
 HEADER_FULL="rack #,U height,#Fields:StartDevice,StartPort,StartDeviceLocation,EndDevice,EndPort,EndDeviceLocation,U height_1,LinkType,Speed,_2,Cable Length,_3,_4,_5,_6,_7,State,Domain\n"
-BRIEF_HEADER="StartDevice,StartPort,EndDevice,EndPort,State,Domain\n"
+HEADER_BRIEF="StartDevice,StartPort,EndDevice,EndPort,State,Domain\n"
 LINE_FULL = ",,%s,Port %s,,%s,Port %s,,,,,,,,,,,,Active,In-Scope\n"
 LINE_BRIEF = "%s,%s,%s,%s,Active,In-Scope\n"
 LINE_DISCONNECTED_FULL = "%s,%s,,,,,,,,,,,,Disabled,Disconnected\n"
@@ -266,7 +266,7 @@ def main():
     #rack #,U height,#Fields:StartDevice,StartPort,StartDeviceLocation,EndDevice,EndPort,EndDeviceLocation,U height_1,LinkType,Speed,_2,Cable Length,_3,_4,_5,_6,_7,State,Domain
     #,,SwitchX -  Mellanox Technologies,Port 26,,r-ufm64 mlx5_0,Port 1,,,,,,,,,,,,Active,In-Scope
     if brief_structure:
-        header = BRIEF_HEADER
+        header = HEADER_BRIEF
         link_line = LINE_BRIEF
         error_line = LINE_ERROR_BRIEF
         disconnected_line = LINE_DISCONNECTED_BRIEF
