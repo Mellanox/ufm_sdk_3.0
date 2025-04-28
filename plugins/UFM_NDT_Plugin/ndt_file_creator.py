@@ -26,11 +26,11 @@ REQUEST_ARGS = ["input_path", "include_down_ports", "include_error_ports", "brie
 HEADER_FULL="rack #,U height,#Fields:StartDevice,StartPort,StartDeviceLocation,EndDevice,EndPort,EndDeviceLocation,U height_1,LinkType,Speed,_2,Cable Length,_3,_4,_5,_6,_7,State,Domain\n"
 HEADER_BRIEF="StartDevice,StartPort,EndDevice,EndPort,State,Domain\n"
 LINE_FULL = ",,%s,Port %s,,%s,Port %s,,,,,,,,,,,,Active,In-Scope\n"
-LINE_BRIEF = "%s,%s,%s,%s,Active,In-Scope\n"
-LINE_DISCONNECTED_FULL = "%s,%s,,,,,,,,,,,,Disabled,Disconnected\n"
-LINE_ERROR_FULL = "%s,%s,,,,,,,,,,,,Disabled,Error\n"
-LINE_DISCONNECTED_BRIEF = "%s,%s,,,Disabled,Disconnected\n"
-LINE_ERROR_BRIEF = "%s,%s,,,Disabled,Error\n"
+LINE_BRIEF = "%s,Port %s,%s,Port %s,Active,In-Scope\n"
+LINE_DISCONNECTED_FULL = "%s,Port %s,,,,,,,,,,,,Disabled,Disconnected\n"
+LINE_ERROR_FULL = "%s,Port %s,,,,,,,,,,,,Disabled,Error\n"
+LINE_DISCONNECTED_BRIEF = "%s,Port %s,,,Disabled,Disconnected\n"
+LINE_ERROR_BRIEF = "%s,Port %s,,,Disabled,Error\n"
 
 class Link:
     def __init__(self, start_dev, start_port, end_dev, end_port):
