@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright (C) 2013-2023 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright (C) 2013-2025 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -23,7 +23,7 @@ OUTPUT_NDT_FILE_NAME = "%s/generated_ndt.csv" % IBDIAGNET_OUT_DIR
 REQUEST_ARGS = ["input_path", "include_down_ports", "include_error_ports", "brief_structure"]
 #rack #,U height,#Fields:StartDevice,StartPort,StartDeviceLocation,EndDevice,EndPort,EndDeviceLocation,U height_1,LinkType,Speed,_2,Cable Length,_3,_4,_5,_6,_7,State,Domain
 #,,SwitchX -  Mellanox Technologies,Port 26,,r-ufm64 mlx5_0,Port 1,,,,,,,,,,,,Active,In-Scope
-FULL_HEADER="rack #,U height,#Fields:StartDevice,StartPort,StartDeviceLocation,EndDevice,EndPort,EndDeviceLocation,U height_1,LinkType,Speed,_2,Cable Length,_3,_4,_5,_6,_7,State,Domain\n"
+HEADER_FULL="rack #,U height,#Fields:StartDevice,StartPort,StartDeviceLocation,EndDevice,EndPort,EndDeviceLocation,U height_1,LinkType,Speed,_2,Cable Length,_3,_4,_5,_6,_7,State,Domain\n"
 BRIEF_HEADER="StartDevice,StartPort,EndDevice,EndPort,State,Domain\n"
 LINE_FULL = ",,%s,Port %s,,%s,Port %s,,,,,,,,,,,,Active,In-Scope\n"
 LINE_BRIEF = "%s,%s,%s,%s,Active,In-Scope\n"
@@ -267,19 +267,19 @@ def main():
     #,,SwitchX -  Mellanox Technologies,Port 26,,r-ufm64 mlx5_0,Port 1,,,,,,,,,,,,Active,In-Scope
     if brief_structure:
         header = BRIEF_HEADER
-        data_line = LINE_BRIEF
+        link_line = LINE_BRIEF
         error_line = LINE_ERROR_BRIEF
         disconnected_line = LINE_DISCONNECTED_BRIEF
     else:
-        header = FULL_HEADER
-        data_line = LINE_FULL
+        header = HEADER_FULL
+        link_line = LINE_FULL
         error_line = LINE_ERROR_FULL
         disconnected_line = LINE_DISCONNECTED_FULL
     # output file name - based on input path
     with open(OUTPUT_NDT_FILE_NAME, 'w') as ndt_file:
         ndt_file.write(header)
         for link in ibdiagnet_links:
-            line = data_line % (
+            line = link_line % (
                    link.start_dev, link.start_port, link.end_dev, link.end_port)
             ndt_file.write(line)
         for disconnected_port in links_list_disconnected:
