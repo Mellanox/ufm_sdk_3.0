@@ -10,7 +10,7 @@ fi
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 
 IMAGE_VERSION=$1
-IMAGE_NAME=ufm-plugin-snmp
+IMAGE_NAME=ufm-plugin-gnmi-nvos-events
 OUT_DIR=$2
 RANDOM_HASH=$3
 
@@ -32,7 +32,7 @@ fi
 
 function create_out_dir()
 {
-    build_dir=$(mktemp --tmpdir -d ufm-plugin-snmp_output_XXXXXXXX)
+    build_dir=$(mktemp --tmpdir -d ufm-plugin-gnmi-nvos-events_output_XXXXXXXX)
     chmod 777 ${build_dir}
     echo ${build_dir}
 }
@@ -102,8 +102,7 @@ BUILD_DIR=$(create_out_dir)
 
 cp Dockerfile ${BUILD_DIR}
 cp -r config ${BUILD_DIR}
-cp -r ../snmp_server ${BUILD_DIR}
-cp -r ../mibs ${BUILD_DIR}
+cp -r ../gnmi_events_server ${BUILD_DIR}
 
 echo "BUILD_DIR    : [${BUILD_DIR}]"
 
