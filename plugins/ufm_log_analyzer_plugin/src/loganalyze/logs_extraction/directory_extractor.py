@@ -23,7 +23,7 @@ class DirectoryExtractor(BaseExtractor):
             self.dir_path = dir_path
         else:
             raise FileNotFoundError(
-                f"Could not use {dir_path}, " "make sure it exists and is a directory"
+                f"Could not use {dir_path}, make sure it exists and is a directory"
             )
 
     def extract_files(

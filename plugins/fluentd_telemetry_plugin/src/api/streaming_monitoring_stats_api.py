@@ -22,7 +22,7 @@ class StreamingMonitoringStatsAPI(BaseAPIApplication):
 
     def __init__(self):
         super(StreamingMonitoringStatsAPI, self).__init__()  # pylint: disable=super-with-arguments
-        self.streamer = UFMTelemetryStreaming.getInstance()
+        self.streamer = UFMTelemetryStreaming()
 
     def _get_routes(self):
         return {

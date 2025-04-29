@@ -16,10 +16,11 @@ import re
 import os
 import site
 from utils.config_parser import ConfigParser
-from utils.singleton import Singleton
+# pylint: disable=no-name-in-module,import-error
+from ufm_sdk_tools.src.utils.singleton import SingletonMeta
 
 
-class BrightConfigParser(ConfigParser, Singleton):
+class BrightConfigParser(ConfigParser, metaclass=SingletonMeta):
     # for debugging
     # config_file = "../../conf/bright_plugin.conf"
 

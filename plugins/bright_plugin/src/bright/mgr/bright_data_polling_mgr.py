@@ -15,15 +15,16 @@ from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 from mgr.bright_data_mgr import BrightDataMgr, BCMConnectionError, BCMConnectionStatus
 from mgr.bright_configurations_mgr import BrightConfigParser
-from utils.singleton import Singleton
 from utils.logger import Logger, LOG_LEVELS
+# pylint: disable=no-name-in-module,import-error
+from ufm_sdk_tools.src.utils.singleton import SingletonMeta
 
 
-class BrightDataPollingMgr(Singleton):
+class BrightDataPollingMgr(metaclass=SingletonMeta):
 
     def __init__(self):
-        self.bright_data_mgr = BrightDataMgr.getInstance()
-        self.conf = BrightConfigParser.getInstance()
+        self.bright_data_mgr = BrightDataMgr()
+        self.conf = BrightConfigParser()
         self.scheduler = BackgroundScheduler()
         self.polling_job = None
         self.polling_interval = 60 #seconds

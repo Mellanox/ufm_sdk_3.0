@@ -366,7 +366,7 @@ if __name__ == "__main__":
         else:
             links_flapping_analyzer = None  # pylint: disable=invalid-name
         end = time.perf_counter()
-        log.LOGGER.debug(f"Took {end-start:.3f} to load the parsed data")
+        log.LOGGER.debug(f"Took {end - start:.3f} to load the parsed data")
 
         all_images_outputs_and_title, dataframes_for_pdf, lists_for_pdf, txt_for_pdf = (
             ufm_top_analyzer.full_analysis_all_analyzers()

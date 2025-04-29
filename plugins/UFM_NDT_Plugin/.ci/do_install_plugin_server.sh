@@ -3,7 +3,7 @@ namehost=$(echo $HOSTNAME)
 export SERVER_HOST=$SERVER_HOST
 export PASSWORD=$PASSWORD
 expect << EOF
-spawn ssh admin@${SERVER_HOST}
+spawn ssh -4 admin@${SERVER_HOST}
 expect "Password:*"
 send -- "admin\r"
 expect "> "

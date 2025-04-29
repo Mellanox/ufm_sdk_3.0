@@ -26,23 +26,30 @@ from requests.exceptions import ConnectionError  # pylint: disable=redefined-bui
 from fluentbit_writer import init_fb_writer
 from monitor_streaming_mgr import MonitorStreamingMgr
 from telemetry_attributes_manager import TelemetryAttributesManager
+from streaming_config_parser import UFMTelemetryStreamingConfigParser
 from telemetry_constants import UFMTelemetryConstants
 from telemetry_parser import TelemetryParser
 
 # pylint: disable=no-name-in-module,import-error
 from utils.utils import Utils
-from utils.singleton import Singleton
+from ufm_sdk_tools.src.utils.singleton import SingletonMeta
+
+class InvalidConfSetting(Exception):
+    """InvalidConfSetting Exception class for problem with the configuration file or updating"""
+
+    def __init__(self, message):
+        Exception.__init__(self, message)
+
 
 #pylint: disable=too-many-instance-attributes
-class UFMTelemetryStreaming(Singleton):
+class UFMTelemetryStreaming(metaclass=SingletonMeta):
     """
     UFMTelemetryStreaming class
     to manage/control the streaming
     """
-
-    def __init__(self, conf_parser):
-
-        self.config_parser = conf_parser
+    def __init__(self):
+        self.initialized = True
+        self.config_parser = UFMTelemetryStreamingConfigParser()
         self.last_streamed_data_sample_timestamp = None
         self.last_streamed_data_sample_per_endpoint = {}
         self.streaming_metrics_mgr = MonitorStreamingMgr()
@@ -95,6 +102,21 @@ class UFMTelemetryStreaming(Singleton):
         xdr_ports_types = self.ufm_telemetry_xdr_ports_types.split(splitter)
         intervals = self.streaming_interval.split(splitter)
         msg_tags = self.fluentd_msg_tag.split(splitter)
+
+        bad_settings_name = []
+        bad_settings_length = []
+        expected_amount = len(hosts)
+        for name, array in [("port", ports), ("url", urls), ("interval" ,intervals), ("message_tag_name", msg_tags),\
+                             ("xdr_mode", xdr_mode), ("xdr_ports_types", xdr_ports_types)]:
+            if len(array)!= expected_amount:
+                bad_settings_name.append(name)
+                bad_settings_length.append(len(array))
+
+        if len(bad_settings_name)>0:
+            raise InvalidConfSetting(f"The following field {bad_settings_name} in the ufm-telemetry-endpoint section are expected"\
+                    + f"to contain comma-separated values with a length of {expected_amount}."\
+                    + f"However, the provided values have a length of {len(bad_settings_length)}")
+
         endpoints = []
         for i, value in enumerate(hosts):
             _is_xdr_mode = Utils.convert_str_to_type(xdr_mode[i], 'boolean')

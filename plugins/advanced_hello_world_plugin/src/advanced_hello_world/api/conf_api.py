@@ -26,7 +26,7 @@ class UFMHelloWorldPluginConfigurationsAPI(BaseAPIApplication):
 
     def __init__(self):
         super(UFMHelloWorldPluginConfigurationsAPI, self).__init__()
-        self.conf = HelloWorldConfigParser.getInstance()
+        self.conf = HelloWorldConfigParser()
 
         # for debugging
         # self.conf_schema_path = "plugins/advanced_hello_world_plugin/src/advanced_hello_world/schemas/set_conf.schema.json"

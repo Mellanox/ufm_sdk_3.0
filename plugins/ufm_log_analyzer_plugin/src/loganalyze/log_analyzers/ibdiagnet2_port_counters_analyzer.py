@@ -187,8 +187,7 @@ class Ibdiagnet2PortCountersAnalyzer(BaseAnalyzer):
         first_last_it = pd.DataFrame([times])
         self._dataframes_for_pdf.append(
             (
-                f"{self.telemetry_type} "
-                "telemetry iteration first and last timestamps",
+                f"{self.telemetry_type} telemetry iteration first and last timestamps",
                 first_last_it,
             )
         )
