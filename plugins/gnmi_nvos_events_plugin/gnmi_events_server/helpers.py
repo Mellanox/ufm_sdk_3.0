@@ -97,7 +97,7 @@ def get_credentials(guid=None):
         credentials = ConfigParser.cipher.decrypt(base64.b64decode(encrypted_credentials)).decode('utf-8')
         logging.error("Decrypted %s credentials successfully")
     except Exception as e:
-        logging.exception("Failed to decrypt %s credentials: %s", guid, e)
+        logging.exception("Failed to decrypt %s credentials", guid)
     return user, credentials
 
 def get_ufm_switches(existing_switches=None):
