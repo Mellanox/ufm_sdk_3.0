@@ -97,10 +97,10 @@ def get_credentials(guid=None):
         credentials = ConfigParser.cipher.decrypt(base64.b64decode(encrypted_credentials)).decode('utf-8')
         logging.error("Decrypted %s credentials successfully")
     except Exception as e:
-        logging.error("Failed to decrypt %s credentials: %s", guid, e)
+        logging.exception("Failed to decrypt %s credentials: %s", guid, e)
     return user, credentials
 
-def get_ufm_switches(existing_switches={}):
+def get_ufm_switches(existing_switches=None):
     resource = "/resources/systems?type=switch"
     status_code, json = get_request(resource)
     if not succeded(status_code):
@@ -115,7 +115,7 @@ def get_ufm_switches(existing_switches={}):
             system_user, system_credentials = get_credentials(guid)
             user = system_user if system_user else global_user
             credentials = system_credentials if system_credentials else global_credentials
-            existing_switch = existing_switches.get(ip)
+            existing_switch = existing_switches.get(ip) if existing_switches else None
             if existing_switch and existing_switch.user == user and existing_switch.credentials == credentials:
                 # do not update the switch since it's already initialized
                 switch_dict[ip] = existing_switch

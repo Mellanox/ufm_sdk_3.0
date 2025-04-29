@@ -17,7 +17,7 @@ class GNMIEventsReceiver:
     # GNMI subscription configuration to get all system events on change
     SUBSCRIBE_CONF = {'subscription': [{'path': 'system-events', 'mode': 'ON_CHANGE'}]}
     TARGET = "nvos"
-    def __init__(self, switch_dict={}):
+    def __init__(self, switch_dict=None):
         # disable annoying warning when debugging, in production all requests will be secured
         import urllib3
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -71,7 +71,7 @@ class GNMIEventsReceiver:
         # Set the exception handler for all threads
         threading.excepthook = thread_exception_handler
 
-    def create_socket_threads(self, switch_dict={}):
+    def create_socket_threads(self, switch_dict=None):
         if not switch_dict:
             switch_dict = self.switch_dict
         for ip, switch in switch_dict.items():
@@ -86,7 +86,7 @@ class GNMIEventsReceiver:
             self.throttling_thread = threading.Thread(target=self.throttle_events)
             self.throttling_thread.start()
 
-    def cleanup(self, switch_dict={}):
+    def cleanup(self, switch_dict=None):
         if not switch_dict:
             switch_dict = self.switch_dict
         for switch in self.switch_dict.values():
@@ -129,7 +129,7 @@ class GNMIEventsReceiver:
                             self.events.append(payload)
             except Exception as e:
                 retry_count += 1
-                logging.error("Failed to create gNMI socket for %s: %s (Attempt %d/%d)", ip, e, retry_count, max_retries)
+                logging.exception("Failed to create gNMI socket for %s: %s (Attempt %d/%d)", ip, e, retry_count, max_retries)
                 logging.info("Waiting 60 seconds before reconnecting...")
                 time.sleep(60)
 
