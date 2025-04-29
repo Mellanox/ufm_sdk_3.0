@@ -76,6 +76,7 @@ class GNMIEventsWebProc:
 
     def _update_switches(self):
         while True:
+            # remove old switches and create sockets for new ones
             updated_switches = helpers.get_ufm_switches(self.switch_dict)
             new_switches = set(updated_switches.items()) - set(self.switch_dict.items())
             old_switches = set(self.switch_dict.items()) - set(updated_switches.items())
@@ -83,6 +84,10 @@ class GNMIEventsWebProc:
                 self.gnmi_events_receiver.create_socket_threads(dict(new_switches))
             if old_switches:
                 self.gnmi_events_receiver.cleanup(dict(old_switches))
+            # remove sockets for switches that are not connected
+            for ip, switch in list(self.switch_dict.items()):
+                if not switch.socket_thread or not switch.socket_thread.is_alive():
+                    del self.switch_dict[ip]
             time.sleep(helpers.ConfigParser.ufm_switches_update_interval)
 
     def start_web_server(self):
