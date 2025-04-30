@@ -30,7 +30,6 @@ class GNMIEventsReceiver:
         self.high_event_rate = 100
         self.throttling_thread = None
         self.events = []
-        self.event_by_id = {}
 
         def thread_exception_handler(args):
             exc_type = args.exc_type
@@ -94,8 +93,9 @@ class GNMIEventsReceiver:
             if switch.socket_thread:
                 switch.socket_thread.join(timeout=self.throttling_interval)
 
-    def subscribe(self, ip, user, credentials, guid, max_retries=1, show_last_event=False):
+    def subscribe(self, ip, user, credentials, guid, reconnect=True):
         retry_count = 0
+        max_retries = helpers.ConfigParser.gnmi_reconnect_retries if reconnect else 1
         while retry_count < max_retries:
             try:
                 with gNMIclient(target=(ip, helpers.ConfigParser.gnmi_port),
@@ -107,39 +107,28 @@ class GNMIEventsReceiver:
                     # this is a blocking loop that will wait for events from the switch.
                     # each time an event is triggered, the loop will execute
                     for event_dict in events_stream:
-                        if init and not show_last_event:
+                        payload = {"object_name": guid, "otype": "Switch"}
+                        if init:
+                            if reconnect:
+                                payload["description"] = f"The connection was reestablished successfully \
+                                                           after a disconnect (reboot, power loss, etc.)."
+                                payload["event_id"] = helpers.Severity.WARNING_ID
                             # skip initial stream of already happened events
                             init = False
                             continue
                         self.traps_number += 1
-                        payload = {"object_name": guid, "otype": "Switch"}
                         event_update = event_dict.get("update")
                         if event_update:
                             event_update = event_update.get("update")
-                            description = resource = event_id = None
+                            description = resource = None
                             for event in event_update:
                                 path = event.get("path")
                                 if path == "state/text":
                                     description = event.get("val")
                                 elif path == "state/resource":
                                     resource = event.get("val")
-                                elif path == "state/event-id":
-                                    event_id = event.get("val")
                                 elif path == "state/severity":
                                     event_severity = helpers.Severity.LEVEL_TO_EVENT_ID.get(event.get("val"))
-                                if show_last_event:
-                                    # iterate over stream of past events since they are unordered and save the last one
-                                    if description and resource and event_id and event_severity:
-                                        last_event_payload = payload.copy()
-                                        last_event_payload["description"] = f"{resource}: {description}" if resource else description
-                                        last_event_payload["event_id"] = event_severity
-                                        self.event_by_id[event_id] = last_event_payload
-                                        description = resource = event_id = None
-                            if show_last_event:
-                                sorted_events = dict(sorted(self.event_by_id.items()))
-                                self.events.append(sorted_events.popitem()[1])
-                                self.event_by_id.clear()
-                                continue
                             payload["description"] = f"{resource}: {description}" if resource else description
                             payload["event_id"] = event_severity
                             # append is thread safe

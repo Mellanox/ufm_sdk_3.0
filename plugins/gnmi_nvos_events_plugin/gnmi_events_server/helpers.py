@@ -188,6 +188,7 @@ class ConfigParser:
     if not gnmi_port:
         logging.error("Incorrect value for snmp_port")
         quit()
+    gnmi_reconnect_retries = gnmi_events_config.getint("GNMI", "gnmi_reconnect_retries", fallback=10)
 
     ufm_switches_update_interval = gnmi_events_config.getint("UFM", "ufm_switches_update_interval", fallback=360)
     ufm_send_events_interval = gnmi_events_config.getint("UFM", "ufm_send_events_interval", fallback=10)
