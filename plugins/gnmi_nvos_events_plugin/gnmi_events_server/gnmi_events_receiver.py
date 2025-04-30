@@ -65,7 +65,7 @@ class GNMIEventsReceiver:
                     # try to reconnect 10 times with 60 seconds interval
                     max_retries = 10
                     switch.socket_thread = threading.Thread(target=self.subscribe,
-                                                            args=(ip,switch.user,switch.credentials,switch.guid,max_retries,True))
+                                                            args=(ip,switch.user,switch.credentials,switch.guid,True))
                     switch.socket_thread.start()
 
         # Set the exception handler for all threads
@@ -113,6 +113,7 @@ class GNMIEventsReceiver:
                                 payload["description"] = f"The connection was reestablished successfully \
                                                            after a disconnect (reboot, power loss, etc.)."
                                 payload["event_id"] = helpers.Severity.WARNING_ID
+                                self.events.append(payload)
                             # skip initial stream of already happened events
                             init = False
                             continue
