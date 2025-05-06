@@ -171,4 +171,4 @@ def serve(port: int = 9339):
         server.stop(0)
 
 if __name__ == '__main__':
-    serve() 
+    serve()

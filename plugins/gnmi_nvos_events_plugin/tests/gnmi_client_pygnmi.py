@@ -21,12 +21,12 @@ def run():
         subscribe = {
             'subscription': [
                 {
-                    'path': 'system/events',  # Path as a string with '/' separator
-                    'mode': 'SAMPLE',  # Use SAMPLE mode with interval
+                    'path': ['system', 'events'],  # Path as a list
+                    'mode': 'STREAM',  # Use STREAM mode instead of ON_CHANGE
                     'sample_interval': 5000000000  # 5 seconds in nanoseconds
                 }
             ],
-            'mode': 'STREAM',  # Overall subscription mode
+            'mode': 'STREAM',
             'encoding': 'JSON'
         }
         
