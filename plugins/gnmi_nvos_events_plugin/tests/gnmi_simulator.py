@@ -44,7 +44,7 @@ class GNMIEventSimulator(gNMIServicer):
             ("temperature", "sensor"),
             ("power", "status")
         ]
-        self.severity_levels = ["INFO", "WARNING", "ERROR", "CRITICAL"]
+        self.severity_levels = ["INFORMATIONAL", "WARNING", "MAJOR", "CRITICAL"]
         
     def Capabilities(self, request, context):
         """
@@ -116,36 +116,44 @@ class GNMIEventSimulator(gNMIServicer):
                 event_type = ("system", "events")
                 severity = random.choice(self.severity_levels)
                 value = random.randint(0, 100)
+                current_time = int(time.time() * 1000000000)  # nanoseconds
                 
-                # Create path with proper PathElem objects
-                path = Path(elem=[
-                    PathElem(name=event_type[0]),
-                    PathElem(name=event_type[1])
-                ])
+                # Create event updates list
+                updates = []
                 
-                # Create event data
-                event_data = {
-                    "severity": severity,
-                    "value": value,
-                    "description": f"Simulated {event_type[0]}/{event_type[1]} event"
-                }
+                # Add state/severity
+                updates.append(Update(
+                    path=Path(elem=[PathElem(name="state"), PathElem(name="severity")]),
+                    val=TypedValue(json_val=json.dumps(severity).encode())
+                ))
                 
-                # Create notification
+                # Add state/value
+                updates.append(Update(
+                    path=Path(elem=[PathElem(name="state"), PathElem(name="value")]),
+                    val=TypedValue(json_val=json.dumps(value).encode())
+                ))
+
+                # Add state/resource
+                updates.append(Update(
+                    path=Path(elem=[PathElem(name="state"), PathElem(name="resource")]),
+                    val=TypedValue(json_val=json.dumps(f"{event_type[0]}").encode())
+                ))
+                
+                # Add state/description
+                updates.append(Update(
+                    path=Path(elem=[PathElem(name="state"), PathElem(name="text")]),
+                    val=TypedValue(json_val=json.dumps(f"Simulated {event_type[0]}/{event_type[1]} event").encode())
+                ))
+                
+                # Create notification with all updates
                 notification = Notification(
-                    timestamp=int(time.time() * 1000000000),  # nanoseconds
-                    update=[
-                        Update(
-                            path=path,
-                            val=TypedValue(
-                                json_val=json.dumps(event_data).encode()
-                            )
-                        )
-                    ]
+                    timestamp=current_time,
+                    update=updates
                 )
                 
                 # Create and yield response
                 response = SubscribeResponse(update=notification)
-                logger.info(f"Sending event: {event_data}")
+                logger.info(f"Sending event with {len(updates)} updates")
                 yield response
                 
                 # Use the sample interval from subscription
