@@ -93,7 +93,7 @@ class GNMIEventsReceiver:
             if switch.socket_thread:
                 switch.socket_thread.join(timeout=self.throttling_interval)
 
-    def subscribe(self, ip, user, credentials, guid, reconnect=True):
+    def subscribe(self, ip, user, credentials, guid, reconnect=False):
         retry_count = 0
         max_retries = helpers.ConfigParser.gnmi_reconnect_retries if reconnect else 1
         while retry_count < max_retries:
