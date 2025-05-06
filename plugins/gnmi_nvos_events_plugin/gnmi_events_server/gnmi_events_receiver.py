@@ -65,7 +65,7 @@ class GNMIEventsReceiver:
                     # try to reconnect 10 times with 60 seconds interval
                     max_retries = 10
                     switch.socket_thread = threading.Thread(target=self.subscribe,
-                                                            args=(ip,switch.user,switch.credentials,switch.guid,max_retries))
+                                                            args=(ip,switch.user,switch.credentials,switch.guid,True))
                     switch.socket_thread.start()
 
         # Set the exception handler for all threads
@@ -93,8 +93,9 @@ class GNMIEventsReceiver:
             if switch.socket_thread:
                 switch.socket_thread.join(timeout=self.throttling_interval)
 
-    def subscribe(self, ip, user, credentials, guid, max_retries=1):
+    def subscribe(self, ip, user, credentials, guid, reconnect=False):
         retry_count = 0
+        max_retries = helpers.ConfigParser.gnmi_reconnect_retries if reconnect else 1
         while retry_count < max_retries:
             try:
                 with gNMIclient(target=(ip, helpers.ConfigParser.gnmi_port),
@@ -106,16 +107,21 @@ class GNMIEventsReceiver:
                     # this is a blocking loop that will wait for events from the switch.
                     # each time an event is triggered, the loop will execute
                     for event_dict in events_stream:
+                        payload = {"object_name": guid, "otype": "Switch"}
                         if init:
+                            if reconnect:
+                                payload["description"] = f"The connection was reestablished successfully \
+                                                           after a disconnect (reboot, power loss, etc.)."
+                                payload["event_id"] = helpers.Severity.WARNING_ID
+                                self.events.append(payload)
+                            # skip initial stream of already happened events
                             init = False
                             continue
                         self.traps_number += 1
-                        payload = {"object_name": guid, "otype": "Switch"}
                         event_update = event_dict.get("update")
                         if event_update:
                             event_update = event_update.get("update")
-                            description = ""
-                            resource = ""
+                            description = resource = None
                             for event in event_update:
                                 path = event.get("path")
                                 if path == "state/text":
@@ -123,13 +129,14 @@ class GNMIEventsReceiver:
                                 elif path == "state/resource":
                                     resource = event.get("val")
                                 elif path == "state/severity":
-                                    payload["event_id"] = helpers.Severity.LEVEL_TO_EVENT_ID.get(event.get("val"))
+                                    event_severity = helpers.Severity.LEVEL_TO_EVENT_ID.get(event.get("val"))
                             payload["description"] = f"{resource}: {description}" if resource else description
+                            payload["event_id"] = event_severity
                             # append is thread safe
                             self.events.append(payload)
             except Exception as e:
                 retry_count += 1
-                logging.exception("Failed to create gNMI socket for %s: %s (Attempt %d/%d)", ip, e, retry_count, max_retries)
+                logging.exception("Failed to create gNMI socket for %s (Attempt %d/%d)", ip, retry_count, max_retries)
                 logging.info("Waiting 60 seconds before reconnecting...")
                 time.sleep(60)
 

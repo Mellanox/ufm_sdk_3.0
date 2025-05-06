@@ -97,7 +97,7 @@ def get_credentials(guid=None):
         credentials = ConfigParser.cipher.decrypt(base64.b64decode(encrypted_credentials)).decode('utf-8')
         logging.error("Decrypted %s credentials successfully")
     except Exception as e:
-        logging.exception("Failed to decrypt %s credentials: %s", guid, e)
+        logging.exception("Failed to decrypt %s credentials", guid)
     return user, credentials
 
 def get_ufm_switches(existing_switches=None):
@@ -160,12 +160,12 @@ class ConfigParser:
     """
     Class for the configuration parser that reads the configuration file and sets the log level and the log file.
     """
-    config_file = "../build/config/gnmi_nvos_events.conf"
-    log_file="gnmi_nvos_events.log"
-    httpd_config_file = "../build/config/gnmi_nvos_events_httpd_proxy.conf"
-    # config_file = "/config/gnmi_nvos_events.conf"
-    # log_file="/log/gnmi_nvos_events.log"
-    # httpd_config_file = "/config/gnmi_nvos_events_httpd_proxy.conf"
+    # config_file = "../build/config/gnmi_nvos_events.conf"
+    # log_file="gnmi_nvos_events.log"
+    # httpd_config_file = "../build/config/gnmi_nvos_events_httpd_proxy.conf"
+    config_file = "/config/gnmi_nvos_events.conf"
+    log_file="/log/gnmi_nvos_events.log"
+    httpd_config_file = "/config/gnmi_nvos_events_httpd_proxy.conf"
 
     gnmi_events_config = configparser.ConfigParser()
     if not os.path.exists(config_file):
@@ -188,6 +188,7 @@ class ConfigParser:
     if not gnmi_port:
         logging.error("Incorrect value for snmp_port")
         quit()
+    gnmi_reconnect_retries = gnmi_events_config.getint("GNMI", "gnmi_reconnect_retries", fallback=10)
 
     ufm_switches_update_interval = gnmi_events_config.getint("UFM", "ufm_switches_update_interval", fallback=360)
     ufm_send_events_interval = gnmi_events_config.getint("UFM", "ufm_send_events_interval", fallback=10)
