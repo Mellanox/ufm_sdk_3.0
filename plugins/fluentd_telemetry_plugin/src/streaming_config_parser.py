@@ -2,8 +2,9 @@ import logging
 
 # pylint: disable=no-name-in-module,import-error
 from utils.config_parser import ConfigParser
+from ufm_sdk_tools.src.utils.singleton import SingletonMeta
 
-class UFMTelemetryStreamingConfigParser(ConfigParser):
+class UFMTelemetryStreamingConfigParser(ConfigParser, metaclass=SingletonMeta):
     """
     UFMTelemetryStreamingConfigParser class to manage
     the TFS configurations
