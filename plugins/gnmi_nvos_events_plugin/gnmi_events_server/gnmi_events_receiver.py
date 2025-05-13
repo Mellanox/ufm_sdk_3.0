@@ -16,6 +16,17 @@ class GNMIEventsReceiver:
     """
     # GNMI subscription configuration to get all system events on change
     SUBSCRIBE_CONF = {'subscription': [{'path': 'system-events', 'mode': 'ON_CHANGE'}]}
+    SUBSCRIBE_CONF_TEST = {
+            'subscription': [
+                {
+                    'path': 'system/events',  # Path as a string with '/' separator
+                    'mode': 'SAMPLE',  # Use SAMPLE mode with interval
+                    'sample_interval': 5000000000  # 5 seconds in nanoseconds
+                }
+            ],
+            'mode': 'STREAM',
+            'encoding': 'JSON'
+        }
     TARGET = "nvos"
     def __init__(self, switch_dict=None):
         # disable annoying warning when debugging, in production all requests will be secured
@@ -98,11 +109,18 @@ class GNMIEventsReceiver:
         max_retries = helpers.ConfigParser.gnmi_reconnect_retries if reconnect else 1
         while retry_count < max_retries:
             try:
+                if helpers.ConfigParser.test_mode:
+                    subscribe_conf = self.SUBSCRIBE_CONF_TEST
+                    target = tuple
+                else:
+                    subscribe_conf = self.SUBSCRIBE_CONF
+                    target = self.TARGET
                 with gNMIclient(target=(ip, helpers.ConfigParser.gnmi_port),
                                         username=user,
                                         password=credentials,
+                                        insecure=helpers.ConfigParser.test_mode,
                                         skip_verify=True) as gc:
-                    events_stream = gc.subscribe_stream(subscribe=self.SUBSCRIBE_CONF, target=self.TARGET)
+                    events_stream = gc.subscribe_stream(subscribe=subscribe_conf, target=target)
                     init = True
                     # this is a blocking loop that will wait for events from the switch.
                     # each time an event is triggered, the loop will execute
@@ -121,7 +139,7 @@ class GNMIEventsReceiver:
                         event_update = event_dict.get("update")
                         if event_update:
                             event_update = event_update.get("update")
-                            description = resource = None
+                            description = resource = event_severity = None
                             for event in event_update:
                                 path = event.get("path")
                                 if path == "state/text":
