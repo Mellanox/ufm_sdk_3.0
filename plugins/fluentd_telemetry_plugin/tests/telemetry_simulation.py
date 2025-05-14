@@ -18,25 +18,23 @@ class TelemetryData:
         self.columns = columns
         self.update_interval = update_interval
         self.generate_headers(columns)
-        if max_changes:
+        if max_changes is None:
+            self.max_changes = 0
+        else:
             self.max_changes = max_changes
-        elif max_changes == 0 or max_changes is None:
-            self.max_changes = len(columns)
         self.path = path
         self.data = [[random.randint(0,100) for _ in range(columns)] for _ in range(rows)]
-        self.generate_ports(rows)
+        self.add_port_data(rows)
         self.last_update = datetime.now()
         self.running = False
 
-    def update_date(self):
+    def update_data(self):
         current_time = datetime.now()
         current_timestamp = int(current_time.timestamp())
         if (current_time - self.last_update).total_seconds() > 1:
             for row in range(self.rows):
                 self.data[row][0] = current_timestamp
-                for col in range(self.columns):
-                    if col >= self.max_changes:
-                        break
+                for col in range(min(self.columns, self.max_changes)):
                     self.data[row][col + PORT_HEADERS_AMOUNT] = random.randint(0,100)
             self.last_update = current_time
 
@@ -45,7 +43,7 @@ class TelemetryData:
             return # already running somewhere else
         self.running = True
         while self.running:
-            self.update_date()
+            self.update_data()
             time.sleep(self.update_interval)
 
     def stop_updates(self):
@@ -58,13 +56,16 @@ class TelemetryData:
             headers.append(HEADER_DEFAULT + "_" + str(random_index + index * num_of_columns))
         self.headers = headers
     
-    def generate_ports(self, rows_num: int):
-        ports = []
+    def add_port_data(self, rows_num: int):
+        """
+        Add the port data to each row of the telemetry data
+        Args:
+            rows_num (int): the number of rows to generate port data for
+        """
         for row_index in range(rows_num):
             port_str = f'0x{random.randrange(16**16):016x}'
             # holds the prefix of each simulated csv rows , list of counters structures(will be filled further)
             self.data[row_index] = ["", port_str, "", port_str, port_str, "1"] + self.data[row_index]
-        return ports
     
     def generate_csv(self):
         output = io.StringIO()

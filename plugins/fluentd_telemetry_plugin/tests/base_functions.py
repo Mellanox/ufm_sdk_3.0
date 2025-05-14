@@ -10,19 +10,20 @@ from typing import Tuple,List,Dict
 
 CONFIG_FOLDER = "/config"
 LOG_FOLDER = "/log"
-DEFAULT_TELEMETRY_HOST="127.0.0.1"
-DEFAULT_TELEMETRY_URL="csv/xcset/ib_basic_debug"
-DEFAULT_TELEMETRY_PORT="9007"
-DEFAULT_FLUENT_HOST="localhost"
-DEFAULT_FLUENT_PORT="24225"
-DEFAULT_INTERVAL="120"
-DEFAULT_BULK_STREAMING=True
-DEFAULT_STREAM_ONLY_NEW_SAMPLES=False
-DEFAULT_COMPRESS_STREAMING=False
-DEFAULT_C_FLUENT_STREAMING=True
-DEFAULT_STREAMING_ENABLED=True
-DEFAULT_META=False
-DEFAULT_TAG_MSG="UFM_Telemetry_Streaming"
+DEFAULT_TELEMETRY_HOST = "127.0.0.1"
+DEFAULT_TELEMETRY_URL = "csv/xcset/ib_basic_debug"
+DEFAULT_TELEMETRY_PORT = "9007"
+DEFAULT_FLUENT_HOST = "localhost"
+DEFAULT_FLUENT_PORT = "24225"
+DEFAULT_INTERVAL = "120"
+DEFAULT_BULK_STREAMING = True
+DEFAULT_STREAM_ONLY_NEW_SAMPLES = False
+DEFAULT_COMPRESS_STREAMING = False
+DEFAULT_C_FLUENT_STREAMING = True
+DEFAULT_STREAMING_ENABLED = True
+DEFAULT_META = False
+DEFAULT_TAG_MSG = "UFM_Telemetry_Streaming"
+BULKY_MSG_COUNT = 10
 
 class BaseTestTfs:
     tele_host = "127.0.0.1"
@@ -291,18 +292,18 @@ class BaseTestTfs:
         all_data = last_line.split('"values":')[1][:-1] # take the values and remove the } at the end.
         return json.load(all_data)
 
-    def verify_streaming(self, stream=False, bulk=False, meta=False, constants=False,
+    def verify_streaming(self, stream=False, bulk=False, meta="", constants=False,
                          info_labels=False, tag_msg="UFM_Telemetry_Streaming") -> Tuple[bool, str]:
         """
         Verify the tfs telemetry streaming using the args.
 
         Args:
-            stream (bool, optional): Is checking the stream data. Defaults to False.
-            bulk (bool, optional): Is the data bulk. Defaults to False.
-            meta (bool, optional): what the meta data that we check. Defaults to False.
-            constants (bool, optional): what the constants data that we check. Defaults to False.
-            info_labels (bool, optional): Is checking the info_labels data. Defaults to False.
-            tag_msg (str, optional): what the tag msg we checking on. Defaults to "UFM_Telemetry_Streaming".
+            stream (bool, optional): Whether to verify continuous data streaming. Defaults to False.
+            bulk (bool, optional): Whether to verify bulk data transmission. Defaults to False.
+            meta (list, optional): List of metadata to verify in the streaming output. Defaults to [].
+            constants (bool, optional): Whether to verify constant values in the streaming output. Defaults to False.
+            info_labels (bool, optional): Whether to verify presence of information labels in the output. Defaults to False.
+            tag_msg (str, optional): The message tag to look for in the streaming output. Defaults to "UFM_Telemetry_Streaming".
 
         Returns:
             Tuple[bool,str]: tuple of is Successful, error message
@@ -322,15 +323,29 @@ class BaseTestTfs:
                 return False, f"the tag_msg {tag_msg} is not found in the logs."
             return True, ""
         if stream:
-            if not meta:
-                return stdout_before != stdout and tag_msg in stdout, "Streaming is not working"
+            if len(meta) == 0:
+                stream_check = stdout_before != stdout and tag_msg in stdout
+                if stream_check:
+                    return True, ""
+                return False, "Streaming is not working"
+            meta_check = meta in stdout and constants in stdout
+            if meta_check:
+                return True, ""
+            return False, "Streaming with meta is not working, meta data is not in the stream"
+            
             return meta in stdout and constants in stdout, "Streaming with meta is not working"
         lines = stdout.splitlines()
         tele_lines = []
         for line in lines:
             if tag_msg in line:
                 tele_lines.append(line)
-        bulky_msg = len(tele_lines) > 10
+        is_bulky_msg = len(tele_lines) > BULKY_MSG_COUNT
         # check that if the bulk message is requested we get bulk message,
-        # if it is not a bulk message is expecting to to have 10 lines
-        return bulky_msg == bulk, f"Streaming Bulk check {bulk} is not working as expected {bulky_msg}"
+        # if it is not a bulk message is expecting to to have BULKY_MSG_COUNT lines
+        if bulk:
+            if is_bulky_msg:
+                return True, ""
+            return False, f"Streaming Bulk check is not working as expected, expected to have more than {BULKY_MSG_COUNT} lines, but got {len(tele_lines)} lines"
+        if is_bulky_msg:
+            return False, f"Streaming Bulk check is not working as expected, expected to have less than {BULKY_MSG_COUNT} lines, but got {len(tele_lines)} lines"
+        return True, ""
