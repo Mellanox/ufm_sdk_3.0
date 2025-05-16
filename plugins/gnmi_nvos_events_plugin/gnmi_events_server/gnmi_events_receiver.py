@@ -109,18 +109,15 @@ class GNMIEventsReceiver:
         max_retries = helpers.ConfigParser.gnmi_reconnect_retries if reconnect else 1
         while retry_count < max_retries:
             try:
-                if helpers.ConfigParser.test_mode:
-                    subscribe_conf = self.SUBSCRIBE_CONF_TEST
-                    target = tuple
-                else:
-                    subscribe_conf = self.SUBSCRIBE_CONF
-                    target = self.TARGET
                 with gNMIclient(target=(ip, helpers.ConfigParser.gnmi_port),
                                         username=user,
                                         password=credentials,
                                         insecure=helpers.ConfigParser.test_mode,
                                         skip_verify=True) as gc:
-                    events_stream = gc.subscribe_stream(subscribe=subscribe_conf, target=target)
+                    if helpers.ConfigParser.test_mode:
+                        events_stream = gc.subscribe_stream(subscribe=self.SUBSCRIBE_CONF_TEST)
+                    else:
+                        events_stream = gc.subscribe_stream(subscribe=self.SUBSCRIBE_CONF, target=self.TARGET)
                     init = True
                     # this is a blocking loop that will wait for events from the switch.
                     # each time an event is triggered, the loop will execute
@@ -164,6 +161,7 @@ class GNMIEventsReceiver:
         """
         while True:
             if not self.events:
+                time.sleep(self.throttling_interval)
                 continue
             logging.info("Got %s traps from switches to be sent to UFM", len(self.events))
             start_time = time.perf_counter()
@@ -188,15 +186,14 @@ class GNMIEventsReceiver:
             tasks = []
             events_copy = list(self.events)
             self.events = []
-            for payload in events_copy:
-                tasks.append(asyncio.ensure_future(self.post_external_event(session, payload)))
+            tasks.append(asyncio.ensure_future(self.post_external_events(session, events_copy)))
             await asyncio.gather(*tasks)
 
-    async def post_external_event(self, session, payload):
+    async def post_external_events(self, session, payload):
         if not payload:
             return
-        resource = "/app/events/external_event"
+        resource = "/app/events/external_events"
         status_code, text = await helpers.async_post(session, resource, json=payload)
         if not helpers.succeded(status_code):
-            logging.error("Failed to send external event, status code: %s, response: %s", status_code, text)
-        logging.debug("Post external event status code: %s, response: %s", status_code, text)
+            logging.error("Failed to send external events, status code: %s, response: %s", status_code, text)
+        logging.debug("Post external events status code: %s, response: %s", status_code, text)

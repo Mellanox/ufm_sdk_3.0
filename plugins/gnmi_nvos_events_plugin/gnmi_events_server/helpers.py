@@ -89,8 +89,10 @@ def get_credentials(guid=None):
     credentials = None
     if not succeded(status_code):
         logging.error("Failed to get %s credentials" % guid)
+        return user, credentials
     if not response:
         logging.error("Empty %s credentials, please update them via UFM Web UI", guid)
+        return user, credentials
     try:
         user = response[0]["user"]
         encrypted_credentials = response[0]["credentials"]
@@ -160,12 +162,12 @@ class ConfigParser:
     """
     Class for the configuration parser that reads the configuration file and sets the log level and the log file.
     """
-    # config_file = "../build/config/gnmi_nvos_events.conf"
-    # log_file="gnmi_nvos_events.log"
-    # httpd_config_file = "../build/config/gnmi_nvos_events_httpd_proxy.conf"
-    config_file = "/config/gnmi_nvos_events.conf"
-    log_file="/log/gnmi_nvos_events.log"
-    httpd_config_file = "/config/gnmi_nvos_events_httpd_proxy.conf"
+    config_file = "../build/config/gnmi_nvos_events.conf"
+    log_file="gnmi_nvos_events.log"
+    httpd_config_file = "../build/config/gnmi_nvos_events_httpd_proxy.conf"
+    # config_file = "/config/gnmi_nvos_events.conf"
+    # log_file="/log/gnmi_nvos_events.log"
+    # httpd_config_file = "/config/gnmi_nvos_events_httpd_proxy.conf"
 
     gnmi_events_config = configparser.ConfigParser()
     if not os.path.exists(config_file):
@@ -189,6 +191,7 @@ class ConfigParser:
         logging.error("Incorrect value for snmp_port")
         quit()
     gnmi_reconnect_retries = gnmi_events_config.getint("GNMI", "gnmi_reconnect_retries", fallback=10)
+    test_mode = gnmi_events_config.getboolean("GNMI", "test_mode", fallback=False)
 
     ufm_switches_update_interval = gnmi_events_config.getint("UFM", "ufm_switches_update_interval", fallback=360)
     ufm_send_events_interval = gnmi_events_config.getint("UFM", "ufm_send_events_interval", fallback=10)
