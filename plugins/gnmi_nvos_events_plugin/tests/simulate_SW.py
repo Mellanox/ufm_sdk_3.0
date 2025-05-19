@@ -4,7 +4,9 @@ import json
 import requests
 import logging
 import subprocess
+import argparse
 from http import HTTPStatus
+from urllib.parse import urljoin
 
 HTTP_ERROR = HTTPStatus.INTERNAL_SERVER_ERROR
 HOST = "127.0.0.1:8000"
@@ -16,7 +18,7 @@ def succeded(status_code):
     return status_code in [HTTPStatus.OK, HTTPStatus.ACCEPTED]
 
 def get_request(resource):
-    request = PROTOCOL + '://' + HOST + resource
+    request = urljoin(f"{PROTOCOL}://{HOST}", resource)
     logging.info("GET %s", request)
     try:
         session = requests.Session()
@@ -28,7 +30,7 @@ def get_request(resource):
         return HTTP_ERROR, {"error": error}
     
 def put_request(resource, data):
-    request = PROTOCOL + '://' + HOST + resource
+    request = urljoin(f"{PROTOCOL}://{HOST}", resource)
     logging.info("PUT %s", request)
     try:
         session = requests.Session()
@@ -66,10 +68,15 @@ def update_system_ip(guid, ip):
     return status_code
         
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Simulate switches with gNMI simulators')
+    parser.add_argument('-n', '--num-switches', type=int, default=1,
+                      help='Number of switches to simulate (default: 1)')
+    args = parser.parse_args()
+
     switches = get_ufm_switches()
-    print("All switches are:%s"%len(switches))
+    print(f"All switches are: {len(switches)}")
     i=1
-    for sw in switches[:50]:
+    for sw in switches[:args.num_switches]:
         cmd="""(docker inspect gnmi-simulator-%s|grep IPAddress|tail -n1|awk '{print $NF}'|cut -d'"' -f2)"""%i
         ip = subprocess.check_output(cmd, shell=True)
         ip=ip.decode('utf-8').rstrip()

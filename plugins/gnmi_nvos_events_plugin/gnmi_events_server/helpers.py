@@ -97,7 +97,7 @@ def get_credentials(guid=None):
         user = response[0]["user"]
         encrypted_credentials = response[0]["credentials"]
         credentials = ConfigParser.cipher.decrypt(base64.b64decode(encrypted_credentials)).decode('utf-8')
-        logging.error("Decrypted %s credentials successfully")
+        logging.info("Decrypted %s credentials successfully")
     except Exception as e:
         logging.exception("Failed to decrypt %s credentials", guid)
     return user, credentials

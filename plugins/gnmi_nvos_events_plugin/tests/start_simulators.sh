@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -eE
+
 # Default number of simulators
 N=${1:-2}
 
