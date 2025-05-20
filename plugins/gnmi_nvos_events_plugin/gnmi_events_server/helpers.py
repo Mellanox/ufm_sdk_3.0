@@ -83,21 +83,21 @@ def generate_key_pair():
 def get_credentials(guid=None):
     guid = guid if guid else "default"
     resource = f"/resources/sites/{guid}/credentials?credential_types=SSH_Switch&public_key={ConfigParser.public_key}"
-    logging.info("Get %s credentials %s", guid, resource)
+    logging.info("Get %s credentials", guid)
     status_code, response = get_request(resource)
     user = None
     credentials = None
     if not succeded(status_code):
-        logging.error("Failed to get %s credentials" % guid)
+        logging.info("Failed to get %s credentials. Global credentials will be used", guid)
         return user, credentials
     if not response:
-        logging.error("Empty %s credentials, please update them via UFM Web UI", guid)
+        logging.info("Empty %s credentials, please update them via UFM Web UI. Global credentials will be used", guid)
         return user, credentials
     try:
         user = response[0]["user"]
         encrypted_credentials = response[0]["credentials"]
         credentials = ConfigParser.cipher.decrypt(base64.b64decode(encrypted_credentials)).decode('utf-8')
-        logging.info("Decrypted %s credentials successfully")
+        logging.info("Decrypted %s credentials successfully", guid)
     except Exception as e:
         logging.exception("Failed to decrypt %s credentials", guid)
     return user, credentials
