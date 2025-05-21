@@ -70,7 +70,7 @@ def allocate_request_args(parser, release_version="1.0"):
     request.add_argument("-d", "--include_down_ports", default=False, action="store_true",
                          help="Flag if to include in NDT file currently disconnected Switch ports")
     request.add_argument("-b", "--brief_structure", default=False, action="store_true",
-                         help="Flag if NDT file should be created in briefe format - no unneded NDT columns.")
+                         help="Flag if NDT file should be created with mandatory NDT columns only (For NDT Merger).")
     request.add_argument("-e", "--include_error_ports", default=False, action="store_true",
                          help="Flag if to include in NDT file Active Switch ports with link error")
 
