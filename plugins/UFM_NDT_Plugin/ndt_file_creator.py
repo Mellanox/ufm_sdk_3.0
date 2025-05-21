@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright (C) 2013-2023 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright (C) 2013-2025 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -20,7 +20,17 @@ NETDUMP_FILE_NAME = "ibdiagnet2.net_dump"
 IBDIAGNET_COMMAND = "ibdiagnet -o %s --discovery_only --enable_output net_dump" % IBDIAGNET_OUT_DIR
 IBDIAGNET_NET_DUMP_FILE = "%s/%s" % (IBDIAGNET_OUT_DIR, NETDUMP_FILE_NAME)
 OUTPUT_NDT_FILE_NAME = "%s/generated_ndt.csv" % IBDIAGNET_OUT_DIR
-REQUEST_ARGS = ["input_path", "include_down_ports", "include_error_ports"]
+REQUEST_ARGS = ["input_path", "include_down_ports", "include_error_ports", "brief_structure"]
+#rack #,U height,#Fields:StartDevice,StartPort,StartDeviceLocation,EndDevice,EndPort,EndDeviceLocation,U height_1,LinkType,Speed,_2,Cable Length,_3,_4,_5,_6,_7,State,Domain
+#,,SwitchX -  Mellanox Technologies,Port 26,,r-ufm64 mlx5_0,Port 1,,,,,,,,,,,,Active,In-Scope
+HEADER_FULL="rack #,U height,#Fields:StartDevice,StartPort,StartDeviceLocation,EndDevice,EndPort,EndDeviceLocation,U height_1,LinkType,Speed,_2,Cable Length,_3,_4,_5,_6,_7,State,Domain\n"
+HEADER_BRIEF="StartDevice,StartPort,EndDevice,EndPort,State,Domain\n"
+LINE_FULL = ",,%s,Port %s,,%s,Port %s,,,,,,,,,,,,Active,In-Scope\n"
+LINE_BRIEF = "%s,Port %s,%s,Port %s,Active,In-Scope\n"
+LINE_DISCONNECTED_FULL = "%s,Port %s,,,,,,,,,,,,Disabled,Disconnected\n"
+LINE_ERROR_FULL = "%s,Port %s,,,,,,,,,,,,Disabled,Error\n"
+LINE_DISCONNECTED_BRIEF = "%s,Port %s,,,Disabled,Disconnected\n"
+LINE_ERROR_BRIEF = "%s,Port %s,,,Disabled,Error\n"
 
 class Link:
     def __init__(self, start_dev, start_port, end_dev, end_port):
@@ -59,6 +69,8 @@ def allocate_request_args(parser, release_version="1.0"):
                          help="Path to directory with ibdiagnet output. If not set - script will run ibdiagnet utility.")
     request.add_argument("-d", "--include_down_ports", default=False, action="store_true",
                          help="Flag if to include in NDT file currently disconnected Switch ports")
+    request.add_argument("-b", "--brief_structure", default=False, action="store_true",
+                         help="Flag if NDT file should be created with mandatory NDT columns only (For NDT Merger).")
     request.add_argument("-e", "--include_error_ports", default=False, action="store_true",
                          help="Flag if to include in NDT file Active Switch ports with link error")
 
@@ -246,28 +258,37 @@ def main():
         exit(1)
     include_down_ports = request_arguments['include_down_ports']
     include_error_ports = request_arguments['include_error_ports']
+    brief_structure = request_arguments['brief_structure']
     ibdiagnet_links, links_list_disconnected , links_list_errored = \
                                     parse_ibdiagnet_dump( ibdiag_net_dump_file,
                                                              include_down_ports,
                                                              include_error_ports)
     #rack #,U height,#Fields:StartDevice,StartPort,StartDeviceLocation,EndDevice,EndPort,EndDeviceLocation,U height_1,LinkType,Speed,_2,Cable Length,_3,_4,_5,_6,_7,State,Domain
     #,,SwitchX -  Mellanox Technologies,Port 26,,r-ufm64 mlx5_0,Port 1,,,,,,,,,,,,Active,In-Scope
-    header="rack #,U height,#Fields:StartDevice,StartPort,StartDeviceLocation,EndDevice,EndPort,EndDeviceLocation,U height_1,LinkType,Speed,_2,Cable Length,_3,_4,_5,_6,_7,State,Domain\n"
+    if brief_structure:
+        header = HEADER_BRIEF
+        link_line = LINE_BRIEF
+        error_line = LINE_ERROR_BRIEF
+        disconnected_line = LINE_DISCONNECTED_BRIEF
+    else:
+        header = HEADER_FULL
+        link_line = LINE_FULL
+        error_line = LINE_ERROR_FULL
+        disconnected_line = LINE_DISCONNECTED_FULL
+    # output file name - based on input path
     with open(OUTPUT_NDT_FILE_NAME, 'w') as ndt_file:
         ndt_file.write(header)
         for link in ibdiagnet_links:
-            line = ",,%s,Port %s,,%s,Port %s,,,,,,,,,,,,Active,In-Scope\n" % (
+            line = link_line % (
                    link.start_dev, link.start_port, link.end_dev, link.end_port)
             ndt_file.write(line)
         for disconnected_port in links_list_disconnected:
-            line = ",,%s,Port %s,,,,,,,,,,,,,,,Disabled,Disconnected\n" % (
-                                        disconnected_port.get("node_name", ""),
+            line = disconnected_line % (disconnected_port.get("node_name", ""),
                                         disconnected_port.get("node_port_number", ""))
             ndt_file.write(line)
-        for disconnected_port in links_list_errored:
-            line = ",,%s,Port %s,,,,,,,,,,,,,,,Disabled,Error\n" % (
-                                        disconnected_port.get("node_name", ""),
-                                        disconnected_port.get("node_port_number", ""))
+        for error_port in links_list_errored:
+            line = error_line % (error_port.get("node_name", ""),
+                                 error_port.get("node_port_number", ""))
             ndt_file.write(line)
 
 
