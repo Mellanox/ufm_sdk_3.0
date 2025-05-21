@@ -15,11 +15,13 @@
 
 set -eE
 
+readonly PLUGIN_DATA_PATH="/opt/ufm/ufm_plugins_data/ndt"
 # Updating /config folder
-mv /opt/ufm/ufm_plugin_ndt/ndt.conf /config
-mv /opt/ufm/ufm_plugin_ndt/ndt_httpd_proxy.conf /config
-mv /opt/ufm/ufm_plugin_ndt/ufm_plugin_ndt_httpd.conf /config
-mv /opt/ufm/ufm_plugin_ndt/ndt_ui_conf.json /config
+
+cp --no-preserve=all /opt/ufm/ufm_plugin_ndt/ndt.conf /config
+cp --no-preserve=all /opt/ufm/ufm_plugin_ndt/ndt_httpd_proxy.conf /config
+cp --no-preserve=all /opt/ufm/ufm_plugin_ndt/ufm_plugin_ndt_httpd.conf /config
+cp --no-preserve=all /opt/ufm/ufm_plugin_ndt/ndt_ui_conf.json /config
 touch /config/ndt_shared_volumes.conf
 touch /config/ndt_cmdline_args.conf
 
@@ -29,8 +31,25 @@ mkdir /config/ndts
 mkdir /config/merger_ndts
 mkdir /config/topoconfig
 
-echo /opt/ufm/files/log:/log > /config/ndt_shared_volumes.conf
-echo /dev:/host_dev >> /config/ndt_shared_volumes.conf
+
+if [[ "${READ_ONLY_FS}" == "true" ]]; then
+    for dir_name in /data/tmp \
+                    /data/var/tmp \
+                    /data/var/log/supervisor \
+                    ;
+         do
+         mkdir -p "${dir_name}"
+    done
+    for vol in \
+        "${PLUGIN_DATA_PATH}/tmp:/tmp" \
+        "${PLUGIN_DATA_PATH}/var/tmp:/var/tmp" \
+        "${PLUGIN_DATA_PATH}/data/var/log/supervisor:/var/log/supervisor" \
+         ;
+         do
+            echo "$vol" >> /config/ndt_shared_volumes.conf
+         done
+fi
+
 
 # UFM version test
 required_ufm_version=(6 7 0)
