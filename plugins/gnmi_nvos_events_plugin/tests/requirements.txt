@@ -1,0 +1,4 @@
+grpcio==1.71.0
+grpcio-tools==1.71.0
+pygnmi==0.8.15
+protobuf==5.29.4
