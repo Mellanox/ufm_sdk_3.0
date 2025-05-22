@@ -21,7 +21,7 @@
             keep-system-variables: true
         - rebuild:
             rebuild-disabled: false
-    description: "Do NOT edit this job through the Web GUI !<br /><p style=\"color:#FF0000\";>ONLY FOLLOWING USERS CAN UPLOAD: bitkin,afok,kobib,drorl,tlerner,omarj,samerd,atolikin,atabachnik,eylonk,lennyv,asafb,sspormas,mkianovsky,asafb</p>"
+    description: "Do NOT edit this job through the Web GUI !<br /><p style=\"color:#FF0000\";>ONLY FOLLOWING USERS CAN UPLOAD: bitkin,afok,kobib,drorl,tlerner,omarj,samerd,atolikin,atabachnik,eylonk,lennyv,asafb,sspormas,mkianovsky,asafb,anana</p>"
     concurrent: false
     parameters:
         - string:
