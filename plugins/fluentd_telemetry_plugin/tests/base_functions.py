@@ -23,7 +23,11 @@ DEFAULT_C_FLUENT_STREAMING = True
 DEFAULT_STREAMING_ENABLED = True
 DEFAULT_META = False
 DEFAULT_TAG_MSG = "UFM_Telemetry_Streaming"
+DEFAULT_TELEMETRY_REQUEST_TIMEOUT = 60
+DEFAULT_ENABLE_CACHED_STREAM_ON_TELEMETRY_FAIL = True
+DEFAULT_STREAM_INTERVAL = 10
 BULKY_MSG_COUNT = 10
+PORT_REQUEST_TIMEOUT = 20
 
 class BaseTestTfs:
     tele_host = "127.0.0.1"
@@ -40,6 +44,7 @@ class BaseTestTfs:
     endpoints = None
     bind = '0.0.0.0'
     log_filename = LOG_FOLDER + "/tfs.log" # Log file location
+    log_stream = LOG_FOLDER + "/tfs_stream.log" # Log stream location
 
     def __init__(self):
         self.ufm_server = None
@@ -162,12 +167,12 @@ class BaseTestTfs:
         docker_image = "fluent/fluent:edge"
         try:
             if os.path.exists(self.log_filename):
-                os.remove(self.log_filename) # remove previous log
+                os.rename(self.log_filename, self.log_filename + time.strftime("%Y%m%d_%H%M%S") +".old") # remove previous log
             open(self.log_filename, 'a', encoding='utf-8').close() # create new log_file
 
             subprocess.run((f"docker run -i --rm --network host -v {CONFIG_FOLDER}:/fluentd/etc "+
                             f"{docker_image} -c /fluentd/etc/fluentd.conf").split(),
-                            stdout=open(self.log_filename, "a", encoding="utf-8"),
+                            stdout=open(self.log_stream, "a", encoding="utf-8"),
                             stderr=subprocess.STDOUT, check=False)
             time.sleep(5)
             logging.info("fluentd container is running")
@@ -197,7 +202,7 @@ class BaseTestTfs:
         """
         url = f'http://localhost:{self.port}/conf{extension}'
         response = requests.post(url, body=json.dumps(body),
-                    headers={"Content-Type": "application/json"}, timeout=20)
+                    headers={"Content-Type": "application/json"}, timeout=PORT_REQUEST_TIMEOUT)
         return response.text, response.status_code
 
     def set_conf(self, compressed_streaming=False, c_fluent_streamer=True, meta=False) -> Tuple[Dict, int]:
@@ -220,7 +225,7 @@ class BaseTestTfs:
         response = requests.get(url, headers={"Content-Type": "application/json"}, timeout=20)
         return response.json(), response.status_code
 
-    def configure_body_conf(self, change_dict:Dict[str, ], endpoints_array:List[Dict]=None) -> Dict:
+    def configure_body_conf(self, change_dict:Dict[str, any], endpoints_array:List[Dict]=None) -> Dict:
         """
         create a body configuration using all the configuration options
 
@@ -263,27 +268,33 @@ class BaseTestTfs:
                 "bulk_streaming": change_dict.get("bulk_streaming", DEFAULT_BULK_STREAMING)  ,
                 "compressed_streaming": change_dict.get("compressed_streaming", DEFAULT_COMPRESS_STREAMING),
                 "stream_only_new_samples": change_dict.get("stream_only_new_samples", DEFAULT_STREAM_ONLY_NEW_SAMPLES),
-                "c_fluent_streamer": change_dict.get("c_fluent_streamer", DEFAULT_C_FLUENT_STREAMER),
-                "enable_cached_stream_on_telemetry_fail": True,
+                "c_fluent_streamer": change_dict.get("c_fluent_streamer", DEFAULT_C_FLUENT_STREAMING),
+                "enable_cached_stream_on_telemetry_fail": change_dict.get("enable_cached_stream_on_telemetry_fail", DEFAULT_ENABLE_CACHED_STREAM_ON_TELEMETRY_FAIL),
                 "enabled": change_dict.get("enabled", DEFAULT_STREAMING_ENABLED),
-                "telemetry_request_timeout": 60,
+                "telemetry_request_timeout": change_dict.get("telemetry_request_timeout", DEFAULT_TELEMETRY_REQUEST_TIMEOUT),
             }
         }
         if "meta" in change_dict:
             basic_config["meta-field"] = change_dict["meta"]
         return basic_config
 
-    def read_data(self) -> str:
+    def read_data(self, get_last_line:bool=True, timestamp:str=None) -> str:
         """
         return the last line from the log file.
 
         Returns:
             str: last line from the log file
         """
-        with open(self.log_filename, 'r', encoding='utf-8') as log_file:
+        with open(self.log_stream, 'r', encoding='utf-8') as log_file:
             lines = log_file.read().splitlines()
-            last_line = lines[-1]
-        return last_line
+            if get_last_line:
+                line_to_return = lines[-1]
+            elif timestamp:
+                for line in lines:
+                    if timestamp in line["timestamp"]:
+                        line_to_return = line
+                        break
+        return line_to_return
     
     def extract_data_from_line(self, last_line) -> Dict:
         """
@@ -295,7 +306,13 @@ class BaseTestTfs:
     def verify_streaming(self, stream=False, bulk=False, meta="", constants=False,
                          info_labels=False, tag_msg="UFM_Telemetry_Streaming") -> Tuple[bool, str]:
         """
-        Verify the tfs telemetry streaming using the args.
+        Verify the tfs telemetry streaming using the args. return True if successful, False otherwise.
+        if the stream is True, it will verify that the data is streaming correctly. with the meta data if it is provided.
+        if the info_labels is True, it will verify that the info labels are streaming correctly,
+          including the node_guid, port_guid, port_num, node_description.
+
+        This verify streaming only checks the last line in the stream,
+        if you want to check the stream with a specific timestamp or other uses, use different function.
 
         Args:
             stream (bool, optional): Whether to verify continuous data streaming. Defaults to False.
@@ -308,9 +325,9 @@ class BaseTestTfs:
         Returns:
             Tuple[bool,str]: tuple of is Successful, error message
         """
-        stdout_before = self.read_data()
-        time.sleep(10)
-        stdout = self.read_data()
+        stdout_before = self.read_data(get_last_line=True)
+        time.sleep(DEFAULT_STREAM_INTERVAL)
+        stdout = self.read_data(get_last_line=True)
         if info_labels:
             tag_name_included = False
             for msg in stdout.splitlines():
@@ -332,8 +349,6 @@ class BaseTestTfs:
             if meta_check:
                 return True, ""
             return False, "Streaming with meta is not working, meta data is not in the stream"
-            
-            return meta in stdout and constants in stdout, "Streaming with meta is not working"
         lines = stdout.splitlines()
         tele_lines = []
         for line in lines:
