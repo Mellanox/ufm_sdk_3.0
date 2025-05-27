@@ -6,9 +6,24 @@ import json
 import re
 import pickle
 from enum import Enum
+import pandas as pd
+import io
 
 # ATB
 from pprint import pprint
+
+# Column name defines
+NODE_DESC_COLUMN = 'NodeDesc'
+NODE_GUID_COLUMN = 'NodeGUID'
+NODE_TYPE_COLUMN = 'NodeType'
+NODE_PORT_COLUMN = 'NodePort'
+NODE_PORT_GUID_COLUMN = 'NodePortGUID'
+NODE_PORT_NUM_COLUMN = 'NodePortNum'
+NODE_LID_COLUMN = 'NodeLID'
+PORT_NUM_COLUMN = 'PortNum'
+EXTENDED_LABEL_COLUMN = 'ExtendedLabel'
+LABEL_COLUMN = 'Label'
+PORT_GUID_COLUMN = 'PortGUID'
 
 SUCCESS_CODE = 200
 ERROR_CODE = 400
@@ -68,6 +83,20 @@ def check_valid_peer_port_param(parameter_val):
     if not parameter_val or parameter_val.isspace():
         return False
     return True
+
+def extract_section(content, section_name):
+    """
+    Extract a section from a string based on the section name.
+    
+    Args:
+        content (str): The content string to search for the section.
+        section_name (str): The name of the section to extract.
+    """
+    pattern = rf"START_{section_name}\n(.*?)END_{section_name}"
+    match = re.search(pattern, content, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return None
 
 def check_not_empty_valid_params(parameters_vals_list):
     '''
@@ -172,7 +201,107 @@ def parse_ndt_file(ndt_links, ndt_file, patterns, ndt_links_reversed=None, merge
         logging.error(error_message)
         return [error_message]
 
-def parse_ibdiagnet_dump(net_dump_file_path):
+def parse_ibdiagnet_dump(db_csv_path):
+    """
+    Parse ibdiagnet dump file and return the same structures as parse_ibdiagnet_dump
+    Args:
+        db_csv_path (str): Path to the db_csv file containing LINKS, PORT_HIERARCHY_INFO, and NODES sections
+    Returns:
+        tuple: (ibdiagnet_links, ibdiagnet_links_reverse, links_info_dict, [])
+            - ibdiagnet_links: Set of Link objects for forward direction (switch-to-switch and switch-to-host)
+            - ibdiagnet_links_reverse: Set of Link objects for reverse direction (only switch-to-switch)
+            - links_info_dict: Dictionary mapping node_name___port_number to node_guid
+            - []: Empty list for compatibility
+    """
+    with open(db_csv_path, 'r') as f:
+        content = f.read()
+
+    # Extract sections
+    links_txt = extract_section(content, "LINKS")
+    port_hierarchy_txt = extract_section(content, "PORT_HIERARCHY_INFO")
+    nodes_txt = extract_section(content, "NODES")
+
+    # Read into DataFrames
+    links_df = pd.read_csv(io.StringIO(links_txt), sep=',')
+    port_hierarchy_df = pd.read_csv(io.StringIO(port_hierarchy_txt), sep=',')
+    nodes_df = pd.read_csv(io.StringIO(nodes_txt), sep=',')
+
+    # Clean up the data
+    nodes_df[NODE_DESC_COLUMN] = nodes_df[NODE_DESC_COLUMN].astype(str).str.strip()
+    nodes_df[NODE_GUID_COLUMN] = nodes_df[NODE_GUID_COLUMN].astype(str).str.strip()
+    nodes_df[NODE_TYPE_COLUMN] = nodes_df[NODE_TYPE_COLUMN].astype(str).str.strip()
+    port_hierarchy_df[NODE_GUID_COLUMN] = port_hierarchy_df[NODE_GUID_COLUMN].astype(str).str.strip()
+
+    # Create mappings for easier lookup
+    node_guid_to_desc = nodes_df.set_index(NODE_GUID_COLUMN)[NODE_DESC_COLUMN].to_dict()
+    node_guid_to_type = nodes_df.set_index(NODE_GUID_COLUMN)[NODE_TYPE_COLUMN].to_dict()
+    port_label_map = port_hierarchy_df.set_index([NODE_GUID_COLUMN, PORT_NUM_COLUMN])[EXTENDED_LABEL_COLUMN].to_dict()
+
+    # Initialize return values
+    ibdiagnet_links = set()
+    ibdiagnet_links_reverse = set()
+    links_info_dict = {}
+    # in future to resolve GUID and host description
+    node_description_to_guid_dict = {}
+    # in future to resolve port number and pair of node description and port label
+    node_description_port_lablel_to_port_number_dict = create_node_description_port_label_mapping(nodes_df, port_hierarchy_df)
+
+    print(f"total links {len(links_df)}")
+    # Process links according to requirements
+    for _, row in links_df.iterrows():
+        src_guid = row['NodeGuid1']
+        src_port = row['PortNum1']
+        dst_guid = row['NodeGuid2']
+        dst_port = row['PortNum2']
+
+        src_node_desc = node_guid_to_desc.get(src_guid, '')
+        dst_node_desc = node_guid_to_desc.get(dst_guid, '')
+        src_node_type = node_guid_to_type.get(src_guid, '')
+        dst_node_type = node_guid_to_type.get(dst_guid, '')
+        src_port_label = port_label_map.get((src_guid, src_port), str(src_port))
+        dst_port_label = port_label_map.get((dst_guid, dst_port), str(dst_port))
+        node_description_to_guid_dict[src_node_desc] = src_guid
+        node_description_to_guid_dict[dst_node_desc] = dst_guid 
+
+        #print(f" {src_node_desc} {src_port_label}  {dst_node_desc} {dst_port_label}")
+        # Exclude any link where either node description contains "Mellanox Technologies Aggregation Node"
+        if 'Mellanox Technologies Aggregation Node' in src_node_desc or 'Mellanox Technologies Aggregation Node' in dst_node_desc:
+            continue
+        link_key_1 = f"{src_node_desc}___{src_port_label}"
+        link_key_2 = f"{dst_node_desc}___{dst_port_label}"
+        links_info_dict[link_key_1] = f"{src_guid}:{src_port}"
+        links_info_dict[link_key_2] = f"{dst_guid}:{dst_port}"
+
+        # Host to switch: need to "switch" between link src and dst
+        if src_node_type == '1' and dst_node_type == '2':
+            # Add to links_info_dict
+            ibdiagnet_links.add(Link(dst_node_desc, dst_port_label, src_node_desc, src_port_label))
+            continue
+
+        # Switch to switch: add both directions
+        if src_node_type == '2' and dst_node_type == '2':
+            # Add to links_info_dict
+            # Add forward link
+            ibdiagnet_links.add(Link(src_node_desc, src_port_label, dst_node_desc, dst_port_label))
+            ibdiagnet_links.add(Link(dst_node_desc, dst_port_label, src_node_desc, src_port_label))
+            # Add reverse link (only for switch-to-switch)
+            ibdiagnet_links_reverse.add(Link(src_node_desc, src_port_label, dst_node_desc, dst_port_label))
+            ibdiagnet_links_reverse.add(Link(dst_node_desc, dst_port_label, src_node_desc, src_port_label))
+            continue
+
+        # Switch to host: keep as is
+        if src_node_type == '2' and dst_node_type == '1':
+            # Add to links_info_dict
+            # Add link - no reverse link for switch-to-host
+            ibdiagnet_links.add(Link(src_node_desc, src_port_label, dst_node_desc, dst_port_label))
+            continue
+
+    return (ibdiagnet_links, ibdiagnet_links_reverse, links_info_dict, node_description_to_guid_dict,
+                        node_description_port_lablel_to_port_number_dict, [])
+
+
+
+def parse_ibdiagnet_dump_original(net_dump_file_path):
     """
     create a structure based on ibdiagnet2.net_dump file - links information
     
@@ -672,3 +801,63 @@ def compare_topologies(timestamp, ndts_list_file, switch_patterns, host_patterns
                 "report": report}
 
     return response
+
+def get_port_number_from_description_and_label(node_description, port_label, node_description_to_guid_dict, port_hierarchy_df):
+    """
+    Get port number from node description and port label
+    
+    Args:
+        node_description (str): The node description
+        port_label (str): The port label
+        node_description_to_guid_dict (dict): Dictionary mapping node description to GUID
+        port_hierarchy_df (pd.DataFrame): DataFrame containing port hierarchy information
+        
+    Returns:
+        str: The port number if found, None otherwise
+    """
+    # Get node GUID from description
+    node_guid = node_description_to_guid_dict.get(node_description)
+    if not node_guid:
+        return None
+        
+    # Find the port number that matches the label
+    matching_ports = port_hierarchy_df[
+        (port_hierarchy_df[NODE_GUID_COLUMN] == node_guid) & 
+        (port_hierarchy_df[EXTENDED_LABEL_COLUMN] == port_label)
+    ]
+    
+    if len(matching_ports) > 0:
+        return matching_ports[PORT_NUM_COLUMN].iloc[0]
+    return None
+
+def create_node_description_port_label_mapping(nodes_df, port_hierarchy_df):
+    """
+    Create mapping between node description, port label and port number
+    
+    Args:
+        nodes_df (pd.DataFrame): DataFrame containing node information
+        port_hierarchy_df (pd.DataFrame): DataFrame containing port hierarchy information
+        
+    Returns:
+        dict: Dictionary mapping "{node_description}___{port_label}" to port number
+    """
+    # Create node GUID to description mapping
+    node_guid_to_desc = nodes_df.set_index(NODE_GUID_COLUMN)[NODE_DESC_COLUMN].to_dict()
+    
+    # Initialize the mapping dictionary
+    node_description_port_label_to_port_number = {}
+    
+    # Iterate through port hierarchy to create mappings
+    for _, row in port_hierarchy_df.iterrows():
+        node_guid = row[NODE_GUID_COLUMN]
+        port_num = row[PORT_NUM_COLUMN]
+        port_label = row[EXTENDED_LABEL_COLUMN]
+        
+        # Get node description from GUID
+        node_description = node_guid_to_desc.get(node_guid)
+        if node_description:
+            # Create key in format "node_description___port_label"
+            key = f"{node_description}___{port_label}"
+            node_description_port_label_to_port_number[key] = port_num
+            
+    return node_description_port_label_to_port_number

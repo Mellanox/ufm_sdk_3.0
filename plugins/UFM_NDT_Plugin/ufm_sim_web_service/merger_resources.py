@@ -24,9 +24,9 @@ import io
 import threading
 from resources import UFMResource, Upload, Compare, Delete
 from topo_diff.ndt_infra import check_file_exist,\
-    DEFAULT_IBDIAGNET_NET_DUMP_PATH, check_ibdiagnet_net_dump_file_exist,\
+    DEFAULT_IBDIAGNET_NET_DUMP_PATH, IBDIAGNET_OUT_DB_CSV_FILE_PATH,check_ibdiagnet_net_dump_file_exist,\
     run_ibdiagnet, check_boundary_port_state, IBDIAGNET_OUT_NET_DUMP_FILE_PATH
-from topo_diff.topo_diff import parse_ibdiagnet_dump,\
+from topo_diff.topo_diff import parse_ibdiagnet_dump, \
                         parse_ndt_file,compare_topologies_ndt_ibdiagnet
 from topo_diff.ndt_infra import MERGER_OPEN_SM_CONFIG_FILE,\
     create_topoconfig_file, update_boundary_port_state_in_topoconfig_file,\
@@ -44,6 +44,7 @@ from topo_diff.topo_diff import upload_topoconfig_file, get_cable_validation_rep
                                 get_local_cable_validation_report, \
                                 SUCCESS_CODE, ACCEPTED_CODE
 from topo_diff.ndt_infra import get_topoconfig_file_name
+import pandas as pd
 
 # merge specific API
 class MergerNdts(UFMResource):
@@ -215,28 +216,35 @@ class MergerVerifyNDT(Compare):
             # place holder for duplicated node description to be included in final report
             duplicated_nd_list = []
             # basic report in case of failure
-            report_content["timestamp"] = self.timestamp,
+            report_content["timestamp"] = self.timestamp
             report_content["report"] = {}
             report_content["NDT_file"] = os.path.basename(ndt_file_name)
-#           Standard ibnetdiscover output is not good enough - need to check GUIDs for duplication
-#           So this flow (checking for existing net_dump file to use commented)
-#             if check_ibdiagnet_net_dump_file_exist():
-#                 ibdiagnet_file_path = DEFAULT_IBDIAGNET_NET_DUMP_PATH
-#             else:
-#                 # need to run ibdiagnet and to take file from that output
-            if run_ibdiagnet():
-                ibdiagnet_file_path = IBDIAGNET_OUT_NET_DUMP_FILE_PATH
+            # Check if we're in test mode and have a predefined ibdiagnet output path
+            if self.merger_test_mode and self.predefined_ibdiagnet_output_path:
+                ibdiagnet_file_path = os.path.join(self.predefined_ibdiagnet_output_path, 'ibdiagnet2.db_csv')
+                if not os.path.exists(ibdiagnet_file_path):
+                    report_content["error"] = f"Predefined db_csv file not found at {ibdiagnet_file_path}"
+                    report_content["status"] = NDT_FILE_STATUS_VERIFICATION_FAILED
+                    raise ValueError(report_content["error"])
             else:
-                report_content["error"] = "Report creation failed for %s: Failed to run ibdiagnet" % ndt_file_name
-                report_content["status"] = NDT_FILE_STATUS_VERIFICATION_FAILED
-                raise ValueError(report_content["error"])
+                if run_ibdiagnet():
+                    ibdiagnet_file_path = IBDIAGNET_OUT_DB_CSV_FILE_PATH
+                else:
+                    report_content["error"] = "Report creation failed for %s: Failed to run ibdiagnet" % ndt_file_name
+                    report_content["status"] = NDT_FILE_STATUS_VERIFICATION_FAILED
+                    raise ValueError(report_content["error"])
+            if self.merger_test_mode and self.predefined_ibdiagnet_output_path:
+                # if test mode is enabled and predefined ibdiagnet output path is set, set correct path to ibdiagnet2.log file
+                ibdiagnet_log_file = os.path.join(self.predefined_ibdiagnet_output_path, 'ibdiagnet2.log')
+            else:
+                ibdiagnet_log_file = IBDIAGNET_LOG_FILE
             if not check_file_exist(ibdiagnet_file_path):
                 report_content["error"] = "Report creation failed for %s: File %s not exists" % (ndt_file_name, IBDIAGNET_OUT_NET_DUMP_FILE_PATH)
                 report_content["status"] = NDT_FILE_STATUS_VERIFICATION_FAILED
                 raise ValueError(report_content["error"])
             self.timestamp = self.get_timestamp()
             # check first for duplicated GUIDs in setup
-            if not check_file_exist(IBDIAGNET_LOG_FILE):
+            if not check_file_exist(ibdiagnet_log_file):
                 report_content["error"] = "Report creation failed for %s: Filed to check duplicated GUIDs. File %s not exists" % (ndt_file_name, IBDIAGNET_LOG_FILE)
                 report_content["status"] = NDT_FILE_STATUS_VERIFICATION_FAILED
                 raise ValueError(report_content["error"])
@@ -262,7 +270,7 @@ class MergerVerifyNDT(Compare):
                     duplication_nd_string = duplicated_nd.decode("utf-8")
                     duplicated_nd_list = duplication_nd_string.split("\n")
             # get configuration from ibdiagnet
-            ibdiagnet_links, ibdiagnet_links_reverse, links_info, error_message = \
+            ibdiagnet_links, ibdiagnet_links_reverse, links_info, node_description_to_guid_dict, node_description_port_lablel_to_port_number_dict,error_message = \
                                            parse_ibdiagnet_dump(ibdiagnet_file_path)
             if error_message:
                 report_content["error"] = error_message
@@ -300,7 +308,8 @@ class MergerVerifyNDT(Compare):
                     report_content["report"].append(report_item)
             report_content["NDT_file"] = os.path.basename(ndt_file_name)
             topoconfig_creation_status, message, failed_ports = create_topoconfig_file(links_info,
-                      ndt_file_name, self.switch_patterns + self.host_patterns)
+                      ndt_file_name, self.switch_patterns + self.host_patterns,
+                      node_description_to_guid_dict, node_description_port_lablel_to_port_number_dict)
             if not topoconfig_creation_status or failed_ports:
                 report_content["error"] = message
                 report_content["status"] = NDT_FILE_STATUS_VERIFICATION_FAILED
@@ -611,7 +620,9 @@ class MergerCreateNDTTopoconfig(UFMResource):
             boundary_port_state = json_data["boundary_port_state"]
             ndt_file_path = os.path.join(self.ndts_dir, json_data["ndt_file_name"])
             status, error_message = create_raw_topoconfig_file(ndt_file_path, boundary_port_state,
-                                    self.switch_patterns + self.host_patterns)
+                                    self.switch_patterns + self.host_patterns,
+                                    test_mode=self.merger_test_mode,
+                                    predefined_ibdiagnet_output_path=self.predefined_ibdiagnet_output_path)
             if not status:
                 return self.report_error(400, error_message)
             return self.report_success()
