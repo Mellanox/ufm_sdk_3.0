@@ -27,7 +27,7 @@ DEFAULT_TELEMETRY_REQUEST_TIMEOUT = 60
 DEFAULT_ENABLE_CACHED_STREAM_ON_TELEMETRY_FAIL = True
 DEFAULT_STREAM_INTERVAL = 10
 BULKY_MSG_COUNT = 10
-PORT_REQUEST_TIMEOUT = 20
+TFS_HTTP_PORT_REQUEST_TIMEOUT = 20
 
 class BaseTestTfs:
     tele_host = "127.0.0.1"
@@ -202,7 +202,7 @@ class BaseTestTfs:
         """
         url = f'http://localhost:{self.port}/conf{extension}'
         response = requests.post(url, body=json.dumps(body),
-                    headers={"Content-Type": "application/json"}, timeout=PORT_REQUEST_TIMEOUT)
+                    headers={"Content-Type": "application/json"}, timeout=TFS_HTTP_PORT_REQUEST_TIMEOUT)
         return response.text, response.status_code
 
     def set_conf(self, compressed_streaming=False, c_fluent_streamer=True, meta=False) -> Tuple[Dict, int]:
