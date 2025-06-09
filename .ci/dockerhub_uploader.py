@@ -151,7 +151,7 @@ class DockerHubUploader:
                 break
         return False
     
-    def _check_image_locally(self,repo, image, tag) -> bool:
+    def _check_image_locally(self, repo, image, tag) -> bool:
         """helper method to check if image already exists in local docker"""
         full_image_name = ""
         if repo:
@@ -164,7 +164,7 @@ class DockerHubUploader:
                     return True
         return False
 
-    def _delete_image_locally(self,repo, image, tag) -> None:
+    def _delete_image_locally(self, repo, image, tag) -> None:
         """Helper method to remove images from local docker"""
         full_image_name = ""
         if repo:
@@ -233,7 +233,7 @@ class DockerHubUploader:
         except Exception as e:
             log_error(f'Could not tag {self.repository}/{self.image}:{self.tag} as {self.repository}/{self.image}:{new_tag}\n    {e}')
 
-    def push_image(self,tag=None) -> None:
+    def push_image(self, tag=None) -> None:
         """Push image to docker-hub"""
         if not tag:
             tag = self.tag
@@ -249,7 +249,7 @@ class DockerHubUploader:
         except Exception as e:
             log_error(f"Could not push {self.repository}/{self.image}:{tag} to Docker-Hub")
 
-    def cleanup(self,repo, image, tag):
+    def cleanup(self, repo, image, tag):
         """Cleanup function to remove loaded docker images from host"""
         log_debug(f'starting DockerHubUploader.push_image with repo:"{repo}",image:"{image}"tag:"{tag}" ')
         if self._check_image_locally(repo=repo, image=image, tag=tag):
