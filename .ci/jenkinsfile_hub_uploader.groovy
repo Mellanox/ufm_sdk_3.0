@@ -25,7 +25,7 @@ pipeline{
     Please contact one of the approved users to upload a container: ${authorized_users.join(', ')}"""
                             }
                         }
-                        sh '''#!/bin/bash -xveE
+                        sh '''#!/bin/bash -xv
                         printenv
                         cmd_args=''
                         if [ -n "${IMAGE_NAME}" ]; then
@@ -41,6 +41,14 @@ pipeline{
                             cmd_args="${cmd_args}-l "
                         fi
                         python3 .ci/dockerhub_uploader.py -u ${DH_USER} -p ${DH_TOKEN} -d ${IMAGE_PATH} ${cmd_args}
+                        status=$?
+                        if [ ${status} -ne 0 ]; then
+                            echo "Failed to upload image ${IMAGE_PATH} to Docker Hub"
+                            exit ${status}
+                        else
+                            echo "Successfully uploaded image ${IMAGE_PATH} to Docker Hub"
+                            exit 0
+                        fi
                         '''
                     }
                 }

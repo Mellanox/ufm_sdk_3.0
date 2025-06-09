@@ -16,7 +16,7 @@ def log_error(message) -> None:
         output = f'\033[0;31m-E- {message}\033[0m'
     else:
         output = message
-    print(output, file=sys.stderr)
+    print(output, file=sys.stderr, flush=True)
     sys.exit(1)
 
 
@@ -26,16 +26,16 @@ def log_warning(message) -> None:
         output = f'\033[1;33m-W- {message}\033[0m'
     else:
         output = message
-    print(output, file=sys.stderr)
+    print(output, file=sys.stderr, flush=True)
 
 def log_info(message) -> None:
     """Helper method to print info."""
-    print(f'-I- {message}', file=sys.stdout)
+    print(f'-I- {message}', file=sys.stdout, flush=True)
 
 def log_debug(message) -> None:
     """Helper method to print debug."""
     if DEBUG:
-        print(f'-D- {message}', file=sys.stdout)
+        print(f'-D- {message}', file=sys.stdout, flush=True)
 
 
 class DockerHubUploader:
@@ -105,8 +105,8 @@ class DockerHubUploader:
             if '/' in self.meta_img_name:
                 self.meta_img_repo = '/'.join(self.meta_img_name.split('/')[:-1])
                 self.meta_img_name = self.meta_img_name.split('/')[-1]
-                self.meta_img_name = self.meta_img_name.split(':')[0]
-                self.meta_img_tag = self.meta_img_name.split(':')[1]
+            self.meta_img_tag = self.meta_img_name.split(':')[1]
+            self.meta_img_name = self.meta_img_name.split(':')[0]
             if not self.image:
                 self.image = self.meta_img_name
             if not self.tag:
@@ -151,34 +151,30 @@ class DockerHubUploader:
                 break
         return False
     
-    def _check_image_locally(self,repo=None, image=None, tag=None) -> bool:
+    def _check_image_locally(self,repo, image, tag) -> bool:
         """helper method to check if image already exists in local docker"""
-        if not tag:
-            tag = self.tag
-        if not image:
-            image = self.image
-        if not repo:
-            repo = self.repository
-        log_debug(f'starting DockerHubUploader._check_image_locally with image:"{repo}/{image}",tag:"{tag}"')
+        full_image_name = ""
+        if repo:
+            full_image_name += repo + "/"
+        full_image_name += image
+        log_debug(f'starting DockerHubUploader._check_image_locally with image:"{full_image_name}",tag:"{tag}"')
         for img in self.client.images.list():
             for img_name in  img.attrs['RepoTags']:
-                if img_name == f"{repo}/{image}:{tag}":
+                if img_name == f"{full_image_name}:{tag}":
                     return True
         return False
 
-    def _delete_image_locally(self,repo = None, image=None, tag=None) -> None:
+    def _delete_image_locally(self,repo, image, tag) -> None:
         """Helper method to remove images from local docker"""
-        log_debug(f'starting DockerHubUploader._delete_image_locally with repo="{repo}", image:"{image}",tag:"{tag}"')
-        if not repo:
-            repo = self.repository
-        if not image:
-            image = self.image
-        if not tag:
-            tag = self.tag
+        full_image_name = ""
+        if repo:
+            full_image_name += repo + "/"
+        full_image_name += image
+        log_debug(f'starting DockerHubUploader._delete_image_locally with full_image_name={full_image_name} repo="{repo}", image:"{image}",tag:"{tag}"')
         try:
-            self.client.images.remove(image=f'{repo}/{image}:{tag}', force=True)
+            self.client.images.remove(image=f'{full_image_name}:{tag}', force=True)
         except Exception as e:
-            log_error(f"could not remove {repo}/{image}:{tag}\n    {e}")
+            log_error(f"could not remove {full_image_name}:{tag}\n    {e}")
 
     def load_docker_img(self):
         """Load a docker file to docker engine"""
@@ -203,7 +199,11 @@ class DockerHubUploader:
         with open(self.image_path, 'rb') as img:
             try:
                 _ = self.client.images.load(img)
-                log_info(f'Loaded {self.meta_img_repo}/{self.meta_img_name}:{self.meta_img_tag} to local docker engine.')
+                full_image_name = ""
+                if self.meta_img_repo:
+                    full_image_name += self.meta_img_repo +"/"
+                full_image_name += self.meta_img_name
+                log_info(f'Loaded {full_image_name}:{self.meta_img_tag} to local docker engine.')
                 # re-tag the image if needed
                 if new_tag_required:
                     self.tag_image(new_tag=self.tag, old_image=self.meta_img_name, old_repo=self.meta_img_repo, old_tag=self.meta_img_tag)
@@ -212,16 +212,14 @@ class DockerHubUploader:
                 log_error(f'Could not load the {self.repository}/{self.image}:{self.tag} to docker.\n    {e}')
                 # tag as latest if latest flag exists
 
-    def tag_image(self, new_tag, old_repo=None, old_image=None, old_tag=None):
+    def tag_image(self, new_tag, old_repo, old_image, old_tag):
         """Load a docker file to docker engine"""
-        if not old_repo:
-            old_repo = self.repository
-        if not old_image:
-            old_image = self.image
-        if not old_tag:
-            old_tag = self.tag
-        log_debug(f'starting DockerHubUploader.tag_image with image:"{old_repo}/{old_image}",current_tag:"{old_tag}", new_tag:"{new_tag}"')
-         # check if latest exists locally
+        full_old_image_name = ""
+        if old_repo:
+            full_old_image_name += old_repo + "/"
+        full_old_image_name += old_image
+        log_debug(f'starting DockerHubUploader.tag_image with old_image:{full_old_image_name},new_image:"{self.repository}/{self.image}",current_tag:"{old_tag}", new_tag:"{new_tag}"')
+         # check if new image name:tag exists locally
         if self._check_image_locally(repo=self.repository, image=self.image, tag=new_tag):
             log_warning(f'{self.repository}/{self.image}:{new_tag} was found locally removing it from docker engine.')
             try:
@@ -229,9 +227,9 @@ class DockerHubUploader:
             except Exception as e:
                 log_error(f'Could not delete {self.repository}/{self.image}:{new_tag} from local docker.\n    {e}')
         try:
-            img = self.client.images.get(f'{old_repo}/{old_image}:{old_tag}')
+            img = self.client.images.get(f'{full_old_image_name}:{old_tag}')
             img.tag(f'{self.repository}/{self.image}', new_tag)
-            log_info(f'Tagged {old_repo}/{old_image}:{self.tag} as {self.repository}/{self.image}:{new_tag}.')
+            log_info(f'Tagged {full_old_image_name}:{self.tag} as {self.repository}/{self.image}:{new_tag}.')
         except Exception as e:
             log_error(f'Could not tag {self.repository}/{self.image}:{self.tag} as {self.repository}/{self.image}:{new_tag}\n    {e}')
 
@@ -251,14 +249,9 @@ class DockerHubUploader:
         except Exception as e:
             log_error(f"Could not push {self.repository}/{self.image}:{tag} to Docker-Hub")
 
-    def cleanup(self,repo=None, image=None, tag=None):
+    def cleanup(self,repo, image, tag):
         """Cleanup function to remove loaded docker images from host"""
-        if not repo:
-            repo = self.repository
-        if not image:
-            image = self.image
-        if not tag:
-            tag = self.tag
+        log_debug(f'starting DockerHubUploader.push_image with repo:"{repo}",image:"{image}"tag:"{tag}" ')
         if self._check_image_locally(repo=repo, image=image, tag=tag):
             self._delete_image_locally(repo=repo, image=image, tag=tag)
 
@@ -297,7 +290,7 @@ if __name__ == '__main__':
         dhu.load_docker_img()
         dhu.push_image()
     if args.latest:
-        dhu.tag_image(new_tag='latest')
+        dhu.tag_image(new_tag='latest',old_repo=dhu.repository,old_image=dhu.image,old_tag=dhu.tag)
         dhu.push_image('latest')
-        dhu.cleanup('latest')
-    dhu.cleanup()
+        dhu.cleanup(repo=dhu.repository,image=dhu.image,tag='latest')
+    dhu.cleanup(repo=dhu.repository,image=dhu.image,tag=dhu.tag)
