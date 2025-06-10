@@ -230,19 +230,20 @@ class BaseTestTfs:
         create a body configuration using all the configuration options
 
         Args:
-            tele_host (str, optional): telemetry host ip. Defaults to "127.0.0.1".
-            tele_url (str, optional): telemetry url. Defaults to "csv/xcset/ib_basic_debug".
-            tele_port (str, optional): telemetry port. Defaults to "9007".
-            fluent_host (str, optional): fluent host ip. Defaults to "localhost".
-            fluent_port (str, optional): fluent port. Defaults to "24225".
-            interval (str, optional): interval to get the data. Defaults to "120".
-            bulk_streaming (bool, optional): bulk streaming option. Defaults to True.
-            stream_only_new_samples (bool, optional): stream only new samples. Defaults to False.
-            compressed_streaming (bool, optional): is compressed streaming. Defaults to False.
-            c_fluent_streamer (bool, optional): is using c fluent streamer. Defaults to True.
-            enabled (bool, optional): is the streaming enabled. Defaults to True.
-            meta (bool, optional): what is the meta data. Defaults to False.
-            tag_msg (str, optional): what is the message_tag_name . Defaults to "UFM_Telemetry_Streaming".
+            change_dict (Dict[str, any]): dict that contains the configuration optional options:
+                "host": telemetry host ip. Defaults to "127.0.0.1".
+                "url": telemetry url. Defaults to "csv/xcset/ib_basic_debug".
+                "port": telemetry port. Defaults to "9007".
+                "fluent_host": fluent host ip. Defaults to "localhost".
+                "fluent_port": fluent port. Defaults to "24225".
+                "interval": interval to get the data. Defaults to "120".
+                "bulk_streaming": bulk streaming option. Defaults to True.
+                "stream_only_new_samples": stream only new samples. Defaults to False.
+                "compressed_streaming": is compressed streaming. Defaults to False.
+                "c_fluent_streamer": is using c fluent streamer. Defaults to True.
+                "enabled": is the streaming enabled. Defaults to True.
+                "meta": what is the meta data. Defaults to False.
+                "message_tag_name": what is the message_tag_name . Defaults to "UFM_Telemetry_Streaming".
             endpoints_array (_type_, optional): endpoint array that is put in the configuration. Defaults to None.
 
         Returns:
