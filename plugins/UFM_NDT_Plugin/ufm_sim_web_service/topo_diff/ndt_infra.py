@@ -497,7 +497,7 @@ def create_raw_topoconfig_file(ndt_file_path, boundary_port_state, patterns,
     :param predefined_ibdiagnet_output_path: Path to predefined ibdiagnet output files
     :return: Tuple of (success, message)
     '''
-    # create links_info_dictiionary based on ibdiagnet
+    # create links_info_dictionary based on ibdiagnet
     ndt_file_name = os.path.basename(ndt_file_path)
     
     # Check if we're in test mode and have a predefined ibdiagnet output path
@@ -562,12 +562,27 @@ def create_topoconfig_file(links_info_dict, ndt_file_path, patterns, node_descri
                                                     boundary_port_state=None,
                                                     output_file_name=None):
     '''
-    Create topoconfig file
-    this is the structure that contains names of the nodes and ports and GUIDs
-    on base of this struct should be created topconfig file
-    :param links_list:
-    :param ndt_file_path:
+    Create topoconfig file from NDT file data and network topology information.
     
+    This function processes an NDT (Network Description Table) file and creates a topoconfig file
+    that contains network topology information including node GUIDs, port numbers, and connection
+    mappings. The topoconfig file is used by OpenSM for subnet management.
+    
+    Args:
+        links_info_dict (dict): Dictionary mapping "node_name___port_label" keys to "node_guid:port_num" values
+        ndt_file_path (str): Path to the NDT (Network Description Table) CSV file to process
+        patterns (list): List of regex patterns used to parse port information from NDT file
+        node_description_to_guid_dict (dict): Dictionary mapping node descriptions to their corresponding GUIDs
+        node_description_port_lablel_to_port_number_dict (dict): Dictionary mapping "node_desc___port_label" to port numbers
+        boundary_port_state (str, optional): State to assign to boundary ports (e.g., 'Disabled', 'No-discover'). Defaults to None
+        output_file_name (str, optional): Custom output filename for the topoconfig file. Defaults to None (auto-generated)
+        
+    Returns:
+        tuple: (success_flag, error_message, failed_label_conversions, failed_guid_conversions)
+            - success_flag (bool): True if file creation succeeded, False otherwise
+            - error_message (str): Error message if creation failed, empty string if successful
+            - failed_label_conversions (list): List of port labels that couldn't be converted to port numbers
+            - failed_guid_conversions (list): List of ports where GUID lookup failed
     '''
     # If boundery port described in NDT file it has no peer, so we can not get it's from
     # guid from ibdiagnet mapping as we do it now (?!) - possible to load all the ports from net_dump file
