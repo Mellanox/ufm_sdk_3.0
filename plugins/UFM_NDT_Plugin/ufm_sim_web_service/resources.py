@@ -99,6 +99,10 @@ class UFMResource(Resource):
                         "Merger", "cable_validation_server_addr", fallback=None)
             self.cable_validation_request_port = ndt_config.getint(
                         "Merger", "cable_validation_request_port", fallback=8633)
+            self.merger_test_mode = ndt_config.getboolean(
+                        "Merger", "merger_test_mode", fallback=False)
+            self.predefined_ibdiagnet_output_path = ndt_config.get(
+                        "Merger", "predefined_ibdiagnet_output_path", fallback="")
             if self.validation_enabled:
                 switch_patterns_str = ndt_config.get("Validation", "switch_patterns")
                 self.switch_patterns = switch_patterns_str.split(',')
