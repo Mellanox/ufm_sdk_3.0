@@ -51,7 +51,7 @@ Functions commonly added by optional UFM plugins include:
     
     3. **ufm_plugin_{plugin name}_httpd.conf** : This file contains the Apache configuration for the plugin, redirecting HTTP requests from Apache directly to the plugin's web server. These requests are not authenticated by UFM.
     
-    4. **{plugin name}_runtime_args.conf** : This file serves as the configuration file for the runtime plugin's resources. It consists of key-value arguments (e.g., cpus=1.5). Currently, only CPU limits are supported.
+    4. **{plugin name}_runtime_args.conf** : This file serves as the configuration file for the runtime plugin's resources. It consists of key-value arguments (e.g., cpus=1.5, memory=2g). Currently, CPU and memory limits are supported.
 
 * **Note**: The configuration files _{plugin name}_shared_volumes.conf_ , _{plugin name}_httpd_proxy.conf_ and any custom configurations files must be copied to  _/config_ folder upon plugin deployment for UFM to manage the plugin (the plugins configuration is written to **{UFM files path}/conf/ufm_plugins.conf**
 
