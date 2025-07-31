@@ -131,10 +131,14 @@ class UFMTelemetryStreamingConfigParser(ConfigParser, metaclass=SingletonMeta):
                                  self.FLUENTD_ENDPOINT_SECTION_PORT)
 
     def get_fluentd_timeout(self):
-        return self.safe_get_int(None,
-                                 self.FLUENTD_ENDPOINT_SECTION,
-                                 self.FLUENTD_ENDPOINT_SECTION_TIMEOUT,
-                                 120)
+        timeout = self.safe_get_int(None,
+                                    self.FLUENTD_ENDPOINT_SECTION,
+                                    self.FLUENTD_ENDPOINT_SECTION_TIMEOUT,
+                                    120)
+        if timeout <= 0:
+            logging.warning("Invalid Fluentd timeout value %d, using default 120 seconds", timeout)
+            timeout = 120
+        return timeout
 
     def get_fluentd_msg_tag(self, default=''):
         return self.get_config_value(None,
