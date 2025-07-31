@@ -22,7 +22,6 @@ import logging
 import datetime
 import requests
 
-from requests.exceptions import ConnectionError  # pylint: disable=redefined-builtin
 from fluentbit_writer import init_fb_writer
 from monitor_streaming_mgr import MonitorStreamingMgr
 from telemetry_attributes_manager import TelemetryAttributesManager
