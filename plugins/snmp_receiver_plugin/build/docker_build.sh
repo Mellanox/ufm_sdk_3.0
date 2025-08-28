@@ -70,7 +70,7 @@ function build_docker_image()
     pushd ${build_dir}
     echo "docker build --network host --no-cache --pull -t ${image_with_prefix_and_version} . --compress"
 
-    docker build --network host --no-cache --pull -t ${image_with_prefix_and_version} . --compress
+    docker build --network host --pull -t ${image_with_prefix_and_version} . --compress
     exit_code=$?
     popd
     if [ $exit_code -ne 0 ]; then
