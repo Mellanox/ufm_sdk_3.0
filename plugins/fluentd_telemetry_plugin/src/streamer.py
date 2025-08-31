@@ -22,7 +22,6 @@ import logging
 import datetime
 import requests
 
-from requests.exceptions import ConnectionError  # pylint: disable=redefined-builtin
 from fluentbit_writer import init_fb_writer
 from monitor_streaming_mgr import MonitorStreamingMgr
 from telemetry_attributes_manager import TelemetryAttributesManager
@@ -203,12 +202,12 @@ class UFMTelemetryStreaming(metaclass=SingletonMeta):
                 _fluentd_host = f'[{_fluentd_host}]' if Utils.is_ipv6_address(_fluentd_host) else _fluentd_host
                 compressed = gzip.compress(json.dumps(fluentd_message).encode('utf-8'))
 
-                # pylint: disable=missing-timeout
                 res = requests.post(
                     url=f'http://{_fluentd_host}:{self.fluentd_port}/'
                         f'{UFMTelemetryConstants.PLUGIN_NAME}.{fluentd_msg_tag}',
                     data=compressed,
-                    headers={"Content-Encoding": "gzip", "Content-Type": "application/json"})
+                    headers={"Content-Encoding": "gzip", "Content-Type": "application/json"},
+                    timeout=self.fluentd_timeout)
                 res.raise_for_status()
             else:
                 plugin_fluent_protocol = 'FORWARD'
@@ -220,8 +219,12 @@ class UFMTelemetryStreaming(metaclass=SingletonMeta):
             })
             logging.info('Finished Streaming to Fluentd Host: %s port: %s in %.2f Seconds using %s plugin protocol',
                          self.fluentd_host, self.fluentd_port, streaming_time, plugin_fluent_protocol)
-        except ConnectionError as ex:
-            logging.error('Failed to connect to stream destination due to the error : %s', str(ex))
+        except requests.exceptions.Timeout as ex:
+            logging.error('Timeout streaming to Fluentd %s:%s - %s', self.fluentd_host, self.fluentd_port, str(ex))
+        except requests.exceptions.ConnectionError as ex:
+            logging.error('Failed to connect to Fluentd %s:%s - %s', self.fluentd_host, self.fluentd_port, str(ex))
+        except requests.exceptions.RequestException as ex:
+            logging.error('HTTP error streaming to Fluentd %s:%s - %s', self.fluentd_host, self.fluentd_port, str(ex))
         except Exception as ex:  # pylint: disable=broad-except
             logging.error('Failed to stream the data due to the error: %s', str(ex))
 

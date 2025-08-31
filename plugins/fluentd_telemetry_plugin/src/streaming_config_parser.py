@@ -29,6 +29,7 @@ class UFMTelemetryStreamingConfigParser(ConfigParser, metaclass=SingletonMeta):
     FLUENTD_ENDPOINT_SECTION_HOST = "host"
     FLUENTD_ENDPOINT_SECTION_PORT = "port"
     FLUENTD_ENDPOINT_SECTION_TIMEOUT = "timeout"
+    FLUENTD_DEFAULT_TIMEOUT_SECONDS = 120
 
     STREAMING_SECTION = "streaming"
     STREAMING_SECTION_COMPRESSED_STREAMING = "compressed_streaming"
@@ -131,10 +132,14 @@ class UFMTelemetryStreamingConfigParser(ConfigParser, metaclass=SingletonMeta):
                                  self.FLUENTD_ENDPOINT_SECTION_PORT)
 
     def get_fluentd_timeout(self):
-        return self.safe_get_int(None,
-                                 self.FLUENTD_ENDPOINT_SECTION,
-                                 self.FLUENTD_ENDPOINT_SECTION_TIMEOUT,
-                                 120)
+        timeout = self.safe_get_int(None,
+                                    self.FLUENTD_ENDPOINT_SECTION,
+                                    self.FLUENTD_ENDPOINT_SECTION_TIMEOUT,
+                                    self.FLUENTD_DEFAULT_TIMEOUT_SECONDS)
+        if timeout <= 0:
+            logging.warning("Invalid Fluentd timeout value %d, using default 120 seconds", timeout)
+            timeout = self.FLUENTD_DEFAULT_TIMEOUT_SECONDS
+        return timeout
 
     def get_fluentd_msg_tag(self, default=''):
         return self.get_config_value(None,

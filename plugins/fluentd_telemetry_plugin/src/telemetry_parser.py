@@ -95,8 +95,17 @@ class TelemetryParser:
                 self.streaming_metrics_mgr.telemetry_received_response_size_bytes_key: actual_content_size
             })
             return response.text
-        except Exception as ex:  # pylint: disable=broad-except
-            logging.error(ex)
+        except requests.exceptions.Timeout:
+            logging.exception("Timeout fetching telemetry from %s", url)
+            return None
+        except requests.exceptions.ConnectionError:
+            logging.exception("Connection error to %s", url)
+            return None
+        except requests.exceptions.RequestException:
+            logging.exception("Request error to %s", url)
+            return None
+        except Exception:  # pylint: disable=broad-exception-caught
+            logging.exception("Unexpected error fetching telemetry from %s", url)
             return None
 
     def _parse_telemetry_csv_metrics_to_json_with_delta(self, available_headers, rows,
