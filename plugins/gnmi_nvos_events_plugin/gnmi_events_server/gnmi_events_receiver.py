@@ -136,7 +136,8 @@ class GNMIEventsReceiver:
                             self.events.append(payload)
             except Exception as e:
                 retry_count += 1
-                logging.exception("Failed to create gNMI socket for %s (Attempt %d/%d)", ip, retry_count, max_retries)
+                logging.critical("Failed to create gNMI socket for %s because of wrong credentials or bad connectivity (Attempt %d/%d)", ip, retry_count, max_retries)
+                logging.debug("Exception: %s", e)
                 logging.info("Waiting 60 seconds before reconnecting...")
                 time.sleep(60)
 
