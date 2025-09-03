@@ -127,6 +127,22 @@ def get_ufm_switches(existing_switches=None):
     logging.info("List of switches in the fabric: %s", list(switch_dict.keys()))
     return switch_dict
 
+def validate_positive_int(config, section, key, fallback, min_value=1):
+    """Validate and return a positive integer from config, with fallback and logging."""
+    value = config.getint(section, key, fallback=fallback)
+    if value < min_value:
+        logging.warning(f"Invalid {key} value: {value}. Must be >= {min_value}. Using default: {fallback}")
+        value = fallback
+    return value
+
+def validate_port(config, section, key, fallback):
+    """Validate and return a valid port number from config."""
+    value = config.getint(section, key, fallback=fallback)
+    if not (1 <= value <= 65535):
+        logging.warning(f"Invalid {key} value: {value}. Port must be between 1 and 65535. Using default: {fallback}")
+        value = fallback
+    return value
+
 class Switch:
     def __init__(self, name="", guid="guid", ip="", user="", credentials=""):
         self.name = name
@@ -176,8 +192,8 @@ class ConfigParser:
         quit()
     gnmi_events_config.read(config_file)
     log_level = gnmi_events_config.get("Log", "log_level", fallback="INFO")
-    log_file_max_size = gnmi_events_config.getint("Log", "log_file_max_size", fallback=10485760)
-    log_file_backup_count = gnmi_events_config.getint("Log", "log_file_backup_count", fallback=5)
+    log_file_max_size = validate_positive_int(gnmi_events_config, "Log", "log_file_max_size", 10485760)
+    log_file_backup_count = validate_positive_int(gnmi_events_config, "Log", "log_file_backup_count", 5, min_value=0)
     log_format = '%(asctime)-15s %(levelname)s %(message)s'
     logging.basicConfig(handlers=[RotatingFileHandler(log_file,
                                                       maxBytes=log_file_max_size,
@@ -187,15 +203,12 @@ class ConfigParser:
     logging.getLogger("requests").setLevel(logging.getLevelName(log_level))
     logging.getLogger("werkzeug").setLevel(logging.getLevelName(log_level))
 
-    gnmi_port = gnmi_events_config.getint("GNMI", "gnmi_port", fallback=9339)
-    if not gnmi_port:
-        logging.error("Incorrect value for snmp_port")
-        quit()
-    gnmi_reconnect_retries = gnmi_events_config.getint("GNMI", "gnmi_reconnect_retries", fallback=10)
+    gnmi_port = validate_port(gnmi_events_config, "GNMI", "gnmi_port", 9339)
+    gnmi_reconnect_retries = validate_positive_int(gnmi_events_config, "GNMI", "gnmi_reconnect_retries", 10, min_value=0)
 
-    ufm_switches_update_interval = gnmi_events_config.getint("UFM", "ufm_switches_update_interval", fallback=360)
-    ufm_send_events_interval = gnmi_events_config.getint("UFM", "ufm_send_events_interval", fallback=10)
-    ufm_first_update_interval = gnmi_events_config.getint("UFM", "ufm_first_update_interval", fallback=180)
+    ufm_switches_update_interval = validate_positive_int(gnmi_events_config, "UFM", "ufm_switches_update_interval", 360)
+    ufm_send_events_interval = validate_positive_int(gnmi_events_config, "UFM", "ufm_send_events_interval", 10)
+    ufm_first_update_interval = validate_positive_int(gnmi_events_config, "UFM", "ufm_first_update_interval", 180)
 
     public_key, cipher = generate_key_pair()
 
