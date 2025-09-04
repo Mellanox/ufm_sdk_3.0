@@ -35,6 +35,12 @@ class GNMIEventsWebServer:
         self.app = Flask(__name__)
         self.api = Api(self.app)
         self.switch_dict = switch_dict
+        
+        # Suppress Flask development server warnings
+        import logging
+        log = logging.getLogger('werkzeug')
+        log.setLevel(logging.ERROR)
+        
         self.init_apis()
 
     def init_apis(self):
