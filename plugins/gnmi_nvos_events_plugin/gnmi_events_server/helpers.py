@@ -163,12 +163,12 @@ class ConfigParser:
     """
     Class for the configuration parser that reads the configuration file and sets the log level and the log file.
     """
-    config_file = "../build/config/gnmi_nvos_events.conf"
-    log_file="gnmi_nvos_events.log"
-    httpd_config_file = "../build/config/gnmi_nvos_events_httpd_proxy.conf"
-    # config_file = "/config/gnmi_nvos_events.conf"
-    # log_file="/log/gnmi_nvos_events.log"
-    # httpd_config_file = "/config/gnmi_nvos_events_httpd_proxy.conf"
+    # config_file = "../build/config/gnmi_nvos_events.conf"
+    # log_file="gnmi_nvos_events.log"
+    # httpd_config_file = "../build/config/gnmi_nvos_events_httpd_proxy.conf"
+    config_file = "/config/gnmi_nvos_events.conf"
+    log_file="/log/gnmi_nvos_events.log"
+    httpd_config_file = "/config/gnmi_nvos_events_httpd_proxy.conf"
 
     gnmi_events_config = configparser.ConfigParser()
     if not os.path.exists(config_file):
