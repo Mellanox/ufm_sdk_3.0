@@ -82,7 +82,7 @@ settings need to be adjusted to make the UFM-SLURM Integration function properly
        pkey_allocation:       When set to true, UFM–SLURM Integration will allocate a PKEY for the SLURM job. Otherwise, it will use the default management PKEY: 0x7fff.
        pkey_allocation_mode:  PKEY allocation mode: one of {static, dynamic}.
                               - static  : use a statically assigned PKEY when creating a new PKEY.
-                              - dynamic : use dynamic assignment when creating a new PKEY based of the slurm-job-id.
+                              - dynamic : use dynamic assignment when creating a new PKEY based on the slurm-job-id.
 	   pkey:                  Used only when pkey_allocation_mode=static. If not set, the default management PKEY (0x7fff) will be used.
 	   partially_alloc:       Whether to allow or not allow partial allocation of nodes
        auth_type:             One of (token_auth, basic_auth, kerberos_auth) by default it token_auth
