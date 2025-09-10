@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright © 2017-2024 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright © 2017-2025 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -36,7 +36,10 @@ class Constants:
     CONF_UFM_PASSWORD = 'ufm_server_pass'
     CONF_TOKEN = 'token'
     CONF_PKEY_ALLOCATION = 'pkey_allocation'
+    CONF_PKEY_ALLOCATION_MODE = 'pkey_allocation_mode'
     CONF_PKEY_PARAM = 'pkey'
+    STATIC_PKEY_ALLOCATION_MODE = 'static'
+    DYNAMIC_PKEY_ALLOCATION_MODE = 'dynamic'
     CONF_IP_OVER_IB_PARAM = 'ip_over_ib'
     CONF_INDEX0_PARAM = 'index0'
     CONF_SHARP_ALLOCATION = 'sharp_allocation'

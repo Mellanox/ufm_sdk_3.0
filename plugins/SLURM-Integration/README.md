@@ -76,16 +76,19 @@ settings need to be adjusted to make the UFM-SLURM Integration function properly
        sudo vim /etc/slurm/ufm_slurm.conf
 
 ### 2) Set the following keys, then save the file:
-	   ufm_server:       UFM server IP address to connect to
- 	   ufm_server_user:  Username of UFM server used to connect to UFM if you set auth_type=basic_auth.
-	   ufm_server_pass:  UFM server user password.
-	   partially_alloc:  Whether to allow or not allow partial allocation of nodes
-	   pkey:             By default it will by default management Pkey 0x7fff
-	   auth_type:        One of (token_auth, basic_auth, kerberos_auth) by default it token_auth
-	   token:            If you set auth_type to be token_auth you need to set 
-                         generated token. Please see Generate token_auth section.
-       principal_nam:    principal name to be used in kerberos authentication when you set auth_type to be kerberos_auth.
-	   log_file_name:    The path of the UFM-SLURM integration logging file
+	   ufm_server:            UFM server IP address to connect to
+ 	   ufm_server_user:       Username of UFM server used to connect to UFM if you set auth_type=basic_auth.
+	   ufm_server_pass:       UFM server user password.
+       pkey_allocation:       When set to true, UFM–SLURM Integration will allocate a PKEY for the SLURM job. Otherwise, it will use the default management PKEY: 0x7fff.
+       pkey_allocation_mode:  PKEY allocation mode: one of {static, dynamic}.
+                              - static  : use a statically assigned PKEY when creating a new PKEY.
+                              - dynamic : use dynamic assignment when creating a new PKEY based of the slurm-job-id.
+	   pkey:                  Used only when pkey_allocation_mode=static. If not set, the default management PKEY (0x7fff) will be used.
+	   partially_alloc:       Whether to allow or not allow partial allocation of nodes
+       auth_type:             One of (token_auth, basic_auth, kerberos_auth) by default it token_auth
+	   token:                 If you set auth_type to be token_auth you need to set generated token. Please see Generate token_auth section.
+       principal_nam:         principal name to be used in kerberos authentication when you set auth_type to be kerberos_auth.
+	   log_file_name:         The path of the UFM-SLURM integration logging file
 
 ### 3) Run UFM in 'Management' mode.
 	 - On UFM machine, open the ufm config file /opt/ufm/files/conf/gv.cfg

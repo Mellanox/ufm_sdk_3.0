@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright © 2019-2023 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+# Copyright © 2019-2025 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # This software product is a proprietary product of Nvidia Corporation and its affiliates
 # (the "Company") and all right, title, and interest in and to the software
@@ -34,7 +34,12 @@ class UfmSlurmBase():
         self.password = self.general_utils.get_conf_parameter_value(Constants.CONF_UFM_PASSWORD)
         self.pkey_allocation = self.general_utils.get_conf_parameter_value(Constants.CONF_PKEY_ALLOCATION)
         self.pkey_allocation = self._toBoolean(self.pkey_allocation, Constants.CONF_PKEY_ALLOCATION, True)
-        self.pkey = self.general_utils.get_conf_parameter_value(Constants.CONF_PKEY_PARAM)
+        self.pkey_allocation_mode = self.general_utils.get_conf_parameter_value(Constants.CONF_PKEY_ALLOCATION_MODE)
+        if self.pkey_allocation_mode not in [Constants.STATIC_PKEY_ALLOCATION_MODE, Constants.DYNAMIC_PKEY_ALLOCATION_MODE]:
+            logging.error(f"pkey_allocation_mode must be one of {Constants.STATIC_PKEY_ALLOCATION_MODE} or {Constants.DYNAMIC_PKEY_ALLOCATION_MODE}, got {self.pkey_allocation_mode}")
+            self.pkey_allocation_mode = Constants.STATIC_PKEY_ALLOCATION_MODE
+            sys.exit(self.should_fail)
+        self.get_pkey_name(self.args.job_id)
         self.ip_over_ib = self.general_utils.get_conf_parameter_value(Constants.CONF_IP_OVER_IB_PARAM)
         if not self.ip_over_ib:
             self.ip_over_ib = True
@@ -57,6 +62,30 @@ class UfmSlurmBase():
         self.retry_interval = int(self.general_utils.get_conf_parameter_value(Constants.CONF_RETRY_INTERVAL))
         self.is_in_debug_mode = self.general_utils.is_debug_mode()
 
+    def get_pkey_name(self, job_id):
+        """
+        This function is responsible for determining the Pkey name for SLURM job allocation
+        based on the configured allocation mode.
+        Static Mode: Uses a pre-configured pkey value from the configuration file
+        Dynamic Mode: Automatically generates a pkey value by converting the SLURM job ID 
+        into a hexadecimal value within a specific range
+        Args:
+            job_id (int): Slurm job ID (1 → 2,147,483,647)
+        """
+        if self.pkey_allocation_mode == Constants.STATIC_PKEY_ALLOCATION_MODE:
+            self.pkey = self.general_utils.get_conf_parameter_value(Constants.CONF_PKEY_PARAM)
+        else: # dynamic pkey allocation mode
+            # Convert a Slurm job ID to a hexadecimal string in the range 0x1–0x7ffe.
+            # wrap job_id into 1–32766 range
+            try:
+                wrapped_value = (int(job_id) % (0x7ffe))
+                # wrap job_id into 1–32766 range
+                wrapped_value = 1 if wrapped_value == 0 else wrapped_value
+                self.pkey = hex(wrapped_value)
+            except Exception as exc:
+                logging.error(f"Failed to get pkey name for job_id: {job_id}, got exception: {exc}")
+                sys.exit(self.should_fail)
+    
     def create_server_session(self):
         self.auth_type = self.general_utils.get_conf_parameter_value(Constants.AUTH_TYPE)
         if self.auth_type == Constants.BASIC_AUTH:
