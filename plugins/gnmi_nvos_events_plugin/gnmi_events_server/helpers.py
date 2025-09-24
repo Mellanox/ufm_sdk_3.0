@@ -81,25 +81,25 @@ def generate_key_pair():
     return public_key, cipher
 
 def get_credentials(guid=None):
-    guid = guid if guid else "default"
-    resource = f"/resources/sites/{guid}/credentials?credential_types=SSH_Switch&public_key={ConfigParser.public_key}"
-    logging.info("Get %s credentials %s", guid, resource)
+    api = f"systems/{guid}" if guid else "sites/default"
+    resource = f"/resources/{api}/credentials?credential_types=SSH_Switch&public_key={ConfigParser.public_key}"
+    logging.info("Get %s credentials %s", api, resource)
     status_code, response = get_request(resource)
     user = None
     credentials = None
     if not succeded(status_code):
-        logging.info("Failed to get %s credentials. Global credentials will be used", guid)
+        logging.info("Failed to get %s credentials. Global credentials will be used", api)
         return user, credentials
     if not response:
-        logging.info("Empty %s credentials, please update them via UFM Web UI. Global credentials will be used", guid)
+        logging.info("Empty %s credentials, please update them via UFM Web UI. Global credentials will be used", api)
         return user, credentials
     try:
         user = response[0]["user"]
         encrypted_credentials = response[0]["credentials"]
         credentials = ConfigParser.cipher.decrypt(base64.b64decode(encrypted_credentials)).decode('utf-8')
-        logging.info("Decrypted %s credentials successfully", guid)
+        logging.info("Decrypted %s credentials successfully", api)
     except Exception as e:
-        logging.error("Failed to decrypt %s credentials", guid)
+        logging.error("Failed to decrypt %s credentials", api)
         logging.debug("Exception: %s", e)
     return user, credentials
 

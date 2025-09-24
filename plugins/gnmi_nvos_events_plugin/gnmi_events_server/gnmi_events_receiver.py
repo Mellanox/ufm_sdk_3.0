@@ -21,6 +21,11 @@ class GNMIEventsReceiver:
         # disable annoying warning when debugging, in production all requests will be secured
         import urllib3
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        
+        # Set pygnmi logger to ERROR level to suppress verbose INFO messages
+        pygnmi_logger = logging.getLogger('pygnmi')
+        pygnmi_logger.setLevel(logging.ERROR)
+        
         # dictionary of switches with their credentials and GUIDs
         self.switch_dict = switch_dict
         self.session = requests.Session()
