@@ -57,9 +57,9 @@ class GNMIEventsReceiver:
                 ip = exc_value.ip
 
             logging.error("Unhandled exception in thread %s (IP: %s):", thread.name, ip)
-            logging.error("Type: %s", exc_type.__name__)
-            logging.error("Value: %s", exc_value)
-            logging.error("Traceback:", exc_info=(exc_type, exc_value, exc_traceback))
+            logging.debug("Type: %s", exc_type.__name__)
+            logging.debug("Value: %s", exc_value)
+            logging.debug("Traceback:", exc_info=(exc_type, exc_value, exc_traceback))
             
             # If this is a switch thread, try to restart it
             if ip and ip in self.switch_dict:
@@ -143,8 +143,9 @@ class GNMIEventsReceiver:
                 retry_count += 1
                 logging.critical("Failed to create gNMI socket for %s because of wrong credentials or bad connectivity (Attempt %d/%d)", ip, retry_count, max_retries)
                 logging.debug("Exception: %s", e)
-                logging.info("Waiting 60 seconds before reconnecting...")
-                time.sleep(60)
+                if reconnect:
+                    logging.info("Waiting 60 seconds before reconnecting...")
+                    time.sleep(60)
 
     def throttle_events(self):
         """
