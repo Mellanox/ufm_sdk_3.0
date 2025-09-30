@@ -15,6 +15,7 @@
 # Author: Ibrahimbar
 # Author: Anas Badaha
 
+from http.client import HTTP_PORT
 import sys, time, http
 import argparse
 import logging
@@ -47,6 +48,8 @@ class UfmSlurmBase():
         self.index0 = self.general_utils.get_conf_parameter_value(Constants.CONF_INDEX0_PARAM)
         if not self.index0:
             self.index0 = False
+        if not self.http_port:
+            self.http_port = "443"
         self.sharp_allocation = self.general_utils.get_conf_parameter_value(Constants.CONF_SHARP_ALLOCATION)
         self.sharp_allocation = self._toBoolean(self.sharp_allocation, Constants.CONF_SHARP_ALLOCATION, False)
         self.partially_alloc = self.general_utils.get_conf_parameter_value(Constants.CONF_PARTIALLY_ALLOC)

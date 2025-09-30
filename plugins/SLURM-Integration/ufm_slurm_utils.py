@@ -99,7 +99,6 @@ class GeneralUtils:
         return proc.returncode, str(stdout.strip()), str(stderr.strip())
 
     def getSlurmConfFile(self):
-        return "/tmp/ufm_slurm.conf"
         cmd = 'cat %s | grep ConditionPathExists' % Constants.SLURM_SERVICE_PATH
         ret, path, _ = self.run_cmd(cmd)
         if ret == 0 and path:
@@ -314,6 +313,5 @@ class Integration:
     ufm = UFM()
 
     def getJobNodesName(self):
-        return "r-ufm51"
         slurm_job_node_list = os.getenv('SLURM_JOB_NODELIST')
         return slurm_job_node_list
