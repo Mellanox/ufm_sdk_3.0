@@ -30,6 +30,7 @@ class UfmSlurmBase():
 
     def init(self):
         self.server = self.general_utils.get_conf_parameter_value(Constants.CONF_UFM_IP)
+        self.https_port = self.general_utils.get_conf_parameter_value(Constants.CONF_HTTPS_PORT)
         self.user = self.general_utils.get_conf_parameter_value(Constants.CONF_UFM_USER)
         self.password = self.general_utils.get_conf_parameter_value(Constants.CONF_UFM_PASSWORD)
         self.pkey_allocation = self.general_utils.get_conf_parameter_value(Constants.CONF_PKEY_ALLOCATION)
@@ -46,6 +47,8 @@ class UfmSlurmBase():
         self.index0 = self.general_utils.get_conf_parameter_value(Constants.CONF_INDEX0_PARAM)
         if not self.index0:
             self.index0 = False
+        if not self.https_port:
+            self.https_port = "443"
         self.sharp_allocation = self.general_utils.get_conf_parameter_value(Constants.CONF_SHARP_ALLOCATION)
         self.sharp_allocation = self._toBoolean(self.sharp_allocation, Constants.CONF_SHARP_ALLOCATION, False)
         self.partially_alloc = self.general_utils.get_conf_parameter_value(Constants.CONF_PARTIALLY_ALLOC)
@@ -153,7 +156,7 @@ class UfmSlurmBase():
                 sys.exit(self.should_fail)
 
             logging.info(Constants.LOG_CONNECT_UFM % self.server)
-            is_running, msg = self.ufm.IsUfmRunning(self.server, self.session, self.auth_type)
+            is_running, msg = self.ufm.IsUfmRunning(self.server, self.https_port, self.session, self.auth_type)
 
             if is_running:
                 logging.info(Constants.LOG_UFM_RUNNING %self.server)
@@ -168,7 +171,7 @@ class UfmSlurmBase():
     def create_sharp_allocation(self, job_id, job_nodes):
         try:
             logging.info("Allocate Job's node guids (%s) to app_id: %s" % (job_nodes, job_id))
-            response = self.ufm._create_sharp_allocation(self.server, self.session, self.auth_type, job_id, job_nodes,
+            response = self.ufm._create_sharp_allocation(self.server, self.https_port, self.session, self.auth_type, job_id, job_nodes,
                                                        self.pkey, self.app_resources_limit, self.partially_alloc)
             logging.info("Request Response: %s" % str(response))
         except Exception as exc:
@@ -179,7 +182,7 @@ class UfmSlurmBase():
         while True:
             try:
                 logging.info(f"Attempting to delete sharp reservation with app_id: {job_id}")
-                response = self.ufm._delete_sharp_allocation(self.server, self.session, self.auth_type, job_id)
+                response = self.ufm._delete_sharp_allocation(self.server, self.https_port, self.session, self.auth_type, job_id)
                 # In case the sharp reservation was deleted successfully, need to break the while loop.
                 if response.status_code == http.client.NO_CONTENT:
                     logging.info(f"Deleting sharp reservation with app_id: {job_id} completed successfully.")
@@ -221,8 +224,8 @@ class UfmSlurmBase():
             return
         try:
             logging.info("Adding guids of hosts_names (%s) to pkey (%s)" % (job_nodes, self.pkey))
-            response = self.ufm._add_hosts_to_pkey(self.server, self.session, self.auth_type, job_nodes, self.pkey,
-                                                   self.ip_over_ib, self.index0)
+            response = self.ufm._add_hosts_to_pkey(self.server, self.https_port, self.session,
+            self.auth_type, job_nodes, self.pkey, self.ip_over_ib, self.index0)
             logging.info("Request Response: %s" % str(response))
         except Exception as exc:
             logging.error("Failed to add guids of hosts_names (%s) to pkey (%s) ::: Error==> %s" % (
@@ -234,7 +237,7 @@ class UfmSlurmBase():
             return
         try:
             logging.info("Removing guids of hosts_names (%s) from pkey (%s)" % (job_nodes, self.pkey))
-            response = self.ufm._remove_hosts_from_pkey(self.server, self.session, self.auth_type, job_nodes, self.pkey)
+            response = self.ufm._remove_hosts_from_pkey(self.server, self.https_port, self.session, self.auth_type, job_nodes, self.pkey)
             logging.info("Request Response: %s" % str(response))
         except Exception as exc:
             logging.error("Failed to remove guids of hosts_names (%s) from pkey (%s) ::: Error==> %s" % (
