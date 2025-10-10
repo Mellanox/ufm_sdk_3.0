@@ -31,7 +31,7 @@ class UfmSlurmBase():
 
     def init(self):
         self.server = self.general_utils.get_conf_parameter_value(Constants.CONF_UFM_IP)
-        self.http_port = self.general_utils.get_conf_parameter_value(Constants.CONF_HTTP_PORT)
+        self.https_port = self.general_utils.get_conf_parameter_value(Constants.CONF_HTTPS_PORT)
         self.user = self.general_utils.get_conf_parameter_value(Constants.CONF_UFM_USER)
         self.password = self.general_utils.get_conf_parameter_value(Constants.CONF_UFM_PASSWORD)
         self.pkey_allocation = self.general_utils.get_conf_parameter_value(Constants.CONF_PKEY_ALLOCATION)
@@ -48,8 +48,8 @@ class UfmSlurmBase():
         self.index0 = self.general_utils.get_conf_parameter_value(Constants.CONF_INDEX0_PARAM)
         if not self.index0:
             self.index0 = False
-        if not self.http_port:
-            self.http_port = "443"
+        if not self.https_port:
+            self.https_port = "443"
         self.sharp_allocation = self.general_utils.get_conf_parameter_value(Constants.CONF_SHARP_ALLOCATION)
         self.sharp_allocation = self._toBoolean(self.sharp_allocation, Constants.CONF_SHARP_ALLOCATION, False)
         self.partially_alloc = self.general_utils.get_conf_parameter_value(Constants.CONF_PARTIALLY_ALLOC)

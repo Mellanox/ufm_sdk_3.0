@@ -50,7 +50,7 @@ class Constants:
     CONF_NUM_OF_RETRIES = "num_of_retries"
     CONF_RETRY_INTERVAL = "retry_interval"
     CONF_PRINCIPAL_NAME = "principal_name"
-    CONF_HTTP_PORT = "http_port"
+    CONF_HTTPS_PORT = "https_port"
     BASIC_AUTH = "basic_auth"
     TOKEN_AUTH = "token_auth"
     KERBEROS_AUTH = "kerberos_auth"
