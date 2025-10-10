@@ -140,50 +140,50 @@ class GeneralUtils:
         else:
             return False
 
-    def sendPostRequest(self, session, host, http_port, body, resource_path):
+    def sendPostRequest(self, session, host, https_port, body, resource_path):
         if ':' in host:
-            url = 'https://[{0}]:{1}{2}'.format(host, http_port, resource_path)
+            url = 'https://[{0}]:{1}{2}'.format(host, https_port, resource_path)
         else:
-            url = 'https://{0}:{1}{2}'.format(host, http_port, resource_path)
+            url = 'https://{0}:{1}{2}'.format(host, https_port, resource_path)
         resp = session.post(url, data=body)
         return resp
 
-    def sendPostRequestAsJSON(self, session, host, http_port, body, resource_path):
-        result = self.sendPostRequest(session, host, http_port, body, resource_path)
+    def sendPostRequestAsJSON(self, session, host, https_port, body, resource_path):
+        result = self.sendPostRequest(session, host, https_port, body, resource_path)
         try:
             result_body = json.loads(result.text)
         except:
             return result.text, result.status_code, result.reason
         return result_body, result.status_code, result.reason
 
-    def sendGetRequest(self, session, host, http_port, resource_path,):
+    def sendGetRequest(self, session, host, https_port, resource_path,):
         if ':' in host:
-            url = 'https://[{0}]:{1}{2}'.format(host, http_port, resource_path)
+            url = 'https://[{0}]:{1}{2}'.format(host, https_port, resource_path)
         else:
-            url = 'https://{0}:{1}{2}'.format(host, http_port, resource_path)
+            url = 'https://{0}:{1}{2}'.format(host, https_port, resource_path)
         resp = session.get(url)
         return resp
 
-    def sendGetRequestAsJSON(self, session, host, http_port, resource_path):
-        result = self.sendGetRequest(session, host, http_port, resource_path)
+    def sendGetRequestAsJSON(self, session, host, https_port, resource_path):
+        result = self.sendGetRequest(session, host, https_port, resource_path)
         try:
             result_body = json.loads(result.text)
         except:
             return result.text, result.status_code, result.reason
         return result_body, result.status_code, result.reason
 
-    def sendDeleteRequest(self, session, host, http_port, resource_path):
+    def sendDeleteRequest(self, session, host, https_port, resource_path):
         if ':' in host:
-            url = 'https://[{0}]:{1}{2}'.format(host, http_port, resource_path)
+            url = 'https://[{0}]:{1}{2}'.format(host, https_port, resource_path)
         else:
-            url = 'https://{0}:{1}{2}'.format(host, http_port, resource_path)
+            url = 'https://{0}:{1}{2}'.format(host, https_port, resource_path)
         return session.delete(url)
 
-    def sendPutRequest(self, session, host, http_port, body, resource_path):
+    def sendPutRequest(self, session, host, https_port, body, resource_path):
         if ':' in host:
-            url = 'https://[{0}]:{1}{2}'.format(host, http_port, resource_path)
+            url = 'https://[{0}]:{1}{2}'.format(host, https_port, resource_path)
         else:
-            url = 'https://{0}:{1}{2}'.format(host, http_port, resource_path)
+            url = 'https://{0}:{1}{2}'.format(host, https_port, resource_path)
 
         return session.put(url, data=body)
 
@@ -222,13 +222,13 @@ class UFM:
 
         return session
 
-    def IsUfmRunning(self, ufm_server, http_port, session, auth_type):
+    def IsUfmRunning(self, ufm_server, https_port, session, auth_type):
         """
         Check if UFM is running on a given device.
         """
         resource_path = Constants.UFM_VER_URL
         url = self.getUrl(resource_path, auth_type)
-        result = self.utils.sendGetRequest(session, ufm_server, http_port, url)
+        result = self.utils.sendGetRequest(session, ufm_server, https_port, url)
         ver = result.text
 
         if not ver or result.status_code != http.client.OK:
@@ -244,7 +244,7 @@ class UFM:
             else:
                 return False, Constants.UFM_CONNECT_ERROR
 
-    def _create_sharp_allocation(self, ufm_server, http_port, session, auth_type, job_id, job_nodes, pkey,
+    def _create_sharp_allocation(self, ufm_server, https_port, session, auth_type, job_id, job_nodes, pkey,
                                  app_resources_limit, partially_alloc):
         resource_path = Constants.CREATE_SHARP_ALLOCATION_URL
         url = self.getUrl(resource_path, auth_type)
@@ -262,9 +262,9 @@ class UFM:
 
         body = json.dumps(body_obj)
         logging.info("Sending POST Request to URL:%s, with request data::: %s" % (url, body))
-        return self.utils.sendPostRequestAsJSON(session, ufm_server, http_port, body, url)
+        return self.utils.sendPostRequestAsJSON(session, ufm_server, https_port, body, url)
 
-    def _add_hosts_to_pkey(self, ufm_server, http_port, session, auth_type, job_nodes, pkey, ip_over_ib, index0):
+    def _add_hosts_to_pkey(self, ufm_server, https_port, session, auth_type, job_nodes, pkey, ip_over_ib, index0):
         resource_path = Constants.ADD_HOSTS_TO_PKEY_URL
         url = self.getUrl(resource_path, auth_type)
         body_obj = {
@@ -276,21 +276,21 @@ class UFM:
 
         body = json.dumps(body_obj)
         logging.info("Sending POST Request to URL:%s, with request data::: %s" % (url, body))
-        return self.utils.sendPostRequestAsJSON(session, ufm_server, http_port, body, url)
+        return self.utils.sendPostRequestAsJSON(session, ufm_server, https_port, body, url)
 
-    def _remove_hosts_from_pkey(self, ufm_server, http_port, session, auth_type, job_nodes, pkey):
+    def _remove_hosts_from_pkey(self, ufm_server, https_port, session, auth_type, job_nodes, pkey):
         resource_path = Constants.REMOVE_HOSTS_FROM_PKEY_URL.format(pkey, job_nodes)
         url = self.getUrl(resource_path, auth_type)
 
         logging.info("Sending DELETE Request to URL:%s" % url)
-        return self.utils.sendDeleteRequest(session, ufm_server, http_port, url)
+        return self.utils.sendDeleteRequest(session, ufm_server, https_port, url)
 
-    def _delete_sharp_allocation(self, ufm_server, http_port, session, auth_type, job_id):
+    def _delete_sharp_allocation(self, ufm_server, https_port, session, auth_type, job_id):
 
         resource_path = Constants.DELETE_SHARP_ALLOCATION_URL.format(job_id)
         url = self.getUrl(resource_path, auth_type)
         logging.info("Sending Delete Request to URL:%s" % url)
-        return self.utils.sendDeleteRequest(session, ufm_server, http_port, url)
+        return self.utils.sendDeleteRequest(session, ufm_server, https_port, url)
 
     def IPAddressValidation(self, val):
         try:
