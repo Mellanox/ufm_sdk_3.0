@@ -244,13 +244,6 @@ ${authorized_users.join(', ')}
 ╚═══════════════════════════════════════════════════════════════════════════╝
 """
         }
-        always {
-            // Clean up any remaining local images to save disk space
-            sh '''
-                echo "Cleaning up Docker environment..."
-                docker system prune -f || true
-            '''
-        }
     }
 }
 
