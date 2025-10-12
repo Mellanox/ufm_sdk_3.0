@@ -413,7 +413,7 @@ class DockerHubMultiArchUploader:
         log_info('='*80)
         
         # Validate both image files
-        log_info('Step 1/7: Validating image files')
+        log_info('Step 1/8: Validating image files')
         self.amd_meta_data = self.validate_image_file(self.amd_image_path, 'AMD')
         self.arm_meta_data = self.validate_image_file(self.arm_image_path, 'ARM')
         
@@ -422,8 +422,27 @@ class DockerHubMultiArchUploader:
         arm_image_name = f'{self.image_name}_arm'
         multiarch_image_name = self.image_name
         
+        # Check if base repository exists on Docker Hub
+        log_info('Step 2/8: Verifying base repository exists on Docker Hub')
+        base_repo_url = f'{self.DOCKERHUB_URL}/v2/repositories/{self.repository}/{multiarch_image_name}/'
+        headers = {'Authorization': f'Bearer {self.token}'}
+        response = self.session.get(url=base_repo_url, headers=headers)
+        
+        if response.status_code == 404:
+            log_error(
+                f'Base repository does not exist: {self.repository}/{multiarch_image_name}\n\n'
+                f'The repository must be created on Docker Hub before uploading multi-arch images.\n'
+                f'Please create the repository at:\n'
+                f'  https://hub.docker.com/repository/docker/{self.repository}/{multiarch_image_name}/general\n\n'
+                f'Or create it manually via Docker Hub web interface.'
+            )
+        elif response.status_code == 200:
+            log_info(f'✓ Base repository exists: {self.repository}/{multiarch_image_name}')
+        else:
+            log_warning(f'Could not verify base repository (status {response.status_code}), continuing...')
+        
         # Check if images already exist on Docker Hub
-        log_info('Step 2/7: Checking Docker Hub for existing images')
+        log_info('Step 3/8: Checking Docker Hub for existing images')
         
         images_exist = []
         for img_name in [amd_image_name, arm_image_name, multiarch_image_name]:
@@ -441,27 +460,27 @@ class DockerHubMultiArchUploader:
                        '\n'.join(f'  - {img}' for img in images_exist))
         
         # Load and tag AMD image
-        log_info('Step 3/7: Loading and tagging AMD image')
+        log_info('Step 4/8: Loading and tagging AMD image')
         amd_full_name = self.load_docker_image(self.amd_image_path, amd_image_name, self.tag)
         
         # Load and tag ARM image
-        log_info('Step 4/7: Loading and tagging ARM image')
+        log_info('Step 5/8: Loading and tagging ARM image')
         arm_full_name = self.load_docker_image(self.arm_image_path, arm_image_name, self.tag)
         
         # Push AMD image
-        log_info('Step 5/7: Pushing AMD image to Docker Hub')
+        log_info('Step 6/8: Pushing AMD image to Docker Hub')
         self.push_image(amd_full_name, self.tag)
         
         # Push ARM image
-        log_info('Step 6/7: Pushing ARM image to Docker Hub')
+        log_info('Step 7/8: Pushing ARM image to Docker Hub')
         self.push_image(arm_full_name, self.tag)
         
         # Verify both images exist on Docker Hub before creating manifest
-        log_info('Step 6.5/7: Verifying both architecture images are on Docker Hub')
+        log_info('Step 7.5/8: Verifying both architecture images are on Docker Hub')
         self.verify_arch_images_exist(amd_image_name, self.tag, arm_image_name, self.tag)
         
         # Create and push multi-arch manifest
-        log_info('Step 7/7: Creating and pushing multi-arch manifest')
+        log_info('Step 8/8: Creating and pushing multi-arch manifest')
         multiarch_full_name = f'{self.repository}/{multiarch_image_name}'
         self.create_and_push_manifest(
             multiarch_full_name,
