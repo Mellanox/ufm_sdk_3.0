@@ -340,7 +340,7 @@ class DockerHubMultiArchUploader:
         log_info(f'  AMD image: {amd_image}')
         log_info(f'  ARM image: {arm_image}')
         
-        # First, create the manifest
+        # Create the manifest
         create_cmd = [
             'docker', 'manifest', 'create',
             f'{manifest_name}:{tag}',
@@ -365,7 +365,7 @@ class DockerHubMultiArchUploader:
         except Exception as e:
             log_error(f'Error creating manifest: {e}')
         
-        # Now push the manifest
+        # Push the manifest
         push_cmd = [
             'docker', 'manifest', 'push',
             f'{manifest_name}:{tag}'

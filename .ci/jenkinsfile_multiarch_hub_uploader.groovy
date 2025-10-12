@@ -182,6 +182,10 @@ ${authorized_users.join(', ')}
                         # Enable Docker experimental features for manifest support
                         export DOCKER_CLI_EXPERIMENTAL=enabled
                         
+                        # Login to Docker Hub for manifest commands
+                        echo "Logging in to Docker Hub..."
+                        echo "${DH_TOKEN}" | docker login -u "${DH_USER}" --password-stdin
+                        
                         echo "==================================================================="
                         echo "Executing: python3 .ci/dockerhub_multiarch_uploader.py -u <USER> -p <TOKEN> ${cmd_args}"
                         echo "==================================================================="
