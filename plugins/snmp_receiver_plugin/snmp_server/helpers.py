@@ -183,8 +183,10 @@ def get_ufm_switches(existing_switches=None):
     for switch in json:
         ip = switch["ip"]
         technology = switch["technology"]
-        # skip XDR switches because NVOS switches cannot be registered as SNMP traps senders
-        if not ip == EMPTY_IP and technology != "XDR":
+        if technology == "XDR":
+            logging.info(f"Skipping XDR switch {switch['system_name']}: NVOS cannot be registered as SNMP traps sender")
+            continue
+        if not ip == EMPTY_IP:
             switch_dict[ip] = Switch(switch["system_name"], switch["guid"])
             guid_to_ip[switch["guid"]] = ip
     if existing_switches:
