@@ -102,6 +102,7 @@ def _extract_job_id(headers):
         return job_id
 
 def get_provisioning_output(cli, description, switches):
+    description = f"[SNMP Plugin] {description}"
     status_code, headers = post_provisioning_api(cli, description, switches, return_headers=True)
     if not succeded(status_code):
         return status_code, f"Failed to post json api '{cli}' to switches {switches}"
@@ -181,6 +182,10 @@ def get_ufm_switches(existing_switches=None):
     guid_to_ip = {}
     for switch in json:
         ip = switch["ip"]
+        technology = switch["technology"]
+        if technology == "XDR":
+            logging.info(f"Skipping XDR switch {switch['system_name']}: NVOS cannot be registered as SNMP traps sender")
+            continue
         if not ip == EMPTY_IP:
             switch_dict[ip] = Switch(switch["system_name"], switch["guid"])
             guid_to_ip[switch["guid"]] = ip
