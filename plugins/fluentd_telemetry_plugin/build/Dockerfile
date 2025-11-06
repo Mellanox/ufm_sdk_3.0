@@ -16,7 +16,9 @@ COPY ${SRC_BASE_DIR}/conf/tfs_httpd_proxy.conf ${SRC_BASE_DIR}/conf/fluentd_tele
 
 COPY ${SRC_BASE_DIR}/lib/libfluent-bit.so ${SRC_BASE_DIR}/lib/libraw_msgpack_api.so  ${TELEMETRY_BASE_PATH}/collectx/lib/
 
-RUN apt-get update && apt-get -y install supervisor python3 python3-pip vim rsyslog wget
+RUN apt-get update && apt-get -y install supervisor python3 python3-pip vim rsyslog wget \
+    && apt-get -y upgrade libtiff5 \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # remove an unused library that caused a high CVE vulnerability issue https://redmine.mellanox.com/issues/3621861
 RUN apt-get remove -y linux-libc-dev
