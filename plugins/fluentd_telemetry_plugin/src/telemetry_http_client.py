@@ -90,19 +90,6 @@ class TelemetryHTTPClient:
         """
         return self.session.get(url, **kwargs)
 
-    def post(self, url, **kwargs):
-        """
-        Perform an HTTP POST request using the persistent session.
-        
-        Args:
-            url: The URL to request
-            **kwargs: Additional arguments to pass to requests.post()
-            
-        Returns:
-            requests.Response: The response object
-        """
-        return self.session.post(url, **kwargs)
-
     def get_source_port(self):
         """
         Get the static source port being used by this client.
