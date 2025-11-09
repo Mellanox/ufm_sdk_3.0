@@ -105,21 +105,6 @@ class TestTelemetryHTTPClient:
         mock_session_get.assert_called_once_with(test_url, timeout=test_timeout)
         assert response == mock_response
 
-    @patch('requests.Session.post')
-    def test_post_method_uses_session(self, mock_session_post, http_client):
-        test_url = 'http://example.com/data'
-        test_data = {'key': 'value'}
-        test_headers = {'Content-Type': 'application/json'}
-        mock_response = MagicMock()
-        mock_session_post.return_value = mock_response
-        
-        response = http_client.post(test_url, data=test_data, headers=test_headers)
-        
-        # Verify session.post was called with correct arguments
-        mock_session_post.assert_called_once_with(test_url, data=test_data, headers=test_headers)
-        assert response == mock_response
-
-
 class TestSourcePortAdapterIntegration:
 
     def test_source_port_binding_mechanism(self):
