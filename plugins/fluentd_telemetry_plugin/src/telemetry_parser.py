@@ -53,12 +53,12 @@ class TelemetryParser:
         try:
             self.telemetry_http_client = TelemetryHTTPClient()
             source_port = self.telemetry_http_client.get_source_port()
-            logging.info('Telemetry HTTP client initialized successfully and bound to port: %s',source_port) 
+            logging.info('Telemetry HTTP client initialized successfully and bound to port: %s',source_port)
         except Exception as e: # pylint: disable=broad-exception-caught
             logging.warning('Failed to initialize Telemetry HTTP client: %s'
                             ' Falling back to standard requests library', e)
             self.telemetry_http_client = None
- 
+
     @staticmethod
     def append_filters_to_telemetry_url(url: str, xdr_mode: bool, port_types: List[str]):
         """
