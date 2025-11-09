@@ -31,13 +31,25 @@ class SourcePortAdapter(HTTPAdapter):
         Initialize the adapter and determine the static source port if not already set.
         """
         if SourcePortAdapter._source_port is None:
-            # Bind a socket to port 0 to let the OS choose an ephemeral port
-            # We'll capture this port and reuse it for all subsequent connections
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.bind(('0.0.0.0', 0))
-                SourcePortAdapter._source_port = s.getsockname()[1]
-            logging.info('HTTP Client initialized with static source port: %d', 
-                        SourcePortAdapter._source_port)
+            try:
+                # Bind a socket to port 0 to let the OS choose an ephemeral port
+                # We'll capture this port and reuse it for all subsequent connections
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.bind(('0.0.0.0', 0))
+                    SourcePortAdapter._source_port = s.getsockname()[1]
+                logging.info('HTTP Client initialized with static source port: %d', 
+                            SourcePortAdapter._source_port)
+            except OSError as e:
+                logging.error('Error during HTTP adapter initialization: OS failed to bind port: %s', e)
+                raise RuntimeError(
+                    f'Error during HTTP adapter initialization: OS failed to bind port: ({e})'
+                ) from e
+            except Exception as e:
+                logging.error('Error during HTTP adapter initialization: %s', e)
+                raise RuntimeError(
+                    f'Error during HTTP adapter initialization: ({e})'
+                ) from e
+
         super().__init__(*args, **kwargs)
 
     def init_poolmanager(self, *args, **kwargs):
