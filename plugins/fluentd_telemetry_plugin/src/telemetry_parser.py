@@ -59,6 +59,14 @@ class TelemetryParser:
                             ' Falling back to standard requests library', e)
             self.telemetry_http_client = None
 
+    def __del__(self):
+        """Cleanup resources"""
+        if self.telemetry_http_client:
+            try:
+                self.telemetry_http_client.close()
+            except Exception: # pylint: disable=broad-except
+                pass # No exceptions during cleanup
+
     @staticmethod
     def append_filters_to_telemetry_url(url: str, xdr_mode: bool, port_types: List[str]):
         """
