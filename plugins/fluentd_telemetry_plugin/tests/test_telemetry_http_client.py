@@ -99,7 +99,7 @@ class TestTelemetryHTTPClient:
         mock_response = MagicMock()
         mock_session_get.return_value = mock_response
         
-        response = http_client.get(test_url, timeout=test_timeout)
+        response = http_client.get_telemetry_metrics(test_url, timeout=test_timeout)
         
         # Verify session.get was called with correct arguments
         mock_session_get.assert_called_once_with(test_url, timeout=test_timeout)
