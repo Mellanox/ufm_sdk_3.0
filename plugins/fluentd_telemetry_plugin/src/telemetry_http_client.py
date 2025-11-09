@@ -37,7 +37,7 @@ class SourcePortAdapter(HTTPAdapter):
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                     s.bind(('0.0.0.0', 0))
                     SourcePortAdapter._source_port = s.getsockname()[1]
-                logging.info('HTTP Client initialized with static source port: %d', 
+                logging.info('HTTP Client initialized with static source port: %d',
                             SourcePortAdapter._source_port)
             except OSError as e:
                 logging.error('Error during HTTP adapter initialization: OS failed to bind port: %s', e)
@@ -72,7 +72,7 @@ class TelemetryHTTPClient:
         """
         self.session = requests.Session()
         self.adapter = SourcePortAdapter()
-        
+
         # Mount the adapter for both HTTP and HTTPS
         self.session.mount('http://', self.adapter)
         self.session.mount('https://', self.adapter)
@@ -80,7 +80,7 @@ class TelemetryHTTPClient:
     def get_telemetry_metrics(self, url, **kwargs):
         """
         Perform an HTTP GET request using the persistent session.
-        
+
         Args:
             url: The URL to request
             **kwargs: Additional arguments to pass to requests.get()
@@ -110,11 +110,10 @@ class TelemetryHTTPClient:
         Returns:
             int: The source port number
         """
-        return SourcePortAdapter._source_port
+        return SourcePortAdapter._source_port # pylint: disable=protected-access
 
     def close(self):
         """
         Close the session and release resources.
         """
         self.session.close()
-
