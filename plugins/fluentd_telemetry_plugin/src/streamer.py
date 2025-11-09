@@ -239,7 +239,7 @@ class UFMTelemetryStreaming(metaclass=SingletonMeta):
             data_to_stream = []
             new_data_timestamp = None
             num_of_counters = data_len = 0
-            if telemetry_data:
+            if telemetry_data is not None: # None = Failed, Empty = No new data
                 if self.last_streamed_data_sample_per_endpoint.get(msg_tag, None) is None:
                     self.last_streamed_data_sample_per_endpoint[msg_tag] = {}
                 logging.info('Start Processing The Received Response From %s', msg_tag)
@@ -266,6 +266,7 @@ class UFMTelemetryStreaming(metaclass=SingletonMeta):
                 if data_len > 0:
                     warn_msg = f'The telemetry endpoint {msg_tag} unavailable, streaming {data_len} ports from the cached data'
                     logging.warning(warn_msg)
+            # Empty data will not be streamed
             if data_len > 0 and \
                     (not new_data_timestamp or
                      (new_data_timestamp and new_data_timestamp != self.last_streamed_data_sample_timestamp)):
@@ -281,7 +282,7 @@ class UFMTelemetryStreaming(metaclass=SingletonMeta):
                     for row in data_to_stream:
                         self._stream_data_to_fluentd(row, msg_tag)
                 self.last_streamed_data_sample_timestamp = new_data_timestamp
-            elif not telemetry_data:
+            elif telemetry_data is None: # None = Failed, Empty = No new data
                 logging.error("Failed to get the telemetry data metrics for %s", _url)
             elif self.stream_only_new_samples:
                 logging.info('No new samples in endpoint %s, nothing to stream', msg_tag)

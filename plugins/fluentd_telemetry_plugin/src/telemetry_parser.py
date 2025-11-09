@@ -22,6 +22,7 @@ from telemetry_constants import UFMTelemetryConstants
 from ufm_sdk_tools.src.xdr_utils import PortType,prepare_port_type_http_telemetry_filter
 from utils.logger import Logger, LOG_LEVELS
 from utils.utils import Utils
+from telemetry_http_client import TelemetryHTTPClient
 
 class TelemetryParser:
     """
@@ -48,7 +49,8 @@ class TelemetryParser:
         self.last_streamed_data_sample_per_endpoint = _last_streamed_data_sample_per_endpoint
         self.meta_fields = self.config_parser.get_meta_fields()
         self.attributes_mngr = attr_mngr
-
+        self.telemetry_http_client = TelemetryHTTPClient()
+    
     @staticmethod
     def append_filters_to_telemetry_url(url: str, xdr_mode: bool, port_types: List[str]):
         """
@@ -73,9 +75,9 @@ class TelemetryParser:
     def get_metrics(self, _host, _port, _url, msg_tag):
         _host = f'[{_host}]' if Utils.is_ipv6_address(_host) else _host
         url = f'http://{_host}:{_port}/{_url}'
-        logging.info('Send UFM Telemetry Endpoint Request, Method: GET, URL: %s', url)
+        logging.info('Send UFM Telemetry Endpoint Request, Method: GET, URL: %s, Ephemeral port: %s', url, str(self.telemetry_http_client.get_source_port()))
         try:
-            response = requests.get(url, timeout=self.config_parser.get_streaming_telemetry_request_timeout())
+            response = self.telemetry_http_client.get_telemetry_metrics(url, timeout=self.config_parser.get_streaming_telemetry_request_timeout())
             response.raise_for_status()
             actual_content_size = len(response.content)
             expected_content_size = int(response.headers.get('Content-Length', actual_content_size))
