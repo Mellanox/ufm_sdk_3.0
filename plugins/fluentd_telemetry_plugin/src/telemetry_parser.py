@@ -100,7 +100,7 @@ class TelemetryParser:
 
         try:
             if self.telemetry_http_client:
-                response = self.telemetry_http_client.get_telemetry_metrics(
+                response = self.telemetry_http_client.get_telemetry_data(
                     url,
                     timeout=self.config_parser.get_streaming_telemetry_request_timeout()
                 )

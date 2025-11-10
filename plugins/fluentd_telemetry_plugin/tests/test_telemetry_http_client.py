@@ -11,11 +11,14 @@ Tests verify:
 @author: Yotam Ashman
 """
 
-import socket
-from unittest.mock import MagicMock, patch
-import sys
+import errno
 import os
+import socket
+import sys
+from unittest.mock import MagicMock, patch
+
 import pytest
+import requests
 
 # Add src directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -83,14 +86,12 @@ class TestTelemetryHTTPClient:
         
         assert SourcePortAdapter._source_port is not None
 
-    def test_adapter_mounted_for_http_and_https(self, http_client):
+    def test_adapter_mounted_for_http(self, http_client):
         # Check that adapters are mounted
         assert 'http://' in http_client.session.adapters
-        assert 'https://' in http_client.session.adapters
         
         # Verify it's the custom adapter
         assert isinstance(http_client.session.adapters['http://'], SourcePortAdapter)
-        assert isinstance(http_client.session.adapters['https://'], SourcePortAdapter)
 
     @patch('requests.Session.get')
     def test_get_method_uses_session(self, mock_session_get, http_client):
@@ -99,11 +100,64 @@ class TestTelemetryHTTPClient:
         mock_response = MagicMock()
         mock_session_get.return_value = mock_response
         
-        response = http_client.get_telemetry_metrics(test_url, timeout=test_timeout)
+        response = http_client.get_telemetry_data(test_url, timeout=test_timeout)
         
         # Verify session.get was called with correct arguments
         mock_session_get.assert_called_once_with(test_url, timeout=test_timeout)
         assert response == mock_response
+
+    def test_port_refresh_and_fallback_when_source_port_taken(self):
+        """
+        This test is meant to cover the rare case where the client has decided on a port to maintain,
+        but that port was taken by the OS in between calls (in that time the socket is closed).
+        Expected behavior is to attempt port refresh, or fall back to normal requests.get .
+        """
+        # Setting up the mock environment
+        initial_port = 55000
+        refreshed_port = 55001
+        port_sequence = [initial_port, refreshed_port]
+
+        def acquire_side_effect(*_args, **_kwargs):
+            SourcePortAdapter._source_port = port_sequence.pop(0)
+
+        port_in_use_os_error = OSError(errno.EADDRINUSE, 'Address already in use')
+        port_in_use_exception = requests.exceptions.ConnectionError(port_in_use_os_error)
+        port_in_use_exception.__cause__ = port_in_use_os_error
+        retry_exception = requests.exceptions.Timeout('Timed out')
+        fallback_response = MagicMock()
+
+        with patch.object(SourcePortAdapter, 'acquire_port', autospec=True) as mock_acquire_port, \
+             patch.object(SourcePortAdapter, 'refresh_port', autospec=True) as mock_refresh_port, \
+             patch('requests.Session.get') as mock_session_get, \
+             patch('requests.get') as mock_requests_get:
+            mock_acquire_port.side_effect = acquire_side_effect
+
+            def refresh_side_effect(*_args, **_kwargs):
+                acquire_side_effect()
+
+            mock_refresh_port.side_effect = refresh_side_effect
+            mock_session_get.side_effect = [port_in_use_exception, retry_exception]
+            mock_requests_get.return_value = fallback_response
+
+            # Client will first save port 55000
+            client = TelemetryHTTPClient()
+            original_adapter = client.adapter
+
+            assert SourcePortAdapter._source_port == initial_port
+
+            # Request will result in port in use exception
+            result = client.get_telemetry_data('http://example.com/metrics', timeout=5)
+
+            # Client is expected to attempt to refresh the port
+            assert SourcePortAdapter._source_port == refreshed_port
+            # Since an exception still occurred, client is expected to fall back to normal requests.get
+            assert result is fallback_response
+            assert mock_acquire_port.call_count == 1
+            mock_refresh_port.assert_called_once()
+            assert mock_session_get.call_count == 2
+            mock_requests_get.assert_called_once_with('http://example.com/metrics', timeout=5)
+            assert client.adapter is not original_adapter
+            assert client.session.adapters['http://'] is client.adapter
 
 class TestSourcePortAdapterIntegration:
 
