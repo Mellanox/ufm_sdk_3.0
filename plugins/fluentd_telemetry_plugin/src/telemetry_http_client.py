@@ -87,8 +87,16 @@ class TelemetryHTTPClient:
         """
         Initialize the HTTP client with a persistent session and custom adapter.
         """
-        self.session = requests.Session()
-        self._mount_adapter(initialize_port=True)
+        try:
+            self.session = requests.Session()
+            self._mount_adapter(initialize_port=True)
+            source_port = self.get_source_port()
+            logging.info('Telemetry HTTP client initialized successfully and bound to port: %s',source_port)
+        except Exception: # pylint: disable=broad-exception-caught
+            logging.warning(
+                "Failed to mount HTTP adapter - Falling back to normal requests using requests.get"
+            )
+            self.session = None
 
     def get_telemetry_data(self, url, **kwargs):
         """
@@ -103,30 +111,41 @@ class TelemetryHTTPClient:
         Returns:
             requests.Response: The response object
         """
+        # If adapter was not initialized
+        if not self.session:
+            return requests.get(url, **kwargs) # pylint: disable=missing-timeout
+
         try:
+            source_port = self.get_source_port()
+            logging.debug(
+                "Attempting to send request from port: %s", source_port
+            )
             return self.session.get(url, **kwargs)
-        except requests.exceptions.RequestException as exc:
+        except Exception as exc: # pylint: disable=broad-exception-caught
+            current_port = self.get_source_port()
+
             if self._is_port_in_use_error(exc):
-                current_port = self.get_source_port()
                 logging.warning(
                     'Telemetry HTTP request failed because source port %s is already in use. '
                     'Attempting to acquire a new port and retry the request.',
                     current_port,
                 )
-                self._refresh_session_port()
-                try:
-                    return self.session.get(url, **kwargs)
-                except requests.exceptions.RequestException as retry_exc:
-                    logging.warning(
-                        'Telemetry HTTP request failed again after refreshing the source port. '
-                        'Falling back to a direct requests.get call.',
-                        exc_info=True,
-                    )
-                    try:
-                        return requests.get(url, **kwargs) # pylint: disable=missing-timeout
-                    except requests.exceptions.RequestException as fallback_exc:
-                        raise fallback_exc from retry_exc # Normal requests failed -> propagate exception
-            raise
+            else:
+                logging.warning(
+                    'Telemetry HTTP request failed, Attempting to acquire a new port and retry The request.'
+                )
+
+            self._refresh_session_port() # Attempting to refresh port
+
+            try:
+                return self.session.get(url, **kwargs)
+            except Exception: # pylint: disable=broad-exception-caught
+                logging.warning(
+                    'Telemetry HTTP request failed again after refreshing the source port. '
+                    'Falling back to a direct requests.get call.',
+                    exc_info=True,
+                )
+                return requests.get(url, **kwargs) # pylint: disable=missing-timeout
 
     def get_source_port(self):
         """
@@ -141,7 +160,8 @@ class TelemetryHTTPClient:
         """
         Close the session and release resources.
         """
-        self.session.close()
+        if self.session:
+            self.session.close()
 
     def _mount_adapter(self, initialize_port):
         """

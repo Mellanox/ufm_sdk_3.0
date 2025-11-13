@@ -49,15 +49,7 @@ class TelemetryParser:
         self.last_streamed_data_sample_per_endpoint = _last_streamed_data_sample_per_endpoint
         self.meta_fields = self.config_parser.get_meta_fields()
         self.attributes_mngr = attr_mngr
-
-        try:
-            self.telemetry_http_client = TelemetryHTTPClient()
-            source_port = self.telemetry_http_client.get_source_port()
-            logging.info('Telemetry HTTP client initialized successfully and bound to port: %s',source_port)
-        except Exception as e: # pylint: disable=broad-exception-caught
-            logging.warning('Failed to initialize Telemetry HTTP client: %s'
-                            ' Falling back to standard requests library', e)
-            self.telemetry_http_client = None
+        self.telemetry_http_client = TelemetryHTTPClient()
 
     def __del__(self):
         """Cleanup resources"""
@@ -92,23 +84,11 @@ class TelemetryParser:
         _host = f'[{_host}]' if Utils.is_ipv6_address(_host) else _host
         url = f'http://{_host}:{_port}/{_url}'
 
-        if self.telemetry_http_client:
-            source_port = str(self.telemetry_http_client.get_source_port())
-            logging.info('Send UFM Telemetry Endpoint Request, Method: GET, URL: %s, Ephemeral port: %s', url, source_port)
-        else:
-            logging.info('Send UFM Telemetry Endpoint Request, Method: GET, URL: %s (dynamic source port)', url)
-
         try:
-            if self.telemetry_http_client:
-                response = self.telemetry_http_client.get_telemetry_data(
-                    url,
-                    timeout=self.config_parser.get_streaming_telemetry_request_timeout()
-                )
-            else:
-                response = requests.get(
-                    url,
-                    timeout=self.config_parser.get_streaming_telemetry_request_timeout()
-                )
+            response = self.telemetry_http_client.get_telemetry_data(
+                url,
+                timeout=self.config_parser.get_streaming_telemetry_request_timeout()
+            )
 
             response.raise_for_status()
             actual_content_size = len(response.content)
