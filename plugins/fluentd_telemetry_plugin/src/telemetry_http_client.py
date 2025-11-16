@@ -22,21 +22,21 @@ from requests.adapters import HTTPAdapter
 class SourcePortAdapter(HTTPAdapter):
     """
     Custom HTTP adapter that binds all connections to a static ephemeral source port.
-    The source port is determined once and shared across all connection pools.
+    The source port is determined once for each adapter instance and reused across
+    its connection pool.
     """
-    _source_port = None
-
-    def __init__(self, initialize_port=True):
+    def __init__(self, source_port=None):
         """
-        Initialize the adapter and determine the static source port if not already set.
+        Initialize the adapter and determine the static source port if not provided.
         """
-        if initialize_port and self._source_port is None:
-            self.acquire_port()
+        if source_port is None:
+            source_port = self.acquire_port()
 
+        self.source_port = source_port
         super().__init__()
 
-    @classmethod
-    def acquire_port(cls):
+    @staticmethod
+    def acquire_port():
         """
         Open a new socket and capture the OS given port.
         Socket closes after the port is captured for reuse.
@@ -46,8 +46,9 @@ class SourcePortAdapter(HTTPAdapter):
             # We'll capture this port and reuse it for all subsequent connections
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.bind(('0.0.0.0', 0))
-                cls._source_port = s.getsockname()[1]
-            logging.info('HTTP Client port set to: %d', cls._source_port)
+                port = s.getsockname()[1]
+            logging.debug('HTTP Client acquired candidate port: %d', port)
+            return port
         except OSError as e:
             logging.error('Error during HTTP adapter initialization: OS failed to bind port: %s', e)
             raise RuntimeError(
@@ -59,20 +60,12 @@ class SourcePortAdapter(HTTPAdapter):
                 f'Error during HTTP adapter initialization: ({e})'
             ) from e
 
-    @classmethod
-    def refresh_port(cls):
-        """
-        Acquire a new static source port for future connections.
-        Used when port was taken for any reason.
-        """
-        cls.acquire_port()
-
     def init_poolmanager(self, *args, **kwargs):
         """
         Overrides original poolmanager function to initialize the connection pool manager with the static source address.
         This is where the static port is actually set for the requests.
         """
-        kwargs['source_address'] = ('0.0.0.0', SourcePortAdapter._source_port)
+        kwargs['source_address'] = ('0.0.0.0', self.source_port)
         return super().init_poolmanager(*args, **kwargs)
 
 
@@ -81,22 +74,38 @@ class TelemetryHTTPClient:
     """
     HTTP client for telemetry requests that uses a consistent source port
     across all requests throughout the plugin's runtime.
+    Port MIGHT change if taken between requests, but this is very rare.
     """
 
     def __init__(self):
         """
-        Initialize the HTTP client with a persistent session and custom adapter.
+        Construct fields - Initialization occures at first request
         """
+        self.session = None
+        self.adapter = None
+        self.source_port = None
+        self.initialized = False
+    
+    def initialize(self):
+        if self.initialized:
+            logging.warning('HTTP client initialize method called twice!')
+            return
+
         try:
             self.session = requests.Session()
-            self._mount_adapter(initialize_port=True)
-            source_port = self.get_source_port()
-            logging.info('Telemetry HTTP client initialized successfully and bound to port: %s',source_port)
+            self._mount_adapter()
+
+            logging.info('Telemetry HTTP client initialized successfully and bound to port: %s', self.source_port)
         except Exception: # pylint: disable=broad-exception-caught
-            logging.warning(
-                "Failed to mount HTTP adapter - Falling back to normal requests using requests.get"
+            logging.error(
+                "Failed to mount HTTP adapter - Falling back to normal requests using requests.get", exc_info=True
             )
             self.session = None
+            self.adapter = None
+            self.source_port = None
+        finally:
+            # We set initialized to True regardless so that requests can be made no matter what (using requests if needed)
+            self.initialized = True
 
     def get_telemetry_data(self, url, **kwargs):
         """
@@ -111,7 +120,11 @@ class TelemetryHTTPClient:
         Returns:
             requests.Response: The response object
         """
-        # If adapter was not initialized
+        # Initialization takes place at first request for socket binding to occur in background job and not before
+        if not self.initialized:
+            self.initialize()
+
+        # If initialization failed - fallback on requests.get
         if not self.session:
             return requests.get(url, **kwargs) # pylint: disable=missing-timeout
 
@@ -135,12 +148,12 @@ class TelemetryHTTPClient:
                     'Telemetry HTTP request failed, Attempting to acquire a new port and retry The request.'
                 )
 
-            self._refresh_session_port() # Attempting to refresh port
+            self._refresh_session_port() # Attempting to change port
 
             try:
                 return self.session.get(url, **kwargs)
             except Exception: # pylint: disable=broad-exception-caught
-                logging.warning(
+                logging.error(
                     'Telemetry HTTP request failed again after refreshing the source port. '
                     'Falling back to a direct requests.get call.',
                     exc_info=True,
@@ -149,12 +162,12 @@ class TelemetryHTTPClient:
 
     def get_source_port(self):
         """
-        Get the static source port being used by this client.
+        Get the static source port being used by this client instance.
         
         Returns:
             int: The source port number
         """
-        return SourcePortAdapter._source_port # pylint: disable=protected-access
+        return self.source_port
 
     def close(self):
         """
@@ -163,25 +176,27 @@ class TelemetryHTTPClient:
         if self.session:
             self.session.close()
 
-    def _mount_adapter(self, initialize_port):
+    def _mount_adapter(self, source_port=None):
         """
         Mount a SourcePortAdapter on the current session.
         """
-        adapter = SourcePortAdapter(initialize_port=initialize_port)
+        adapter = SourcePortAdapter(source_port=source_port)
         self.session.mount('http://', adapter)
         self.adapter = adapter
+        self.source_port = adapter.source_port
 
     def _refresh_session_port(self):
         """
         Refresh the source port and remount the adapter.
+        Used if original port was taken by the OS for a different process.
         """
         try:
-            self.adapter.close()
+            if self.adapter:
+                self.adapter.close()
         except Exception: # pylint: disable=broad-exception-caught
             logging.debug('Failed to close existing HTTP adapter before refresh', exc_info=True)
 
-        SourcePortAdapter.refresh_port()
-        self._mount_adapter(initialize_port=False) # Port was set manually
+        self._mount_adapter()
 
     @staticmethod
     def _is_port_in_use_error(exc):
