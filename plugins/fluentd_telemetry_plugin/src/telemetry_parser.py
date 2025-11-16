@@ -42,6 +42,7 @@ class TelemetryParser:
     NORMAL_PORT_ID_KEYS = {'node_guid', 'Node_GUID', 'port_guid', 'port_num', 'Port_Number', 'Port'}
     AGG_PORT_ID_KEYS = {'sys_image_guid', 'aport'}
     PORT_TYPE_KEY = 'port_type'
+    HTTP_CLIENT_KEY = 'http_client'
 
     def __init__(self, conf_parser, monitor_streaming_mgr, _last_streamed_data_sample_per_endpoint, attr_mngr):
         self.config_parser = conf_parser
@@ -49,15 +50,6 @@ class TelemetryParser:
         self.last_streamed_data_sample_per_endpoint = _last_streamed_data_sample_per_endpoint
         self.meta_fields = self.config_parser.get_meta_fields()
         self.attributes_mngr = attr_mngr
-        self.telemetry_http_client = TelemetryHTTPClient()
-
-    def __del__(self):
-        """Cleanup resources"""
-        if self.telemetry_http_client:
-            try:
-                self.telemetry_http_client.close()
-            except Exception: # pylint: disable=broad-except
-                pass # No exceptions during cleanup
 
     @staticmethod
     def append_filters_to_telemetry_url(url: str, xdr_mode: bool, port_types: List[str]):
@@ -80,12 +72,17 @@ class TelemetryParser:
             return f'{url}{filters_sign}{"&".join(filters)}'
         return url
 
-    def get_metrics(self, _host, _port, _url, msg_tag):
-        _host = f'[{_host}]' if Utils.is_ipv6_address(_host) else _host
+    def get_metrics(self, telemetry_endpoint):
+        _host = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_HOST)
+        _port = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_PORT)
+        _url = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_URL)
+        msg_tag = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME)
         url = f'http://{_host}:{_port}/{_url}'
 
+        http_client = telemetry_endpoint.get(self.HTTP_CLIENT_KEY)
+
         try:
-            response = self.telemetry_http_client.get_telemetry_data(
+            response = http_client.get_telemetry_data(
                 url,
                 timeout=self.config_parser.get_streaming_telemetry_request_timeout()
             )

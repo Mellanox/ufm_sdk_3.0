@@ -24,6 +24,7 @@ import requests
 
 from fluentbit_writer import init_fb_writer
 from monitor_streaming_mgr import MonitorStreamingMgr
+from plugins.fluentd_telemetry_plugin.src.telemetry_http_client import TelemetryHTTPClient
 from telemetry_attributes_manager import TelemetryAttributesManager
 from streaming_config_parser import UFMTelemetryStreamingConfigParser
 from telemetry_constants import UFMTelemetryConstants
@@ -131,7 +132,8 @@ class UFMTelemetryStreaming(metaclass=SingletonMeta):
                 self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_XDR_MODE: _is_xdr_mode,
                 self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_INTERVAL: intervals[i],
                 self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME:
-                    msg_tags[i] if msg_tags[i] else f'{value}:{ports[i]}/{_url}'
+                    msg_tags[i] if msg_tags[i] else f'{value}:{ports[i]}/{_url}',
+                self.telem_parser.HTTP_CLIENT_KEY: TelemetryHTTPClient() # Client per endpoint -> Different port per endpoint
             })
         return endpoints
 
@@ -234,7 +236,7 @@ class UFMTelemetryStreaming(metaclass=SingletonMeta):
         _url = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_URL)
         msg_tag = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME)
         is_xdr_mode = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_XDR_MODE)
-        telemetry_data = self.telem_parser.get_metrics(_host, _port, _url, msg_tag)
+        telemetry_data = self.telem_parser.get_metrics(telemetry_endpoint)
         try:
             data_to_stream = []
             new_data_timestamp = None

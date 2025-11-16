@@ -65,7 +65,7 @@ class TelemetryAttributesManager:
             endpoint_id = f'{_host}:{_port}:{_url.split("?")[0]}'
             is_processed = processed_endpoints.get(endpoint_id)
             if not is_processed:
-                telemetry_data = telemetry_parser.get_metrics(_host, _port, _url, _msg_tag)
+                telemetry_data = telemetry_parser.get_metrics(endpoint)
                 if telemetry_data:
 
                     # CSV format
