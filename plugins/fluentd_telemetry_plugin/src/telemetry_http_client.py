@@ -148,13 +148,13 @@ class TelemetryHTTPClient:
                     'Telemetry HTTP request failed, Attempting to acquire a new port and retry The request.'
                 )
 
-            self._refresh_session_port() # Attempting to change port
 
             try:
+                self._refresh_session_port() # Attempting to change port
                 return self.session.get(url, **kwargs)
             except Exception: # pylint: disable=broad-exception-caught
                 logging.error(
-                    'Telemetry HTTP request failed again after refreshing the source port. '
+                    'Telemetry HTTP request failed again after port refresh attempt. '
                     'Falling back to a direct requests.get call.',
                     exc_info=True,
                 )

@@ -26,16 +26,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 from telemetry_http_client import SourcePortAdapter, TelemetryHTTPClient
 
 
-@pytest.fixture(autouse=True)
-def reset_source_port():
-    SourcePortAdapter._source_port = None
-    yield
-    SourcePortAdapter._source_port = None
-
-
 @pytest.fixture
 def http_client():
-    return TelemetryHTTPClient()
+    client = TelemetryHTTPClient()
+    client.initialize()
+    return client
 
 class TestSourcePortAdapter:
 
@@ -43,30 +38,28 @@ class TestSourcePortAdapter:
         adapter = SourcePortAdapter()
         
         # Verify a port was assigned
-        assert SourcePortAdapter._source_port is not None
-        assert isinstance(SourcePortAdapter._source_port, int)
+        assert adapter.source_port is not None
+        assert isinstance(adapter.source_port, int)
 
         EPHEMERAL_PORT_MIN = 1024
         EPHEMERAL_PORT_MAX = 65535
-        assert SourcePortAdapter._source_port > EPHEMERAL_PORT_MIN
-        assert SourcePortAdapter._source_port <= EPHEMERAL_PORT_MAX
+        assert adapter.source_port > EPHEMERAL_PORT_MIN
+        assert adapter.source_port <= EPHEMERAL_PORT_MAX
 
-    def test_source_port_remains_consistent(self):
-        adapter1 = SourcePortAdapter()
-        port1 = SourcePortAdapter._source_port
-        
-        adapter2 = SourcePortAdapter()
-        port2 = SourcePortAdapter._source_port
-        
-        adapter3 = SourcePortAdapter()
-        port3 = SourcePortAdapter._source_port
-        
-        assert port1 == port2 == port3
+    def test_source_port_unique_per_adapter(self):
+        with patch.object(SourcePortAdapter, 'acquire_port', side_effect=[55000, 55001, 55002]):
+            adapter1 = SourcePortAdapter()
+            adapter2 = SourcePortAdapter()
+            adapter3 = SourcePortAdapter()
+
+        assert adapter1.source_port == 55000
+        assert adapter2.source_port == 55001
+        assert adapter3.source_port == 55002
 
     def test_init_poolmanager_sets_source_address(self):
         """Test that init_poolmanager sets the correct source address."""
         adapter = SourcePortAdapter()
-        expected_port = SourcePortAdapter._source_port
+        expected_port = adapter.source_port
 
         with patch('requests.adapters.HTTPAdapter.init_poolmanager', return_value=None) as mock_parent:
             adapter.init_poolmanager()
@@ -84,7 +77,7 @@ class TestTelemetryHTTPClient:
         assert http_client.adapter is not None
         assert isinstance(http_client.adapter, SourcePortAdapter)
         
-        assert SourcePortAdapter._source_port is not None
+        assert http_client.adapter.source_port is not None
 
     def test_adapter_mounted_for_http(self, http_client):
         # Check that adapters are mounted
@@ -115,45 +108,35 @@ class TestTelemetryHTTPClient:
         # Setting up the mock environment
         initial_port = 55000
         refreshed_port = 55001
-        port_sequence = [initial_port, refreshed_port]
 
-        def acquire_side_effect(*_args, **_kwargs):
-            SourcePortAdapter._source_port = port_sequence.pop(0)
-
+        acquire_side_effect = [initial_port, refreshed_port]
         port_in_use_os_error = OSError(errno.EADDRINUSE, 'Address already in use')
         port_in_use_exception = requests.exceptions.ConnectionError(port_in_use_os_error)
         port_in_use_exception.__cause__ = port_in_use_os_error
         retry_exception = requests.exceptions.Timeout('Timed out')
         fallback_response = MagicMock()
 
-        with patch.object(SourcePortAdapter, 'acquire_port', autospec=True) as mock_acquire_port, \
-             patch.object(SourcePortAdapter, 'refresh_port', autospec=True) as mock_refresh_port, \
+        with patch.object(SourcePortAdapter, 'acquire_port', side_effect=acquire_side_effect) as mock_acquire_port, \
              patch('requests.Session.get') as mock_session_get, \
              patch('requests.get') as mock_requests_get:
-            mock_acquire_port.side_effect = acquire_side_effect
-
-            def refresh_side_effect(*_args, **_kwargs):
-                acquire_side_effect()
-
-            mock_refresh_port.side_effect = refresh_side_effect
             mock_session_get.side_effect = [port_in_use_exception, retry_exception]
             mock_requests_get.return_value = fallback_response
 
             # Client will first save port 55000
             client = TelemetryHTTPClient()
+            client.initialize()
             original_adapter = client.adapter
 
-            assert SourcePortAdapter._source_port == initial_port
+            assert client.get_source_port() == initial_port
 
             # Request will result in port in use exception
             result = client.get_telemetry_data('http://example.com/metrics', timeout=5)
 
             # Client is expected to attempt to refresh the port
-            assert SourcePortAdapter._source_port == refreshed_port
+            assert client.get_source_port() == refreshed_port
             # Since an exception still occurred, client is expected to fall back to normal requests.get
             assert result is fallback_response
-            assert mock_acquire_port.call_count == 1
-            mock_refresh_port.assert_called_once()
+            assert mock_acquire_port.call_count == 2
             assert mock_session_get.call_count == 2
             mock_requests_get.assert_called_once_with('http://example.com/metrics', timeout=5)
             assert client.adapter is not original_adapter
@@ -179,22 +162,7 @@ class TestSourcePortAdapterIntegration:
             mock_socket.getsockname.assert_called_once()
             
             # Verify the port was captured
-            assert SourcePortAdapter._source_port == 54321
-
-
-@pytest.mark.parametrize("num_clients", [1, 3, 5, 10])
-def test_port_consistency_with_multiple_clients(num_clients):
-    SourcePortAdapter._source_port = None  # Reset
-    
-    clients = [TelemetryHTTPClient() for _ in range(num_clients)]
-    ports = [client.get_source_port() for client in clients]
-    
-    assert len(set(ports)) == 1, f"Expected all ports to be the same, got {set(ports)}"
-
-    EPHEMERAL_PORT_MIN = 1024
-    EPHEMERAL_PORT_MAX = 65535
-    assert all(EPHEMERAL_PORT_MIN < port <= EPHEMERAL_PORT_MAX for port in ports)
-
+            assert adapter.source_port == 54321
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
