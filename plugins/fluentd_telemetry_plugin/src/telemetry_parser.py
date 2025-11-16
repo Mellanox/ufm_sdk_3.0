@@ -19,7 +19,6 @@ import requests
 
 # pylint: disable=no-name-in-module,import-error
 from telemetry_constants import UFMTelemetryConstants
-from telemetry_http_client import TelemetryHTTPClient
 from ufm_sdk_tools.src.xdr_utils import PortType,prepare_port_type_http_telemetry_filter
 from utils.logger import Logger, LOG_LEVELS
 from utils.utils import Utils
@@ -74,6 +73,8 @@ class TelemetryParser:
 
     def get_metrics(self, telemetry_endpoint):
         _host = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_HOST)
+        if Utils.is_ipv6_address(_host):
+            _host = f'[{_host}]'
         _port = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_PORT)
         _url = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_URL)
         msg_tag = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME)

@@ -85,7 +85,7 @@ class TelemetryHTTPClient:
         self.adapter = None
         self.source_port = None
         self.initialized = False
-    
+
     def initialize(self):
         if self.initialized:
             logging.warning('HTTP client initialize method called twice!')

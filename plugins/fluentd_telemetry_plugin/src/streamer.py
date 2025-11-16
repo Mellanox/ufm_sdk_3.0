@@ -24,8 +24,8 @@ import requests
 
 from fluentbit_writer import init_fb_writer
 from monitor_streaming_mgr import MonitorStreamingMgr
-from plugins.fluentd_telemetry_plugin.src.telemetry_http_client import TelemetryHTTPClient
 from telemetry_attributes_manager import TelemetryAttributesManager
+from telemetry_http_client import TelemetryHTTPClient
 from streaming_config_parser import UFMTelemetryStreamingConfigParser
 from telemetry_constants import UFMTelemetryConstants
 from telemetry_parser import TelemetryParser
