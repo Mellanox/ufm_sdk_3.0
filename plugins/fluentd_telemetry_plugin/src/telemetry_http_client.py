@@ -30,13 +30,13 @@ class SourcePortAdapter(HTTPAdapter):
         Initialize the adapter and determine the static source port if not provided.
         """
         if source_port is None:
-            source_port = self.acquire_port()
+            source_port = self._acquire_port()
 
         self.source_port = source_port
         super().__init__()
 
     @staticmethod
-    def acquire_port():
+    def _acquire_port():
         """
         Open a new socket and capture the OS given port.
         Socket closes after the port is captured for reuse.
@@ -127,21 +127,17 @@ class TelemetryHTTPClient:
         # If initialization failed - fallback on requests.get
         if not self.session:
             return requests.get(url, **kwargs) # pylint: disable=missing-timeout
-
         try:
-            source_port = self.get_source_port()
             logging.debug(
-                "Attempting to send request from port: %s", source_port
+                "Attempting to send request from port: %s", self.source_port
             )
             return self.session.get(url, **kwargs)
         except Exception as exc: # pylint: disable=broad-exception-caught
-            current_port = self.get_source_port()
-
             if self._is_port_in_use_error(exc):
                 logging.warning(
                     'Telemetry HTTP request failed because source port %s is already in use. '
                     'Attempting to acquire a new port and retry the request.',
-                    current_port,
+                    self.source_port,
                 )
             else:
                 logging.warning(
@@ -159,15 +155,6 @@ class TelemetryHTTPClient:
                     exc_info=True,
                 )
                 return requests.get(url, **kwargs) # pylint: disable=missing-timeout
-
-    def get_source_port(self):
-        """
-        Get the static source port being used by this client instance.
-        
-        Returns:
-            int: The source port number
-        """
-        return self.source_port
 
     def close(self):
         """

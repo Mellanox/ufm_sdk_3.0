@@ -133,7 +133,7 @@ class UFMTelemetryStreaming(metaclass=SingletonMeta):
                 self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_INTERVAL: intervals[i],
                 self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME:
                     msg_tags[i] if msg_tags[i] else f'{value}:{ports[i]}/{_url}',
-                self.telem_parser.HTTP_CLIENT_KEY: TelemetryHTTPClient() # Client per endpoint -> Different port per endpoint
+                self.telem_parser.HTTP_CLIENT_KEY: TelemetryHTTPClient()
             })
         return endpoints
 
