@@ -47,7 +47,7 @@ class TestSourcePortAdapter:
         assert adapter.source_port <= EPHEMERAL_PORT_MAX
 
     def test_source_port_unique_per_adapter(self):
-        with patch.object(SourcePortAdapter, 'acquire_port', side_effect=[55000, 55001, 55002]):
+        with patch.object(SourcePortAdapter, '_acquire_port', side_effect=[55000, 55001, 55002]):
             adapter1 = SourcePortAdapter()
             adapter2 = SourcePortAdapter()
             adapter3 = SourcePortAdapter()
@@ -116,7 +116,7 @@ class TestTelemetryHTTPClient:
         retry_exception = requests.exceptions.Timeout('Timed out')
         fallback_response = MagicMock()
 
-        with patch.object(SourcePortAdapter, 'acquire_port', side_effect=acquire_side_effect) as mock_acquire_port, \
+        with patch.object(SourcePortAdapter, '_acquire_port', side_effect=acquire_side_effect) as mock_acquire_port, \
              patch('requests.Session.get') as mock_session_get, \
              patch('requests.get') as mock_requests_get:
             mock_session_get.side_effect = [port_in_use_exception, retry_exception]
@@ -127,13 +127,13 @@ class TestTelemetryHTTPClient:
             client.initialize()
             original_adapter = client.adapter
 
-            assert client.get_source_port() == initial_port
+            assert client.source_port == initial_port
 
             # Request will result in port in use exception
             result = client.get_telemetry_data('http://example.com/metrics', timeout=5)
 
             # Client is expected to attempt to refresh the port
-            assert client.get_source_port() == refreshed_port
+            assert client.source_port == refreshed_port
             # Since an exception still occurred, client is expected to fall back to normal requests.get
             assert result is fallback_response
             assert mock_acquire_port.call_count == 2

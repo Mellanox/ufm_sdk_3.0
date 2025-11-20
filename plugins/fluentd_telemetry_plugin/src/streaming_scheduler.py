@@ -47,11 +47,9 @@ class StreamingScheduler(metaclass=SingletonMeta):
         if not self.streaming_jobs:
             self.streaming_jobs = []
             for telemetry_endpoint in streamer.ufm_telemetry_endpoints:
-                interval = int(telemetry_endpoint[streamer.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_INTERVAL])
+                interval = int(telemetry_endpoint.interval)
                 streaming_job = self.scheduler.add_job(streamer.stream_data, 'interval',
-                                                       name=telemetry_endpoint[
-                                                           streamer.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME
-                                                       ],
+                                                       name=telemetry_endpoint.message_tag_name,
                                                        args=[telemetry_endpoint],
                                                        seconds=interval,
                                                        next_run_time=datetime.now())

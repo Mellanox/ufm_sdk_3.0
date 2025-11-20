@@ -19,6 +19,7 @@ import requests
 
 # pylint: disable=no-name-in-module,import-error
 from telemetry_constants import UFMTelemetryConstants
+from telemetry_endpoint import TelemetryEndpoint
 from ufm_sdk_tools.src.xdr_utils import PortType,prepare_port_type_http_telemetry_filter
 from utils.logger import Logger, LOG_LEVELS
 from utils.utils import Utils
@@ -41,8 +42,6 @@ class TelemetryParser:
     NORMAL_PORT_ID_KEYS = {'node_guid', 'Node_GUID', 'port_guid', 'port_num', 'Port_Number', 'Port'}
     AGG_PORT_ID_KEYS = {'sys_image_guid', 'aport'}
     PORT_TYPE_KEY = 'port_type'
-    HTTP_CLIENT_KEY = 'http_client'
-
     def __init__(self, conf_parser, monitor_streaming_mgr, _last_streamed_data_sample_per_endpoint, attr_mngr):
         self.config_parser = conf_parser
         self.streaming_metrics_mgr = monitor_streaming_mgr
@@ -71,16 +70,16 @@ class TelemetryParser:
             return f'{url}{filters_sign}{"&".join(filters)}'
         return url
 
-    def get_metrics(self, telemetry_endpoint):
-        _host = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_HOST)
+    def get_metrics(self, telemetry_endpoint: TelemetryEndpoint):
+        _host = telemetry_endpoint.host
         if Utils.is_ipv6_address(_host):
             _host = f'[{_host}]'
-        _port = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_PORT)
-        _url = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_URL)
-        msg_tag = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME)
+        _port = telemetry_endpoint.port
+        _url = telemetry_endpoint.url
+        msg_tag = telemetry_endpoint.message_tag_name
         url = f'http://{_host}:{_port}/{_url}'
 
-        http_client = telemetry_endpoint.get(self.HTTP_CLIENT_KEY)
+        http_client = telemetry_endpoint.http_client
 
         try:
             response = http_client.get_telemetry_data(

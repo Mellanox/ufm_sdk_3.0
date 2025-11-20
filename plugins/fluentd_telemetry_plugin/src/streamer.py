@@ -29,6 +29,7 @@ from telemetry_http_client import TelemetryHTTPClient
 from streaming_config_parser import UFMTelemetryStreamingConfigParser
 from telemetry_constants import UFMTelemetryConstants
 from telemetry_parser import TelemetryParser
+from telemetry_endpoint import TelemetryEndpoint
 
 # pylint: disable=no-name-in-module,import-error
 from utils.utils import Utils
@@ -62,7 +63,7 @@ class UFMTelemetryStreaming(metaclass=SingletonMeta):
 
     def init_streaming_attributes(self):
         self.attributes_mngr.init_streaming_attributes(self.telem_parser,
-                                                       self.ufm_telemetry_endpoints, self.config_parser)
+                                                       self.ufm_telemetry_endpoints)
 
     @property
     def ufm_telemetry_host(self):
@@ -93,7 +94,7 @@ class UFMTelemetryStreaming(metaclass=SingletonMeta):
         return self.config_parser.get_fluentd_msg_tag()
 
     @property
-    def ufm_telemetry_endpoints(self):
+    def ufm_telemetry_endpoints(self):# pylint: disable=too-many-locals
         splitter = ","
         hosts = self.ufm_telemetry_host.split(splitter)
         ports = self.ufm_telemetry_port.split(splitter)
@@ -120,21 +121,27 @@ class UFMTelemetryStreaming(metaclass=SingletonMeta):
         endpoints = []
         for i, value in enumerate(hosts):
             _is_xdr_mode = Utils.convert_str_to_type(xdr_mode[i], 'boolean')
+            _xdr_ports_types = xdr_ports_types[i].split(
+                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_XDR_PORTS_TYPE_SPLITTER
+            )
             _url = TelemetryParser.append_filters_to_telemetry_url(
                 urls[i],
                 _is_xdr_mode,
-                xdr_ports_types[i].split(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_XDR_PORTS_TYPE_SPLITTER)
+                _xdr_ports_types
             )
-            endpoints.append({
-                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_HOST: value,
-                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_PORT: ports[i],
-                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_URL: _url,
-                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_XDR_MODE: _is_xdr_mode,
-                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_INTERVAL: intervals[i],
-                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME:
-                    msg_tags[i] if msg_tags[i] else f'{value}:{ports[i]}/{_url}',
-                self.telem_parser.HTTP_CLIENT_KEY: TelemetryHTTPClient()
-            })
+            msg_tag = msg_tags[i] if msg_tags[i] else f'{value}:{ports[i]}/{_url}'
+            endpoints.append(
+                TelemetryEndpoint(
+                    host=value,
+                    port=ports[i],
+                    url=_url,
+                    interval=intervals[i],
+                    message_tag_name=msg_tag,
+                    xdr_mode=_is_xdr_mode,
+                    xdr_ports_types=_xdr_ports_types,
+                    http_client=TelemetryHTTPClient()
+                )
+            )
         return endpoints
 
     @property
@@ -231,11 +238,11 @@ class UFMTelemetryStreaming(metaclass=SingletonMeta):
             logging.error('Failed to stream the data due to the error: %s', str(ex))
 
     def stream_data(self, telemetry_endpoint):  # pylint: disable=too-many-locals
-        _host = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_HOST)
-        _port = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_PORT)
-        _url = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_URL)
-        msg_tag = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME)
-        is_xdr_mode = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_XDR_MODE)
+        _host = telemetry_endpoint.host
+        _port = telemetry_endpoint.port
+        _url = telemetry_endpoint.url
+        msg_tag = telemetry_endpoint.message_tag_name
+        is_xdr_mode = telemetry_endpoint.xdr_mode
         telemetry_data = self.telem_parser.get_metrics(telemetry_endpoint)
         try:
             data_to_stream = []

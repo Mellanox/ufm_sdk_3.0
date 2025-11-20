@@ -51,16 +51,16 @@ class TelemetryAttributesManager:
         return self.streaming_attributes.get(key)
 
 
-    def init_streaming_attributes(self, telemetry_parser, telemetry_endpoints, config_parser):  # pylint: disable=too-many-locals
+    def init_streaming_attributes(self, telemetry_parser, telemetry_endpoints):  # pylint: disable=too-many-locals
         Logger.log_message('Updating The streaming attributes', LOG_LEVELS.DEBUG)
         # load the saved attributes
         self._get_saved_streaming_attributes()
         processed_endpoints = {}
         for endpoint in telemetry_endpoints:  # pylint: disable=too-many-nested-blocks
-            _host = endpoint.get(config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_HOST)
-            _port = endpoint.get(config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_PORT)
-            _url = endpoint.get(config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_URL)
-            _msg_tag = endpoint.get(config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME)
+            _host = endpoint.host
+            _port = endpoint.port
+            _url = endpoint.url
+            _msg_tag = endpoint.message_tag_name
             # the ID of the endpoint is the full URL without filters like the shading,etc...
             endpoint_id = f'{_host}:{_port}:{_url.split("?")[0]}'
             is_processed = processed_endpoints.get(endpoint_id)
