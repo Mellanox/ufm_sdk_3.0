@@ -74,10 +74,7 @@ class TelemetryParser:
         _host = telemetry_endpoint.host
         if Utils.is_ipv6_address(_host):
             _host = f'[{_host}]'
-        _port = telemetry_endpoint.port
-        _url = telemetry_endpoint.url
-        msg_tag = telemetry_endpoint.message_tag_name
-        url = f'http://{_host}:{_port}/{_url}'
+        url = f'http://{_host}:{telemetry_endpoint.port}/{telemetry_endpoint.url}'
 
         http_client = telemetry_endpoint.http_client
 
@@ -91,16 +88,21 @@ class TelemetryParser:
             actual_content_size = len(response.content)
             expected_content_size = int(response.headers.get('Content-Length', actual_content_size))
             if expected_content_size > actual_content_size:
-                log_msg = (f'Telemetry Response Received Partially from {msg_tag}, The Expected Size is {expected_content_size} Bytes'
-                        f' While The Received Size is {actual_content_size} Bytes')
+                log_msg = (
+                    f'Telemetry Response Received Partially from {telemetry_endpoint.message_tag_name}, '
+                    f'The Expected Size is {expected_content_size} Bytes while '
+                    f'The Received Size is {actual_content_size} Bytes'
+                )
                 log_level = LOG_LEVELS.WARNING
             else:
-                log_msg = (f'Telemetry Response Received Successfully from {msg_tag},'
-                        f'The Received Size is {actual_content_size} Bytes')
+                log_msg = (
+                    f'Telemetry Response Received Successfully from {telemetry_endpoint.message_tag_name}, '
+                    f'The Received Size is {actual_content_size} Bytes'
+                )
                 log_level = LOG_LEVELS.INFO
             log_msg += f', Response Time: {response.elapsed.total_seconds()} seconds'
             Logger.log_message(log_msg, log_level)
-            self.streaming_metrics_mgr.update_streaming_metrics(msg_tag, **{
+            self.streaming_metrics_mgr.update_streaming_metrics(telemetry_endpoint.message_tag_name, **{
                 self.streaming_metrics_mgr.telemetry_response_time_seconds_key: response.elapsed.total_seconds(),
                 self.streaming_metrics_mgr.telemetry_expected_response_size_bytes_key: expected_content_size,
                 self.streaming_metrics_mgr.telemetry_received_response_size_bytes_key: actual_content_size
@@ -115,7 +117,7 @@ class TelemetryParser:
         except requests.exceptions.RequestException:
             logging.exception("Request error to %s", url)
             return None
-        except Exception:  # pylint: disable=broad-exception-caught
+        except Exception:# pylint: disable=broad-exception-caught
             logging.exception("Unexpected error fetching telemetry from %s", url)
             return None
 

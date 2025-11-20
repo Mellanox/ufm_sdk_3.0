@@ -84,13 +84,9 @@ class TelemetryHTTPClient:
         self.session = None
         self.adapter = None
         self.source_port = None
-        self.initialized = False
+        self.session_creation_attempted = False
 
-    def initialize(self):
-        if self.initialized:
-            logging.warning('HTTP client initialize method called twice!')
-            return
-
+    def ensure_session_ready(self):
         try:
             self.session = requests.Session()
             self._mount_adapter()
@@ -104,8 +100,7 @@ class TelemetryHTTPClient:
             self.adapter = None
             self.source_port = None
         finally:
-            # We set initialized to True regardless so that requests can be made no matter what (using requests if needed)
-            self.initialized = True
+            self.session_creation_attempted = True
 
     def get_telemetry_data(self, url, **kwargs):
         """
@@ -121,12 +116,9 @@ class TelemetryHTTPClient:
             requests.Response: The response object
         """
         # Initialization takes place at first request for socket binding to occur in background job and not before
-        if not self.initialized:
-            self.initialize()
+        if not self.session_creation_attempted:
+            self.ensure_session_ready()
 
-        # If initialization failed - fallback on requests.get
-        if not self.session:
-            return requests.get(url, **kwargs) # pylint: disable=missing-timeout
         try:
             logging.debug(
                 "Attempting to send request from port: %s", self.source_port
@@ -183,7 +175,10 @@ class TelemetryHTTPClient:
         except Exception: # pylint: disable=broad-exception-caught
             logging.debug('Failed to close existing HTTP adapter before refresh', exc_info=True)
 
-        self._mount_adapter()
+        if self.session:
+            self._mount_adapter()
+        else:
+            self.ensure_session_ready()
 
     @staticmethod
     def _is_port_in_use_error(exc):
