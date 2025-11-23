@@ -238,24 +238,20 @@ class UFMTelemetryStreaming(metaclass=SingletonMeta):
             logging.error('Failed to stream the data due to the error: %s', str(ex))
 
     def stream_data(self, telemetry_endpoint):  # pylint: disable=too-many-locals
-        _host = telemetry_endpoint.host
-        _port = telemetry_endpoint.port
-        _url = telemetry_endpoint.url
-        msg_tag = telemetry_endpoint.message_tag_name
-        is_xdr_mode = telemetry_endpoint.xdr_mode
         telemetry_data = self.telem_parser.get_metrics(telemetry_endpoint)
         try:
             data_to_stream = []
             new_data_timestamp = None
             num_of_counters = data_len = 0
             if telemetry_data is not None: # None = Failed, Empty = No new data
+                msg_tag = telemetry_endpoint.message_tag_name
                 if self.last_streamed_data_sample_per_endpoint.get(msg_tag, None) is None:
                     self.last_streamed_data_sample_per_endpoint[msg_tag] = {}
                 logging.info('Start Processing The Received Response From %s', msg_tag)
                 start_time = time.time()
                 data_to_stream, new_data_timestamp, num_of_counters = \
                     self.telem_parser.parse_telemetry_csv_metrics_to_json(telemetry_data, msg_tag,
-                                                                          is_xdr_mode,
+                                                                          telemetry_endpoint.xdr_mode,
                                                                           self.stream_only_new_samples)
 
                 end_time = time.time()
@@ -292,7 +288,7 @@ class UFMTelemetryStreaming(metaclass=SingletonMeta):
                         self._stream_data_to_fluentd(row, msg_tag)
                 self.last_streamed_data_sample_timestamp = new_data_timestamp
             elif telemetry_data is None: # None = Failed, Empty = No new data
-                logging.error("Failed to get the telemetry data metrics for %s", _url)
+                logging.error("Failed to get the telemetry data metrics for %s", telemetry_endpoint.url)
             elif self.stream_only_new_samples:
                 logging.info('No new samples in endpoint %s, nothing to stream', msg_tag)
 
