@@ -125,17 +125,9 @@ class TelemetryHTTPClient:
             )
             return self.session.get(url, **kwargs)
         except Exception as exc: # pylint: disable=broad-exception-caught
-            if self._is_port_in_use_error(exc):
-                logging.warning(
-                    'Telemetry HTTP request failed because source port %s is already in use. '
-                    'Attempting to acquire a new port and retry the request.',
-                    self.source_port,
-                )
-            else:
-                logging.warning(
-                    'Telemetry HTTP request failed, Attempting to acquire a new port and retry The request.'
-                )
-
+            logging.warning(
+                'Telemetry HTTP request failed, Attempting to acquire a new port and retry The request.'
+            )
 
             try:
                 self._refresh_session_port() # Attempting to change port
@@ -179,27 +171,3 @@ class TelemetryHTTPClient:
             self._mount_adapter()
         else:
             self.ensure_session_ready()
-
-    @staticmethod
-    def _is_port_in_use_error(exc):
-        """
-        Determine if the provided exception (or its causes) indicates the source
-        port is already in use by searching the call stack.
-        """
-        port_errors = {errno.EADDRINUSE, errno.EADDRNOTAVAIL}
-        seen = set()
-        current = exc
-
-        while current and id(current) not in seen:
-            seen.add(id(current))
-
-            if isinstance(current, OSError) and getattr(current, 'errno', None) in port_errors:
-                return True
-
-            message = str(current).lower()
-            if 'address already in use' in message or 'port already in use' in message:
-                return True
-
-            current = getattr(current, '__cause__', None) or getattr(current, '__context__', None)
-
-        return False
