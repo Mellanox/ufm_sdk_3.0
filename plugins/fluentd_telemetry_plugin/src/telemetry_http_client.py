@@ -13,7 +13,6 @@
 @author: Yotam Ashman
 @date:   Nov 3, 2025
 """
-import errno
 import socket
 import logging
 import requests
@@ -124,7 +123,7 @@ class TelemetryHTTPClient:
                 "Attempting to send request from port: %s", self.source_port
             )
             return self.session.get(url, **kwargs)
-        except Exception as exc: # pylint: disable=broad-exception-caught
+        except Exception: # pylint: disable=broad-exception-caught
             logging.warning(
                 'Telemetry HTTP request failed, Attempting to acquire a new port and retry The request.'
             )
