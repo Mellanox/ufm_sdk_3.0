@@ -65,9 +65,8 @@ class StreamingScheduler(metaclass=SingletonMeta):
             for job in self.streaming_jobs:
                 try:
                     endpoint = job.args[0]
-                    http_client = getattr(endpoint, 'http_client', None)
-                    if http_client:
-                        http_client.close()
+                    if endpoint.http_client:
+                        endpoint.http_client.close()
                 except Exception:  # pylint: disable=broad-exception-caught
                     logging.debug('Failed to close telemetry HTTP client during stop', exc_info=True)
                 self.scheduler.remove_job(job.id)
