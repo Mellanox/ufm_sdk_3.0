@@ -47,14 +47,10 @@ class SourcePortAdapter(HTTPAdapter):
             return port
         except OSError as e:
             logging.error('Error during HTTP adapter initialization: OS failed to bind port: %s', e)
-            raise RuntimeError(
-                f'Error during HTTP adapter initialization: OS failed to bind port. Error desc: ({e})'
-            ) from e
+            raise RuntimeError from e
         except Exception as e:
             logging.error('Error during HTTP adapter initialization: %s', e)
-            raise RuntimeError(
-                f'Error during HTTP adapter initialization: ({e})'
-            ) from e
+            raise RuntimeError from e
 
     def ensure_source_port(self):
         """
