@@ -20,6 +20,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
+TEST_BIND_IP = '0.0.0.0'
+TEST_BIND_PORT = 54321
+
 # Add src directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
@@ -36,6 +39,7 @@ class TestSourcePortAdapter:
 
     def test_source_port_is_assigned_on_first_init(self):
         adapter = SourcePortAdapter()
+        adapter.ensure_source_port()
         
         # Verify a port was assigned
         assert adapter.source_port is not None
@@ -52,6 +56,10 @@ class TestSourcePortAdapter:
             adapter2 = SourcePortAdapter()
             adapter3 = SourcePortAdapter()
 
+            adapter1.ensure_source_port()
+            adapter2.ensure_source_port()
+            adapter3.ensure_source_port()
+
         assert adapter1.source_port == 55000
         assert adapter2.source_port == 55001
         assert adapter3.source_port == 55002
@@ -59,6 +67,7 @@ class TestSourcePortAdapter:
     def test_init_poolmanager_sets_source_address(self):
         """Test that init_poolmanager sets the correct source address."""
         adapter = SourcePortAdapter()
+        adapter.ensure_source_port()
         expected_port = adapter.source_port
 
         with patch('requests.adapters.HTTPAdapter.init_poolmanager', return_value=None) as mock_parent:
@@ -66,7 +75,7 @@ class TestSourcePortAdapter:
             
             mock_parent.assert_called_once()
             _, call_kwargs = mock_parent.call_args
-            assert call_kwargs['source_address'] == ('0.0.0.0', expected_port)
+            assert call_kwargs['source_address'] == (TEST_BIND_IP, expected_port)
             
 
 class TestTelemetryHTTPClient:
@@ -151,18 +160,19 @@ class TestSourcePortAdapterIntegration:
             mock_socket = MagicMock()
             mock_socket.__enter__ = MagicMock(return_value=mock_socket)
             mock_socket.__exit__ = MagicMock(return_value=False)
-            mock_socket.getsockname.return_value = ('0.0.0.0', 54321)
+            mock_socket.getsockname.return_value = (TEST_BIND_IP, TEST_BIND_PORT)
             mock_socket_class.return_value = mock_socket
             
             adapter = SourcePortAdapter()
+            adapter.ensure_source_port()
             
             # Verify socket was created and bound
             mock_socket_class.assert_called_once_with(socket.AF_INET, socket.SOCK_STREAM)
-            mock_socket.bind.assert_called_once_with(('0.0.0.0', 0))
+            mock_socket.bind.assert_called_once_with((TEST_BIND_IP, 0))
             mock_socket.getsockname.assert_called_once()
             
             # Verify the port was captured
-            assert adapter.source_port == 54321
+            assert adapter.source_port == TEST_BIND_PORT
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

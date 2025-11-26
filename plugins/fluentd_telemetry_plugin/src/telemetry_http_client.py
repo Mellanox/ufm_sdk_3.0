@@ -24,14 +24,11 @@ class SourcePortAdapter(HTTPAdapter):
     The source port is determined once for each adapter instance and reused across
     its connection pool.
     """
-    def __init__(self, source_port=None):
+    def __init__(self):
         """
-        Initialize the adapter and determine the static source port if not provided.
+        Initialize the adapter.
         """
-        if source_port is None:
-            source_port = self._acquire_port()
-
-        self.source_port = source_port
+        self.source_port = None
         super().__init__()
 
     @staticmethod
@@ -46,12 +43,12 @@ class SourcePortAdapter(HTTPAdapter):
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.bind(('0.0.0.0', 0))
                 port = s.getsockname()[1]
-            logging.debug('HTTP Client acquired candidate port: %d', port)
+            logging.debug('HTTP Client acquired selected port: %d', port)
             return port
         except OSError as e:
             logging.error('Error during HTTP adapter initialization: OS failed to bind port: %s', e)
             raise RuntimeError(
-                f'Error during HTTP adapter initialization: OS failed to bind port: ({e})'
+                f'Error during HTTP adapter initialization: OS failed to bind port. Error desc: ({e})'
             ) from e
         except Exception as e:
             logging.error('Error during HTTP adapter initialization: %s', e)
@@ -59,11 +56,19 @@ class SourcePortAdapter(HTTPAdapter):
                 f'Error during HTTP adapter initialization: ({e})'
             ) from e
 
+    def ensure_source_port(self):
+        """
+        Lazily determine the source port if it hasn't been acquired yet.
+        """
+        if self.source_port is None:
+            self.source_port = self._acquire_port()
+
     def init_poolmanager(self, *args, **kwargs):
         """
         Overrides original poolmanager function to initialize the connection pool manager with the static source address.
         This is where the static port is actually set for the requests.
         """
+        self.ensure_source_port()
         kwargs['source_address'] = ('0.0.0.0', self.source_port)
         return super().init_poolmanager(*args, **kwargs)
 
@@ -146,11 +151,12 @@ class TelemetryHTTPClient:
         if self.session:
             self.session.close()
 
-    def _mount_adapter(self, source_port=None):
+    def _mount_adapter(self):
         """
         Mount a SourcePortAdapter on the current session.
         """
-        adapter = SourcePortAdapter(source_port=source_port)
+        adapter = SourcePortAdapter()
+        adapter.ensure_source_port()
         self.session.mount('http://', adapter)
         self.adapter = adapter
         self.source_port = adapter.source_port
