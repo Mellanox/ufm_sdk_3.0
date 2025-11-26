@@ -32,7 +32,6 @@ from telemetry_http_client import SourcePortAdapter, TelemetryHTTPClient
 @pytest.fixture
 def http_client():
     client = TelemetryHTTPClient()
-    client.ensure_session_ready()
     return client
 
 class TestSourcePortAdapter:
@@ -133,7 +132,6 @@ class TestTelemetryHTTPClient:
 
             # Client will first save port 55000
             client = TelemetryHTTPClient()
-            client.ensure_session_ready()
             original_adapter = client.adapter
 
             assert client.source_port == initial_port

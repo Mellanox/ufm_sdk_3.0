@@ -85,8 +85,9 @@ class TelemetryHTTPClient:
         self.adapter = None
         self.source_port = None
         self.session_creation_attempted = False
+        self.set_session()
 
-    def ensure_session_ready(self):
+    def set_session(self):
         try:
             self.session = requests.Session()
             self._mount_adapter()
@@ -99,8 +100,6 @@ class TelemetryHTTPClient:
             self.session = None
             self.adapter = None
             self.source_port = None
-        finally:
-            self.session_creation_attempted = True
 
     def get_telemetry_data(self, url, **kwargs):
         """
@@ -115,10 +114,6 @@ class TelemetryHTTPClient:
         Returns:
             requests.Response: The response object
         """
-        # Initialization takes place at first request for socket binding to occur in background job and not before
-        if not self.session_creation_attempted:
-            self.ensure_session_ready()
-
         try:
             logging.debug(
                 "Attempting to send request from port: %s", self.source_port
@@ -171,4 +166,4 @@ class TelemetryHTTPClient:
         if self.session:
             self._mount_adapter()
         else:
-            self.ensure_session_ready()
+            self.set_session()
