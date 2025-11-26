@@ -25,9 +25,11 @@ import requests
 from fluentbit_writer import init_fb_writer
 from monitor_streaming_mgr import MonitorStreamingMgr
 from telemetry_attributes_manager import TelemetryAttributesManager
+from telemetry_http_client import TelemetryHTTPClient
 from streaming_config_parser import UFMTelemetryStreamingConfigParser
 from telemetry_constants import UFMTelemetryConstants
 from telemetry_parser import TelemetryParser
+from telemetry_endpoint import TelemetryEndpoint
 
 # pylint: disable=no-name-in-module,import-error
 from utils.utils import Utils
@@ -61,7 +63,7 @@ class UFMTelemetryStreaming(metaclass=SingletonMeta):
 
     def init_streaming_attributes(self):
         self.attributes_mngr.init_streaming_attributes(self.telem_parser,
-                                                       self.ufm_telemetry_endpoints, self.config_parser)
+                                                       self.ufm_telemetry_endpoints)
 
     @property
     def ufm_telemetry_host(self):
@@ -92,7 +94,7 @@ class UFMTelemetryStreaming(metaclass=SingletonMeta):
         return self.config_parser.get_fluentd_msg_tag()
 
     @property
-    def ufm_telemetry_endpoints(self):
+    def ufm_telemetry_endpoints(self):# pylint: disable=too-many-locals
         splitter = ","
         hosts = self.ufm_telemetry_host.split(splitter)
         ports = self.ufm_telemetry_port.split(splitter)
@@ -119,20 +121,27 @@ class UFMTelemetryStreaming(metaclass=SingletonMeta):
         endpoints = []
         for i, value in enumerate(hosts):
             _is_xdr_mode = Utils.convert_str_to_type(xdr_mode[i], 'boolean')
+            _xdr_ports_types = xdr_ports_types[i].split(
+                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_XDR_PORTS_TYPE_SPLITTER
+            )
             _url = TelemetryParser.append_filters_to_telemetry_url(
                 urls[i],
                 _is_xdr_mode,
-                xdr_ports_types[i].split(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_XDR_PORTS_TYPE_SPLITTER)
+                _xdr_ports_types
             )
-            endpoints.append({
-                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_HOST: value,
-                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_PORT: ports[i],
-                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_URL: _url,
-                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_XDR_MODE: _is_xdr_mode,
-                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_INTERVAL: intervals[i],
-                self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME:
-                    msg_tags[i] if msg_tags[i] else f'{value}:{ports[i]}/{_url}'
-            })
+            msg_tag = msg_tags[i] if msg_tags[i] else f'{value}:{ports[i]}/{_url}'
+            endpoints.append(
+                TelemetryEndpoint(
+                    host=value,
+                    port=ports[i],
+                    url=_url,
+                    interval=intervals[i],
+                    message_tag_name=msg_tag,
+                    xdr_mode=_is_xdr_mode,
+                    xdr_ports_types=_xdr_ports_types,
+                    http_client=TelemetryHTTPClient()
+                )
+            )
         return endpoints
 
     @property
@@ -229,24 +238,20 @@ class UFMTelemetryStreaming(metaclass=SingletonMeta):
             logging.error('Failed to stream the data due to the error: %s', str(ex))
 
     def stream_data(self, telemetry_endpoint):  # pylint: disable=too-many-locals
-        _host = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_HOST)
-        _port = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_PORT)
-        _url = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_URL)
-        msg_tag = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_MSG_TAG_NAME)
-        is_xdr_mode = telemetry_endpoint.get(self.config_parser.UFM_TELEMETRY_ENDPOINT_SECTION_XDR_MODE)
-        telemetry_data = self.telem_parser.get_metrics(_host, _port, _url, msg_tag)
+        telemetry_data = self.telem_parser.get_metrics(telemetry_endpoint)
         try:
             data_to_stream = []
             new_data_timestamp = None
             num_of_counters = data_len = 0
-            if telemetry_data:
+            if telemetry_data is not None: # None = Failed, Empty = No new data
+                msg_tag = telemetry_endpoint.message_tag_name
                 if self.last_streamed_data_sample_per_endpoint.get(msg_tag, None) is None:
                     self.last_streamed_data_sample_per_endpoint[msg_tag] = {}
                 logging.info('Start Processing The Received Response From %s', msg_tag)
                 start_time = time.time()
                 data_to_stream, new_data_timestamp, num_of_counters = \
                     self.telem_parser.parse_telemetry_csv_metrics_to_json(telemetry_data, msg_tag,
-                                                                          is_xdr_mode,
+                                                                          telemetry_endpoint.xdr_mode,
                                                                           self.stream_only_new_samples)
 
                 end_time = time.time()
@@ -266,6 +271,7 @@ class UFMTelemetryStreaming(metaclass=SingletonMeta):
                 if data_len > 0:
                     warn_msg = f'The telemetry endpoint {msg_tag} unavailable, streaming {data_len} ports from the cached data'
                     logging.warning(warn_msg)
+            # Empty data will not be streamed
             if data_len > 0 and \
                     (not new_data_timestamp or
                      (new_data_timestamp and new_data_timestamp != self.last_streamed_data_sample_timestamp)):
@@ -281,8 +287,8 @@ class UFMTelemetryStreaming(metaclass=SingletonMeta):
                     for row in data_to_stream:
                         self._stream_data_to_fluentd(row, msg_tag)
                 self.last_streamed_data_sample_timestamp = new_data_timestamp
-            elif not telemetry_data:
-                logging.error("Failed to get the telemetry data metrics for %s", _url)
+            elif telemetry_data is None: # None = Failed, Empty = No new data
+                logging.error("Failed to get the telemetry data metrics for %s", telemetry_endpoint.url)
             elif self.stream_only_new_samples:
                 logging.info('No new samples in endpoint %s, nothing to stream', msg_tag)
 

@@ -19,6 +19,7 @@ import requests
 
 # pylint: disable=no-name-in-module,import-error
 from telemetry_constants import UFMTelemetryConstants
+from telemetry_endpoint import TelemetryEndpoint
 from ufm_sdk_tools.src.xdr_utils import PortType,prepare_port_type_http_telemetry_filter
 from utils.logger import Logger, LOG_LEVELS
 from utils.utils import Utils
@@ -41,7 +42,6 @@ class TelemetryParser:
     NORMAL_PORT_ID_KEYS = {'node_guid', 'Node_GUID', 'port_guid', 'port_num', 'Port_Number', 'Port'}
     AGG_PORT_ID_KEYS = {'sys_image_guid', 'aport'}
     PORT_TYPE_KEY = 'port_type'
-
     def __init__(self, conf_parser, monitor_streaming_mgr, _last_streamed_data_sample_per_endpoint, attr_mngr):
         self.config_parser = conf_parser
         self.streaming_metrics_mgr = monitor_streaming_mgr
@@ -70,26 +70,39 @@ class TelemetryParser:
             return f'{url}{filters_sign}{"&".join(filters)}'
         return url
 
-    def get_metrics(self, _host, _port, _url, msg_tag):
-        _host = f'[{_host}]' if Utils.is_ipv6_address(_host) else _host
-        url = f'http://{_host}:{_port}/{_url}'
-        logging.info('Send UFM Telemetry Endpoint Request, Method: GET, URL: %s', url)
+    def get_metrics(self, telemetry_endpoint: TelemetryEndpoint):
+        _host = telemetry_endpoint.host
+        if Utils.is_ipv6_address(_host):
+            _host = f'[{_host}]'
+        url = f'http://{_host}:{telemetry_endpoint.port}/{telemetry_endpoint.url}'
+
+        http_client = telemetry_endpoint.http_client
+
         try:
-            response = requests.get(url, timeout=self.config_parser.get_streaming_telemetry_request_timeout())
+            response = http_client.get_telemetry_data(
+                url,
+                timeout=self.config_parser.get_streaming_telemetry_request_timeout()
+            )
+
             response.raise_for_status()
             actual_content_size = len(response.content)
             expected_content_size = int(response.headers.get('Content-Length', actual_content_size))
             if expected_content_size > actual_content_size:
-                log_msg = (f'Telemetry Response Received Partially from {msg_tag}, The Expected Size is {expected_content_size} Bytes'
-                        f' While The Received Size is {actual_content_size} Bytes')
+                log_msg = (
+                    f'Telemetry Response Received Partially from {telemetry_endpoint.message_tag_name}, '
+                    f'The Expected Size is {expected_content_size} Bytes while '
+                    f'The Received Size is {actual_content_size} Bytes'
+                )
                 log_level = LOG_LEVELS.WARNING
             else:
-                log_msg = (f'Telemetry Response Received Successfully from {msg_tag},'
-                        f'The Received Size is {actual_content_size} Bytes')
+                log_msg = (
+                    f'Telemetry Response Received Successfully from {telemetry_endpoint.message_tag_name}, '
+                    f'The Received Size is {actual_content_size} Bytes'
+                )
                 log_level = LOG_LEVELS.INFO
             log_msg += f', Response Time: {response.elapsed.total_seconds()} seconds'
             Logger.log_message(log_msg, log_level)
-            self.streaming_metrics_mgr.update_streaming_metrics(msg_tag, **{
+            self.streaming_metrics_mgr.update_streaming_metrics(telemetry_endpoint.message_tag_name, **{
                 self.streaming_metrics_mgr.telemetry_response_time_seconds_key: response.elapsed.total_seconds(),
                 self.streaming_metrics_mgr.telemetry_expected_response_size_bytes_key: expected_content_size,
                 self.streaming_metrics_mgr.telemetry_received_response_size_bytes_key: actual_content_size
@@ -104,7 +117,7 @@ class TelemetryParser:
         except requests.exceptions.RequestException:
             logging.exception("Request error to %s", url)
             return None
-        except Exception:  # pylint: disable=broad-exception-caught
+        except Exception:# pylint: disable=broad-exception-caught
             logging.exception("Unexpected error fetching telemetry from %s", url)
             return None
 
