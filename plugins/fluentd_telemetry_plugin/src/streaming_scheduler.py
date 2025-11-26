@@ -14,6 +14,7 @@
 @date:   Jan 25, 2022
 """
 
+import logging
 from datetime import datetime
 from streamer import UFMTelemetryStreaming
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -62,6 +63,13 @@ class StreamingScheduler(metaclass=SingletonMeta):
     def stop_streaming(self):
         if self.streaming_jobs and self.scheduler.running:
             for job in self.streaming_jobs:
+                try:
+                    endpoint = job.args[0]
+                    http_client = getattr(endpoint, 'http_client', None)
+                    if http_client:
+                        http_client.close()
+                except Exception:  # pylint: disable=broad-exception-caught
+                    logging.debug('Failed to close telemetry HTTP client during stop', exc_info=True)
                 self.scheduler.remove_job(job.id)
             self.streaming_jobs = None
             return True
