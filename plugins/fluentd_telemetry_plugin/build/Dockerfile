@@ -37,6 +37,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+# Remove unused library that caused a high CVE vulnerability issue
+# https://redmine.mellanox.com/issues/3621861
+RUN apt-get remove -y linux-libc-dev 2>/dev/null || true
+
 # Copy Python virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
