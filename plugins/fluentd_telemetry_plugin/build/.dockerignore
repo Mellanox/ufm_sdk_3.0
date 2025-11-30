@@ -1,0 +1,64 @@
+# Python cache and bytecode
+**/__pycache__/
+**/*.py[cod]
+**/*.pyo
+**/*.pyd
+**/.Python
+
+# Virtual environments
+**/venv/
+**/env/
+**/.venv/
+**/ENV/
+
+# Test directories
+**/tests/
+**/test/
+**/*_test.py
+**/test_*.py
+**/pytest.ini
+**/.pytest_cache/
+
+# Documentation
+**/*.md
+**/*.rst
+**/*.txt
+!**/requirements.txt
+**/*.png
+**/*.jpg
+**/*.gif
+
+# IDE and editor files
+**/.idea/
+**/.cursor/
+**/.vscode/
+**/*.swp
+**/*.swo
+*~
+
+# Git
+**/.git/
+**/.gitignore
+**/.gitattributes
+
+# Build artifacts
+**/*.egg-info/
+**/dist/
+**/build/
+**/*.egg
+
+# Utils test directories
+utils/fluentd/tests/
+utils/fluentd/setup.py
+utils/fluentd/setup.cfg
+utils/fluentd/tox.ini
+utils/fluentd/MANIFEST.in
+utils/netfix/
+
+# SDK tools test directories
+ufm_sdk_tools/tests/
+ufm_sdk_tools/README.md
+
+# Local development files
+**/.env
+**/.envrc
