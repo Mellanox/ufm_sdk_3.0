@@ -64,29 +64,8 @@ Functions commonly added by optional UFM plugins include:
     * TFS: 8981 
     * Grafana: 8982,8983,8984
 
-* UFM Health monitors the plugin to make sure it is up and running. The following test definition should be added to each plugin in UFMHealthConfiguration.xml:
-
-```xml
-    <Test Name="<test_name>" NumOfRetriesBeforeGiveup="3" RetryTimeoutInSeconds="30">
-        <TestOperation Name="PluginIsRunningTest">
-            <Parameters> 
-                <Parameter Name="PluginName" Value="<plugin_name>"/> 
-                <Parameter Name="RunInMonitoringMode" Value="No"/> 
-                <Parameter Name="RunInManagementMode" Value="Yes"/> 
-            </Parameters> 
-        </TestOperation>
-        <CorrectiveOperation Name="RestartPlugin">
-            <Parameters>
-                <Parameter Name="PluginName" Value="<plugin_name>"/> 
-            </Parameters> 
-        </CorrectiveOperation>
-        <GiveupOperation Name="None"/>
-    </Test>
-    ....
-    <Test Name="<test_name>">
-        <Frequency Value="1" MeasurementUnit="Minutes"/>
-    </Test>
-```
+* The plugin will be added automatically to the UFM Health; which monitors the plugin to make sure it is up and running.
+* Consider adding the file [hello_world_ufm_health_args.ini](./conf/hello_world_ufm_health_args.ini) to `/config` In case you want to override the default health test's parameters
 
 ## Lifecycle
 The UFM plugins lifecycle is managed by UFM. Currently, It is the user responsibility to pull/load the plugin’s Docker container image on both master and standby nodes.
