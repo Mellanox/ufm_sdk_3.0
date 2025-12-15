@@ -1,16 +1,18 @@
 #!/bin/bash -x
 git config --global safe.directory "$WORKSPACE"
-cd .ci
 # You can print specific environment variables here if required
 
 # Get the list of changed files
 changed_files=$(git diff --name-only remotes/origin/$ghprbTargetBranch)
 
 # Check for changes excluding .gitmodules and root .ci directory
-changes_excluding_gitmodules_and_root_ci=$(echo "$changed_files" | grep -v -e '.gitmodules' -e '^scripts/' -e '.gitignore' -e '^\.ci/' -e '^\.github/workflows' -e '\utils' -e '\plugins/ufm_log_analyzer_plugin') #Removing ufm_log_analyzer_plugin as for now it does not need a formal build
+git_submodules="$(git submodule | awk '{print "^"$2}' | paste -sd '|' -)" # Enabled submodule tracking in blossom, and ,ow it catchs changes in submodule and causes incorrect plugin recognition, so this line removes the submodule directory change listing in the changes_excluding_gitmodules_and_root_ci list
+changes_excluding_gitmodules_and_root_ci=$(echo "$changed_files" | grep -v -e '.gitmodules' -e '^scripts/' -e '.gitignore' -e '^\.ci/' -e '^\.github/workflows' -e '\utils' -e '\plugins/ufm_log_analyzer_plugin' | grep -vE "${git_submodules}")
 
 # Check if changes exist and only in a single plugin directory (including its .ci directory)
 if [ -n "$changes_excluding_gitmodules_and_root_ci" ] && [ $(echo "$changes_excluding_gitmodules_and_root_ci" | cut -d '/' -f1,2 | uniq | wc -l) -eq 1 ]; then
+    cd .ci
+
     # Get the plugin directory name
     plugin_dir_name=$(echo "$changes_excluding_gitmodules_and_root_ci" | cut -d '/' -f1,2 | uniq)
 
@@ -18,6 +20,16 @@ if [ -n "$changes_excluding_gitmodules_and_root_ci" ] && [ $(echo "$changes_excl
     if [ -f "../$plugin_dir_name/.ci/ci_matrix.yaml" ]; then
         # Create symbolic link to the plugin's CI file
         ln -snf ../$plugin_dir_name/.ci/ci_matrix.yaml matrix_job_ci.yaml
+
+        # If running on blossom change kubernetes cloud
+        if [[ "$JENKINS_URL" == *"nbuprod.blsm.nvidia.com"* ]]; then
+            sed -i '/^kubernetes:/,/^[[:space:]]/c\
+kubernetes:\
+  cloud: il-ipp-blossom-prod\
+  nodeSelector: "kubernetes.io\/arch=amd64" \
+  namespace: swx
+' matrix_job_ci.yaml
+        fi
     else
         # Print error message and exit with error status
         echo "Error: CI configuration file for $plugin_dir_name not found."
