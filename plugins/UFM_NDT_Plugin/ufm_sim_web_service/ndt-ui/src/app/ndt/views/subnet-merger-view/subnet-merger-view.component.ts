@@ -1,7 +1,4 @@
 import {ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild} from '@angular/core';
-import {
-  SmsPluginBaseComponentComponent
-} from "../../../../../sms-ui-suite/sms-plugin-base-component/sms-plugin-base-component.component";
 import {INDTFile, NDTFileStatus} from "./components/ndt-files-view/ndt-files-view.component";
 import {SubnetMergerBackendService} from "../../packages/subnet-merger/services/subnet-merger-backend.service";
 import {
@@ -16,7 +13,7 @@ import {SubnetMergerViewService} from "./services/subnet-merger-view.service";
   templateUrl: './subnet-merger-view.component.html',
   styleUrls: ['./subnet-merger-view.component.scss']
 })
-export class SubnetMergerViewComponent extends SmsPluginBaseComponentComponent implements OnInit {
+export class SubnetMergerViewComponent implements OnInit {
 
   public selectedReport: IValidationReport;
   public loading = true;
@@ -25,7 +22,6 @@ export class SubnetMergerViewComponent extends SmsPluginBaseComponentComponent i
               private subnetMergerViewService: SubnetMergerViewService,
               private router: Router,
               private cdr: ChangeDetectorRef) {
-    super();
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationEnd) {
         this.cdr.detectChanges();
@@ -34,7 +30,6 @@ export class SubnetMergerViewComponent extends SmsPluginBaseComponentComponent i
   }
 
   ngOnInit() {
-    super.ngOnInit();
   }
 
   public onReportSelectionChange($event: IValidationReport) {

@@ -1,30 +1,27 @@
-<sms-plugin-base-component>
-  <div class="table-card">
-    <div class="col-sm-6">
-      <div class="card card-default">
-        <div *ngIf="ndtFilesViewComponent?.ndtFiles?.length"
-             class="card-header">
-          Uploaded NDT Files
-        </div>
-        <div class="card-body">
-          <app-ndt-files-view #ndtFilesViewComponent></app-ndt-files-view>
-        </div>
+<div class="table-card">
+  <div class="col-sm-6">
+    <div class="card card-default">
+      <div *ngIf="ndtFilesViewComponent?.ndtFiles?.length"
+           class="card-header">
+        Uploaded NDT Files
+      </div>
+      <div class="card-body">
+        <app-ndt-files-view #ndtFilesViewComponent></app-ndt-files-view>
       </div>
     </div>
-    <ng-container *ngIf="ndtFilesViewComponent?.ndtFiles?.length">
-      <div class="col-sm-6">
-        <app-validation-reports #validationReportsComponent
-                                (onReportSelectionChange)="onReportSelectionChange($event)"
-        ></app-validation-reports>
-      </div>
-    </ng-container>
   </div>
-  <ng-container *ngIf="ndtFilesViewComponent?.ndtFiles?.length && selectedReport">
-    <div class="col-sm-12">
-      <app-validation-result
-        [validationReportID]="selectedReport.report_id">
-      </app-validation-result>
+  <ng-container *ngIf="ndtFilesViewComponent?.ndtFiles?.length">
+    <div class="col-sm-6">
+      <app-validation-reports #validationReportsComponent
+                              (onReportSelectionChange)="onReportSelectionChange($event)"
+      ></app-validation-reports>
     </div>
   </ng-container>
-
-</sms-plugin-base-component>
+</div>
+<ng-container *ngIf="ndtFilesViewComponent?.ndtFiles?.length && selectedReport">
+  <div class="col-sm-12">
+    <app-validation-result
+      [validationReportID]="selectedReport.report_id">
+    </app-validation-result>
+  </div>
+</ng-container>

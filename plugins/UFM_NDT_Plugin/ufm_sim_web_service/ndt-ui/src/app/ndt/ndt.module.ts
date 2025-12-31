@@ -7,6 +7,7 @@ import {SubnetMergerViewModule} from "./views/subnet-merger-view/subnet-merger-v
 import {SmsAppNavbarModule} from "../../../sms-ui-suite/sms-app-navbar/sms-app-navbar.module";
 import {NdtViewService} from "./services/ndt-view.service";
 import {SettingsViewModule} from "./views/settings-view/settings-view.module";
+import { SmsPluginBaseComponentModule } from 'sms-ui-suite/sms-plugin-base-component/sms-plugin-base-component.module';
 
 
 @NgModule({
@@ -18,7 +19,8 @@ import {SettingsViewModule} from "./views/settings-view/settings-view.module";
     NdtRoutingModule,
     SubnetMergerViewModule,
     SettingsViewModule,
-    SmsAppNavbarModule
+    SmsAppNavbarModule,
+    SmsPluginBaseComponentModule
   ]
 })
 export class NdtModule {
