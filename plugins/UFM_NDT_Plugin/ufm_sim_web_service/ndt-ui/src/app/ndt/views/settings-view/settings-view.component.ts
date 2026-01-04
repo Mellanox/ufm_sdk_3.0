@@ -5,9 +5,6 @@ import {SettingsViewService} from "./services/settings-view.service";
 import {CableValidationConstants} from "../../packages/cable-validation/constants/cable-validation.constants";
 import {CableValidationBackendService} from "../../packages/cable-validation/services/cable-validation-backend.service";
 import {CV_MODE_ENUM} from "./enums/cv_mode.enum";
-import {
-  SmsPluginBaseComponentComponent
-} from "../../../../../sms-ui-suite/sms-plugin-base-component/sms-plugin-base-component.component";
 
 
 @Component({
@@ -15,7 +12,7 @@ import {
   templateUrl: './settings-view.component.html',
   styleUrls: ['./settings-view.component.scss']
 })
-export class SettingsViewComponent extends SmsPluginBaseComponentComponent implements OnInit {
+export class SettingsViewComponent implements OnInit {
 
   public cvSettingsForm: FormGroup;
   public mode: FormControl;
@@ -29,7 +26,6 @@ export class SettingsViewComponent extends SmsPluginBaseComponentComponent imple
 
   constructor(public settingsViewService: SettingsViewService,
               private cvBackendService: CableValidationBackendService) {
-    super();
   }
 
   public get CVConstants() {

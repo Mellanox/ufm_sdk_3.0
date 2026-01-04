@@ -1,5 +1,7 @@
 <ng-container *ngIf="NdtViewService.isRunningFromUFM; else NDTMainTemplate">
-  <router-outlet></router-outlet>
+  <sms-plugin-base-component>
+    <router-outlet></router-outlet>
+  </sms-plugin-base-component>
 </ng-container>
 
 <ng-template #NDTMainTemplate>
