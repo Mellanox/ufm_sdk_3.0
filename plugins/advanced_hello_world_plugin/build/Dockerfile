@@ -9,6 +9,7 @@ ARG SRC_BASE_DIR=${PLUGIN_NAME}_plugin
 
 COPY ${SRC_BASE_DIR}/ ${BASE_PATH}/${SRC_BASE_DIR}/
 COPY utils/ ${BASE_PATH}/utils/
+COPY ufm_sdk_tools/ ${BASE_PATH}/ufm_sdk_tools/
 
 COPY ${SRC_BASE_DIR}/conf/supervisord.conf /etc/supervisor/conf.d/
 COPY ${SRC_BASE_DIR}/scripts/init.sh ${SRC_BASE_DIR}/scripts/deinit.sh /
