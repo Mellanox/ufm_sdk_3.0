@@ -1,4 +1,5 @@
-FROM harbor.mellanox.com/ufm/ufm_docker/ubuntu_base_24_04:20250513 AS ndt_base_ubuntu24
+ARG ARCH
+FROM nbu-harbor.gtm.nvidia.com/ufm/ufm_docker/ubuntu_base_${ARCH}_24_04:20260114 AS ndt_base_ubuntu24
 
 ENV TZ=Europe/Moscow
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
