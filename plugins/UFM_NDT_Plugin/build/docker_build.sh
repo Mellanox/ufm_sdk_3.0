@@ -14,12 +14,13 @@ IMAGE_VERSION=$1
 IMAGE_NAME=ufm-plugin-ndt
 OUT_DIR=$2
 RANDOM_HASH=$3
-
+ARCH=`uname -m`
 echo "RANDOM_HASH  : [${RANDOM_HASH}]"
 echo "SCRIPT_DIR   : [${SCRIPT_DIR}]"
 echo " "
 echo "IMAGE_VERSION: [${IMAGE_VERSION}]"
 echo "IMAGE_NAME   : [${IMAGE_NAME}]"
+echo "ARCH         : [${ARCH}]"
 echo "OUT_DIR      : [${OUT_DIR}]"
 echo " "
 
@@ -42,8 +43,9 @@ function build_docker_image()
     build_dir=$1
     image_name=$2
     image_version=$3
+    random_hash=$4
     out_dir=$4
-    random_hash=$5
+    arch=$5
     keep_image=$6
     prefix="mellanox"
 
@@ -52,6 +54,7 @@ function build_docker_image()
     echo "  image_name    : [${image_name}]"
     echo "  image_version : [${image_version}]"
     echo "  random_hash   : [${random_hash}]"
+    echo "  arch          : [${arch}]"
     echo "  out_dir       : [${out_dir}]"
     echo "  keep_image    : [${keep_image}]"
     echo "  prefix        : [${prefix}]"
@@ -68,9 +71,8 @@ function build_docker_image()
     image_with_prefix_and_version="${prefix}/${image_name}:${image_version}"
 
     pushd ${build_dir}
-    echo "docker build --network host --no-cache --pull -t ${image_with_prefix_and_version} . --compress"
-
-    docker build --network host --no-cache --pull -t ${image_with_prefix_and_version} . --compress
+    echo "docker build --network host --no-cache --pull -t ${image_with_prefix_and_version} . --compress --compress --build-arg ARCH=$arch"
+    docker build --network host --no-cache --pull -t ${image_with_prefix_and_version} . --compress --build-arg ARCH=$arch
     exit_code=$?
     popd
     if [ $exit_code -ne 0 ]; then
@@ -83,8 +85,8 @@ function build_docker_image()
     docker images | grep ${image_with_prefix}
     printf "\n\n\n"
 
-    echo "docker save ${image_with_prefix_and_version} | gzip > ${out_dir}/${full_image_version}.gz"
-    docker save ${image_with_prefix_and_version} | gzip > ${out_dir}/${full_image_version}.gz
+    echo "docker save ${image_with_prefix_and_version} | gzip > ${out_dir}/${full_image_version}.${arch}.gz"
+    docker save ${image_with_prefix_and_version} | gzip > ${out_dir}/${full_image_version}.${arch}.gz
     exit_code=$?
     if [ $exit_code -ne 0 ]; then
         echo "Failed to save image"
@@ -99,6 +101,7 @@ function build_docker_image()
 pushd ${SCRIPT_DIR}
 
 BUILD_DIR=$(create_out_dir)
+ARCH=`uname -m`
 cp -r ../../../ufm_sdk_tools ${BUILD_DIR}
 cp Dockerfile ${BUILD_DIR}
 cp -r config ${BUILD_DIR}
@@ -106,7 +109,7 @@ cp -r ../ufm_sim_web_service ${BUILD_DIR}
 
 echo "BUILD_DIR    : [${BUILD_DIR}]"
 
-build_docker_image $BUILD_DIR $IMAGE_NAME $IMAGE_VERSION $OUT_DIR ${RANDOM_HASH} 
+build_docker_image ${BUILD_DIR} ${IMAGE_NAME} ${IMAGE_VERSION} ${RANDOM_HASH} ${OUT_DIR} ${ARCH}
 exit_code=$?
 rm -rf ${BUILD_DIR}
 popd
