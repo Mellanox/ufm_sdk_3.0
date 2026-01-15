@@ -6,7 +6,7 @@ ARG _DOCA_VER=3.0.0
 ARG _DOCA_BUILD_VER=058000
 ARG _DOCA_REL_VER=25.04
 ARG _DIST=ubuntu2404
-# currently supported only x86_64. The reason of such arch is that for ubuntu24.04 doca installation
+# currently supported only x86_64 (amd64). The reason of such arch is that for ubuntu24.04 doca installation
 # extention not supporting classical arch values (aarch64 or x86_64 - output of "uname -m").
 ARG _ARCH=amd64
 ARG DOCA_URL=http://nbu-nfs.gtm.nvidia.com/auto/sw/release/doca/doca-host-repo/doca-repo-${_DOCA_VER}/doca-repo-${_DOCA_VER}-${_DOCA_BUILD_VER}/doca-host_${_DOCA_VER}-${_DOCA_BUILD_VER}-${_DOCA_REL_VER}-${_DIST}_${_ARCH}.deb
