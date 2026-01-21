@@ -13,11 +13,15 @@ credentials:
   - {credentialsId: '2c8fd3fe-df05-4f6f-9d1f-f1896d611434', usernameVariable: 'REST_USER', passwordVariable: 'PASSWORD'}
   - {credentialsId: 'e4ba8d7a-d304-4c01-aff9-90de67d97efc', usernameVariable: 'GH_USER', passwordVariable: 'GH_TOKEN'}
 
-volumes:
-  - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
+# volumes:
+#   - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
+
 runs_on_dockers:
    #- {file: 'plugins/UFM_NDT_Plugin/.ci/Dockerfile_static_tests_ub2004', arch: 'x86_64', name: 'swx_static', tag: '20230717'}
    - {url: 'harbor.mellanox.com/swx-storage/ci-demo/x86_64/swx_static:20230717', name: 'swx_static', tag: '20230717', arch: 'x86_64'}
+   - {url: 'nbu-harbor.gtm.nvidia.com/ufm/ci/dind_ufm_x86_64:20250825', name: 'docker_builder_x86_64', arch: 'x86_64', category: 'tool'}
+   - {url: 'nbu-harbor.gtm.nvidia.com/ufm/ci/dind_ufm_aarch64:20250824', name: 'docker_builder_aarch64', arch: 'aarch64', category: 'tool'}
+
 runs_on_agents:
   - nodeLabel: 'UFM-POC'
 
@@ -53,8 +57,21 @@ steps:
 
 
   - name: build Plugin
-    agentSelector: "{nodeLabel: 'UFM-POC'}"
+    containerSelector: 
+     - "{name: 'docker_builder_x86_64'}"
+     - "{name: 'docker_builder_aarch64'}"
     run: |
+      set -x
+
+      # start docker daemon for dind
+      export DOCKER_HOST=unix:///run/docker.sock
+      nohup /usr/local/bin/dockerd-entrypoint.sh &>/var/log/docker.log &
+      while ! docker info &>/dev/null; do
+        echo "Waiting for docker daemon to start..."
+        sleep 1
+      done
+
+
       cd plugins/UFM_NDT_Plugin/build
       sudo bash -x ./docker_build.sh
       cp ufm-plugin-ndt* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
