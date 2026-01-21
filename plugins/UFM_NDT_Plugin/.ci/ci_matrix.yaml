@@ -74,7 +74,7 @@ steps:
 
 
       cd plugins/UFM_NDT_Plugin/build
-      sudo bash -x ./docker_build.sh
+      bash -x ./docker_build.sh
       cp ufm-plugin-ndt* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
     parallel: false
 
@@ -193,7 +193,7 @@ steps:
 
 pipeline_start:
   run: |
-    mkdir -p /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
+    sudo mkdir -p /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
 
 pipeline_stop:
   run: |
