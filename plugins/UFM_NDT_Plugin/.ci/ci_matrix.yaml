@@ -13,9 +13,10 @@ credentials:
   - {credentialsId: '2c8fd3fe-df05-4f6f-9d1f-f1896d611434', usernameVariable: 'REST_USER', passwordVariable: 'PASSWORD'}
   - {credentialsId: 'e4ba8d7a-d304-4c01-aff9-90de67d97efc', usernameVariable: 'GH_USER', passwordVariable: 'GH_TOKEN'}
 
-# volumes:
+volumes:
 #   - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
-
+  - {hostPath: /auto/UFM, mountPath: /auto/UFM}
+  
 runs_on_dockers:
    #- {file: 'plugins/UFM_NDT_Plugin/.ci/Dockerfile_static_tests_ub2004', arch: 'x86_64', name: 'swx_static', tag: '20230717'}
    - {url: 'harbor.mellanox.com/swx-storage/ci-demo/x86_64/swx_static:20230717', name: 'swx_static', tag: '20230717', arch: 'x86_64'}
