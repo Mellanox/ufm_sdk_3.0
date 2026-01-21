@@ -16,7 +16,7 @@ credentials:
 volumes:
 #   - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
   - {hostPath: /auto/UFM, mountPath: /auto/UFM}
-  
+
 runs_on_dockers:
    #- {file: 'plugins/UFM_NDT_Plugin/.ci/Dockerfile_static_tests_ub2004', arch: 'x86_64', name: 'swx_static', tag: '20230717'}
    - {url: 'harbor.mellanox.com/swx-storage/ci-demo/x86_64/swx_static:20230717', name: 'swx_static', tag: '20230717', arch: 'x86_64'}
@@ -193,7 +193,7 @@ steps:
 
 pipeline_start:
   run: |
-    mkdir -p /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
+    sudo mkdir -p /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
 
 pipeline_stop:
   run: |
