@@ -72,7 +72,7 @@ steps:
         sleep 1
       done
 
-
+      mkdir -p /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
       cd plugins/UFM_NDT_Plugin/build
       bash -x ./docker_build.sh
       cp ufm-plugin-ndt* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
@@ -189,12 +189,6 @@ steps:
       # clean simulator files
       ssh -4 root@${SERVER_HOST} 'rm -rf /root/simulation; rm -rf /tmp/simulator.log'
     parallel: false
-
-
-pipeline_start:
-  run: |
-    sudo -u swx-jenkins 
-    mkdir -p /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
 
 pipeline_stop:
   run: |
