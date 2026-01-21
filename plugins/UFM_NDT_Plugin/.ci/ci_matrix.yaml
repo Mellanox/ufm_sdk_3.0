@@ -193,7 +193,8 @@ steps:
 
 pipeline_start:
   run: |
-    sudo mkdir -p /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
+    sudo -u swx-jenkins 
+    mkdir -p /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
 
 pipeline_stop:
   run: |
