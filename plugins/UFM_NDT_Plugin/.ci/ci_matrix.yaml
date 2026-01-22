@@ -88,7 +88,8 @@ steps:
       git config --global --add safe.directory ${WORKSPACE}/plugins/bright_plugin/src/bright-ui/sms-ui-suite
       git config --global --add safe.directory ${WORKSPACE}/ufm_sdk_tools
       git config --global --add safe.directory ${WORKSPACE}/utils/fluentd
-      bash -x ./docker_build.sh
+      
+      bash -x ./docker_build.sh ${BUILD_ID} /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
       cp ufm-plugin-ndt* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
     parallel: false
 
