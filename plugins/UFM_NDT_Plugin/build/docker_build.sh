@@ -91,13 +91,18 @@ function build_docker_image()
     docker images | grep ${image_with_prefix}
     printf "\n\n\n"
 
-    echo "docker save ${image_with_prefix_and_version} | gzip > ${out_dir}/${full_image_version}.${arch}.gz"
-    docker save ${image_with_prefix_and_version} | gzip > ${out_dir}/${full_image_version}.${arch}.gz
+    echo "docker save ${image_with_prefix_and_version} | gzip > ${full_image_version}.${arch}.gz"
+    docker save ${image_with_prefix_and_version} | gzip > ${full_image_version}.${arch}.gz
     exit_code=$?
     if [ $exit_code -ne 0 ]; then
         echo "Failed to save image"
         return $exit_code
     fi
+    
+    if [ $out_dir != "."  ]; then
+      $CI_PREFIX cp -r ${full_image_version}.${arch}.gz ${out_dir}
+    fi
+
     if [ "$keep_image" != "y" -a "$keep_image" != "Y" ]; then
         docker image rm -f ${image_with_prefix_and_version}
     fi
