@@ -22,6 +22,8 @@ credentials:
 volumes:
 #   - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
   - {hostPath: /auto/UFM, mountPath: /auto/UFM}
+  - {hostPath: /auto/sw/release/ufm, mountPath: /auto/sw/release/ufm}
+  - {hostPath: /labhome/swx-jenkins, mountPath: /var/home/swx-jenkins}
 
 runs_on_dockers:
    #- {file: 'plugins/UFM_NDT_Plugin/.ci/Dockerfile_static_tests_ub2004', arch: 'x86_64', name: 'swx_static', tag: '20230717'}
