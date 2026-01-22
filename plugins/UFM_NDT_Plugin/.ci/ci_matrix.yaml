@@ -83,6 +83,11 @@ steps:
       sudo -u swx-jenkins mkdir -p /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
       
       cd plugins/UFM_NDT_Plugin/build
+      git config --global --add safe.directory ${WORKSPACE}
+      git config --global --add safe.directory ${WORKSPACE}/plugins/UFM_NDT_Plugin/ufm_sim_web_service/ndt-ui/sms-ui-suite
+      git config --global --add safe.directory ${WORKSPACE}/plugins/bright_plugin/src/bright-ui/sms-ui-suite
+      git config --global --add safe.directory ${WORKSPACE}/ufm_sdk_tools
+      git config --global --add safe.directory ${WORKSPACE}/utils/fluentd
       bash -x ./docker_build.sh
       cp ufm-plugin-ndt* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/
     parallel: false
