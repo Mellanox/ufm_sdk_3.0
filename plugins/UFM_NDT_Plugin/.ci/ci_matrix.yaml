@@ -68,7 +68,6 @@ steps:
   - name: build Plugin
     containerSelector: 
      - "{name: 'docker_builder_x86_64'}"
-     - "{name: 'docker_builder_aarch64'}"
     run: |
       set -x
 
