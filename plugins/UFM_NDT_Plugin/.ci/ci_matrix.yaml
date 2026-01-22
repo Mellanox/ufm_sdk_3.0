@@ -7,7 +7,13 @@ registry_auth: swx-storage
 step_allow_single_selector: true
 
 kubernetes:
-  cloud: swx-k8s-spray
+  cloud: il-ipp-blossom-prod
+  nodeSelector: 'kubernetes.io/arch=amd64,kubernetes.io/arch=aarch64'
+  namespace: swx
+  caps_add: "[ IPC_LOCK, SYS_RESOURCE ]"
+  limits: "{memory: 30Gi, cpu: 12000m, ephemeral-storage: 25Gi}"
+  requests: "{memory: 12Gi ,cpu: 8000m, ephemeral-storage: 10Gi}"
+  privileged: true
 
 credentials:
   - {credentialsId: '2c8fd3fe-df05-4f6f-9d1f-f1896d611434', usernameVariable: 'REST_USER', passwordVariable: 'PASSWORD'}
