@@ -7,6 +7,12 @@ set -eE
 #  exit
 #fi
 
+if [ -n "$JENKINS_URL" ]; then
+    export CI_PREFIX="sudo -u swx-jenkins "
+else
+    export CI_PREFIX=""
+fi
+
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 PARENT_DIR=$(realpath "${SCRIPT_DIR}/../../../")
 
