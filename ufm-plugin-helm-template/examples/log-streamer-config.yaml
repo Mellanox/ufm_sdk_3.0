@@ -1,0 +1,12 @@
+# Deploy log_streamer plugin with ufm-plugin chart
+# Usage: helm install ufm-plugin ./ufm-plugin -n ufm-enterprise -f examples/log-streamer-config.yaml
+#        (or use the packaged tgz: helm install ufm-plugin ufm-plugin-v1-helm.tgz ...)
+ufmFullname: "ufm-ufm-enterprise"
+namespace: "ufm-enterprise"
+plugins:
+  items:
+    - name: log_streamer
+      image: mellanox/ufm-plugin-log_streamer
+      tag: "1.0.2-4"
+      # port: set if the plugin exposes HTTP (for Apache proxy). Omit if it does not.
+      imagePullPolicy: IfNotPresent

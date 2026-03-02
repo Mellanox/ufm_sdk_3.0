@@ -1,0 +1,138 @@
+{{- $ufmFullname := .Values.ufmFullname }}
+{{- $namespace := include "ufm-plugin.namespace" . }}
+{{- $pvcClaimName := include "ufm-plugin.pvcClaimName" . }}
+{{- range .Values.plugins.items }}
+{{- $k8sName := .name | replace "_" "-" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $ufmFullname }}-plugin-{{ $k8sName }}
+  namespace: {{ $namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ $ufmFullname }}-plugin-{{ $k8sName }}
+  template:
+    metadata:
+      labels:
+        app: {{ $ufmFullname }}-plugin-{{ $k8sName }}
+        plugin-name: {{ $k8sName }}
+    spec:
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: {{ $ufmFullname }}
+              topologyKey: "kubernetes.io/hostname"
+      {{- with $.Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: {{ $k8sName }}-init
+          image: "{{ .image }}:{{ .tag }}"
+          imagePullPolicy: {{ .imagePullPolicy | default "IfNotPresent" }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - /init.sh -ufm_version ${UFM_VERSION}
+          env:
+            - name: UFM_VERSION
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ $ufmFullname }}-config
+                  key: UFM_VERSION
+          securityContext:
+            privileged: false
+          resources:
+            limits:
+              {{ $.Values.rdma.resourceName }}: {{ $.Values.rdma.resourceCount }}  # Device plugin injects /dev/infiniband/* devices
+          volumeMounts:
+            - name: ufm-files
+              mountPath: /config
+              subPath: conf/plugins/{{ .name }}
+            - name: ufm-files
+              mountPath: /log
+              subPath: log/plugins/{{ .name }}
+      containers:
+        - name: {{ $k8sName }}
+          image: "{{ .image }}:{{ .tag }}"
+          imagePullPolicy: {{ .imagePullPolicy | default "IfNotPresent" }}
+          securityContext:
+            privileged: false
+            capabilities:
+              add:
+                - IPC_LOCK
+          env:
+{{- if .port }}
+            - name: PLUGIN_PORT
+              value: "{{ .port }}"
+{{- end }}
+{{- if .healthEndpoint }}
+            - name: HEALTH_ENDPOINT
+              value: "{{ .healthEndpoint }}"
+{{- if or .healthPort .port }}
+            - name: HEALTH_PORT
+              value: "{{ .healthPort | default .port }}"
+{{- end }}
+{{- end }}
+          volumeMounts:
+            - name: ufm-files
+              mountPath: /config
+              subPath: conf/plugins/{{ .name }}
+            - name: ufm-files
+              mountPath: /log
+              subPath: log/plugins/{{ .name }}
+            - name: health-scripts
+              mountPath: /health-scripts
+              readOnly: true
+          resources:
+            {{- $res := .resources | default $.Values.plugins.defaultResources }}
+            {{- if $res }}
+            requests:
+              {{- toYaml $res.requests | nindent 14 }}
+            {{- end }}
+            limits:
+              {{- if $res.limits }}
+              {{- toYaml $res.limits | nindent 14 }}
+              {{- end }}
+              {{ $.Values.rdma.resourceName }}: {{ $.Values.rdma.resourceCount }}  # Device plugin injects /dev/infiniband/* devices
+          # Liveness probe: checks UFM accessibility + plugin health
+          # Restarts pod if either check fails
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - /health-scripts/health-check.sh
+            initialDelaySeconds: {{ .livenessInitialDelay | default 60 }}
+            periodSeconds: {{ .livenessPeriod | default 30 }}
+            timeoutSeconds: {{ .livenessTimeout | default 15 }}
+            failureThreshold: {{ .livenessFailureThreshold | default 3 }}
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - /health-scripts/health-check.sh
+            initialDelaySeconds: {{ .readinessInitialDelay | default 10 }}
+            periodSeconds: {{ .readinessPeriod | default 10 }}
+            timeoutSeconds: {{ .readinessTimeout | default 15 }}
+            failureThreshold: {{ .readinessFailureThreshold | default 3 }}
+      volumes:
+        - name: ufm-files
+          persistentVolumeClaim:
+            claimName: {{ $pvcClaimName }}
+        - name: health-scripts
+          configMap:
+            name: {{ $ufmFullname }}-plugin-health-scripts
+            defaultMode: 0755
+{{- end }}

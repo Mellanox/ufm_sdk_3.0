@@ -1,0 +1,12 @@
+# CI Test Values - Used for helm lint and template validation
+# These are not production values, only for CI testing
+
+ufmFullname: "ufm-ufm-enterprise"
+namespace: "ufm-enterprise"
+
+rdma:
+  resourceName: "rdma/hca_shared"
+  resourceCount: "1"
+
+plugins:
+  items: []

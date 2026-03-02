@@ -1,0 +1,6 @@
+apiVersion: v2
+name: ufm-plugin
+description: Deploy UFM plugins for an existing UFM Enterprise installation (config from -f file)
+type: application
+version: 0.0.0
+appVersion: "0.0.0"

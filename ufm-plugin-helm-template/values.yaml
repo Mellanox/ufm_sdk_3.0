@@ -1,0 +1,17 @@
+ufmFullname: "ufm-ufm-enterprise"
+namespace: "ufm-enterprise"
+existingClaim: ""
+configMapName: ""
+
+# RDMA/Infiniband device plugin resources (required when plugin uses /dev/infiniband)
+rdma:
+  resourceName: "rdma/hca_shared"
+  resourceCount: "1"
+
+plugins:
+  defaultResources: {}  # optional: { requests: {...}, limits: {...} } applied when per-plugin .resources is not set
+  items: []
+
+tolerations: []
+nodeSelector: {}
+imagePullSecrets: []

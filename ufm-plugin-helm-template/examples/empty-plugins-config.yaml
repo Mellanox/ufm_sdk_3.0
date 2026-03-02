@@ -1,0 +1,5 @@
+# Empty plugin list - use this to create the ConfigMap so UFM can mount it, then add plugins later
+ufmFullname: "ufm-ufm-enterprise"
+namespace: "ufm-enterprise"
+plugins:
+  items: []
