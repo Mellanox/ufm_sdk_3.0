@@ -6,9 +6,28 @@ steps:
   - name: Clean_Ci
   - run: echo "No Plugin changes detected, exiting..."
 
-pipeline_start:
-  run: echo empty ci, Could not detect any changes in plugin.
+  - name: Validate UFM Plugin Helm Chart
+    run: |
+      set -e
+      echo "Validating ufm-plugin-helm-template..."
+      helm lint ufm-plugin-helm-template -f ufm-plugin-helm-template/ci-values.yaml
+      helm template ufm-plugin-test ufm-plugin-helm-template -f ufm-plugin-helm-template/ci-values.yaml -n ufm-enterprise --debug > /dev/null
+      echo "Helm chart validation passed."
 
+  - name: Build UFM Plugin Helm Chart
+    run: |
+      set -e
+      CHART_VERSION=$(grep '^version:' ufm-plugin-helm-template/Chart.yaml | awk '{print $2}')
+      echo "Preparing chart at k8s/helm/ufm-plugin (version ${CHART_VERSION})..."
+      mkdir -p k8s/helm
+      cp -r ufm-plugin-helm-template k8s/helm/ufm-plugin
+      .ci/do_create_ufm_plugin_helm_chart.sh "${CHART_VERSION}" "${ARTIFACT_PATH:-/auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}}"
+      echo "Helm chart package created."
+
+pipeline_start:
+  run: |
+    echo empty ci, Could not detect any changes in plugin.
+    mkdir -p /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
 
 pipeline_stop:
   run: echo All done
