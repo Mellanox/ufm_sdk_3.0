@@ -68,8 +68,9 @@ Values used by the template:
 | `namespace` | Kubernetes namespace (should match UFM). | Yes |
 | `existingClaim` | PVC claim name for UFM files. Defaults to `{ufmFullname}-files`. | No |
 | `configMapName` | ConfigMap name for `plugins.yaml`. Defaults to `{ufmFullname}-plugins`. | No |
-| `rdma.resourceName` | RDMA resource name (e.g. `rdma/hca_shared`). | Yes if plugin uses RDMA |
-| `rdma.resourceCount` | Number of RDMA resources per plugin pod. | Yes if plugin uses RDMA |
+| `ufmUrl` | UFM base URL for health checks. Defaults to `http://{ufmFullname}.{namespace}.svc.cluster.local:8000/app/ufm_version`. Override if UFM is reached differently. | No |
+| `rdma.resourceName` | RDMA resource name (e.g. `rdma/hca_shared`). Only used when `rdma.resourceCount` is not `"0"`. | No |
+| `rdma.resourceCount` | Number of RDMA resources per plugin pod; default `"0"`. Set to `"1"` (or more) when the plugin uses InfiniBand. | No |
 | `plugins.defaultResources` | Default `requests`/`limits` when a plugin does not set `resources`. | No |
 | `plugins.items` | List of plugin definitions (see below). | Yes (can be empty) |
 | `tolerations` | Pod tolerations. | No |
@@ -91,13 +92,13 @@ Each item can have:
 | `healthPort` | Port for health HTTP check; defaults to `port`. | No |
 | `host` | Host in generated `plugins.yaml`; default `127.0.0.1`. | No |
 | `resources` | `requests`/`limits` for this plugin; overrides `plugins.defaultResources`. | No |
-| `livenessInitialDelaySeconds` | Liveness probe initial delay. | No |
-| `livenessPeriodSeconds` | Liveness probe period. | No |
-| `livenessTimeoutSeconds` | Liveness probe timeout. | No |
+| `livenessInitialDelay` | Liveness probe initial delay (seconds). | No |
+| `livenessPeriod` | Liveness probe period (seconds). | No |
+| `livenessTimeout` | Liveness probe timeout (seconds). | No |
 | `livenessFailureThreshold` | Liveness failure threshold. | No |
-| `readinessInitialDelaySeconds` | Readiness probe initial delay. | No |
-| `readinessPeriodSeconds` | Readiness probe period. | No |
-| `readinessTimeoutSeconds` | Readiness probe timeout. | No |
+| `readinessInitialDelay` | Readiness probe initial delay (seconds). | No |
+| `readinessPeriod` | Readiness probe period (seconds). | No |
+| `readinessTimeout` | Readiness probe timeout (seconds). | No |
 | `readinessFailureThreshold` | Readiness failure threshold. | No |
 
 Example for a plugin with HTTP health and custom resources:

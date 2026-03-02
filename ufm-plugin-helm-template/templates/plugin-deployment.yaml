@@ -55,8 +55,10 @@ spec:
           securityContext:
             privileged: false
           resources:
+            {{- if and $.Values.rdma.resourceName (ne (toString $.Values.rdma.resourceCount) "0") }}
             limits:
-              {{ $.Values.rdma.resourceName }}: {{ $.Values.rdma.resourceCount }}  # Device plugin injects /dev/infiniband/* devices
+              {{ $.Values.rdma.resourceName }}: {{ $.Values.rdma.resourceCount }}
+            {{- end }}
           volumeMounts:
             - name: ufm-files
               mountPath: /config
@@ -74,6 +76,8 @@ spec:
               add:
                 - IPC_LOCK
           env:
+            - name: UFM_URL
+              value: {{ include "ufm-plugin.ufmUrl" $ | quote }}
 {{- if .port }}
             - name: PLUGIN_PORT
               value: "{{ .port }}"
@@ -106,7 +110,9 @@ spec:
               {{- if $res.limits }}
               {{- toYaml $res.limits | nindent 14 }}
               {{- end }}
-              {{ $.Values.rdma.resourceName }}: {{ $.Values.rdma.resourceCount }}  # Device plugin injects /dev/infiniband/* devices
+              {{- if and $.Values.rdma.resourceName (ne (toString $.Values.rdma.resourceCount) "0") }}
+              {{ $.Values.rdma.resourceName }}: {{ $.Values.rdma.resourceCount }}
+              {{- end }}
           # Liveness probe: checks UFM accessibility + plugin health
           # Restarts pod if either check fails
           livenessProbe:

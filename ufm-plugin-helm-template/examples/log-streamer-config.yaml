@@ -1,6 +1,6 @@
 # Deploy log_streamer plugin with ufm-plugin chart
 # Usage: helm install ufm-plugin ./ufm-plugin -n ufm-enterprise -f examples/log-streamer-config.yaml
-#        (or use the packaged tgz: helm install ufm-plugin ufm-plugin-v1-helm.tgz ...)
+#        (or use the packaged tgz: helm install ufm-plugin ufm-plugin-<version>-helm.tgz ...)
 ufmFullname: "ufm-ufm-enterprise"
 namespace: "ufm-enterprise"
 plugins:
