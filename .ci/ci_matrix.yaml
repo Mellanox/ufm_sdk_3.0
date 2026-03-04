@@ -27,9 +27,10 @@ steps:
 pipeline_start:
   run: |
     echo empty ci, Could not detect any changes in plugin.
-    mkdir -p /tmp/ufm-helm /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
+    mkdir -p /tmp/ufm-helm
 
 pipeline_stop:
   run: |
+    sudo -u swx-jenkins mkdir -p /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}
     sudo -u swx-jenkins cp -r /tmp/ufm-helm/* /auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}/ || true
     echo All done
