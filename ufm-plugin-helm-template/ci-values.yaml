@@ -1,5 +1,6 @@
 # CI Test Values - Used for helm lint and template validation
-# These are not production values, only for CI testing
+# These are not production values, only for CI testing.
+# CI also runs helm template with ci-values-empty-plugins.yaml (no plugins) and examples/log-streamer-config.yaml.
 
 ufmFullname: "ufm-ufm-enterprise"
 namespace: "ufm-enterprise"
@@ -14,4 +15,11 @@ plugins:
       image: busybox
       tag: "1.36"
       port: 8080
-      healthEndpoint: /
+      livenessProbe:
+        tcpSocket: { port: 8080 }
+        initialDelaySeconds: 30
+        periodSeconds: 30
+      readinessProbe:
+        tcpSocket: { port: 8080 }
+        initialDelaySeconds: 10
+        periodSeconds: 10

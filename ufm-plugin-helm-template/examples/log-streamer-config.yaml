@@ -10,3 +10,16 @@ plugins:
       tag: "1.0.2-4"
       # port: set if the plugin exposes HTTP (for Apache proxy). Omit if it does not.
       imagePullPolicy: IfNotPresent
+      # Example: user-defined liveness and readiness probes (adjust port/path to match your plugin).
+      livenessProbe:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 60
+        periodSeconds: 30
+      readinessProbe:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 10
+        periodSeconds: 10

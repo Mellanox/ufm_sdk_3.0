@@ -8,12 +8,14 @@ data:
     plugins:
 {{- if .Values.plugins.items }}
 {{- range .Values.plugins.items }}
+{{- if and .name .image .tag }}
       - name: {{ .name }}
         host: {{ .host | default "127.0.0.1" }}
 {{- if .port }}
         port: {{ .port }}
 {{- end }}
         tag: {{ .tag }}
+{{- end }}
 {{- end }}
 {{- else }}
       []

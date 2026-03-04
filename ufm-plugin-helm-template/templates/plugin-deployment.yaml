@@ -2,6 +2,7 @@
 {{- $namespace := include "ufm-plugin.namespace" . }}
 {{- $pvcClaimName := include "ufm-plugin.pvcClaimName" . }}
 {{- range .Values.plugins.items }}
+{{- if and .name .image .tag }}
 {{- $k8sName := .name | replace "_" "-" }}
 ---
 apiVersion: apps/v1
@@ -20,13 +21,10 @@ spec:
         app: {{ $ufmFullname }}-plugin-{{ $k8sName }}
         plugin-name: {{ $k8sName }}
     spec:
+      {{- with $.Values.affinity }}
       affinity:
-        podAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchLabels:
-                  app: {{ $ufmFullname }}
-              topologyKey: "kubernetes.io/hostname"
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- with $.Values.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
@@ -76,19 +74,9 @@ spec:
               add:
                 - IPC_LOCK
           env:
-            - name: UFM_URL
-              value: {{ include "ufm-plugin.ufmUrl" $ | quote }}
 {{- if .port }}
             - name: PLUGIN_PORT
               value: "{{ .port }}"
-{{- end }}
-{{- if .healthEndpoint }}
-            - name: HEALTH_ENDPOINT
-              value: "{{ .healthEndpoint }}"
-{{- if or .healthPort .port }}
-            - name: HEALTH_PORT
-              value: "{{ .healthPort | default .port }}"
-{{- end }}
 {{- end }}
           volumeMounts:
             - name: ufm-files
@@ -97,9 +85,6 @@ spec:
             - name: ufm-files
               mountPath: /log
               subPath: log/plugins/{{ .name }}
-            - name: health-scripts
-              mountPath: /health-scripts
-              readOnly: true
           resources:
             {{- $res := .resources | default $.Values.plugins.defaultResources }}
             {{- if $res }}
@@ -113,32 +98,17 @@ spec:
               {{- if and $.Values.rdma.resourceName (ne (toString $.Values.rdma.resourceCount) "0") }}
               {{ $.Values.rdma.resourceName }}: {{ $.Values.rdma.resourceCount }}
               {{- end }}
-          # Liveness probe: checks UFM accessibility + plugin health
-          # Restarts pod if either check fails
+          {{- with .livenessProbe }}
           livenessProbe:
-            exec:
-              command:
-                - /bin/sh
-                - /health-scripts/health-check.sh
-            initialDelaySeconds: {{ .livenessInitialDelay | default 60 }}
-            periodSeconds: {{ .livenessPeriod | default 30 }}
-            timeoutSeconds: {{ .livenessTimeout | default 15 }}
-            failureThreshold: {{ .livenessFailureThreshold | default 3 }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .readinessProbe }}
           readinessProbe:
-            exec:
-              command:
-                - /bin/sh
-                - /health-scripts/health-check.sh
-            initialDelaySeconds: {{ .readinessInitialDelay | default 10 }}
-            periodSeconds: {{ .readinessPeriod | default 10 }}
-            timeoutSeconds: {{ .readinessTimeout | default 15 }}
-            failureThreshold: {{ .readinessFailureThreshold | default 3 }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
       volumes:
         - name: ufm-files
           persistentVolumeClaim:
             claimName: {{ $pvcClaimName }}
-        - name: health-scripts
-          configMap:
-            name: {{ $ufmFullname }}-plugin-health-scripts
-            defaultMode: 0755
+{{- end }}
 {{- end }}
