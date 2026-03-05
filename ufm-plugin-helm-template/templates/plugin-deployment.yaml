@@ -70,9 +70,11 @@ spec:
           imagePullPolicy: {{ .imagePullPolicy | default "IfNotPresent" }}
           securityContext:
             privileged: false
+            {{- if and $.Values.rdma.resourceName (ne (toString $.Values.rdma.resourceCount) "0") }}
             capabilities:
               add:
                 - IPC_LOCK
+            {{- end }}
           env:
 {{- if .port }}
             - name: PLUGIN_PORT
@@ -87,7 +89,7 @@ spec:
               subPath: log/plugins/{{ .name }}
           resources:
             {{- $res := .resources | default $.Values.plugins.defaultResources }}
-            {{- if $res }}
+            {{- if $res.requests }}
             requests:
               {{- toYaml $res.requests | nindent 14 }}
             {{- end }}
