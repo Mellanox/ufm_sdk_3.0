@@ -80,6 +80,14 @@ spec:
             - name: PLUGIN_PORT
               value: "{{ .port }}"
 {{- end }}
+{{- if .healthEndpoint }}
+            - name: HEALTH_ENDPOINT
+              value: "{{ .healthEndpoint }}"
+{{- if or .healthPort .port }}
+            - name: HEALTH_PORT
+              value: "{{ .healthPort | default .port }}"
+{{- end }}
+{{- end }}
           volumeMounts:
             - name: ufm-files
               mountPath: /config
@@ -87,6 +95,9 @@ spec:
             - name: ufm-files
               mountPath: /log
               subPath: log/plugins/{{ .name }}
+            - name: health-scripts
+              mountPath: /health-scripts
+              readOnly: true
           resources:
             {{- $res := .resources | default $.Values.plugins.defaultResources }}
             {{- if $res.requests }}
@@ -100,9 +111,18 @@ spec:
               {{- if and $.Values.rdma.resourceName (ne (toString $.Values.rdma.resourceCount) "0") }}
               {{ $.Values.rdma.resourceName }}: {{ $.Values.rdma.resourceCount }}
               {{- end }}
-          {{- with .livenessProbe }}
+          {{- if .livenessProbe }}
           livenessProbe:
-            {{- toYaml . | nindent 12 }}
+            {{- toYaml .livenessProbe | nindent 12 }}
+          {{- else }}
+          # Default liveness: chart-provided health-check.sh (set healthEndpoint/port so the script can check the plugin)
+          livenessProbe:
+            exec:
+              command: ["/bin/sh", "/health-scripts/health-check.sh"]
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 15
+            failureThreshold: 3
           {{- end }}
           {{- with .readinessProbe }}
           readinessProbe:
@@ -112,5 +132,9 @@ spec:
         - name: ufm-files
           persistentVolumeClaim:
             claimName: {{ $pvcClaimName }}
+        - name: health-scripts
+          configMap:
+            name: {{ $ufmFullname }}-plugin-health-scripts
+            defaultMode: 0755
 {{- end }}
 {{- end }}

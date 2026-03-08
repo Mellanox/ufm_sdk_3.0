@@ -1,5 +1,6 @@
 ufmFullname: "ufm-ufm-enterprise"
-namespace: "ufm-enterprise"
+# namespace: discovered at install time when Helm has cluster access (lookup ConfigMap {ufmFullname}-config). Otherwise defaults to "ufm-enterprise". Set to override.
+namespace: ""
 existingClaim: ""
 configMapName: ""
 

@@ -5,7 +5,8 @@ This directory is a **Helm chart template** for deploying UFM plugins alongside 
 ## Prerequisites
 
 - **UFM Enterprise** must already be installed in the cluster (this chart does not install UFM).
-- **`namespace` and `ufmFullname`**: Set these to the same values used when you installed UFM. The chart does not discover them automatically. To find them: `helm list -A | grep ufm` (namespace is the NAMESPACE column, release name is the NAME column; `ufmFullname` is typically `ufm-<release-name>`—see your UFM install docs). In CI, use the same variables you use for the UFM install.
+- **Namespace**: Can be **discovered at install time** when Helm has cluster access: the chart looks up the ConfigMap `{ufmFullname}-config` (with key `UFM_VERSION`) and uses that ConfigMap’s namespace. If discovery is not possible (e.g. `helm template` or no cluster access), it falls back to `namespace` in values, then **`ufm-enterprise`**. Leave `namespace` unset and run `helm install` with cluster access for automatic discovery; otherwise set `namespace` in values.
+- **`ufmFullname`**: Set to match your UFM release (e.g. `ufm-<release-name>`). To find it: `helm list -A | grep ufm`. In CI, use the same variable you use for the UFM install. Required for namespace discovery (the chart looks for the ConfigMap named `{ufmFullname}-config`).
 - **Shared PVC**: UFM has a single PVC for its data. This chart uses that same PVC and mounts subpaths `conf/plugins/<plugin_name>` and `log/plugins/<plugin_name>` for each plugin. UFM does not create or manage these subpaths—the plugin chart does. Default claim name is `{ufmFullname}-files`; set `existingClaim` if your UFM uses a different PVC name.
 - **UFM ConfigMap**: The chart expects a ConfigMap named `{ufmFullname}-config` with key `UFM_VERSION` in the same namespace (typically provided by the UFM Enterprise chart). The init container reads `UFM_VERSION` from this ConfigMap and passes it to `/init.sh -ufm_version`. **If this ConfigMap or key is missing, plugin pods will not start** (Kubernetes will report the missing reference). Install UFM first or create the ConfigMap before deploying plugins.
 - **RDMA device plugin** (if your plugin uses InfiniBand): Cluster must have the RDMA device plugin so that the resource `rdma/hca_shared` (or your configured name) is available. Some plugins may also require components from the NVIDIA Network Operator; see your plugin’s documentation.
@@ -70,7 +71,7 @@ Values used by the template:
 | Value | Description | Required |
 |-------|-------------|----------|
 | `ufmFullname` | Full name of the UFM Enterprise release (used for naming and for the UFM config ConfigMap). Must match the namespace and release name used when you installed UFM. | Yes |
-| `namespace` | Kubernetes namespace. Must match the namespace where UFM is installed (see Prerequisites for how to find it). | Yes |
+| `namespace` | Kubernetes namespace for chart resources. When Helm has cluster access at install time, the chart **discovers** it by finding the ConfigMap `{ufmFullname}-config` (with `UFM_VERSION`) and using that ConfigMap’s namespace. Otherwise falls back to this value, then **`ufm-enterprise`**. Set only to override discovery or when discovery is not possible (e.g. `helm template`). | No |
 | `existingClaim` | PVC claim name for UFM files. Defaults to `{ufmFullname}-files` to match the UFM Enterprise chart. Set this if your UFM uses a different PVC name. | No |
 | `configMapName` | ConfigMap name for `plugins.yaml`. Defaults to `{ufmFullname}-plugins`. | No |
 | `rdma.resourceName` | RDMA resource name (e.g. `rdma/hca_shared`). Only used when `rdma.resourceCount` is not `"0"`. | No |
@@ -94,11 +95,13 @@ Each item can have:
 | `image` | Container image repository (no tag). | Yes |
 | `tag` | Image tag. | Yes |
 | `imagePullPolicy` | e.g. `IfNotPresent` or `Always`. | No (default: IfNotPresent) |
-| `port` | Main TCP port the plugin listens on: written to `plugins.yaml` so UFM can reach the plugin. If you add a Service or Ingress, use this as the target container port. If the plugin exposes multiple ports, set this to the one UFM uses. | No |
+| `port` | Main TCP port the plugin listens on: written to `plugins.yaml` so UFM can reach the plugin. Also used by the default liveness script when `healthEndpoint` is not set. If you add a Service or Ingress, use this as the target container port. | No |
+| `healthEndpoint` | HTTP path for the **default liveness** script (e.g. `/health`). Set this and optionally `healthPort` so the chart’s health-check.sh can verify the plugin; the script is used only for liveness when you do not set `livenessProbe`. | No |
+| `healthPort` | Port for the default liveness script’s HTTP check; defaults to `port`. Only used when `healthEndpoint` is set. | No |
 | `host` | Host written into `plugins.yaml` for this plugin; UFM uses it with `port` to reach the plugin. Default `127.0.0.1` (plugin on same host as UFM). Override for remote or in-cluster hostnames. | No |
 | `resources` | `requests`/`limits` for this plugin; overrides `plugins.defaultResources`. **Recommended**: set `resources.requests` (and optionally `limits`) per plugin so the cluster can schedule and limit pods correctly. | No |
-| `livenessProbe` | Full [liveness probe](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes) spec (e.g. `exec`, `httpGet`, `tcpSocket`). You configure it; the chart does not set a default. | No |
-| `readinessProbe` | Full [readiness probe](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes) spec. You configure it; the chart does not set a default. | No |
+| `livenessProbe` | Full [liveness probe](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes) spec. If not set, the chart uses a **default liveness probe** that runs `health-check.sh` (set `healthEndpoint` and/or `port` so the script can check the plugin). Override with your own spec to replace the default. | No |
+| `readinessProbe` | Full [readiness probe](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes) spec. **No default**; set this if you want a readiness probe (e.g. `httpGet` or `tcpSocket`). | No |
 
 Example for a plugin with custom resources and user-defined probes:
 
@@ -116,13 +119,10 @@ plugins:
         limits:
           memory: "512Mi"
           cpu: "500m"
-      # Probes are your choice; no defaults from the chart.
-      livenessProbe:
-        httpGet:
-          path: /health
-          port: 8401
-        initialDelaySeconds: 60
-        periodSeconds: 30
+      # Omit livenessProbe to use the chart default (health-check.sh); set healthEndpoint so the script can check the plugin
+      healthEndpoint: /health
+      healthPort: 8401
+      # Readiness has no default; set it if you want the pod to be ready only when the plugin is up
       readinessProbe:
         httpGet:
           path: /health
@@ -130,22 +130,25 @@ plugins:
         initialDelaySeconds: 10
         periodSeconds: 10
 ```
+To use your own liveness probe instead of the default script, set `livenessProbe` (e.g. `httpGet` or `tcpSocket`).
 
 ### 5. What the chart generates
 
 - **Deployment per plugin**: One Deployment per entry in `plugins.items`, with:
   - Init container that runs `/init.sh -ufm_version ${UFM_VERSION}`; `UFM_VERSION` is read from the ConfigMap `{ufmFullname}-config` (see Prerequisites). Mounts plugin config/log dirs from the shared PVC.
-  - Main container with the same mounts, optional `PLUGIN_PORT`, and RDMA resources when configured.
+  - Main container with the same mounts, optional `PLUGIN_PORT` and `HEALTH_ENDPOINT`/`HEALTH_PORT` (for the default liveness script), and RDMA resources when configured.
   - Optional placement control via `affinity`, `nodeSelector`, and `tolerations` (no default affinity; set `affinity` if you want e.g. same node as UFM).
-  - Liveness and readiness probes only if you set `livenessProbe` and/or `readinessProbe` per plugin (no defaults).
+  - **Liveness**: default is a chart-provided probe that runs `health-check.sh` (set `healthEndpoint` and/or `port` so the script can check the plugin). Override with `livenessProbe` to use your own spec.
+  - **Readiness**: no default; set `readinessProbe` if you want a readiness probe.
 - **ConfigMap `plugins.yaml`**: One ConfigMap (name from `configMapName` / default `{ufmFullname}-plugins`) containing a `plugins.yaml` consumed by UFM (list of name, host, port, tag).
+- **Health scripts ConfigMap**: A ConfigMap with `health-check.sh` (mounted at `/health-scripts`), used by the default liveness probe. Your plugin image must provide `/bin/sh` when using the default liveness.
 
 ### 6. Plugin image expectations
 
 Your plugin image should:
 
 - Provide **`/init.sh`** that accepts `-ufm_version <version>` and initializes config under `/config` and logs under `/log` (these are mounted from the shared PVC subpaths `conf/plugins/<name>` and `log/plugins/<name>`).
-- For health checks, configure `livenessProbe` and/or `readinessProbe` per plugin (e.g. `httpGet` or `tcpSocket`);
+- **Default liveness** uses a script that runs inside the container via `/bin/sh`; your image must provide `/bin/sh`. Set `healthEndpoint` and/or `port` so the script can check the plugin, or override with your own `livenessProbe`. **Readiness** has no default; set `readinessProbe` if needed (e.g. `httpGet` or `tcpSocket`).
 
 ### 7. RDMA / InfiniBand
 
@@ -192,7 +195,7 @@ helm install my-ufm-plugin ufm-plugin-1.0.0.tgz -n ufm-enterprise -f my-values.y
 ## Summary
 
 1. Copy this template and set `Chart.yaml` and `values.yaml` (put your plugin in `plugins.items` in the chart’s `values.yaml` for a plugin-specific chart).
-2. Set `ufmFullname` and `namespace` to match your UFM install.
-3. Add your plugin under `plugins.items` with at least `name`, `image`, and `tag`; set `port` and `rdma` as needed, and `livenessProbe`/`readinessProbe` if you want health checks.
+2. Set `ufmFullname` to match your UFM release. Leave `namespace` unset and run `helm install` with cluster access for automatic namespace discovery; otherwise set `namespace` in values or rely on the default `ufm-enterprise`.
+3. Add your plugin under `plugins.items` with at least `name`, `image`, and `tag`; set `port` and `rdma` as needed. Set `healthEndpoint` (and optionally `healthPort`) for the default liveness probe, or set `livenessProbe` to override it. Set `readinessProbe` if you want a readiness probe (no default).
 4. Ensure your image has `/init.sh`.
 5. Install with `helm install` (use `-f my-values.yaml` to override or use a separate values file).
