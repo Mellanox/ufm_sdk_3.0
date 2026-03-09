@@ -1,0 +1,14 @@
+---
+job: ufm-ci
+
+# empty matrix to skip CI for appliance builds (not needed)
+steps:
+  - name: Clean_Ci
+  - run: echo "No Plugin changes detected, exiting..."
+
+pipeline_start:
+  run: echo empty ci, Could not detect any changes in plugin.
+
+
+pipeline_stop:
+  run: echo All done
