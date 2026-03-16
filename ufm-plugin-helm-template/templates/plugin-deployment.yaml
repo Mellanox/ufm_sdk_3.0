@@ -52,6 +52,11 @@ spec:
                   key: UFM_VERSION
           securityContext:
             privileged: false
+            {{- if and $.Values.rdma.resourceName (ne (toString $.Values.rdma.resourceCount) "0") }}
+            capabilities:
+              add:
+                - IPC_LOCK
+            {{- end }}
           resources:
             {{- if and $.Values.rdma.resourceName (ne (toString $.Values.rdma.resourceCount) "0") }}
             limits:
@@ -70,10 +75,15 @@ spec:
           imagePullPolicy: {{ .imagePullPolicy | default "IfNotPresent" }}
           securityContext:
             privileged: false
-            {{- if and $.Values.rdma.resourceName (ne (toString $.Values.rdma.resourceCount) "0") }}
+            {{- if or (and $.Values.rdma.resourceName (ne (toString $.Values.rdma.resourceCount) "0")) .extraCapabilities }}
             capabilities:
               add:
+                {{- if and $.Values.rdma.resourceName (ne (toString $.Values.rdma.resourceCount) "0") }}
                 - IPC_LOCK
+                {{- end }}
+                {{- with .extraCapabilities }}
+                {{- toYaml . | nindent 16 }}
+                {{- end }}
             {{- end }}
           env:
 {{- if .port }}
@@ -88,6 +98,9 @@ spec:
               value: "{{ .healthPort | default .port }}"
 {{- end }}
 {{- end }}
+{{- with .env }}
+            {{- toYaml . | nindent 12 }}
+{{- end }}
           volumeMounts:
             - name: ufm-files
               mountPath: /config
@@ -98,12 +111,16 @@ spec:
             - name: health-scripts
               mountPath: /health-scripts
               readOnly: true
+            {{- with .volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           resources:
             {{- $res := .resources | default $.Values.plugins.defaultResources }}
             {{- if $res.requests }}
             requests:
               {{- toYaml $res.requests | nindent 14 }}
             {{- end }}
+            {{- if or $res.limits (and $.Values.rdma.resourceName (ne (toString $.Values.rdma.resourceCount) "0")) }}
             limits:
               {{- if $res.limits }}
               {{- toYaml $res.limits | nindent 14 }}
@@ -111,18 +128,36 @@ spec:
               {{- if and $.Values.rdma.resourceName (ne (toString $.Values.rdma.resourceCount) "0") }}
               {{ $.Values.rdma.resourceName }}: {{ $.Values.rdma.resourceCount }}
               {{- end }}
+            {{- end }}
+          {{- if .disableLivenessProbe }}
+          {{- else }}
           {{- if .livenessProbe }}
           livenessProbe:
             {{- toYaml .livenessProbe | nindent 12 }}
           {{- else }}
-          # Default liveness: chart-provided health-check.sh (set healthEndpoint/port so the script can check the plugin)
+          {{- if .healthEndpoint }}
+          # Default liveness: native httpGet (set healthEndpoint and healthPort/port)
           livenessProbe:
-            exec:
-              command: ["/bin/sh", "/health-scripts/health-check.sh"]
+            httpGet:
+              path: {{ .healthEndpoint }}
+              port: {{ .healthPort | default .port }}
             initialDelaySeconds: 60
             periodSeconds: 30
             timeoutSeconds: 15
             failureThreshold: 3
+          {{- else }}
+          {{- if .port }}
+          # Default liveness: native tcpSocket (set port)
+          livenessProbe:
+            tcpSocket:
+              port: {{ .port }}
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 15
+            failureThreshold: 3
+          {{- end }}
+          {{- end }}
+          {{- end }}
           {{- end }}
           {{- with .readinessProbe }}
           readinessProbe:
@@ -136,5 +171,8 @@ spec:
           configMap:
             name: {{ $ufmFullname }}-plugin-health-scripts
             defaultMode: 0755
+        {{- with .volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
 {{- end }}
 {{- end }}

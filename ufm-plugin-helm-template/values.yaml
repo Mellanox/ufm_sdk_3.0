@@ -1,6 +1,8 @@
 ufmFullname: "ufm-ufm-enterprise"
-# namespace: discovered at install time when Helm has cluster access (lookup ConfigMap {ufmFullname}-config). Otherwise defaults to "ufm-enterprise". Set to override.
+# namespace: when namespaceSearchList is set and Helm has cluster access, discovered by looking up ConfigMap {ufmFullname}-config in each listed namespace only (no cluster-wide list). Otherwise defaults to "ufm-enterprise".
 namespace: ""
+# namespaceSearchList: namespaces to search for {ufmFullname}-config at install time. Only requires get ConfigMap in those namespaces. Set to [] to skip discovery.
+namespaceSearchList: ["ufm-enterprise"]
 existingClaim: ""
 configMapName: ""
 

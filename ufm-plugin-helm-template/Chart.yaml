@@ -1,6 +1,6 @@
 apiVersion: v2
-name: ufm-plugin
-description: Deploy UFM plugins for an existing UFM Enterprise installation (config from -f file)
+name: ufm-plugins
+description: Generic Helm chart for deploying UFM plugins. Pass a values file that defines the plugins you want to deploy;
 type: application
 version: 0.0.0
 appVersion: "0.0.0"

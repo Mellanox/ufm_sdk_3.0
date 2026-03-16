@@ -2,10 +2,14 @@
 {{- $root := . -}}
 {{- $ufmConfigName := printf "%s-config" $root.Values.ufmFullname -}}
 {{- $found := "" -}}
-{{- with (lookup "v1" "ConfigMap" "" "").items -}}
-{{- range . -}}
-{{- if and (not $found) (index . "data") (hasKey (index . "data") "UFM_VERSION") (eq (index . "metadata" "name") $ufmConfigName) -}}
-{{- $found = index . "metadata" "namespace" -}}
+{{- $searchList := $root.Values.namespaceSearchList | default list -}}
+{{- range $searchList -}}
+{{- $ns := . -}}
+{{- if not $found -}}
+{{- with lookup "v1" "ConfigMap" $ns $ufmConfigName -}}
+{{- if and (index . "data") (hasKey (index . "data") "UFM_VERSION") -}}
+{{- $found = $ns -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}
