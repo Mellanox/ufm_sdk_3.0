@@ -2,5 +2,5 @@ apiVersion: v2
 name: ufm-plugins
 description: Generic Helm chart for deploying UFM plugins. Pass a values file that defines the plugins you want to deploy;
 type: application
-version: 0.0.0
-appVersion: "0.0.0"
+version: 0.1.0
+appVersion: "0.1.0"

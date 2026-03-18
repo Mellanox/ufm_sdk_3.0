@@ -6,14 +6,19 @@ namespaceSearchList: ["ufm-enterprise"]
 existingClaim: ""
 configMapName: ""
 
-# RDMA/Infiniband device plugin resources (default "0"; set resourceCount to "1" when plugin uses /dev/infiniband)
+# RDMA/Infiniband device plugin resources (default "0"; set resourceCount to "1" when plugin uses /dev/infiniband).
+# Each plugin can override with per-plugin rdma: { resourceName, resourceCount } so you can mix RDMA and non-RDMA plugins.
 rdma:
   resourceName: "rdma/hca_shared"
   resourceCount: "0"
 
 plugins:
   defaultResources: {}  # optional: { requests: {...}, limits: {...} } applied when per-plugin .resources is not set
-  items: []
+  items: []  # each item: name, image, tag; optional: port, ports, healthEndpoint, rdma, mountHealthScripts, startupProbe, etc.
+
+# Optional: pod-level securityContext (runAsNonRoot, runAsUser, seccompProfile, etc.). Required for Pod Security Standards in many clusters.
+# Example for restricted policy: podSecurityContext: { runAsNonRoot: true, runAsUser: 1000, seccompProfile: { type: RuntimeDefault } }
+podSecurityContext: {}
 
 # Optional: control where plugin pods are scheduled (e.g. same node as UFM, or specific node pools)
 affinity: {}

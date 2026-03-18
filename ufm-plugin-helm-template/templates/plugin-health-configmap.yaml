@@ -1,5 +1,5 @@
-{{- /* Only emit health-scripts ConfigMap when there are plugins; script is for optional custom exec probes. Default liveness uses native httpGet/tcpSocket. */}}
-{{- if .Values.plugins.items }}
+{{- /* Only emit health-scripts ConfigMap when at least one plugin mounts it (mountHealthScripts: true). Default liveness uses native httpGet/tcpSocket. */}}
+{{- if include "ufm-plugin.anyMountHealthScripts" . }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

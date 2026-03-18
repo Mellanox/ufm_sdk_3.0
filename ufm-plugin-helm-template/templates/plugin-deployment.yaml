@@ -4,6 +4,7 @@
 {{- range .Values.plugins.items }}
 {{- if and .name .image .tag }}
 {{- $k8sName := .name | replace "_" "-" }}
+{{- $pluginRdma := .rdma | default $.Values.rdma }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -20,7 +21,12 @@ spec:
       labels:
         app: {{ $ufmFullname }}-plugin-{{ $k8sName }}
         plugin-name: {{ $k8sName }}
+        app.kubernetes.io/instance: {{ $.Release.Name }}
     spec:
+      {{- with $.Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- with $.Values.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
@@ -37,6 +43,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if not (eq .runInitContainer false) }}
       initContainers:
         - name: {{ $k8sName }}-init
           image: "{{ .image }}:{{ .tag }}"
@@ -52,16 +59,16 @@ spec:
                   key: UFM_VERSION
           securityContext:
             privileged: false
-            {{- if and $.Values.rdma.resourceName (ne (toString $.Values.rdma.resourceCount) "0") }}
+            {{- if and $pluginRdma.resourceName (ne (toString $pluginRdma.resourceCount) "0") }}
             capabilities:
               add:
                 - IPC_LOCK
             {{- end }}
+          {{- if and $pluginRdma.resourceName (ne (toString $pluginRdma.resourceCount) "0") }}
           resources:
-            {{- if and $.Values.rdma.resourceName (ne (toString $.Values.rdma.resourceCount) "0") }}
             limits:
-              {{ $.Values.rdma.resourceName }}: {{ $.Values.rdma.resourceCount }}
-            {{- end }}
+              {{ $pluginRdma.resourceName }}: {{ $pluginRdma.resourceCount }}
+          {{- end }}
           volumeMounts:
             - name: ufm-files
               mountPath: /config
@@ -69,38 +76,52 @@ spec:
             - name: ufm-files
               mountPath: /log
               subPath: log/plugins/{{ .name }}
+      {{- end }}
       containers:
         - name: {{ $k8sName }}
           image: "{{ .image }}:{{ .tag }}"
           imagePullPolicy: {{ .imagePullPolicy | default "IfNotPresent" }}
           securityContext:
             privileged: false
-            {{- if or (and $.Values.rdma.resourceName (ne (toString $.Values.rdma.resourceCount) "0")) .extraCapabilities }}
+            {{- if or (and $pluginRdma.resourceName (ne (toString $pluginRdma.resourceCount) "0")) .extraCapabilities }}
             capabilities:
               add:
-                {{- if and $.Values.rdma.resourceName (ne (toString $.Values.rdma.resourceCount) "0") }}
+                {{- if and $pluginRdma.resourceName (ne (toString $pluginRdma.resourceCount) "0") }}
                 - IPC_LOCK
                 {{- end }}
                 {{- with .extraCapabilities }}
                 {{- toYaml . | nindent 16 }}
                 {{- end }}
             {{- end }}
+          {{- if or .port .ports }}
+          ports:
+            {{- if .port }}
+            - name: http
+              containerPort: {{ .port }}
+              protocol: TCP
+            {{- end }}
+            {{- range .ports | default list }}
+            - name: port-{{ . }}
+              containerPort: {{ . }}
+              protocol: TCP
+            {{- end }}
+          {{- end }}
           env:
-{{- if .port }}
+            {{- if .port }}
             - name: PLUGIN_PORT
               value: "{{ .port }}"
-{{- end }}
-{{- if .healthEndpoint }}
+            {{- end }}
+            {{- if .healthEndpoint }}
             - name: HEALTH_ENDPOINT
               value: "{{ .healthEndpoint }}"
-{{- if or .healthPort .port }}
+            {{- if or .healthPort .port }}
             - name: HEALTH_PORT
               value: "{{ .healthPort | default .port }}"
-{{- end }}
-{{- end }}
-{{- with .env }}
+            {{- end }}
+            {{- end }}
+            {{- with .env }}
             {{- toYaml . | nindent 12 }}
-{{- end }}
+            {{- end }}
           volumeMounts:
             - name: ufm-files
               mountPath: /config
@@ -108,34 +129,43 @@ spec:
             - name: ufm-files
               mountPath: /log
               subPath: log/plugins/{{ .name }}
+            {{- if .mountHealthScripts }}
             - name: health-scripts
               mountPath: /health-scripts
               readOnly: true
+            {{- end }}
             {{- with .volumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
+          {{- $res := .resources | default $.Values.plugins.defaultResources }}
+          {{- $hasRequests := $res.requests }}
+          {{- $hasLimits := or $res.limits (and $pluginRdma.resourceName (ne (toString $pluginRdma.resourceCount) "0")) }}
+          {{- if or $hasRequests $hasLimits }}
           resources:
-            {{- $res := .resources | default $.Values.plugins.defaultResources }}
             {{- if $res.requests }}
             requests:
               {{- toYaml $res.requests | nindent 14 }}
             {{- end }}
-            {{- if or $res.limits (and $.Values.rdma.resourceName (ne (toString $.Values.rdma.resourceCount) "0")) }}
+            {{- if $hasLimits }}
             limits:
               {{- if $res.limits }}
               {{- toYaml $res.limits | nindent 14 }}
               {{- end }}
-              {{- if and $.Values.rdma.resourceName (ne (toString $.Values.rdma.resourceCount) "0") }}
-              {{ $.Values.rdma.resourceName }}: {{ $.Values.rdma.resourceCount }}
+              {{- if and $pluginRdma.resourceName (ne (toString $pluginRdma.resourceCount) "0") }}
+              {{ $pluginRdma.resourceName }}: {{ $pluginRdma.resourceCount }}
               {{- end }}
             {{- end }}
-          {{- if .disableLivenessProbe }}
-          {{- else }}
-          {{- if .livenessProbe }}
+          {{- end }}
+          {{- with .startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if not .disableLivenessProbe }}
+            {{- if .livenessProbe }}
           livenessProbe:
             {{- toYaml .livenessProbe | nindent 12 }}
-          {{- else }}
-          {{- if .healthEndpoint }}
+            {{- else }}
+              {{- if .healthEndpoint }}
           # Default liveness: native httpGet (set healthEndpoint and healthPort/port)
           livenessProbe:
             httpGet:
@@ -145,8 +175,8 @@ spec:
             periodSeconds: 30
             timeoutSeconds: 15
             failureThreshold: 3
-          {{- else }}
-          {{- if .port }}
+              {{- else }}
+                {{- if .port }}
           # Default liveness: native tcpSocket (set port)
           livenessProbe:
             tcpSocket:
@@ -155,9 +185,9 @@ spec:
             periodSeconds: 30
             timeoutSeconds: 15
             failureThreshold: 3
-          {{- end }}
-          {{- end }}
-          {{- end }}
+                {{- end }}
+              {{- end }}
+            {{- end }}
           {{- end }}
           {{- with .readinessProbe }}
           readinessProbe:
@@ -167,10 +197,12 @@ spec:
         - name: ufm-files
           persistentVolumeClaim:
             claimName: {{ $pvcClaimName }}
+        {{- if .mountHealthScripts }}
         - name: health-scripts
           configMap:
             name: {{ $ufmFullname }}-plugin-health-scripts
             defaultMode: 0755
+        {{- end }}
         {{- with .volumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

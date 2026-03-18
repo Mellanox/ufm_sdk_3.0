@@ -10,7 +10,7 @@ data:
 {{- range .Values.plugins.items }}
 {{- if and .name .image .tag }}
       - name: {{ .name }}
-        host: {{ .host | default "127.0.0.1" }}
+        host: {{ .host | default (printf "%s-plugin-%s.%s.svc.cluster.local" $.Values.ufmFullname (.name | replace "_" "-") (include "ufm-plugin.namespace" $)) }}
 {{- if .port }}
         port: {{ .port }}
 {{- end }}

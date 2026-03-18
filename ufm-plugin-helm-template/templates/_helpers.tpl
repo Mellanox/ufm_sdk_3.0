@@ -27,3 +27,9 @@
 {{- define "ufm-plugin.configMapName" -}}
 {{- .Values.configMapName | default (printf "%s-plugins" .Values.ufmFullname) }}
 {{- end }}
+
+{{- define "ufm-plugin.anyMountHealthScripts" -}}
+{{- range .Values.plugins.items -}}
+{{- if .mountHealthScripts -}}y{{- end -}}
+{{- end -}}
+{{- end }}
