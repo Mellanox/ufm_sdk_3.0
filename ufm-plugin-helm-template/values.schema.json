@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "required": ["ufmFullname", "plugins"],
+  "properties": {
+    "ufmFullname": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Full name of the UFM Enterprise release (e.g. ufm-ufm-enterprise). Must match the release name used when you installed UFM."
+    },
+    "namespace": {
+      "type": "string",
+      "description": "Kubernetes namespace for chart resources. When namespaceSearchList is set and Helm has cluster access, the chart may discover it from ConfigMap {ufmFullname}-config."
+    },
+    "namespaceSearchList": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Namespaces to search for {ufmFullname}-config at install time. Set to [] to skip discovery."
+    },
+    "existingClaim": { "type": "string" },
+    "configMapName": { "type": "string" },
+    "rdma": {
+      "type": "object",
+      "properties": {
+        "resourceName": { "type": "string" },
+        "resourceCount": { "type": "string" }
+      }
+    },
+    "plugins": {
+      "type": "object",
+      "required": ["items"],
+      "properties": {
+        "defaultResources": {
+          "type": "object",
+          "properties": {
+            "requests": { "type": "object" },
+            "limits": { "type": "object" }
+          }
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "image", "tag"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "image": { "type": "string", "minLength": 1 },
+              "tag": { "type": "string", "minLength": 1 },
+              "imagePullPolicy": { "type": "string" },
+              "port": { "type": "integer" },
+              "ports": { "type": "array", "items": { "type": "integer" } },
+              "healthEndpoint": { "type": "string" },
+              "healthPort": { "type": "integer" },
+              "host": { "type": "string" },
+              "rdma": {
+                "type": "object",
+                "properties": {
+                  "resourceName": { "type": "string" },
+                  "resourceCount": { "type": "string" }
+                }
+              },
+              "resources": {
+                "type": "object",
+                "properties": {
+                  "requests": { "type": "object" },
+                  "limits": { "type": "object" }
+                }
+              },
+              "startupProbe": { "type": "object" },
+              "livenessProbe": { "type": "object" },
+              "disableLivenessProbe": { "type": "boolean" },
+              "readinessProbe": { "type": "object" },
+              "extraCapabilities": { "type": "array", "items": { "type": "string" } },
+              "env": { "type": "array" },
+              "volumes": { "type": "array" },
+              "volumeMounts": { "type": "array" },
+              "mountHealthScripts": { "type": "boolean" },
+              "runInitContainer": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "affinity": { "type": "object" },
+    "tolerations": { "type": "array" },
+    "nodeSelector": { "type": "object" },
+    "imagePullSecrets": { "type": "array" },
+    "podSecurityContext": { "type": "object" }
+  }
+}

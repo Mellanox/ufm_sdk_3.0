@@ -1,0 +1,5 @@
+# CI: validate chart with no plugins (ConfigMaps only, no Deployments)
+ufmFullname: "ufm-ufm-enterprise"
+namespace: "ufm-enterprise"
+plugins:
+  items: []

@@ -1,0 +1,10 @@
+# Exclude from packaged chart (helm package)
+examples/
+ci-values.yaml
+ci-values-empty-plugins.yaml
+REVIEW_QA.md
+COMMIT_MSG.txt
+.git/
+.gitignore
+*.swp
+*~
