@@ -1,5 +1,5 @@
 ARG ARCH
-FROM nbu-harbor.gtm.nvidia.com/ufm/ufm_docker/ubuntu_base_${ARCH}_24_04:20260114 AS ndt_base_ubuntu24
+FROM nbu-harbor.gtm.nvidia.com/ufm/ufm_docker/ubuntu_base_${ARCH}_24_04:20260204 AS ndt_base_ubuntu24
 
 # Will install ibutils2 of the same version as UFM base docker.
 ARG _DOCA_VER=3.0.0
@@ -15,7 +15,6 @@ ARG UFM_DOCA_DEP="ibutils2"
 
 ENV TZ=Europe/Moscow
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-
 ARG BASE_PATH=/opt/ufm/ufm_plugin_ndt
 
 LABEL maintainer="atolikin@nvidia.com"
@@ -41,5 +40,6 @@ COPY config/ndt_logrotate.conf /etc/logrotate.d/ndt
 COPY config/ndt_httpd_proxy.conf config/ndt.conf config/ufm_plugin_ndt_httpd.conf config/ndt_ui_conf.json ${BASE_PATH}/
 
 RUN /ui_build.sh
+RUN [ -d /root/.npm ] && rm -rf /root/.npm || echo "Directory /root/.npm does not exist"
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
