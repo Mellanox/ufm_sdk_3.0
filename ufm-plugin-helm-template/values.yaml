@@ -12,6 +12,14 @@ rdma:
   resourceName: "rdma/hca_shared"
   resourceCount: "0"
 
+# Watchdog: opt plugin pods into UFM watchdog monitoring. When enabled, pods get labels for the watchdog operator
+# to discover them and a node-exclusion rule so pods avoid nodes marked unhealthy for that plugin.
+# Each plugin can override with per-plugin watchdog: { enabled, restartThreshold, timeWindowSeconds }.
+watchdog:
+  enabled: true
+  restartThreshold: 3
+  timeWindowSeconds: 120
+
 plugins:
   defaultResources: {}  # optional: { requests: {...}, limits: {...} } applied when per-plugin .resources is not set
   items: []  # each item: name, image, tag; optional: port, ports, healthEndpoint, rdma, mountHealthScripts, startupProbe, etc.

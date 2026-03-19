@@ -5,6 +5,18 @@
 {{- if and .name .image .tag }}
 {{- $k8sName := .name | replace "_" "-" }}
 {{- $pluginRdma := .rdma | default $.Values.rdma }}
+{{- $watchdogEnabled := $.Values.watchdog.enabled }}
+{{- if and .watchdog (hasKey .watchdog "enabled") }}
+  {{- $watchdogEnabled = .watchdog.enabled }}
+{{- end }}
+{{- $restartThreshold := $.Values.watchdog.restartThreshold | default 3 }}
+{{- if and .watchdog .watchdog.restartThreshold }}
+  {{- $restartThreshold = .watchdog.restartThreshold }}
+{{- end }}
+{{- $timeWindowSeconds := $.Values.watchdog.timeWindowSeconds | default 120 }}
+{{- if and .watchdog .watchdog.timeWindowSeconds }}
+  {{- $timeWindowSeconds = .watchdog.timeWindowSeconds }}
+{{- end }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -22,12 +34,28 @@ spec:
         app: {{ $ufmFullname }}-plugin-{{ $k8sName }}
         plugin-name: {{ $k8sName }}
         app.kubernetes.io/instance: {{ $.Release.Name }}
+        app.kubernetes.io/component: plugin
+        {{- if $watchdogEnabled }}
+        ufm.nvidia.com/watchdog-scope: plugin
+        {{- end }}
+      {{- if $watchdogEnabled }}
+      annotations:
+        ufm.nvidia.com/watchdog-restart-threshold: "{{ $restartThreshold }}"
+        ufm.nvidia.com/watchdog-time-window-seconds: "{{ $timeWindowSeconds }}"
+      {{- end }}
     spec:
       {{- with $.Values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with $.Values.affinity }}
+      {{- $affinity := deepCopy ($.Values.affinity | default dict) }}
+      {{- if $watchdogEnabled }}
+      {{- $matchExpr := dict "key" (printf "ufm.nvidia.com/%s-unhealthy" $k8sName) "operator" "NotIn" "values" (list "true") }}
+      {{- $nodeSelectorTerm := dict "matchExpressions" (list $matchExpr) }}
+      {{- $required := dict "nodeSelectorTerms" (list $nodeSelectorTerm) }}
+      {{- $_ := set $affinity "nodeAffinity" (dict "requiredDuringSchedulingIgnoredDuringExecution" $required) }}
+      {{- end }}
+      {{- with $affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}

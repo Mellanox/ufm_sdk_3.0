@@ -3,6 +3,12 @@
 #        (or use the packaged tgz: helm install ufm-plugin ufm-plugin-<version>-helm.tgz ...)
 ufmFullname: "ufm-ufm-enterprise"
 namespace: "ufm-enterprise"
+
+watchdog:
+  enabled: true
+  restartThreshold: 3
+  timeWindowSeconds: 120
+
 plugins:
   items:
     - name: log_streamer
@@ -10,6 +16,10 @@ plugins:
       tag: "1.0.2-4"
       # port: set if the plugin exposes HTTP (for Apache proxy). Omit if it does not.
       imagePullPolicy: IfNotPresent
+      watchdog:
+        enabled: true
+        restartThreshold: 5
+        timeWindowSeconds: 180
       # Example: user-defined liveness and readiness probes (adjust port/path to match your plugin).
       livenessProbe:
         httpGet:
