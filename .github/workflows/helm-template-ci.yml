@@ -32,4 +32,14 @@ jobs:
           helm template ufm-plugin-test ufm-plugin-helm-template -f ufm-plugin-helm-template/ci-values-empty-plugins.yaml -n ufm-enterprise --debug > /dev/null
           echo "Validating with example log-streamer config..."
           helm template ufm-plugin-test ufm-plugin-helm-template -f ufm-plugin-helm-template/examples/log-streamer-config.yaml -n ufm-enterprise --debug > /dev/null
+          echo "Validating ClusterIP Service + plugins.yaml host (ci-values-service.yaml)..."
+          helm template ufm-plugin-test ufm-plugin-helm-template \
+            -f ufm-plugin-helm-template/ci-values-service.yaml -n ufm-enterprise --debug > /tmp/ufm-plugin-helm-out.yaml
+          test "$(grep -c '^kind: Service$' /tmp/ufm-plugin-helm-out.yaml)" -eq 1
+          grep -q 'type: ClusterIP' /tmp/ufm-plugin-helm-out.yaml
+          grep -q 'name: ufm-ufm-enterprise-plugin-ci-test-plugin' /tmp/ufm-plugin-helm-out.yaml
+          grep -q 'host: ufm-ufm-enterprise-plugin-ci-test-plugin.ufm-enterprise.svc.cluster.local' /tmp/ufm-plugin-helm-out.yaml
+          SVC="$(awk '/^kind: Service$/,/^---$/' /tmp/ufm-plugin-helm-out.yaml)"
+          echo "$SVC" | grep -q 'targetPort: 8080'
+          echo "$SVC" | grep -q 'targetPort: 8443'
           echo "Helm chart validation passed."
