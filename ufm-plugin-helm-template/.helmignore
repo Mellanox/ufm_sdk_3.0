@@ -2,6 +2,10 @@
 examples/
 ci-values.yaml
 ci-values-empty-plugins.yaml
+ci-values-watchdog-disabled.yaml
+ci-values-multi-plugin.yaml
+ci-values-per-plugin-disable.yaml
+ci-values-affinity.yaml
 REVIEW_QA.md
 COMMIT_MSG.txt
 .git/

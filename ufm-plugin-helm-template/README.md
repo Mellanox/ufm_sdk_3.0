@@ -70,6 +70,9 @@ You can override any chart value in this file (namespace, existingClaim, rdma, a
 | `configMapName` | ConfigMap name for `plugins.yaml`. Defaults to `{ufmFullname}-plugins`. | No |
 | `rdma.resourceName` | RDMA resource name (e.g. `rdma/hca_shared`). Only used when `rdma.resourceCount` is not `"0"`. | No |
 | `rdma.resourceCount` | Number of RDMA resources per plugin pod; default `"0"`. Set to `"1"` (or more) when the plugin uses InfiniBand. | No |
+| `watchdog.enabled` | Enable watchdog monitoring for plugin pods. When `true`, pods get opt-in labels and node-exclusion rules so the UFM watchdog operator can discover and manage them. Default `true`. | No |
+| `watchdog.restartThreshold` | Chart-level default for the maximum number of restarts before the watchdog marks a node unhealthy for a plugin. Default `3`. Per-plugin override available. | No |
+| `watchdog.timeWindowSeconds` | Chart-level default time window (in seconds) the watchdog uses to count restarts. Default `120`. Per-plugin override available. | No |
 | `plugins.defaultResources` | Default `requests`/`limits` when a plugin does not set `resources`. | No |
 | `plugins.items` | List of plugin definitions (see below). | Yes (can be empty) |
 | `podSecurityContext` | Optional [pod-level securityContext](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/) (e.g. `runAsNonRoot: true`, `runAsUser: 1000`, `seccompProfile`). Required for Pod Security Standards in many clusters. | No |
@@ -105,6 +108,7 @@ Each plugin in `plugins.items` must have `name`, `image`, and `tag`; entries mis
 | `volumes` | List of extra [volumes](https://kubernetes.io/docs/concepts/storage/volumes/) for the pod (same format as Kubernetes `spec.volumes`). | No |
 | `volumeMounts` | List of extra [volumeMounts](https://kubernetes.io/docs/concepts/storage/volumes/) for the main container. Use with `volumes` to mount additional volumes. | No |
 | `runInitContainer` | When `false`, the init container (which runs `/init.sh -ufm_version ${UFM_VERSION}`) is omitted. Use for images that do not provide `/init.sh`. Default is `true`. | No (default: true) |
+| `watchdog` | Per-plugin watchdog override: `{ enabled, restartThreshold, timeWindowSeconds }`. When set, these values override the chart-level `watchdog` defaults for this plugin only. | No |
 
 Example for a plugin with custom resources and user-defined probes:
 
@@ -135,33 +139,73 @@ plugins:
 ```
 To use your own liveness probe instead of the default script, set `livenessProbe` (e.g. `httpGet` or `tcpSocket`).
 
-### 5. What the chart generates
+### 5. Watchdog integration
+
+The chart supports the UFM watchdog operator, which monitors plugin pod health and marks nodes as unhealthy when a plugin repeatedly fails on a node.
+
+**How it works:**
+
+1. When `watchdog.enabled` is `true` (default), each plugin pod gets:
+   - Label `ufm.nvidia.com/watchdog-scope: plugin` — the watchdog operator uses this to discover pods to monitor in the namespace.
+   - Label `app.kubernetes.io/component: plugin` — standard Kubernetes component label (always present).
+   - Label `plugin-name: <normalized-name>` — stable plugin identity (e.g. `log_streamer` becomes `log-streamer`).
+   - Annotation `ufm.nvidia.com/watchdog-restart-threshold` — how many restarts before the watchdog marks the node unhealthy for this plugin.
+   - Annotation `ufm.nvidia.com/watchdog-time-window-seconds` — the time window the watchdog uses to count restarts.
+   - Node exclusion rule — the pod avoids nodes labeled `ufm.nvidia.com/<plugin-name>-unhealthy=true`, so if the watchdog marks a node unhealthy for this specific plugin, the pod will not be scheduled there.
+
+2. Each plugin only excludes **its own** unhealthy label (e.g. `log-streamer` excludes `ufm.nvidia.com/log-streamer-unhealthy=true`). Plugins do not exclude the UFM unhealthy label or another plugin's unhealthy label.
+
+3. Per-plugin overrides let you tune thresholds per plugin:
+
+```yaml
+watchdog:
+  enabled: true
+  restartThreshold: 3
+  timeWindowSeconds: 120
+
+plugins:
+  items:
+    - name: log_streamer
+      image: my-image
+      tag: "1.0.0"
+      watchdog:
+        enabled: true
+        restartThreshold: 5
+        timeWindowSeconds: 180
+```
+
+4. To disable watchdog for all plugins, set `watchdog.enabled: false`. To disable for a single plugin, set `watchdog: { enabled: false }` on that plugin item.
+
+**Note:** When watchdog is enabled, the chart injects a `nodeAffinity` rule into the pod spec. If you also set custom `nodeAffinity` in the `affinity` value, the watchdog injection will take precedence. User-provided `podAffinity` and `podAntiAffinity` are preserved.
+
+### 6. What the chart generates
 
 - **Deployment per plugin**: One Deployment per entry in `plugins.items`, with:
   - Init container that runs `/init.sh -ufm_version ${UFM_VERSION}`; `UFM_VERSION` is read from the ConfigMap `{ufmFullname}-config` (see Prerequisites). Mounts plugin config/log dirs from the shared PVC.
   - Main container with the same mounts, optional `PLUGIN_PORT` and `HEALTH_ENDPOINT`/`HEALTH_PORT` (for the default liveness script), and RDMA resources when configured.
   - Optional placement control via `affinity`, `nodeSelector`, and `tolerations` (no default affinity; set `affinity` if you want e.g. same node as UFM).
+  - **Watchdog metadata** (when enabled): opt-in labels, restart threshold/time-window annotations, and node-exclusion affinity (see section 5).
   - **Liveness**: default is **native Kubernetes**—**httpGet** when `healthEndpoint` is set, **tcpSocket** when `port` is set; otherwise no default. Override with `livenessProbe`.
   - **Readiness**: no default; set `readinessProbe` if you want a readiness probe.
 - **ConfigMap `plugins.yaml`**: One ConfigMap (name from `configMapName` / default `{ufmFullname}-plugins`) containing a `plugins.yaml` consumed by UFM (list of name, host, port, tag). Default host per plugin is the in-cluster DNS name so UFM can reach plugins in other pods; create a matching Service or override `host` per plugin.
 - **Health scripts ConfigMap** (optional): Emitted only when at least one plugin has `mountHealthScripts: true`. Contains `health-check.sh`; when mounted, it is at `/health-scripts`. Default liveness uses httpGet/tcpSocket and does not mount this; set `mountHealthScripts: true` only if you use a custom `livenessProbe` with `exec` and that script.
 
-### 6. Plugin image expectations
+### 7. Plugin image expectations
 
 Your plugin image should:
 
 - Provide **`/init.sh`** that accepts `-ufm_version <version>` and initializes config under `/config` and logs under `/log` (these are mounted from the shared PVC subpaths `conf/plugins/<name>` and `log/plugins/<name>`).
 - **Default liveness** uses native Kubernetes **httpGet** (when `healthEndpoint` is set) or **tcpSocket** (when `port` is set); no script or `/bin/sh` required. Override with `livenessProbe` or set `disableLivenessProbe: true` to omit. **Readiness** has no default; set `readinessProbe` if needed. The chart ships `scripts/health-check.sh`; set `mountHealthScripts: true` to mount it at `/health-scripts` for optional use in custom exec probes.
 
-### 7. RDMA / InfiniBand
+### 8. RDMA / InfiniBand
 
 The default `rdma.resourceCount` is `"0"` (no RDMA). Set it to `"1"` (or more) when your plugin uses InfiniBand and the cluster provides the RDMA device plugin. If your cluster uses a different RDMA resource name, set `rdma.resourceName` accordingly. You can **override per plugin** with `rdma: { resourceName, resourceCount }` on the plugin item so that one plugin uses RDMA and another does not.
 
-### 8. Input validation (values.schema.json)
+### 9. Input validation (values.schema.json)
 
 The chart includes a **values.schema.json** so `helm install` / `helm upgrade` / `helm template` / `helm lint` validate your values. Required: `ufmFullname`, `plugins`, and for each plugin item `name`, `image`, `tag`. Typos (e.g. `healthendpoint` instead of `healthEndpoint`) or empty `ufmFullname` will fail at install time.
 
-### 9. Validation and CI
+### 10. Validation and CI
 
 - Run a dry-run with your values:
   ```bash
@@ -173,7 +217,7 @@ The chart includes a **values.schema.json** so `helm install` / `helm upgrade` /
   ```
 - Use `ci-values.yaml` in CI; it provides minimal required values (including `rdma`) so that `helm template` and `helm lint` succeed. CI also runs `helm template` with `ci-values-empty-plugins.yaml` (no plugins) and with `examples/log-streamer-config.yaml` to validate those scenarios.
 
-### 10. CI example: building and publishing the chart
+### 11. CI example: building and publishing the chart
 
 To lint, template, and package the generic chart in your pipeline:
 
