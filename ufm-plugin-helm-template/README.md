@@ -88,11 +88,11 @@ Each plugin in `plugins.items` must have `name`, `image`, and `tag`; entries mis
 | `image` | Container image repository (no tag). | Yes |
 | `tag` | Image tag. | Yes |
 | `imagePullPolicy` | e.g. `IfNotPresent` or `Always`. | No (default: IfNotPresent) |
-| `port` | Main TCP port the plugin listens on: written to `plugins.yaml` so UFM can reach the plugin. When set (and no `healthEndpoint`), the **default liveness** probe uses native **tcpSocket** on this port. If you add a Service or Ingress, use this as the target container port. | No |
+| `port` | Main TCP port the plugin listens on: written to `plugins.yaml` so UFM can reach the plugin. When set (and no `healthEndpoint`), the **default liveness** probe uses native **tcpSocket** on this port. The chart exposes this port on a **ClusterIP Service** (same name as the default `host` in `plugins.yaml`). | No |
 | `ports` | Additional container ports (list of integers). Use when the plugin listens on multiple ports; `port` remains the primary one for UFM. All listed ports are exposed as containerPorts. | No |
 | `healthEndpoint` | HTTP path for the **default liveness** probe (e.g. `/health`). When set, the chart uses native **httpGet** on this path (and `healthPort`/`port`). No bash script—Kubernetes probes only. | No |
 | `healthPort` | Port for the default liveness **httpGet** probe; defaults to `port`. Only used when `healthEndpoint` is set. | No |
-| `host` | Host written into `plugins.yaml`; UFM uses it with `port` to reach the plugin. **Default**: in-cluster DNS `{ufmFullname}-plugin-{name}.{namespace}.svc.cluster.local` so UFM (in another pod) can reach the plugin. Create a Service with that name pointing to the plugin pods, or override `host` (e.g. to a different Service or Ingress). | No |
+| `host` | Host written into `plugins.yaml`; UFM uses it with `port` to reach the plugin. **Default**: in-cluster DNS `{ufmFullname}-plugin-{name}.{namespace}.svc.cluster.local`. The chart creates a **ClusterIP Service** with that name (when `port` and/or `ports` is set) so the name resolves. Override `host` if you use a different Service, Ingress, or external hostname. | No |
 | `rdma` | Per-plugin RDMA override: `{ resourceName: "rdma/hca_shared", resourceCount: "1" }`. When set, this plugin gets these RDMA resources instead of the global `rdma`; omit to use global. Use to mix RDMA and non-RDMA plugins. | No |
 | `resources` | `requests`/`limits` for this plugin; overrides `plugins.defaultResources`. **Recommended**: set `resources.requests` (and optionally `limits`) per plugin so the cluster can schedule and limit pods correctly. | No |
 | `startupProbe` | Full [startup probe](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes) spec. Use for slow-starting plugins so Kubernetes waits for the app to be up before applying liveness/readiness. No default. | No |
@@ -137,13 +137,14 @@ To use your own liveness probe instead of the default script, set `livenessProbe
 
 ### 5. What the chart generates
 
+- **ClusterIP Service per plugin** (when `port` and/or `ports` is set): name `{ufmFullname}-plugin-{k8s-name}`, selector matches the Deployment, ports align with container ports so in-cluster DNS matches `plugins.yaml` defaults.
 - **Deployment per plugin**: One Deployment per entry in `plugins.items`, with:
   - Init container that runs `/init.sh -ufm_version ${UFM_VERSION}`; `UFM_VERSION` is read from the ConfigMap `{ufmFullname}-config` (see Prerequisites). Mounts plugin config/log dirs from the shared PVC.
   - Main container with the same mounts, optional `PLUGIN_PORT` and `HEALTH_ENDPOINT`/`HEALTH_PORT` (for the default liveness script), and RDMA resources when configured.
   - Optional placement control via `affinity`, `nodeSelector`, and `tolerations` (no default affinity; set `affinity` if you want e.g. same node as UFM).
   - **Liveness**: default is **native Kubernetes**—**httpGet** when `healthEndpoint` is set, **tcpSocket** when `port` is set; otherwise no default. Override with `livenessProbe`.
   - **Readiness**: no default; set `readinessProbe` if you want a readiness probe.
-- **ConfigMap `plugins.yaml`**: One ConfigMap (name from `configMapName` / default `{ufmFullname}-plugins`) containing a `plugins.yaml` consumed by UFM (list of name, host, port, tag). Default host per plugin is the in-cluster DNS name so UFM can reach plugins in other pods; create a matching Service or override `host` per plugin.
+- **ConfigMap `plugins.yaml`**: One ConfigMap (name from `configMapName` / default `{ufmFullname}-plugins`) containing a `plugins.yaml` consumed by UFM (list of name, host, port, tag). Default host per plugin is the in-cluster DNS name; a matching **Service** is created when ports are defined. Override `host` per plugin if needed (e.g. Ingress).
 - **Health scripts ConfigMap** (optional): Emitted only when at least one plugin has `mountHealthScripts: true`. Contains `health-check.sh`; when mounted, it is at `/health-scripts`. Default liveness uses httpGet/tcpSocket and does not mount this; set `mountHealthScripts: true` only if you use a custom `livenessProbe` with `exec` and that script.
 
 ### 6. Plugin image expectations
@@ -171,7 +172,20 @@ The chart includes a **values.schema.json** so `helm install` / `helm upgrade` /
   ```bash
   helm lint . -f ci-values.yaml
   ```
-- Use `ci-values.yaml` in CI; it provides minimal required values (including `rdma`) so that `helm template` and `helm lint` succeed. CI also runs `helm template` with `ci-values-empty-plugins.yaml` (no plugins) and with `examples/log-streamer-config.yaml` to validate those scenarios.
+- Use `ci-values.yaml` in CI; it provides minimal required values (including `rdma`) so that `helm template` and `helm lint` succeed. CI also runs `helm template` with `ci-values-empty-plugins.yaml` (no plugins), **`ci-values-service.yaml`** (asserts ClusterIP Service + default `plugins.yaml` host + multi-port `ports`), and with `examples/log-streamer-config.yaml`.
+
+#### Testing the ClusterIP Service (local / CI)
+
+- **Render and inspect** (no cluster required): template with `ci-values-service.yaml` and check that the Service name matches the `host` in `plugins.yaml` (without the `.svc.cluster.local` suffix, the Service `metadata.name` equals the first label of the FQDN).
+  ```bash
+  helm template test . -f ci-values-service.yaml -n ufm-enterprise | awk '/^kind: Service$/,/^---$/'
+  ```
+- **GitHub Actions** runs the same chart through `helm lint` / `helm template` and checks for a single `Service`, `ClusterIP`, the expected `host:` line, and both `targetPort`s (primary `port` + extra `ports`).
+- **On a real cluster** (end-to-end): install UFM and this chart, then verify DNS and routing:
+  - `kubectl get svc -n <namespace>` — Service name should be `{ufmFullname}-plugin-<k8s-name>`.
+  - From any pod in the same namespace: `curl -sS -o /dev/null -w '%{http_code}\n' http://<service-name>:<port>/` (adjust path; use a debug pod if your plugin image has no shell).
+  - Optional: `kubectl port-forward svc/<service-name> <local>:<port>` and hit `http://127.0.0.1:<local>/` from your workstation (tests kube-proxy path without in-cluster DNS).
+- **Policy / schema checks** (optional): pipe `helm template` output to [kubeconform](https://github.com/yannh/kubeconform) or similar to validate Kubernetes object shape against the cluster version.
 
 ### 10. CI example: building and publishing the chart
 

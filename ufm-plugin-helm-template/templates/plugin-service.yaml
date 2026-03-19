@@ -1,0 +1,39 @@
+{{- $ufmFullname := .Values.ufmFullname }}
+{{- $namespace := include "ufm-plugin.namespace" . }}
+{{- range .Values.plugins.items }}
+{{- if and .name .image .tag }}
+{{- if or .port .ports }}
+{{- $pl := . }}
+{{- $k8sName := .name | replace "_" "-" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $ufmFullname }}-plugin-{{ $k8sName }}
+  namespace: {{ $namespace }}
+  labels:
+    app: {{ $ufmFullname }}-plugin-{{ $k8sName }}
+    plugin-name: {{ $k8sName }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ $ufmFullname }}-plugin-{{ $k8sName }}
+  ports:
+    {{- with $pl.port }}
+    - name: http
+      port: {{ . }}
+      targetPort: {{ . }}
+      protocol: TCP
+    {{- end }}
+    {{- range ($pl.ports | default list) }}
+    {{- if or (not $pl.port) (ne . $pl.port) }}
+    - name: port-{{ . }}
+      port: {{ . }}
+      targetPort: {{ . }}
+      protocol: TCP
+    {{- end }}
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
