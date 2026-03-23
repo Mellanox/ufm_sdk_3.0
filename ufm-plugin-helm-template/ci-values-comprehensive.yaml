@@ -1,0 +1,58 @@
+# CI: comprehensive test exercising all plugin features in a single file.
+# Covers: multi-plugin, strategy override, health-scripts checksum, watchdog mix
+# (default / custom threshold / per-plugin disable), enabled: false, and affinity coexistence.
+ufmFullname: "ufm-ufm-enterprise"
+namespace: "ufm-enterprise"
+
+watchdog:
+  enabled: true
+  restartThreshold: 3
+  timeWindowSeconds: 120
+
+affinity:
+  podAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - ufm-ufm-enterprise
+          topologyKey: kubernetes.io/hostname
+
+plugins:
+  entries:
+    plugin_alpha:
+      image: busybox
+      tag: "1.36"
+      port: 8081
+
+    plugin_beta:
+      image: busybox
+      tag: "1.36"
+      port: 8082
+      strategy: RollingUpdate
+      mountHealthScripts: true
+      watchdog:
+        restartThreshold: 10
+        timeWindowSeconds: 300
+      livenessProbe:
+        exec:
+          command: ["/health-scripts/health-check.sh"]
+        initialDelaySeconds: 60
+        periodSeconds: 30
+
+    plugin_disabled:
+      enabled: false
+      image: busybox
+      tag: "1.36"
+      port: 8083
+
+    plugin_no_watchdog:
+      image: busybox
+      tag: "1.36"
+      port: 8084
+      watchdog:
+        enabled: false
