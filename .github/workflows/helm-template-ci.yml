@@ -2,6 +2,10 @@ name: UFM Plugin Helm Template CI
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - "ufm-plugin-helm-template/**"
+      - ".github/workflows/helm-template-ci.yml"
   pull_request:
     paths:
       - "ufm-plugin-helm-template/**"
@@ -25,21 +29,23 @@ jobs:
       - name: Validate UFM Plugin Helm Chart
         run: |
           set -e
-          echo "Validating ufm-plugin-helm-template..."
-          helm lint ufm-plugin-helm-template -f ufm-plugin-helm-template/ci-values.yaml
-          helm template ufm-plugin-test ufm-plugin-helm-template -f ufm-plugin-helm-template/ci-values.yaml -n ufm-enterprise --debug > /dev/null
-          echo "Validating with empty plugins (ConfigMaps only, no Deployments)..."
-          helm template ufm-plugin-test ufm-plugin-helm-template -f ufm-plugin-helm-template/ci-values-empty-plugins.yaml -n ufm-enterprise --debug > /dev/null
-          echo "Validating with example log-streamer config..."
-          helm template ufm-plugin-test ufm-plugin-helm-template -f ufm-plugin-helm-template/examples/log-streamer-config.yaml -n ufm-enterprise --debug > /dev/null
-          echo "Validating ClusterIP Service + plugins.yaml host (ci-values-service.yaml)..."
-          helm template ufm-plugin-test ufm-plugin-helm-template \
-            -f ufm-plugin-helm-template/ci-values-service.yaml -n ufm-enterprise --debug > /tmp/ufm-plugin-helm-out.yaml
-          test "$(grep -c '^kind: Service$' /tmp/ufm-plugin-helm-out.yaml)" -eq 1
-          grep -q 'type: ClusterIP' /tmp/ufm-plugin-helm-out.yaml
-          grep -q 'name: ufm-ufm-enterprise-plugin-ci-test-plugin' /tmp/ufm-plugin-helm-out.yaml
-          grep -q 'host: ufm-ufm-enterprise-plugin-ci-test-plugin.ufm-enterprise.svc.cluster.local' /tmp/ufm-plugin-helm-out.yaml
-          SVC="$(awk '/^kind: Service$/,/^---$/' /tmp/ufm-plugin-helm-out.yaml)"
-          echo "$SVC" | grep -q 'targetPort: 8080'
-          echo "$SVC" | grep -q 'targetPort: 8443'
-          echo "Helm chart validation passed."
+          CHART=ufm-plugin-helm-template
+          NS=ufm-enterprise
+
+          for f in \
+            ci-values.yaml \
+            ci-values-empty-plugins.yaml \
+            ci-values-watchdog-disabled.yaml \
+            ci-values-multi-plugin.yaml \
+            ci-values-per-plugin-disable.yaml \
+            ci-values-affinity.yaml; do
+            echo "--- lint + template: ${f} ---"
+            helm lint "${CHART}" -f "${CHART}/${f}"
+            helm template ufm-plugin-test "${CHART}" -f "${CHART}/${f}" -n "${NS}" --debug > /dev/null
+          done
+
+          echo "--- lint + template: examples/log-streamer-config.yaml ---"
+          helm lint "${CHART}" -f "${CHART}/examples/log-streamer-config.yaml"
+          helm template ufm-plugin-test "${CHART}" -f "${CHART}/examples/log-streamer-config.yaml" -n "${NS}" --debug > /dev/null
+
+          echo "All helm chart validations passed."

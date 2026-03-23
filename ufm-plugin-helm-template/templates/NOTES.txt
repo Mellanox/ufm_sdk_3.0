@@ -16,3 +16,17 @@ To check logs for a plugin:
   kubectl logs -n {{ include "ufm-plugin.namespace" . }} -l app={{ .Values.ufmFullname }}-plugin-<plugin-name> -f
 
 Replace <plugin-name> with the plugin name (e.g. log-streamer). Use the same value as in your plugins list (underscores in names are rendered as hyphens in pod names).
+{{- if .Values.watchdog.enabled }}
+
+Watchdog monitoring is enabled (restartThreshold={{ .Values.watchdog.restartThreshold }}, timeWindowSeconds={{ .Values.watchdog.timeWindowSeconds }}).
+
+To list watchdog-monitored plugin pods:
+
+  kubectl get pods -n {{ include "ufm-plugin.namespace" . }} -l ufm.nvidia.com/watchdog-scope=plugin
+
+To inspect watchdog annotations on a plugin pod:
+
+  kubectl get pod <pod-name> -n {{ include "ufm-plugin.namespace" . }} -o jsonpath='{.metadata.annotations}'
+
+Each plugin pod avoids nodes marked unhealthy for that specific plugin (ufm.nvidia.com/<plugin-name>-unhealthy=true).
+{{- end }}

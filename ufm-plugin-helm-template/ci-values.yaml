@@ -10,6 +10,11 @@ rdma:
   resourceName: "rdma/hca_shared"
   resourceCount: "1"
 
+watchdog:
+  enabled: true
+  restartThreshold: 3
+  timeWindowSeconds: 120
+
 plugins:
   items:
     - name: ci_test_plugin
