@@ -38,14 +38,132 @@ jobs:
             ci-values-watchdog-disabled.yaml \
             ci-values-multi-plugin.yaml \
             ci-values-per-plugin-disable.yaml \
-            ci-values-affinity.yaml; do
+            ci-values-affinity.yaml \
+            ci-values-strategy-rolling.yaml \
+            ci-values-health-scripts.yaml; do
             echo "--- lint + template: ${f} ---"
             helm lint "${CHART}" -f "${CHART}/${f}"
             helm template ufm-plugin-test "${CHART}" -f "${CHART}/${f}" -n "${NS}" --debug > /dev/null
           done
 
-          echo "--- lint + template: examples/log-streamer-config.yaml ---"
-          helm lint "${CHART}" -f "${CHART}/examples/log-streamer-config.yaml"
-          helm template ufm-plugin-test "${CHART}" -f "${CHART}/examples/log-streamer-config.yaml" -n "${NS}" --debug > /dev/null
+          for f in \
+            examples/log-streamer-config.yaml \
+            examples/two-plugins.yaml \
+            examples/upgrade-one-plugin.yaml; do
+            echo "--- lint + template: ${f} ---"
+            helm lint "${CHART}" -f "${CHART}/${f}"
+            helm template ufm-plugin-test "${CHART}" -f "${CHART}/${f}" -n "${NS}" --debug > /dev/null
+          done
 
-          echo "All helm chart validations passed."
+          echo "All helm chart lint/template validations passed."
+
+      - name: Verify rendered output
+        run: |
+          set -e
+          CHART=ufm-plugin-helm-template
+          NS=ufm-enterprise
+          PASS=0; FAIL=0
+
+          assert_contains() {
+            local desc="$1" output="$2" expected="$3"
+            if echo "$output" | grep -q "$expected"; then
+              echo "  PASS: ${desc}"
+              PASS=$((PASS + 1))
+            else
+              echo "  FAIL: ${desc} (expected to find: ${expected})"
+              FAIL=$((FAIL + 1))
+            fi
+          }
+
+          assert_not_contains() {
+            local desc="$1" output="$2" unexpected="$3"
+            if echo "$output" | grep -q "$unexpected"; then
+              echo "  FAIL: ${desc} (unexpected: ${unexpected})"
+              FAIL=$((FAIL + 1))
+            else
+              echo "  PASS: ${desc}"
+              PASS=$((PASS + 1))
+            fi
+          }
+
+          assert_count() {
+            local desc="$1" output="$2" pattern="$3" expected="$4"
+            local actual
+            actual=$(echo "$output" | grep -c "$pattern" || true)
+            if [ "$actual" -eq "$expected" ]; then
+              echo "  PASS: ${desc} (count: ${actual})"
+              PASS=$((PASS + 1))
+            else
+              echo "  FAIL: ${desc} (expected ${expected}, got ${actual})"
+              FAIL=$((FAIL + 1))
+            fi
+          }
+
+          render() { helm template test "${CHART}" -f "${CHART}/$1" -n "${NS}" 2>/dev/null; }
+
+          # --- Single plugin: default strategy is Recreate ---
+          echo "--- ci-values.yaml: single plugin assertions ---"
+          OUT=$(render ci-values.yaml)
+          assert_count  "exactly 1 Deployment"          "$OUT" "kind: Deployment" 1
+          assert_contains "strategy is Recreate"         "$OUT" "type: Recreate"
+          assert_contains "deployment name"              "$OUT" "name: ufm-ufm-enterprise-plugin-ci-test-plugin"
+          assert_contains "container image"              "$OUT" "image: \"busybox:1.36\""
+          assert_contains "containerPort 8080"           "$OUT" "containerPort: 8080"
+          assert_contains "plugins.yaml has plugin name" "$OUT" "name: ci_test_plugin"
+
+          # --- Empty plugins: no Deployments, ConfigMap has [] ---
+          echo "--- ci-values-empty-plugins.yaml: empty assertions ---"
+          OUT=$(render ci-values-empty-plugins.yaml)
+          assert_count      "zero Deployments"           "$OUT" "kind: Deployment" 0
+          assert_contains   "plugins list is empty"      "$OUT" "plugins:"
+
+          # --- Multi-plugin: 2 Deployments, sorted order ---
+          echo "--- ci-values-multi-plugin.yaml: multi-plugin assertions ---"
+          OUT=$(render ci-values-multi-plugin.yaml)
+          assert_count  "exactly 2 Deployments"          "$OUT" "kind: Deployment" 2
+          assert_contains "plugin_alpha deployment"      "$OUT" "name: ufm-ufm-enterprise-plugin-plugin-alpha"
+          assert_contains "plugin_beta deployment"       "$OUT" "name: ufm-ufm-enterprise-plugin-plugin-beta"
+          assert_contains "plugin_beta custom threshold" "$OUT" 'watchdog-restart-threshold: "10"'
+
+          # --- Watchdog disabled: no watchdog labels ---
+          echo "--- ci-values-watchdog-disabled.yaml: no watchdog assertions ---"
+          OUT=$(render ci-values-watchdog-disabled.yaml)
+          assert_not_contains "no watchdog label"        "$OUT" "watchdog-scope"
+          assert_not_contains "no watchdog annotation"   "$OUT" "watchdog-restart-threshold"
+
+          # --- Per-plugin watchdog disable ---
+          echo "--- ci-values-per-plugin-disable.yaml: per-plugin watchdog assertions ---"
+          OUT=$(render ci-values-per-plugin-disable.yaml)
+          assert_count  "2 Deployments"                  "$OUT" "kind: Deployment" 2
+
+          # --- Strategy override: RollingUpdate ---
+          echo "--- ci-values-strategy-rolling.yaml: strategy override assertions ---"
+          OUT=$(render ci-values-strategy-rolling.yaml)
+          assert_contains "strategy is RollingUpdate"    "$OUT" "type: RollingUpdate"
+          assert_not_contains "no Recreate"              "$OUT" "type: Recreate"
+
+          # --- Health scripts: checksum annotation ---
+          echo "--- ci-values-health-scripts.yaml: checksum assertions ---"
+          OUT=$(render ci-values-health-scripts.yaml)
+          assert_contains "checksum annotation present"  "$OUT" "checksum/health-scripts:"
+          assert_contains "health-scripts volume"        "$OUT" "name: health-scripts"
+
+          # --- Two-plugins example: both render ---
+          echo "--- examples/two-plugins.yaml: two-plugin demo assertions ---"
+          OUT=$(render examples/two-plugins.yaml)
+          assert_count  "exactly 2 Deployments"          "$OUT" "kind: Deployment" 2
+          assert_contains "log_streamer in ConfigMap"    "$OUT" "name: log_streamer"
+          assert_contains "telemetry_exporter in ConfigMap" "$OUT" "name: telemetry_exporter"
+          assert_contains "port 8080"                    "$OUT" "port: 8080"
+          assert_contains "port 9090"                    "$OUT" "port: 9090"
+
+          # --- ConfigMap host defaults to in-cluster DNS ---
+          echo "--- ci-values.yaml: ConfigMap host assertion ---"
+          OUT=$(render ci-values.yaml)
+          assert_contains "default host is in-cluster DNS" "$OUT" "ufm-ufm-enterprise-plugin-ci-test-plugin.ufm-enterprise.svc.cluster.local"
+
+          echo ""
+          echo "========================================="
+          echo "Rendered output checks: ${PASS} passed, ${FAIL} failed"
+          echo "========================================="
+          [ "$FAIL" -eq 0 ] || exit 1

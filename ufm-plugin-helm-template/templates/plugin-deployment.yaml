@@ -1,21 +1,23 @@
 {{- $ufmFullname := .Values.ufmFullname }}
 {{- $namespace := include "ufm-plugin.namespace" . }}
 {{- $pvcClaimName := include "ufm-plugin.pvcClaimName" . }}
-{{- range .Values.plugins.items }}
-{{- if and .name .image .tag }}
-{{- $k8sName := .name | replace "_" "-" }}
-{{- $pluginRdma := .rdma | default $.Values.rdma }}
+{{- range $name := .Values.plugins.entries | keys | sortAlpha }}
+{{- $plugin := index $.Values.plugins.entries $name }}
+{{- $enabled := true }}{{- if hasKey $plugin "enabled" }}{{ $enabled = $plugin.enabled }}{{- end }}
+{{- if and $enabled $plugin.image $plugin.tag }}
+{{- $k8sName := $name | replace "_" "-" }}
+{{- $pluginRdma := $plugin.rdma | default $.Values.rdma }}
 {{- $watchdogEnabled := $.Values.watchdog.enabled }}
-{{- if and .watchdog (hasKey .watchdog "enabled") }}
-  {{- $watchdogEnabled = .watchdog.enabled }}
+{{- if and $plugin.watchdog (hasKey $plugin.watchdog "enabled") }}
+  {{- $watchdogEnabled = $plugin.watchdog.enabled }}
 {{- end }}
 {{- $restartThreshold := $.Values.watchdog.restartThreshold | default 3 }}
-{{- if and .watchdog .watchdog.restartThreshold }}
-  {{- $restartThreshold = .watchdog.restartThreshold }}
+{{- if and $plugin.watchdog $plugin.watchdog.restartThreshold }}
+  {{- $restartThreshold = $plugin.watchdog.restartThreshold }}
 {{- end }}
 {{- $timeWindowSeconds := $.Values.watchdog.timeWindowSeconds | default 120 }}
-{{- if and .watchdog .watchdog.timeWindowSeconds }}
-  {{- $timeWindowSeconds = .watchdog.timeWindowSeconds }}
+{{- if and $plugin.watchdog $plugin.watchdog.timeWindowSeconds }}
+  {{- $timeWindowSeconds = $plugin.watchdog.timeWindowSeconds }}
 {{- end }}
 ---
 apiVersion: apps/v1
@@ -25,6 +27,8 @@ metadata:
   namespace: {{ $namespace }}
 spec:
   replicas: 1
+  strategy:
+    type: {{ $plugin.strategy | default "Recreate" }}
   selector:
     matchLabels:
       app: {{ $ufmFullname }}-plugin-{{ $k8sName }}
@@ -38,10 +42,15 @@ spec:
         {{- if $watchdogEnabled }}
         ufm.nvidia.com/watchdog-scope: plugin
         {{- end }}
-      {{- if $watchdogEnabled }}
+      {{- if or $watchdogEnabled $plugin.mountHealthScripts }}
       annotations:
+        {{- if $watchdogEnabled }}
         ufm.nvidia.com/watchdog-restart-threshold: "{{ $restartThreshold }}"
         ufm.nvidia.com/watchdog-time-window-seconds: "{{ $timeWindowSeconds }}"
+        {{- end }}
+        {{- if $plugin.mountHealthScripts }}
+        checksum/health-scripts: {{ include (print $.Template.BasePath "/plugin-health-configmap.yaml") $ | sha256sum }}
+        {{- end }}
       {{- end }}
     spec:
       {{- with $.Values.podSecurityContext }}
@@ -71,11 +80,11 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if not (eq .runInitContainer false) }}
+      {{- if not (eq $plugin.runInitContainer false) }}
       initContainers:
         - name: {{ $k8sName }}-init
-          image: "{{ .image }}:{{ .tag }}"
-          imagePullPolicy: {{ .imagePullPolicy | default "IfNotPresent" }}
+          image: "{{ $plugin.image }}:{{ $plugin.tag }}"
+          imagePullPolicy: {{ $plugin.imagePullPolicy | default "IfNotPresent" }}
           command: ["/bin/sh", "-c"]
           args:
             - /init.sh -ufm_version ${UFM_VERSION}
@@ -99,73 +108,77 @@ spec:
           {{- end }}
           volumeMounts:
             - name: ufm-files
+              mountPath: /opt/ufm/files
+            - name: ufm-files
               mountPath: /config
-              subPath: conf/plugins/{{ .name }}
+              subPath: conf/plugins/{{ $name }}
             - name: ufm-files
               mountPath: /log
-              subPath: log/plugins/{{ .name }}
+              subPath: log/plugins/{{ $name }}
       {{- end }}
       containers:
         - name: {{ $k8sName }}
-          image: "{{ .image }}:{{ .tag }}"
-          imagePullPolicy: {{ .imagePullPolicy | default "IfNotPresent" }}
+          image: "{{ $plugin.image }}:{{ $plugin.tag }}"
+          imagePullPolicy: {{ $plugin.imagePullPolicy | default "IfNotPresent" }}
           securityContext:
             privileged: false
-            {{- if or (and $pluginRdma.resourceName (ne (toString $pluginRdma.resourceCount) "0")) .extraCapabilities }}
+            {{- if or (and $pluginRdma.resourceName (ne (toString $pluginRdma.resourceCount) "0")) $plugin.extraCapabilities }}
             capabilities:
               add:
                 {{- if and $pluginRdma.resourceName (ne (toString $pluginRdma.resourceCount) "0") }}
                 - IPC_LOCK
                 {{- end }}
-                {{- with .extraCapabilities }}
+                {{- with $plugin.extraCapabilities }}
                 {{- toYaml . | nindent 16 }}
                 {{- end }}
             {{- end }}
-          {{- if or .port .ports }}
+          {{- if or $plugin.port $plugin.ports }}
           ports:
-            {{- if .port }}
+            {{- if $plugin.port }}
             - name: http
-              containerPort: {{ .port }}
+              containerPort: {{ $plugin.port }}
               protocol: TCP
             {{- end }}
-            {{- range .ports | default list }}
+            {{- range $plugin.ports | default list }}
             - name: port-{{ . }}
               containerPort: {{ . }}
               protocol: TCP
             {{- end }}
           {{- end }}
           env:
-            {{- if .port }}
+            {{- if $plugin.port }}
             - name: PLUGIN_PORT
-              value: "{{ .port }}"
+              value: "{{ $plugin.port }}"
             {{- end }}
-            {{- if .healthEndpoint }}
+            {{- if $plugin.healthEndpoint }}
             - name: HEALTH_ENDPOINT
-              value: "{{ .healthEndpoint }}"
-            {{- if or .healthPort .port }}
+              value: "{{ $plugin.healthEndpoint }}"
+            {{- if or $plugin.healthPort $plugin.port }}
             - name: HEALTH_PORT
-              value: "{{ .healthPort | default .port }}"
+              value: "{{ $plugin.healthPort | default $plugin.port }}"
             {{- end }}
             {{- end }}
-            {{- with .env }}
+            {{- with $plugin.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
           volumeMounts:
             - name: ufm-files
+              mountPath: /opt/ufm/files
+            - name: ufm-files
               mountPath: /config
-              subPath: conf/plugins/{{ .name }}
+              subPath: conf/plugins/{{ $name }}
             - name: ufm-files
               mountPath: /log
-              subPath: log/plugins/{{ .name }}
-            {{- if .mountHealthScripts }}
+              subPath: log/plugins/{{ $name }}
+            {{- if $plugin.mountHealthScripts }}
             - name: health-scripts
               mountPath: /health-scripts
               readOnly: true
             {{- end }}
-            {{- with .volumeMounts }}
+            {{- with $plugin.volumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-          {{- $res := .resources | default $.Values.plugins.defaultResources }}
+          {{- $res := $plugin.resources | default $.Values.plugins.defaultResources }}
           {{- $hasRequests := $res.requests }}
           {{- $hasLimits := or $res.limits (and $pluginRdma.resourceName (ne (toString $pluginRdma.resourceCount) "0")) }}
           {{- if or $hasRequests $hasLimits }}
@@ -184,31 +197,29 @@ spec:
               {{- end }}
             {{- end }}
           {{- end }}
-          {{- with .startupProbe }}
+          {{- with $plugin.startupProbe }}
           startupProbe:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if not .disableLivenessProbe }}
-            {{- if .livenessProbe }}
+          {{- if not $plugin.disableLivenessProbe }}
+            {{- if $plugin.livenessProbe }}
           livenessProbe:
-            {{- toYaml .livenessProbe | nindent 12 }}
+            {{- toYaml $plugin.livenessProbe | nindent 12 }}
             {{- else }}
-              {{- if .healthEndpoint }}
-          # Default liveness: native httpGet (set healthEndpoint and healthPort/port)
+              {{- if $plugin.healthEndpoint }}
           livenessProbe:
             httpGet:
-              path: {{ .healthEndpoint }}
-              port: {{ .healthPort | default .port }}
+              path: {{ $plugin.healthEndpoint }}
+              port: {{ $plugin.healthPort | default $plugin.port }}
             initialDelaySeconds: 60
             periodSeconds: 30
             timeoutSeconds: 15
             failureThreshold: 3
               {{- else }}
-                {{- if .port }}
-          # Default liveness: native tcpSocket (set port)
+                {{- if $plugin.port }}
           livenessProbe:
             tcpSocket:
-              port: {{ .port }}
+              port: {{ $plugin.port }}
             initialDelaySeconds: 60
             periodSeconds: 30
             timeoutSeconds: 15
@@ -217,7 +228,7 @@ spec:
               {{- end }}
             {{- end }}
           {{- end }}
-          {{- with .readinessProbe }}
+          {{- with $plugin.readinessProbe }}
           readinessProbe:
             {{- toYaml . | nindent 12 }}
           {{- end }}
@@ -225,13 +236,13 @@ spec:
         - name: ufm-files
           persistentVolumeClaim:
             claimName: {{ $pvcClaimName }}
-        {{- if .mountHealthScripts }}
+        {{- if $plugin.mountHealthScripts }}
         - name: health-scripts
           configMap:
             name: {{ $ufmFullname }}-plugin-health-scripts
             defaultMode: 0755
         {{- end }}
-        {{- with .volumes }}
+        {{- with $plugin.volumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
 {{- end }}

@@ -6,17 +6,20 @@ metadata:
 data:
   plugins.yaml: |
     plugins:
-{{- if .Values.plugins.items }}
-{{- range .Values.plugins.items }}
-{{- if and .name .image .tag }}
-      - name: {{ .name }}
-        host: {{ .host | default (printf "%s-plugin-%s.%s.svc.cluster.local" $.Values.ufmFullname (.name | replace "_" "-") (include "ufm-plugin.namespace" $)) }}
-{{- if .port }}
-        port: {{ .port }}
+{{- $hasEnabled := false }}
+{{- range $name := .Values.plugins.entries | keys | sortAlpha }}
+{{- $plugin := index $.Values.plugins.entries $name }}
+{{- $enabled := true }}{{- if hasKey $plugin "enabled" }}{{ $enabled = $plugin.enabled }}{{- end }}
+{{- if and $enabled $plugin.image $plugin.tag }}
+{{- $hasEnabled = true }}
+      - name: {{ $name }}
+        host: {{ $plugin.host | default (printf "%s-plugin-%s.%s.svc.cluster.local" $.Values.ufmFullname ($name | replace "_" "-") (include "ufm-plugin.namespace" $)) }}
+{{- if $plugin.port }}
+        port: {{ $plugin.port }}
 {{- end }}
-        tag: {{ .tag }}
+        tag: {{ $plugin.tag }}
 {{- end }}
 {{- end }}
-{{- else }}
+{{- if not $hasEnabled }}
       []
 {{- end }}

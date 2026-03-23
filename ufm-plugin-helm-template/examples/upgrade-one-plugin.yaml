@@ -1,0 +1,22 @@
+# Example: upgrade only log_streamer to a new version without affecting telemetry_exporter.
+#
+# This file contains only the plugin being changed. Use --reuse-values so Helm
+# keeps the existing configuration for all other plugins.
+#
+# Usage:
+#   helm upgrade ufm-plugins ./ufm-plugin-helm-template --reuse-values -f examples/upgrade-one-plugin.yaml -n ufm-enterprise
+#
+# The telemetry_exporter plugin (and any other plugins) remain exactly as they
+# were — no restart, no config change.
+
+plugins:
+  entries:
+    log_streamer:
+      image: mellanox/ufm-plugin-log_streamer
+      tag: "2.0.0-1"
+      port: 8080
+      healthEndpoint: /health
+      healthPort: 8080
+      watchdog:
+        restartThreshold: 5
+        timeWindowSeconds: 180

@@ -21,8 +21,8 @@ affinity:
           topologyKey: kubernetes.io/hostname
 
 plugins:
-  items:
-    - name: affinity_plugin
+  entries:
+    affinity_plugin:
       image: busybox
       tag: "1.36"
       port: 8080

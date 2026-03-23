@@ -1,0 +1,16 @@
+# CI: validate mountHealthScripts produces checksum annotation and health-scripts ConfigMap
+ufmFullname: "ufm-ufm-enterprise"
+namespace: "ufm-enterprise"
+
+plugins:
+  entries:
+    health_script_plugin:
+      image: busybox
+      tag: "1.36"
+      port: 8080
+      mountHealthScripts: true
+      livenessProbe:
+        exec:
+          command: ["/health-scripts/health-check.sh"]
+        initialDelaySeconds: 60
+        periodSeconds: 30

@@ -1,0 +1,40 @@
+# Example: deploy two plugins in one release.
+#
+# Install:
+#   helm install ufm-plugins ./ufm-plugin-helm-template -f examples/two-plugins.yaml -n ufm-enterprise
+#
+# Later, to upgrade only one plugin without touching the other, see examples/upgrade-one-plugin.yaml.
+
+ufmFullname: "ufm-ufm-enterprise"
+namespace: "ufm-enterprise"
+
+watchdog:
+  enabled: true
+  restartThreshold: 3
+  timeWindowSeconds: 120
+
+plugins:
+  entries:
+    log_streamer:
+      image: mellanox/ufm-plugin-log_streamer
+      tag: "1.0.2-4"
+      port: 8080
+      healthEndpoint: /health
+      healthPort: 8080
+      watchdog:
+        restartThreshold: 5
+        timeWindowSeconds: 180
+
+    telemetry_exporter:
+      image: my-registry/telemetry-exporter
+      tag: "2.3.1"
+      port: 9090
+      healthEndpoint: /healthz
+      healthPort: 9090
+      resources:
+        requests:
+          memory: "256Mi"
+          cpu: "100m"
+        limits:
+          memory: "512Mi"
+          cpu: "500m"
