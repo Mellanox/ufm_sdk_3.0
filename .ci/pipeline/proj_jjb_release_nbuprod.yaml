@@ -54,7 +54,24 @@
                 - sysinfo_plugin
                 - ufm_consumer_plugin
                 - ufm_syslog_streaming_plugin
-            description: "On which project to run?"
+                - helm_chart
+            description: "On which project to run? Select helm_chart to package the UFM plugin Helm chart."
+        - string:
+            name: "UFM_TAG"
+            default: ""
+            description: "UFM version tag (e.g. 6_14_1_2). When set, tags the SDK repo with UFM_6_14_1_2. Leave empty to skip tagging."
+        - bool:
+            name: "delete_remote_tag"
+            default: false
+            description: "Delete existing UFM_TAG in SDK repo before creating a new one"
+        - bool:
+            name: "TEST_BUILD"
+            default: false
+            description: "Test build — helm artifacts go to /auto/UFM/tmp/ instead of release path"
+        - string:
+            name: "ARTIFACT_PATH"
+            default: ""
+            description: "Override helm artifact output path (optional, used by UFM build to specify its k8s artifact dir)"
         - string:
             name: "conf_file"
             default: ".ci/matrix_job_release_nbuprod.yaml"

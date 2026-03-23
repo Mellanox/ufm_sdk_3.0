@@ -18,6 +18,38 @@ steps:
     agentSelector: "{nodeLabel: 'SWX-CI-DOCKER'}"
     run: |
       set -x
+
+      if [ "${PLUGIN_NAME}" == "helm_chart" ]; then
+          echo "=== Building UFM Plugin Helm Chart ==="
+
+          if [ -z "${UFM_TAG}" ] || [ "${UFM_TAG}" == "" ]; then
+              echo "ERROR: UFM_TAG is required for helm_chart builds"
+              exit 1
+          fi
+
+          formatted_version=$(echo $UFM_TAG | awk -F_ '{print $1"."$2"."$3"-"$4}')
+
+          ARTIFACT_BASE="/auto/mswg/release/ufm/plugins/helm-charts"
+          if [ "${TEST_BUILD}" == "true" ]; then
+              ARTIFACT_BASE="/auto/UFM/tmp/${JOB_NAME}/${BUILD_ID}"
+          fi
+          if [ -n "${ARTIFACT_PATH}" ] && [ "${ARTIFACT_PATH}" != "" ]; then
+              ARTIFACT_BASE="${ARTIFACT_PATH}"
+          fi
+
+          sudo -u swx-jenkins mkdir -p "${ARTIFACT_BASE}"
+          bash -x .ci/do_create_ufm_plugin_helm_chart.sh "${formatted_version}" "/tmp/ufm-plugin-helm"
+          sudo -u swx-jenkins cp /tmp/ufm-plugin-helm/ufm-plugins-${formatted_version}-helm.tgz "${ARTIFACT_BASE}/"
+
+          K8S_DIR="${ARTIFACT_BASE}/k8s"
+          sudo -u swx-jenkins mkdir -p "${K8S_DIR}"
+          sudo -u swx-jenkins cp /tmp/ufm-plugin-helm/ufm-plugins-${formatted_version}-helm.tgz "${K8S_DIR}/"
+
+          echo "Artifact: ${K8S_DIR}/ufm-plugins-${formatted_version}-helm.tgz"
+          exit 0
+      fi
+
+      # --- Regular plugin Docker build ---
       if [ -e "/auto/mswg/release/ufm/plugins/${PLUGIN_NAME}/ufm-plugin-${PLUGIN_NAME}_${PLUGIN_VERSION}*" ];then 
         echo -e "A path and plugin with this version already exist."
         echo -e "Path: /auto/mswg/release/ufm/plugins/${PLUGIN_NAME}/ufm-plugin-${PLUGIN_NAME}_${PLUGIN_VERSION}*"
@@ -34,3 +66,27 @@ steps:
       exit ${BUILD_EXIT_CODE}
 
     parallel: false
+
+
+pipeline_start:
+  run: |
+    if [ -n "${UFM_TAG}" ] && [ "${UFM_TAG}" != "" ] && [ "${UFM_TAG}" != "1_2_3_4" ]; then
+        set +eE
+        if [ "$delete_remote_tag" = "true" ]; then
+            if sudo -u swx-jenkins git tag -l | grep -q "UFM_$UFM_TAG"; then
+                echo "Deleting existing tag UFM_$UFM_TAG"
+                sudo -u swx-jenkins git push --delete origin "UFM_$UFM_TAG" || true
+            fi
+        fi
+        set -eE
+        echo "Creating tag UFM_${UFM_TAG} on branch ${sha1}"
+        cd build
+        export REPOSITORY=git@github.com:Mellanox/ufm_sdk_3.0.git
+        sudo -u swx-jenkins bash -x ./create_tag.sh -b $sha1 -t UFM_${UFM_TAG}
+    else
+        echo "No UFM_TAG set or placeholder tag — skipping tagging"
+    fi
+
+
+pipeline_stop:
+  run: echo All done

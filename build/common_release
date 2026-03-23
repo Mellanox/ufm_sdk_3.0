@@ -1,0 +1,100 @@
+#!/bin/bash
+#
+# Copyright (C) 2013-2024 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+#
+# This software product is a proprietary product of Nvidia Corporation and its affiliates
+# (the "Company") and all right, title, and interest in and to the software
+# product, including all associated intellectual property rights, are and
+# shall remain exclusively with the Company.
+#
+# This software product is governed by the End User License Agreement
+# provided with the software product.
+#
+
+export REPOSITORY=${REPOSITORY:-git@github.com:Mellanox/ufm_sdk_3.0.git}
+export USER=${USER:-swx-jenkins}
+
+git_init()
+{
+	location=$1
+	test -d $location && \rm -Rf $location
+	sudo chown -R $USER $(dirname $location)
+	sudo -u $USER git clone --recurse-submodules $REPOSITORY $location
+	test $? -ne 0 && echo "Failed clone $REPOSITORY repository to $location location" && exit 1
+	cd $location
+}
+
+git_conf()
+{
+	git config user.email "${GIT_USER_EMAIL:-noreply@nvidia.com}"
+	git config user.name "${GIT_USER_NAME:-nvidia-ci}"
+}
+
+git_checkout_branch()
+{
+	branch=$1
+	if [ $branch == main ]; then
+		return 0
+	fi
+	git branch -r | grep ${branch}
+	test $? -ne 0 && echo "Branch $branch not found" && exit 1
+	git branch --set-upstream-to origin/$branch
+	test $? -ne 0 && echo "Failed track $branch branch" && exit 1
+	git checkout $branch
+	test $? -ne 0 && echo "Failed checkout $branch branch" && exit 1
+	sudo -u $USER git submodule update --init --remote
+	test $? -ne 0 && echo "Failed checkout submodules on $branch branch" && exit 1
+	return 0
+}
+
+git_checkout_tag()
+{
+	tag=$1
+	if ! git tag -l | grep ${tag} ; then
+		echo "Tag ${tag} not found"
+		git branch
+		exit 1
+	fi
+	git checkout $tag
+	test $? -ne 0 && echo "Failed checkout $tag tag" && exit 1
+	sudo -u $USER git submodule update --init --remote
+	test $? -ne 0 && echo "Failed checkout submodules on tag $tag" && exit 1
+	return 0
+}
+
+git_finally()
+{
+	branch=$1
+	tag=$2
+	git tag $tag -m "UFM SDK Build Tag $tag"
+	test $? -ne 0 && echo "Failed git tag" && exit 1
+	git push --tags origin $branch:refs/heads/$branch
+	test $? -ne 0 && echo "Failed git push tags " && exit 1
+	return 0
+}
+
+evaluate_build_tag () {
+	build_tag=$1
+	UFM_TAG_PREFIX="UFM_"
+	UFM_TAG_PREFIX_LEN=`echo "${UFM_TAG_PREFIX}" | wc --chars`
+	let "UFM_TAG_PREFIX_LEN_MINUS = ${UFM_TAG_PREFIX_LEN} - 1"
+
+	tag=`echo ${build_tag} | cut -c${UFM_TAG_PREFIX_LEN}-`
+	actual_tag_prefix=`echo ${build_tag} | cut -c-${UFM_TAG_PREFIX_LEN_MINUS}`
+
+	if [ "${actual_tag_prefix}" != "${UFM_TAG_PREFIX}" ]; then
+		echo "Error, the prefix of the tag isn't '${UFM_TAG_PREFIX}' as expected"
+		exit 1
+	fi
+
+	vmajor=`echo ${tag} | awk -F'_' '{print $1}'`
+	vminor=`echo ${tag} | awk -F'_' '{print $2}'`
+	vminup=`echo ${tag} | awk -F'_' '{print $3}'`
+	build=`echo ${tag} | awk -F'_' '{print $4}'`
+
+	if [ -z "${vmajor}" -o -z "${vminor}" -o -z "${vminup}" -o -z "${build}" ]; then
+		echo "Error, the provided tag is bad"
+		echo "(maybe the prefix ${UFM_TAG_PREFIX} is missing?)"
+		exit 1
+	fi
+}
