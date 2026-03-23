@@ -1,0 +1,6 @@
+version = "1.0.0"
+[oss.excluded]
+
+[[oss.excluded.directories]]
+paths = [".ci",".github","scripts"]
+comment = "Internal usage"
