@@ -2,6 +2,10 @@ name: UFM Plugin Helm Template CI
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - "ufm-plugin-helm-template/**"
+      - ".github/workflows/helm-template-ci.yml"
   pull_request:
     paths:
       - "ufm-plugin-helm-template/**"
@@ -25,11 +29,23 @@ jobs:
       - name: Validate UFM Plugin Helm Chart
         run: |
           set -e
-          echo "Validating ufm-plugin-helm-template..."
-          helm lint ufm-plugin-helm-template -f ufm-plugin-helm-template/ci-values.yaml
-          helm template ufm-plugin-test ufm-plugin-helm-template -f ufm-plugin-helm-template/ci-values.yaml -n ufm-enterprise --debug > /dev/null
-          echo "Validating with empty plugins (ConfigMaps only, no Deployments)..."
-          helm template ufm-plugin-test ufm-plugin-helm-template -f ufm-plugin-helm-template/ci-values-empty-plugins.yaml -n ufm-enterprise --debug > /dev/null
-          echo "Validating with example log-streamer config..."
-          helm template ufm-plugin-test ufm-plugin-helm-template -f ufm-plugin-helm-template/examples/log-streamer-config.yaml -n ufm-enterprise --debug > /dev/null
-          echo "Helm chart validation passed."
+          CHART=ufm-plugin-helm-template
+          NS=ufm-enterprise
+
+          for f in \
+            ci-values.yaml \
+            ci-values-empty-plugins.yaml \
+            ci-values-watchdog-disabled.yaml \
+            ci-values-multi-plugin.yaml \
+            ci-values-per-plugin-disable.yaml \
+            ci-values-affinity.yaml; do
+            echo "--- lint + template: ${f} ---"
+            helm lint "${CHART}" -f "${CHART}/${f}"
+            helm template ufm-plugin-test "${CHART}" -f "${CHART}/${f}" -n "${NS}" --debug > /dev/null
+          done
+
+          echo "--- lint + template: examples/log-streamer-config.yaml ---"
+          helm lint "${CHART}" -f "${CHART}/examples/log-streamer-config.yaml"
+          helm template ufm-plugin-test "${CHART}" -f "${CHART}/examples/log-streamer-config.yaml" -n "${NS}" --debug > /dev/null
+
+          echo "All helm chart validations passed."

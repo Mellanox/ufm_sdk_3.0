@@ -26,6 +26,14 @@
         "resourceCount": { "type": "string" }
       }
     },
+    "watchdog": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "restartThreshold": { "type": "integer", "minimum": 1 },
+        "timeWindowSeconds": { "type": "integer", "minimum": 1 }
+      }
+    },
     "plugins": {
       "type": "object",
       "required": ["items"],
@@ -75,7 +83,15 @@
               "volumes": { "type": "array" },
               "volumeMounts": { "type": "array" },
               "mountHealthScripts": { "type": "boolean" },
-              "runInitContainer": { "type": "boolean" }
+              "runInitContainer": { "type": "boolean" },
+              "watchdog": {
+                "type": "object",
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "restartThreshold": { "type": "integer", "minimum": 1 },
+                  "timeWindowSeconds": { "type": "integer", "minimum": 1 }
+                }
+              }
             }
           }
         }
