@@ -29,7 +29,8 @@
 {{- end }}
 
 {{- define "ufm-plugin.anyMountHealthScripts" -}}
-{{- range .Values.plugins.items -}}
-{{- if .mountHealthScripts -}}y{{- end -}}
+{{- range $name, $plugin := .Values.plugins.entries -}}
+{{- $enabled := true -}}{{- if hasKey $plugin "enabled" -}}{{ $enabled = $plugin.enabled }}{{- end -}}
+{{- if and $enabled $plugin.mountHealthScripts -}}y{{- end -}}
 {{- end -}}
 {{- end }}
