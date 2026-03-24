@@ -36,7 +36,7 @@
     },
     "plugins": {
       "type": "object",
-      "required": ["items"],
+      "required": ["entries"],
       "properties": {
         "defaultResources": {
           "type": "object",
@@ -45,13 +45,13 @@
             "limits": { "type": "object" }
           }
         },
-        "items": {
-          "type": "array",
-          "items": {
+        "entries": {
+          "type": "object",
+          "additionalProperties": {
             "type": "object",
-            "required": ["name", "image", "tag"],
+            "required": ["image", "tag"],
             "properties": {
-              "name": { "type": "string", "minLength": 1 },
+              "enabled": { "type": "boolean" },
               "image": { "type": "string", "minLength": 1 },
               "tag": { "type": "string", "minLength": 1 },
               "imagePullPolicy": { "type": "string" },
@@ -84,6 +84,7 @@
               "volumeMounts": { "type": "array" },
               "mountHealthScripts": { "type": "boolean" },
               "runInitContainer": { "type": "boolean" },
+              "strategy": { "type": "string", "enum": ["Recreate", "RollingUpdate"] },
               "watchdog": {
                 "type": "object",
                 "properties": {

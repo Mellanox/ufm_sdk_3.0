@@ -15,7 +15,13 @@ To check logs for a plugin:
 
   kubectl logs -n {{ include "ufm-plugin.namespace" . }} -l app={{ .Values.ufmFullname }}-plugin-<plugin-name> -f
 
-Replace <plugin-name> with the plugin name (e.g. log-streamer). Use the same value as in your plugins list (underscores in names are rendered as hyphens in pod names).
+Replace <plugin-name> with the plugin name (e.g. log-streamer). Use the map key from plugins.entries (underscores are rendered as hyphens in pod names).
+
+To upgrade a single plugin without affecting others:
+
+  helm upgrade {{ .Release.Name }} <chart> --reuse-values -f <single-plugin-file>.yaml -n {{ include "ufm-plugin.namespace" . }}
+
+To disable a plugin, set enabled: false in your values file and upgrade.
 {{- if .Values.watchdog.enabled }}
 
 Watchdog monitoring is enabled (restartThreshold={{ .Values.watchdog.restartThreshold }}, timeWindowSeconds={{ .Values.watchdog.timeWindowSeconds }}).
