@@ -1,10 +1,11 @@
 {{- $ufmFullname := .Values.ufmFullname }}
 {{- $namespace := include "ufm-plugin.namespace" . }}
-{{- range .Values.plugins.items }}
-{{- if and .name .image .tag }}
-{{- if or .port .ports }}
-{{- $pl := . }}
-{{- $k8sName := .name | replace "_" "-" }}
+{{- range $name := .Values.plugins.entries | keys | sortAlpha }}
+{{- $plugin := index $.Values.plugins.entries $name }}
+{{- $enabled := true }}{{- if hasKey $plugin "enabled" }}{{ $enabled = $plugin.enabled }}{{- end }}
+{{- if and $enabled $plugin.image $plugin.tag }}
+{{- if or $plugin.port $plugin.ports }}
+{{- $k8sName := $name | replace "_" "-" }}
 ---
 apiVersion: v1
 kind: Service
@@ -20,14 +21,14 @@ spec:
   selector:
     app: {{ $ufmFullname }}-plugin-{{ $k8sName }}
   ports:
-    {{- with $pl.port }}
+    {{- with $plugin.port }}
     - name: http
       port: {{ . }}
       targetPort: {{ . }}
       protocol: TCP
     {{- end }}
-    {{- range ($pl.ports | default list) }}
-    {{- if or (not $pl.port) (ne . $pl.port) }}
+    {{- range ($plugin.ports | default list) }}
+    {{- if or (not $plugin.port) (ne . $plugin.port) }}
     - name: port-{{ . }}
       port: {{ . }}
       targetPort: {{ . }}

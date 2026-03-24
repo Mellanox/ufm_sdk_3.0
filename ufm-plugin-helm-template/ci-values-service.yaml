@@ -6,14 +6,15 @@
 
 ufmFullname: "ufm-ufm-enterprise"
 namespace: "ufm-enterprise"
+namespaceSearchList: []
 
 rdma:
   resourceName: "rdma/hca_shared"
   resourceCount: "1"
 
 plugins:
-  items:
-    - name: ci_test_plugin
+  entries:
+    ci_test_plugin:
       image: busybox
       tag: "1.36"
       port: 8080
