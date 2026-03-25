@@ -16,13 +16,14 @@ metadata:
     app: {{ $ufmFullname }}-plugin-{{ $k8sName }}
     plugin-name: {{ $k8sName }}
     app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: plugin
 spec:
   type: ClusterIP
   selector:
     app: {{ $ufmFullname }}-plugin-{{ $k8sName }}
   ports:
     {{- with $plugin.port }}
-    - name: http
+    - name: primary
       port: {{ . }}
       targetPort: {{ . }}
       protocol: TCP
