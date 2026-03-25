@@ -210,6 +210,7 @@ plugins:
 
 To disable watchdog for all plugins: `watchdog.enabled: false`. For a single plugin: set `watchdog: { enabled: false }` on that entry.
 
+## What the chart generates
 - **ClusterIP Service per plugin** (when `port` and/or `ports` is set): name `{ufmFullname}-plugin-{k8s-name}`, selector matches the Deployment, ports align with container ports so in-cluster DNS matches `plugins.yaml` defaults.
 - **Deployment per plugin**: One Deployment per entry in `plugins.items`, with:
   - Init container that runs `/init.sh -ufm_version ${UFM_VERSION}`; `UFM_VERSION` is read from the ConfigMap `{ufmFullname}-config` (see Prerequisites). Mounts plugin config/log dirs from the shared PVC.
@@ -238,43 +239,6 @@ Default `rdma.resourceCount` is `"0"`. Set to `"1"` when your plugin uses Infini
 ## Input validation (values.schema.json)
 
 The chart includes a values schema so `helm install/upgrade/template/lint` validate your values. Required: `ufmFullname`, `plugins.entries`, and for each entry `image` and `tag`.
-
-### 9. Validation and CI
-
-- Run a dry-run with your values:
-  ```bash
-  helm template my-ufm-plugin . -f my-values.yaml -n ufm-enterprise
-  ```
-- Lint the chart:
-  ```bash
-  helm lint . -f ci-values.yaml
-  ```
-- Use `ci-values.yaml` in CI; it provides minimal required values (including `rdma`) so that `helm template` and `helm lint` succeed. CI also runs `helm template` with `ci-values-empty-plugins.yaml` (no plugins), **`ci-values-service.yaml`** (asserts ClusterIP Service + default `plugins.yaml` host + multi-port `ports`), and with `examples/log-streamer-config.yaml`.
-
-#### Testing the ClusterIP Service (local / CI)
-
-- **Render and inspect** (no cluster required): template with `ci-values-service.yaml` and check that the Service name matches the `host` in `plugins.yaml` (without the `.svc.cluster.local` suffix, the Service `metadata.name` equals the first label of the FQDN).
-  ```bash
-  helm template test . -f ci-values-service.yaml -n ufm-enterprise | awk '/^kind: Service$/,/^---$/'
-  ```
-- **GitHub Actions** runs the same chart through `helm lint` / `helm template` and checks for a single `Service`, `ClusterIP`, the expected `host:` line, and both `targetPort`s (primary `port` + extra `ports`).
-- **On a real cluster** (end-to-end): install UFM and this chart, then verify DNS and routing:
-  - `kubectl get svc -n <namespace>` — Service name should be `{ufmFullname}-plugin-<k8s-name>`.
-  - From any pod in the same namespace: `curl -sS -o /dev/null -w '%{http_code}\n' http://<service-name>:<port>/` (adjust path; use a debug pod if your plugin image has no shell).
-  - Optional: `kubectl port-forward svc/<service-name> <local>:<port>` and hit `http://127.0.0.1:<local>/` from your workstation (tests kube-proxy path without in-cluster DNS).
-- **Policy / schema checks** (optional): pipe `helm template` output to [kubeconform](https://github.com/yannh/kubeconform) or similar to validate Kubernetes object shape against the cluster version.
-
-### 10. CI example: building and publishing the chart
-
-To lint, template, and package the generic chart in your pipeline:
-
-```bash
-helm lint ufm-plugin-helm-template -f ufm-plugin-helm-template/ci-values.yaml
-helm template ufm-plugins ufm-plugin-helm-template -f ufm-plugin-helm-template/ci-values.yaml -n ufm-enterprise
-helm package ufm-plugin-helm-template
-```
-
-This repo’s CI (see `.ci/ci_matrix.yaml` and `.ci/do_create_ufm_plugin_helm_chart.sh`) builds and publishes the chart; consumers install it and pass their own plugins file with `-f`.
 
 ## Examples
 
