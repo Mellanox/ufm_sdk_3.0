@@ -1,19 +1,16 @@
-# CI Test Values - Used for helm lint and template validation
-# These are not production values, only for CI testing.
-# CI also runs helm template with ci-values-empty-plugins.yaml (no plugins), ci-values-service.yaml
-# (ClusterIP Service + multi-port), and examples/log-streamer-config.yaml.
+# CI: exercise ClusterIP Service generation (UFM → plugin via in-cluster DNS).
+# Extends the default CI plugin with an extra container port so the chart must render
+# multiple Service ports (primary `port` + additional `ports`) without duplicates.
+#
+# Used by .github/workflows/helm-template-ci.yml to assert Service + plugins.yaml host alignment.
 
 ufmFullname: "ufm-ufm-enterprise"
 namespace: "ufm-enterprise"
+namespaceSearchList: []
 
 rdma:
   resourceName: "rdma/hca_shared"
   resourceCount: "1"
-
-watchdog:
-  enabled: true
-  restartThreshold: 3
-  timeWindowSeconds: 120
 
 plugins:
   entries:
@@ -21,6 +18,8 @@ plugins:
       image: busybox
       tag: "1.36"
       port: 8080
+      ports:
+        - 8443
       livenessProbe:
         tcpSocket: { port: 8080 }
         initialDelaySeconds: 30
