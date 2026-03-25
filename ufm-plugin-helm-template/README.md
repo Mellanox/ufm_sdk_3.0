@@ -255,14 +255,18 @@ helm template my-ufm-plugin . -f my-values.yaml -n ufm-enterprise
 helm lint . -f ci-values.yaml
 ```
 
-CI runs `helm lint` and `helm template` with all `ci-values*.yaml` files and all example files.
+CI runs `helm lint` and `helm template` with the chart CI values and example files.
 
 ## Packaging and distributing
 
+Release packaging is manual and must use the committed `VERSION` file.
+Follow [`BUILD.md`](BUILD.md) for the pre-merge verification build and the post-merge release build.
+
+After the release artifact is created:
+
 ```bash
-helm package .
-helm install ufm-plugins ufm-plugins-0.1.0.tgz -f my-plugins.yaml -n ufm-enterprise
-helm upgrade ufm-plugins ufm-plugins-0.1.0.tgz --reuse-values -f upgrade-one.yaml -n ufm-enterprise
+helm install ufm-plugins ufm-plugins-<version>.tgz -f my-plugins.yaml -n ufm-enterprise
+helm upgrade ufm-plugins ufm-plugins-<version>.tgz --reuse-values -f upgrade-one.yaml -n ufm-enterprise
 ```
 
 ## Summary

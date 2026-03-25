@@ -1,14 +1,14 @@
 # Exclude from packaged chart (helm package)
 examples/
-ci-values.yaml
-ci-values-empty-plugins.yaml
-ci-values-watchdog-disabled.yaml
-ci-values-multi-plugin.yaml
-ci-values-per-plugin-disable.yaml
-ci-values-affinity.yaml
+tests/
+ci-values*.yaml
+BUILD.md
+VERSION
 REVIEW_QA.md
 COMMIT_MSG.txt
 .git/
 .gitignore
+.DS_Store
+*.tgz
 *.swp
 *~
