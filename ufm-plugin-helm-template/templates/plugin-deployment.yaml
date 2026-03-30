@@ -59,10 +59,16 @@ spec:
       {{- end }}
       {{- $affinity := deepCopy ($.Values.affinity | default dict) }}
       {{- if $watchdogEnabled }}
-      {{- $matchExpr := dict "key" (printf "ufm.nvidia.com/%s-unhealthy" $k8sName) "operator" "NotIn" "values" (list "true") }}
-      {{- $nodeSelectorTerm := dict "matchExpressions" (list $matchExpr) }}
-      {{- $required := dict "nodeSelectorTerms" (list $nodeSelectorTerm) }}
-      {{- $_ := set $affinity "nodeAffinity" (dict "requiredDuringSchedulingIgnoredDuringExecution" $required) }}
+      {{- $watchdogExpr := dict "key" (printf "ufm.nvidia.com/%s-unhealthy" $k8sName) "operator" "NotIn" "values" (list "true") }}
+      {{- $existingNA := $affinity.nodeAffinity | default dict }}
+      {{- $existingRequired := index $existingNA "requiredDuringSchedulingIgnoredDuringExecution" | default dict }}
+      {{- $terms := $existingRequired.nodeSelectorTerms | default (list (dict "matchExpressions" list)) }}
+      {{- range $terms }}
+        {{- $_ := set . "matchExpressions" (append (.matchExpressions | default list) $watchdogExpr) }}
+      {{- end }}
+      {{- $_ := set $existingRequired "nodeSelectorTerms" $terms }}
+      {{- $_ := set $existingNA "requiredDuringSchedulingIgnoredDuringExecution" $existingRequired }}
+      {{- $_ := set $affinity "nodeAffinity" $existingNA }}
       {{- end }}
       {{- with $affinity }}
       affinity:

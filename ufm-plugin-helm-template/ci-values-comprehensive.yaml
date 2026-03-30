@@ -10,6 +10,14 @@ watchdog:
   timeWindowSeconds: 120
 
 affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: gpu-type
+              operator: In
+              values:
+                - a100
   podAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
       - weight: 100
