@@ -212,9 +212,15 @@ To disable watchdog for all plugins: `watchdog.enabled: false`. For a single plu
 
 ## What the chart generates
 
-- **Deployment per plugin**: One Deployment per enabled entry in `plugins.entries` (sorted alphabetically for stable output). Each Deployment uses `Recreate` strategy by default (old pod is terminated before new pod starts), which is safer for single-replica plugins sharing a PVC. Override per plugin with `strategy: RollingUpdate` if you need zero-downtime.
-- **ConfigMap `plugins.yaml`**: One ConfigMap listing all enabled plugins for UFM (name, host, port, tag).
-- **Health scripts ConfigMap** (optional): Emitted only when at least one plugin has `mountHealthScripts: true`. Pods that mount it get a `checksum/health-scripts` annotation so they automatically restart when the script changes during a chart upgrade.
+- **ClusterIP Service per plugin** (when `port` and/or `ports` is set): name `{ufmFullname}-plugin-{k8s-name}`, selector matches the Deployment, ports align with container ports so in-cluster DNS matches `plugins.yaml` defaults.
+- **Deployment per plugin**: One Deployment per enabled entry in `plugins.entries` (sorted alphabetically for stable output), using `Recreate` strategy by default (old pod is terminated before new pod starts)—safer for single-replica plugins sharing a PVC. Override per plugin with `strategy: RollingUpdate` if you need zero-downtime. Each Deployment includes:
+  - Init container that runs `/init.sh -ufm_version ${UFM_VERSION}`; `UFM_VERSION` is read from the ConfigMap `{ufmFullname}-config` (see Prerequisites). Mounts plugin config/log dirs from the shared PVC.
+  - Main container with the same mounts, optional `PLUGIN_PORT` and `HEALTH_ENDPOINT`/`HEALTH_PORT` (for the default liveness script), and RDMA resources when configured.
+  - Optional placement control via `affinity`, `nodeSelector`, and `tolerations` (no default affinity; set `affinity` if you want e.g. same node as UFM).
+  - **Liveness**: default is **native Kubernetes**—**httpGet** when `healthEndpoint` is set, **tcpSocket** when `port` is set; otherwise no default. Override with `livenessProbe`.
+  - **Readiness**: no default; set `readinessProbe` if you want a readiness probe.
+- **ConfigMap `plugins.yaml`**: One ConfigMap (name from `configMapName` / default `{ufmFullname}-plugins`) containing `plugins.yaml` consumed by UFM (list of name, host, port, tag for enabled plugins). Default host per plugin is the in-cluster DNS name; a matching **Service** is created when ports are defined. Override `host` per plugin if needed (e.g. Ingress).
+- **Health scripts ConfigMap** (optional): Emitted only when at least one plugin has `mountHealthScripts: true`. Contains `health-check.sh` at `/health-scripts` when mounted. Default liveness uses httpGet/tcpSocket and does not mount this; set `mountHealthScripts: true` only if you use a custom `livenessProbe` with `exec` and that script. Pods that mount it get a `checksum/health-scripts` annotation so they restart when the script changes during a chart upgrade.
 
 ## Plugin image expectations
 

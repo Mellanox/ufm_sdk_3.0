@@ -1,0 +1,41 @@
+{{- $ufmFullname := .Values.ufmFullname }}
+{{- $namespace := include "ufm-plugin.namespace" . }}
+{{- range $name := .Values.plugins.entries | keys | sortAlpha }}
+{{- $plugin := index $.Values.plugins.entries $name }}
+{{- $enabled := true }}{{- if hasKey $plugin "enabled" }}{{ $enabled = $plugin.enabled }}{{- end }}
+{{- if and $enabled $plugin.image $plugin.tag }}
+{{- if or $plugin.port $plugin.ports }}
+{{- $k8sName := $name | replace "_" "-" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $ufmFullname }}-plugin-{{ $k8sName }}
+  namespace: {{ $namespace }}
+  labels:
+    app: {{ $ufmFullname }}-plugin-{{ $k8sName }}
+    plugin-name: {{ $k8sName }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: plugin
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ $ufmFullname }}-plugin-{{ $k8sName }}
+  ports:
+    {{- with $plugin.port }}
+    - name: primary
+      port: {{ . }}
+      targetPort: {{ . }}
+      protocol: TCP
+    {{- end }}
+    {{- range ($plugin.ports | default list) }}
+    {{- if or (not $plugin.port) (ne . $plugin.port) }}
+    - name: port-{{ . }}
+      port: {{ . }}
+      targetPort: {{ . }}
+      protocol: TCP
+    {{- end }}
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

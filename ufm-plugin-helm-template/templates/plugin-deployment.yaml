@@ -135,14 +135,16 @@ spec:
           {{- if or $plugin.port $plugin.ports }}
           ports:
             {{- if $plugin.port }}
-            - name: http
+            - name: primary
               containerPort: {{ $plugin.port }}
               protocol: TCP
             {{- end }}
             {{- range $plugin.ports | default list }}
+            {{- if or (not $plugin.port) (ne . $plugin.port) }}
             - name: port-{{ . }}
               containerPort: {{ . }}
               protocol: TCP
+            {{- end }}
             {{- end }}
           {{- end }}
           env:

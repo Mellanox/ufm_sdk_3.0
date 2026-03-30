@@ -35,7 +35,8 @@ jobs:
           for f in \
             ci-values.yaml \
             ci-values-empty-plugins.yaml \
-            ci-values-comprehensive.yaml; do
+            ci-values-comprehensive.yaml \
+            ci-values-service.yaml; do
             echo "--- lint + template: ${f} ---"
             helm lint "${CHART}" -f "${CHART}/${f}"
             helm template ufm-plugin-test "${CHART}" -f "${CHART}/${f}" -n "${NS}" --debug > /dev/null
@@ -150,6 +151,19 @@ jobs:
           assert_contains "telemetry_exporter in ConfigMap" "$OUT" "name: telemetry_exporter"
           assert_contains "port 8080"                     "$OUT" "port: 8080"
           assert_contains "port 9090"                     "$OUT" "port: 9090"
+
+          # --- ClusterIP Service + plugins.yaml host (ci-values-service.yaml) ---
+          echo "Validating ClusterIP Service + plugins.yaml host (ci-values-service.yaml)..."
+          helm template ufm-plugin-test "${CHART}" \
+            -f "${CHART}/ci-values-service.yaml" -n "${NS}" --debug > /tmp/ufm-plugin-helm-out.yaml
+          test "$(grep -c '^kind: Service$' /tmp/ufm-plugin-helm-out.yaml)" -eq 1
+          grep -q 'type: ClusterIP' /tmp/ufm-plugin-helm-out.yaml
+          grep -q 'name: ufm-ufm-enterprise-plugin-ci-test-plugin' /tmp/ufm-plugin-helm-out.yaml
+          grep -q 'host: ufm-ufm-enterprise-plugin-ci-test-plugin.ufm-enterprise.svc.cluster.local' /tmp/ufm-plugin-helm-out.yaml
+          SVC="$(awk '/^kind: Service$/,/^---$/' /tmp/ufm-plugin-helm-out.yaml)"
+          echo "$SVC" | grep -q 'targetPort: 8080'
+          echo "$SVC" | grep -q 'targetPort: 8443'
+          echo "Helm chart ClusterIP Service validation passed."
 
           echo ""
           echo "========================================="
