@@ -3,32 +3,26 @@ export SERVER_HOST=$SERVER_HOST
 expect << EOF
 spawn ssh admin@${SERVER_HOST}
 expect "Password:*"
-send -- "admin\r"
+send -- "admin\n"
 expect "> "
-send -- "enable\r"
+send -- "enable\n"
 expect "# "
-send -- "config terminal\r"
+send -- "config terminal\n"
 expect "/(config/) # "
-send -- "show ufm status\r"
+send -- "show ufm status\n"
 expect "/(config/) # "
-sleep 10
-send -- "ufm web-client mode https\r"
+send -- "ufm start\n"
 expect "/(config/) # "
-send -- "ufm start\r"
-expect "/(config/) # "
-sleep 20
-send -- "ufm ha takeover\r"
+sleep 30
+send -- "ufm plugin grpc-streamer remove\n"
 expect "/(config/) # "
 sleep 20
-send -- "ufm plugin grpc-streamer remove\r"
+send -- "ufm plugin grpc-streamer add tag latest\n"
 expect "/(config/) # "
-sleep 10
-send -- "ufm plugin grpc-streamer add tag latest\r"
+send -- "ufm plugin grpc-streamer enable\n"
 expect "/(config/) # "
-send -- "ufm plugin grpc-streamer enable\r"
+send -- "show ufm plugin\n"
 expect "/(config/) # "
-send -- "show ufm plugin\r"
-expect "/(config/) # "
-send -- "show ufm status\r"
+send -- "show ufm status\n"
 sleep 10
 EOF
