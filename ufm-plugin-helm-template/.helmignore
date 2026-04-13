@@ -1,4 +1,5 @@
 # Exclude from packaged chart (helm package)
+.helmignore
 examples/
 tests/
 ci-values*.yaml
