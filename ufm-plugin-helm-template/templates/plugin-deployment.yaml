@@ -100,6 +100,9 @@ spec:
                 configMapKeyRef:
                   name: {{ $ufmFullname }}-config
                   key: UFM_VERSION
+            {{- with $plugin.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           securityContext:
             privileged: false
             {{- if and $pluginRdma.resourceName (ne (toString $pluginRdma.resourceCount) "0") }}
