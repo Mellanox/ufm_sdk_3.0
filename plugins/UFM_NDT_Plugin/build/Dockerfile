@@ -1,5 +1,5 @@
 ARG ARCH
-FROM nbu-harbor.gtm.nvidia.com/ufm/ufm_docker/ubuntu_base_${ARCH}_24_04:20260204 AS ndt_base_ubuntu24
+FROM nbu-harbor.gtm.nvidia.com/ufm/ufm_docker/ubuntu_base_${ARCH}_24_04:20260423 AS ndt_base_ubuntu24
 ARG ARCH
 
 # Will install ibutils2 of the same version as UFM base docker.
