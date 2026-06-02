@@ -81,10 +81,12 @@ settings need to be adjusted to make the UFM-SLURM Integration function properly
 	   ufm_server_pass:       UFM server user password.
        pkey_allocation:       When set to true, UFM–SLURM Integration will allocate a PKEY for the SLURM job. Otherwise, it will use the default management PKEY: 0x7fff.
        pkey_allocation_mode:  PKEY allocation mode: one of {static, dynamic}.
-                              - static  : use a statically assigned PKEY when creating a new PKEY.
-                              - dynamic : use dynamic assignment when creating a new PKEY based on the slurm-job-id.
+                              - static  : a single, pre-configured PKEY (from the 'pkey' parameter, or the
+                                          default management PKEY 0x7fff if unset) is used for all SLURM jobs.
+                              - dynamic : a per-job PKEY is derived from the SLURM job ID (wrapped into
+                                          0x1-0x7ffe), providing per-job isolation and a natural fit with
+                                          UFM's auto_reservation_by_pkey flow.
 	   pkey:                  Used only when pkey_allocation_mode=static. If not set, the default management PKEY (0x7fff) will be used.
-	   partially_alloc:       Whether to allow or not allow partial allocation of nodes
        auth_type:             One of (token_auth, basic_auth, kerberos_auth) by default it token_auth
 	   token:                 If you set auth_type to be token_auth you need to set generated token. Please see Generate token_auth section.
        principal_nam:         principal name to be used in kerberos authentication when you set auth_type to be kerberos_auth.
@@ -107,10 +109,11 @@ Running
 After the installation and deployment of UFM-SLURM Integration, the integration should automatically handle every submitted SLURM job.
 
     - Use the SLURM controller to submit a new SLURM job, for example: sbatch -N2 batch1.sh.
-    - On the UFM side, a new SHArP reservation will be created based on the job ID and the job nodes if the
-      sharp_allocation parameter in the ufm_slurm.conf file is set to true.
-    - A new pkey containing all the ports of the job nodes will be created to allow the SHArP nodes to communicate on top of it.
-    - After the SLURM job is completed, UFM deletes the created SHArP reservation and pkey.
+    - A new PKEY containing all the ports of the job nodes will be created (based on pkey_allocation_mode) to allow the job nodes to communicate.
+    - On the UFM side, the SHArP reservation is now managed automatically via the auto_reservation_by_pkey flow,
+      based on the PKEY membership changes performed by the prolog/epilog (add_hosts_to_pkey / remove_hosts_from_pkey).
+      No explicit SHArP reservation API calls are made from the integration.
+    - After the SLURM job is completed, the hosts are removed from the PKEY and UFM tears down the associated SHArP reservation automatically.
     - From the time a job is submitted by the SLURM server until its completion, a log file called /var/log/slurm/ufm_slurm.log
       records all actions and errors that occur during execution. This log file location can be changed by modifying the
       log_file_name parameter in the UFM_SLURM configuration file located at /etc/slurm/ufm_slurm.conf.

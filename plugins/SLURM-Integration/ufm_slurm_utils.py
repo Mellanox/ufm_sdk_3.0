@@ -42,13 +42,8 @@ class Constants:
     DYNAMIC_PKEY_ALLOCATION_MODE = 'dynamic'
     CONF_IP_OVER_IB_PARAM = 'ip_over_ib'
     CONF_INDEX0_PARAM = 'index0'
-    CONF_SHARP_ALLOCATION = 'sharp_allocation'
-    CONF_PARTIALLY_ALLOC = "partially_alloc"
-    CONF_APP_RESOURCES_LIMIT = 'app_resources_limit'
     CONF_LOGFILE_NAME = 'log_file_name'
     CONF_DEBUG_MODE = 'debug_mode'
-    CONF_NUM_OF_RETRIES = "num_of_retries"
-    CONF_RETRY_INTERVAL = "retry_interval"
     CONF_PRINCIPAL_NAME = "principal_name"
     CONF_HTTPS_PORT = "https_port"
     BASIC_AUTH = "basic_auth"
@@ -58,8 +53,6 @@ class Constants:
     LS_JOB_NAME = 'slurm_job_'
     DEF_LOG_FILE = 'ufm_slurm.log'
     UFM_VER_URL = "/ufmRest/app/ufm_version"
-    CREATE_SHARP_ALLOCATION_URL = "/ufmRest/app/sharp/resources"
-    DELETE_SHARP_ALLOCATION_URL = "/ufmRest/app/sharp/resources/{0}"
     ADD_HOSTS_TO_PKEY_URL = "/ufmRest/resources/pkeys/hosts"
     REMOVE_HOSTS_FROM_PKEY_URL = "/ufmRest/resources/pkeys/{0}/hosts/{1}"
     UFM_NOT_RESPONDING = 'UFM server is not responding'
@@ -244,26 +237,6 @@ class UFM:
             else:
                 return False, Constants.UFM_CONNECT_ERROR
 
-    def _create_sharp_allocation(self, ufm_server, https_port, session, auth_type, job_id, job_nodes, pkey,
-                                 app_resources_limit, partially_alloc):
-        resource_path = Constants.CREATE_SHARP_ALLOCATION_URL
-        url = self.getUrl(resource_path, auth_type)
-        if not partially_alloc:
-            url = url + "?partially_alloc=false"
-
-        body_obj = {
-            "app_id": job_id,
-            "hosts_names": job_nodes,
-            "app_resources_limit": app_resources_limit
-        }
-
-        if pkey:
-            body_obj["pkey"] = pkey
-
-        body = json.dumps(body_obj)
-        logging.info("Sending POST Request to URL:%s, with request data::: %s" % (url, body))
-        return self.utils.sendPostRequestAsJSON(session, ufm_server, https_port, body, url)
-
     def _add_hosts_to_pkey(self, ufm_server, https_port, session, auth_type, job_nodes, pkey, ip_over_ib, index0):
         resource_path = Constants.ADD_HOSTS_TO_PKEY_URL
         url = self.getUrl(resource_path, auth_type)
@@ -283,13 +256,6 @@ class UFM:
         url = self.getUrl(resource_path, auth_type)
 
         logging.info("Sending DELETE Request to URL:%s" % url)
-        return self.utils.sendDeleteRequest(session, ufm_server, https_port, url)
-
-    def _delete_sharp_allocation(self, ufm_server, https_port, session, auth_type, job_id):
-
-        resource_path = Constants.DELETE_SHARP_ALLOCATION_URL.format(job_id)
-        url = self.getUrl(resource_path, auth_type)
-        logging.info("Sending Delete Request to URL:%s" % url)
         return self.utils.sendDeleteRequest(session, ufm_server, https_port, url)
 
     def IPAddressValidation(self, val):
