@@ -46,8 +46,6 @@ if __name__ == '__main__':
         slurm_job_nodelist = prolog.get_job_nodes()
         if prolog.pkey_allocation:
             prolog.add_hosts_to_pkey(slurm_job_nodelist)
-        if prolog.sharp_allocation:
-            prolog.create_sharp_allocation(prolog.args.job_id, slurm_job_nodelist)
         logging.info("UFM-Slurm-Prolog time: %.1f seconds" % (time.time() - all_time_start))
     except Exception as exc:
         logging.error(

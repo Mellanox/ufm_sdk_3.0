@@ -41,8 +41,6 @@ if __name__ == '__main__':
         slurm_job_nodelist = epilog.get_job_nodes()
         if epilog.pkey_allocation:
             epilog.remove_hosts_from_pkey(slurm_job_nodelist)
-        if epilog.sharp_allocation:
-            epilog.delete_sharp_allocation(epilog.args.job_id)
     except Exception as exc:
         logging.error(
         Constants.LOG_ERR_EPILOG % str(exc))
