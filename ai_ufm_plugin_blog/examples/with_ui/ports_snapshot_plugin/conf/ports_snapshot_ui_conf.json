@@ -1,0 +1,17 @@
+[
+  {
+    "mfEntry": "ports_snapshot/files/remoteEntry.js",
+    "name": "ports_snapshot_ui",
+    "exposedModule": "PortsSnapshotModule",
+    "ngModuleName": "PortsSnapshotModule",
+    "hookInfo": {
+      "type": "leftMenu",
+      "label": "Ports Snapshot",
+      "key": "ports_snapshot",
+      "route": "ports-snapshot",
+      "pluginRoute": "overview",
+      "icon": "fa fa-plug",
+      "order": 8
+    }
+  }
+]

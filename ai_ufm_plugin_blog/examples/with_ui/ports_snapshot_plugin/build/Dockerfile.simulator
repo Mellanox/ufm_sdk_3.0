@@ -1,0 +1,38 @@
+FROM harbor.mellanox.com/ibtools/ufm-ibmgtsim/ufm_6.24.2-3_ibmgtsim_master_ub22:ufm-6.24.2-3 AS ui_builder
+
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends nodejs npm \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /ui
+COPY ui/package.json ./
+RUN npm install --force
+COPY ui/ ./
+RUN npm run build
+
+FROM harbor.mellanox.com/ibtools/ufm-ibmgtsim/ufm_6.24.2-3_ibmgtsim_master_ub22:ufm-6.24.2-3
+
+ARG PLUGIN_NAME=ports_snapshot
+ARG BASE_PATH=/opt/ufm/ufm_plugin_${PLUGIN_NAME}
+ARG SIM_UFM_USERNAME=admin
+ARG SIM_UFM_PASSWORD
+
+ENTRYPOINT []
+ENV UFM_PROTOCOL=https \
+    UFM_HOST=127.0.0.1 \
+    UFM_USERNAME=${SIM_UFM_USERNAME} \
+    UFM_PASSWORD=${SIM_UFM_PASSWORD} \
+    UFM_VERIFY_TLS=false \
+    PYTHONUNBUFFERED=1
+
+COPY conf/supervisord.conf /etc/supervisor/conf.d/ports_snapshot.conf
+COPY . ${BASE_PATH}/${PLUGIN_NAME}_plugin/
+COPY --from=ui_builder /ui/dist/ports_snapshot_ui/ ${BASE_PATH}/${PLUGIN_NAME}_plugin/ui_dist/
+COPY scripts/init.sh scripts/deinit.sh scripts/upgrade.sh /
+
+RUN python3 -m pip install --no-cache-dir -r ${BASE_PATH}/${PLUGIN_NAME}_plugin/src/requirements.txt \
+    && mkdir -p /var/log/supervisor \
+    && chmod +x /init.sh /deinit.sh /upgrade.sh
+
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]

@@ -1,0 +1,41 @@
+<section class="ports-panel">
+  <header>
+    <h2>Ports Snapshot</h2>
+    <button type="button" (click)="refresh()" [disabled]="loading">Refresh</button>
+  </header>
+
+  <div class="status" *ngIf="loading">Loading...</div>
+  <div class="error" *ngIf="error">{{ error }}</div>
+
+  <div class="metrics" *ngIf="summary && !loading">
+    <div>
+      <span>Total</span>
+      <strong>{{ summary.total_items }}</strong>
+    </div>
+    <div>
+      <span>Active</span>
+      <strong>{{ summary.active_items }}</strong>
+    </div>
+    <div>
+      <span>Disabled</span>
+      <strong>{{ summary.disabled_items }}</strong>
+    </div>
+  </div>
+
+  <table *ngIf="summary?.sample?.length">
+    <thead>
+      <tr>
+        <th>Node</th>
+        <th>Port</th>
+        <th>State</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let item of summary?.sample">
+        <td>{{ item['system_name'] || item['node_name'] || item['system'] || '-' }}</td>
+        <td>{{ item['port'] || item['port_number'] || item['name'] || '-' }}</td>
+        <td>{{ item['state'] || item['physical_state'] || item['logical_state'] || 'unknown' }}</td>
+      </tr>
+    </tbody>
+  </table>
+</section>

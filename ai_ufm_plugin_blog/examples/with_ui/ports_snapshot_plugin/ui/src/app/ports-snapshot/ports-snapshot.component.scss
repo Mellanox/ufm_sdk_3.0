@@ -1,0 +1,71 @@
+.ports-panel {
+  color: #1f2933;
+  padding: 24px;
+}
+
+header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+h2 {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0;
+}
+
+button {
+  background: #76b900;
+  border: 0;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 8px 14px;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.metrics {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  margin-bottom: 20px;
+}
+
+.metrics div {
+  border: 1px solid #d9e2ec;
+  padding: 14px;
+}
+
+.metrics span {
+  color: #52606d;
+  display: block;
+  font-size: 12px;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.metrics strong {
+  font-size: 24px;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th,
+td {
+  border-bottom: 1px solid #d9e2ec;
+  padding: 10px;
+  text-align: left;
+}
+
+.error {
+  color: #b42318;
+}
