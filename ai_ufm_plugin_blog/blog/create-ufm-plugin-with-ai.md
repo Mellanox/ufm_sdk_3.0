@@ -185,46 +185,19 @@ The result is intentionally simple: a left-menu panel with total, active, and di
 The reusable skill is in:
 
 ```text
-skills/create-ufm-plugin-from-script
+skills/create-ufm-plugin-from-script/SKILL.md
 ```
 
-The skill gives an AI agent a repeatable process:
+The skill is intentionally Markdown-only. It gives an AI agent a repeatable
+process without bundling a generator script or source templates:
 
 1. Resolve the script path.
 2. Inspect whether the script is read-only or destructive.
-3. Scaffold a backend plugin.
+3. Create a backend plugin.
 4. Extract script logic into `src/logic.py`.
 5. Add UFM lifecycle files.
 6. Add UI only after backend validation.
 7. Run Python, JSON, shell, and skill validation.
-
-The skill also includes a helper:
-
-```text
-skills/create-ufm-plugin-from-script/scripts/scaffold_ufm_plugin.py
-```
-
-Example use:
-
-```bash
-python3 skills/create-ufm-plugin-from-script/scripts/scaffold_ufm_plugin.py \
-  /path/to/ufm_sdk_3.0/scripts/ufm_ports/load_ports.py \
-  --plugin-name ports_snapshot \
-  --output-dir examples/no_ui \
-  --port 8925
-```
-
-With UI:
-
-```bash
-python3 skills/create-ufm-plugin-from-script/scripts/scaffold_ufm_plugin.py \
-  /path/to/ufm_sdk_3.0/scripts/ufm_ports/load_ports.py \
-  --plugin-name ports_snapshot \
-  --output-dir examples/with_ui \
-  --port 8925 \
-  --with-ui \
-  --ui-label "Ports Snapshot"
-```
 
 For an AI agent, the intended prompt is:
 
@@ -239,14 +212,14 @@ That prompt should trigger the skill, and the skill should guide the agent throu
 The generated artifacts were validated with:
 
 ```bash
-python3 -m py_compile skills/create-ufm-plugin-from-script/scripts/scaffold_ufm_plugin.py
 python3 -m py_compile examples/no_ui/ports_snapshot_plugin/src/*.py examples/with_ui/ports_snapshot_plugin/src/*.py
 python3 -m json.tool examples/with_ui/ports_snapshot_plugin/conf/ports_snapshot_ui_conf.json
 bash -n examples/no_ui/ports_snapshot_plugin/scripts/init.sh examples/no_ui/ports_snapshot_plugin/scripts/deinit.sh examples/no_ui/ports_snapshot_plugin/scripts/upgrade.sh examples/no_ui/ports_snapshot_plugin/build/docker_build.sh
 bash -n examples/with_ui/ports_snapshot_plugin/scripts/init.sh examples/with_ui/ports_snapshot_plugin/scripts/deinit.sh examples/with_ui/ports_snapshot_plugin/scripts/upgrade.sh examples/with_ui/ports_snapshot_plugin/build/docker_build.sh
 ```
 
-The agent skill was validated with Codex `skill-creator` `quick_validate.py`.
+The agent skill itself is now only `SKILL.md`, so there is no skill helper code
+to compile.
 
 This is static validation. A production-ready version should also build the Docker image, load it into a UFM environment, add it through UFM plugin management, test `/healthz`, test `/summary`, and then test the UI remote inside UFM Web UI.
 

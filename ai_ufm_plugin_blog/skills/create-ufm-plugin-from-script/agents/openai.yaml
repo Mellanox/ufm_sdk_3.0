@@ -1,4 +1,0 @@
-interface:
-  display_name: "Create UFM Plugin From Script"
-  short_description: "Build UFM plugins from SDK scripts"
-  default_prompt: "Use $create-ufm-plugin-from-script to create a UFM plugin from script XXX."

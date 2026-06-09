@@ -25,7 +25,7 @@ The package contains:
 - A reusable AI-agent skill:
 
 ```text
-ai_ufm_plugin_blog/skills/create-ufm-plugin-from-script
+ai_ufm_plugin_blog/skills/create-ufm-plugin-from-script/SKILL.md
 ```
 
 - Example generated plugins:
@@ -53,8 +53,10 @@ git clone https://github.com/Mellanox/ufm_sdk_3.0.git
 cd ufm_sdk_3.0
 ```
 
-Deploy the skill into the agent runtime. For Codex-style local skills, copy the
-skill directory into the agent skills directory:
+Deploy the skill into the agent runtime. The skill is intentionally
+Markdown-only: the directory contains `SKILL.md` and no helper code. For
+Codex-style local skills, copy the skill directory into the agent skills
+directory:
 
 ```bash
 export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
@@ -77,9 +79,9 @@ Create UFM plugin from script scripts/ufm_ports/load_ports.py
 Expected result: the agent recognizes the skill, inspects the script, and
 generates a UFM plugin package instead of giving a generic coding answer.
 
-If the agent runtime is not Codex, register the same `SKILL.md`, `references/`,
-and `scripts/` directory as a local agent skill. The contract is the same: the
-agent should call the skill when the user asks to create or update a UFM plugin.
+If the agent runtime is not Codex, register the same `SKILL.md` as a local
+agent skill. The contract is the same: the agent should call the skill when the
+user asks to create or update a UFM plugin.
 
 ## Step 2: Use Skill Prompts to Create or Update the Plugin
 
@@ -214,7 +216,7 @@ That is the prompt we want an AI agent to understand.
 ## Source Artifacts
 
 - SDK repository: [Mellanox/ufm_sdk_3.0](https://github.com/Mellanox/ufm_sdk_3.0)
-- Skill: `ai_ufm_plugin_blog/skills/create-ufm-plugin-from-script`
+- Skill: `ai_ufm_plugin_blog/skills/create-ufm-plugin-from-script/SKILL.md`
 - Blog demo plugin without UI: `ai_ufm_plugin_blog/examples/no_ui/ports_snapshot_plugin`
 - Blog demo plugin with UI: `ai_ufm_plugin_blog/examples/with_ui/ports_snapshot_plugin`
 - Initial SDK script: `scripts/ufm_ports/load_ports.py`
