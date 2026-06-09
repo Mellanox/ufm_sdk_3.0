@@ -5,6 +5,7 @@ This package supports a technical blog and podcast segment about using an AI age
 ## Contents
 
 - `blog/create-ufm-plugin-with-ai.md`: technical blog draft.
+- `blog/create-ufm-plugin-with-ai-skill-first.md`: shorter skill-first blog draft focused on deploying the skill, using prompts, and deploying the generated plugin on UFM or the UFM simulator.
 - `examples/no_ui/ports_snapshot_plugin`: backend-only UFM plugin generated from `scripts/ufm_ports/load_ports.py`.
 - `examples/with_ui/ports_snapshot_plugin`: the same plugin with a UFM left-menu UI extension.
 - `skills/create-ufm-plugin-from-script`: reusable agent skill for the prompt `Create UFM plugin from script XXX`.
