@@ -10,9 +10,9 @@ import { PortsSnapshotComponent } from './ports-snapshot.component';
     CommonModule,
     HttpClientModule,
     RouterModule.forChild([
+      { path: '', component: PortsSnapshotComponent, pathMatch: 'full' },
       { path: 'overview', component: PortsSnapshotComponent },
-      { path: '', redirectTo: 'overview', pathMatch: 'full' },
-      { path: '**', redirectTo: 'overview' }
+      { path: '**', component: PortsSnapshotComponent }
     ])
   ],
   exports: [PortsSnapshotComponent]

@@ -344,7 +344,7 @@ docker run -d --name ufm-plugin-ports_snapshot \
   -v /opt/ufm/files/conf/plugins/ports_snapshot:/config \
   -v /opt/ufm/files/log/plugins/ports_snapshot:/log \
   -v /opt/ufm/ufm_plugins_data/ports_snapshot:/data \
-  --entrypoint /usr/bin/python3 \
+  --entrypoint /opt/venv/bin/python \
   ufm-plugin-ports_snapshot:latest \
   /opt/ufm/ufm_plugin_ports_snapshot/ports_snapshot_plugin/src/app.py
 '
