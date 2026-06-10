@@ -1,14 +1,16 @@
-# From UFM SDK Script to UFM Plugin: An AI-Agent Workflow
+# From UFM SDK Tool to UFM Plugin: An AI-Agent Workflow
 
-This post is a technical companion for a podcast segment on using AI to extend NVIDIA UFM. The goal is not to show a giant generated application. The goal is smaller and more useful: start with a simple UFM SDK script, turn it into a backend-only UFM plugin, add a UI extension, and then package the whole process as an agent skill so the next plugin starts with one prompt:
+This post is a technical companion for a podcast segment on using AI to extend NVIDIA UFM. The goal is not to show a giant generated application. The goal is smaller and more useful: start with a simple UFM SDK tool, turn it into a backend-only UFM plugin, add a UI extension, and then package the whole process as an agent skill so the next plugin starts with one prompt:
 
 ```text
-Create UFM plugin from script XXX
+Create UFM plugin from tool XXX
 ```
 
 ## Why This Demo
 
 The public [Mellanox/ufm_sdk_3.0](https://github.com/Mellanox/ufm_sdk_3.0) repository is a strong source for this workflow because it contains both script examples and plugin examples. Its README describes the scripts as Python examples for collecting data and operating devices through UFM REST API, and it also includes backend and UI plugin examples.
+
+In this workflow, a tool can be a UFM SDK script, an existing container image or Dockerfile, an existing plugin directory, or a behavior prompt. The agent classifies the tool first and then chooses the right plugin-generation path.
 
 For the first pass, we chose:
 
@@ -26,8 +28,8 @@ The skill should feel like a guided workflow, not a single magic command. The us
 
 ```mermaid
 flowchart TD
-  A["Prompt: Create UFM plugin from script &lt;script_path&gt;"] --> B["Analyze script behavior, inputs, UFM REST calls, and safety"]
-  C["Prompt: Create UFM plugin from container &lt;image_or_dockerfile&gt;"] --> D["Inspect container contract, ports, health checks, env vars, and volumes"]
+  A["Prompt: Create UFM plugin from tool &lt;script_path&gt;"] --> B["Classify tool as script; analyze behavior, inputs, UFM REST calls, and safety"]
+  C["Prompt: Create UFM plugin from tool &lt;image_or_dockerfile&gt;"] --> D["Classify tool as container; inspect ports, health checks, env vars, and volumes"]
   E["Prompt: Create UFM plugin that will scrape UFM events and stream them to fluentd destination &lt;destination&gt; every &lt;T&gt; interval"] --> F["Design worker loop, event cursor, Fluentd output, retry policy, and config schema"]
 
   B --> G["Generate backend plugin skeleton"]
@@ -53,8 +55,8 @@ Prompt guide:
 
 | User prompt | Agent interpretation | Expected output |
 | --- | --- | --- |
-| `Create UFM plugin from script scripts/ufm_ports/load_ports.py` | Extract script logic into a UFM plugin backend. | `src/logic.py`, Flask app, lifecycle scripts, Docker build, `/run` and `/summary` endpoints. |
-| `Create UFM plugin from container <image_or_dockerfile>` | Wrap an existing service as a UFM-managed plugin. | Plugin metadata, proxy config, shared volume mapping, health endpoint, deployment instructions. |
+| `Create UFM plugin from tool scripts/ufm_ports/load_ports.py` | Treat the tool as a script and extract its logic into a UFM plugin backend. | `src/logic.py`, Flask app, lifecycle scripts, Docker build, `/run` and `/summary` endpoints. |
+| `Create UFM plugin from tool <image_or_dockerfile>` | Treat the tool as a container image or Dockerfile and wrap it as a UFM-managed plugin. | Plugin metadata, proxy config, shared volume mapping, health endpoint, deployment instructions. |
 | `Create UFM plugin that will scrape UFM events and stream them to fluentd destination <destination> every <T> interval` | Generate a new plugin from a behavior description. | Polling worker, event cursor/state file, Fluentd client, retry/backoff logic, configurable interval and destination. |
 | `Add UI <optional_ui_template>` | Extend the backend plugin with a UFM Web UI entry. | `*_ui_conf.json`, Angular module federation bundle, menu route, UI service calling plugin REST APIs. |
 | `Add API to plugin <api_description>` | Add a plugin REST capability after the basic backend exists. | New route, schema/validation, implementation, curl examples, tests. |
@@ -185,16 +187,16 @@ The result is intentionally simple: a left-menu panel with total, active, and di
 The reusable skill is in:
 
 ```text
-skills/create-ufm-plugin-from-script/SKILL.md
+skills/create-ufm-plugin-from-tool/SKILL.md
 ```
 
 The skill is intentionally Markdown-only. It gives an AI agent a repeatable
 process without bundling a generator script or source templates:
 
-1. Resolve the script path.
-2. Inspect whether the script is read-only or destructive.
+1. Resolve the tool.
+2. Classify the tool as a script, container, plugin directory, or behavior prompt.
 3. Create a backend plugin.
-4. Extract script logic into `src/logic.py`.
+4. Extract script logic into `src/logic.py` or preserve the container process contract.
 5. Add UFM lifecycle files.
 6. Add UI only after backend validation.
 7. Run Python, JSON, shell, and skill validation.
@@ -202,7 +204,7 @@ process without bundling a generator script or source templates:
 For an AI agent, the intended prompt is:
 
 ```text
-Create UFM plugin from script scripts/ufm_ports/load_ports.py
+Create UFM plugin from tool scripts/ufm_ports/load_ports.py
 ```
 
 That prompt should trigger the skill, and the skill should guide the agent through the same staged approach.

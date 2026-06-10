@@ -1,6 +1,6 @@
 ---
-name: create-ufm-plugin-from-script
-description: Create NVIDIA UFM plugins from scripts, containers, or behavior prompts. Use when the user asks "Create UFM plugin from script ...", "Create UFM plugin from container ...", asks to add UI or API to a UFM plugin, or asks to deploy a generated plugin on UFM or the UFM simulator.
+name: create-ufm-plugin-from-tool
+description: Create NVIDIA UFM plugins from tools, where a tool can be a UFM SDK script, an existing container image or Dockerfile, an existing plugin directory, or a behavior prompt. Use when the user asks "Create UFM plugin from tool ...", "Create UFM plugin from script ...", "Create UFM plugin from container ...", asks to add UI or API to a UFM plugin, or asks to deploy a generated plugin on UFM or the UFM simulator.
 ---
 
 # Create UFM Plugin
@@ -9,12 +9,15 @@ description: Create NVIDIA UFM plugins from scripts, containers, or behavior pro
 
 This is a Markdown-only playbook for creating UFM plugins with an AI agent. It intentionally has no helper scripts, templates, or generated code bundled inside the skill. When this skill is used, create or update the plugin files directly in the target repository by following the workflow below.
 
+In this skill, a `tool` is the source artifact or behavior that should become a UFM plugin. A tool can be a UFM SDK script, an existing container image or Dockerfile, an existing plugin directory, or a behavior prompt.
+
 Start with the smallest backend-only plugin that proves the requested behavior. Add API, UI, packaging, and deployment steps only when the user asks for them or when they are required to validate the plugin.
 
 ## Trigger Prompts
 
 Use this skill for prompts like:
 
+- `Create UFM plugin from tool <tool_path_or_image>`
 - `Create UFM plugin from script <script_path>`
 - `Create UFM plugin from container <image_or_dockerfile>`
 - `Create UFM plugin that will scrape UFM events and stream them to fluentd destination <destination> every <T> interval`
@@ -25,7 +28,7 @@ Use this skill for prompts like:
 ## Workflow
 
 1. Resolve the user intent.
-   - Identify whether the input is a UFM SDK script, an existing container, an existing plugin directory, or a new behavior description.
+   - Identify whether the input tool is a UFM SDK script, an existing container, an existing plugin directory, or a new behavior description.
    - Find the exact source file, image, plugin directory, host, or destination mentioned by the user.
    - Ask a short follow-up only if a required target is missing and cannot be inferred.
 
@@ -35,7 +38,7 @@ Use this skill for prompts like:
    - Reboot, isolation, firmware update, delete, or disruptive fabric actions must be disabled by default and require explicit user confirmation before enablement.
 
 3. Create the backend plugin first.
-   - Extract the smallest useful logic from the script, container, or behavior prompt.
+   - Extract the smallest useful logic from the tool.
    - Keep UFM access, parsing, and summarization in a logic module.
    - Add a thin HTTP API wrapper with health and domain endpoints.
    - Preserve the original CLI or container behavior as closely as possible while making inputs explicit through HTTP parameters or request body fields.
@@ -70,11 +73,12 @@ Use this skill for prompts like:
    - Copy or load it on the target UFM host.
    - Use UFM plugin manager to deploy, add, enable, and inspect status.
    - Validate REST endpoints through UFM's plugin proxy.
+   - If the target is the UFM simulator, follow the separate [Run UFM Simulator](../run-ufm-simulator/SKILL.md) skill before plugin deployment validation.
    - If UI was added, open UFM Web UI and verify the plugin entry renders real data.
 
 ## Expected Plugin Shape
 
-For a script-derived backend plugin, generate a directory with:
+For a script-derived tool, generate a backend plugin directory with:
 
 - `src/logic.py` for script-derived logic.
 - `src/app.py` or the repository's existing web framework wrapper.
@@ -85,7 +89,7 @@ For a script-derived backend plugin, generate a directory with:
 - `build/Dockerfile` and `build/docker_build.sh` for packaging.
 - `README.generated.md` with endpoints, build steps, deployment steps, and validation notes.
 
-For a container-derived plugin, wrap the existing image or Dockerfile with UFM lifecycle and configuration files instead of rewriting the workload. Preserve the original process contract and document required environment variables, volumes, ports, and health checks.
+For a container-derived tool, wrap the existing image or Dockerfile with UFM lifecycle and configuration files instead of rewriting the workload. Preserve the original process contract and document required environment variables, volumes, ports, and health checks.
 
 For a behavior prompt, choose the simplest runtime that matches the task. For example, an event streaming plugin can poll UFM events on an interval, transform them into compact records, and send them to the requested Fluentd destination.
 
@@ -101,7 +105,9 @@ UFM UI extensions use a frontend bundle plus a UI configuration file copied to U
 
 ## UFM Simulator Notes
 
-For demo and development, prefer deploying first on the UFM simulator when it is available. The simulator gives a realistic UFM REST and Web UI surface without requiring a physical fabric. When the user asks to deploy on a simulator host:
+For demo and development, prefer deploying first on the UFM simulator when it is available. The simulator gives a realistic UFM REST and Web UI surface without requiring a physical fabric.
+
+When the user asks to start, prepare, validate, or deploy to a simulator host, use the separate [Run UFM Simulator](../run-ufm-simulator/SKILL.md) skill for simulator setup and validation, then return to this skill for plugin-specific build, packaging, API, and UI work. At minimum:
 
 - Confirm the simulator container is running.
 - Confirm UFM Web UI and REST are reachable.
@@ -112,7 +118,7 @@ For demo and development, prefer deploying first on the UFM simulator when it is
 
 When the task is complete, report:
 
-- The source input used: script, container, plugin directory, or behavior prompt.
+- The source tool used: script, container, plugin directory, or behavior prompt.
 - The plugin directory created or updated.
 - The backend endpoints.
 - Whether API or UI was added.

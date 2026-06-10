@@ -1,6 +1,6 @@
 # AI UFM Plugin Blog Package
 
-This package supports a technical blog and podcast segment about using an AI agent to create an NVIDIA UFM plugin from a UFM SDK script.
+This package supports a technical blog and podcast segment about using an AI agent to create an NVIDIA UFM plugin from a tool. In this workflow, a tool can be a UFM SDK script, an existing container image or Dockerfile, or a behavior prompt that describes the plugin workload.
 
 ## Contents
 
@@ -8,11 +8,11 @@ This package supports a technical blog and podcast segment about using an AI age
 - `blog/create-ufm-plugin-with-ai-skill-first.md`: shorter skill-first blog draft focused on deploying the skill, using prompts, and deploying the generated plugin on UFM or the UFM simulator.
 - `examples/no_ui/ports_snapshot_plugin`: backend-only UFM plugin generated from `scripts/ufm_ports/load_ports.py`.
 - `examples/with_ui/ports_snapshot_plugin`: the same plugin with a UFM left-menu UI extension.
-- `skills/create-ufm-plugin-from-script/SKILL.md`: Markdown-only agent skill for prompts such as `Create UFM plugin from script XXX`.
+- `skills/create-ufm-plugin-from-tool/SKILL.md`: Markdown-only agent skill for prompts such as `Create UFM plugin from tool XXX`.
 
-## Selected SDK Script
+## Selected SDK Tool
 
-The demo uses the public UFM SDK script:
+The demo uses a public UFM SDK script as the first tool:
 
 ```text
 Mellanox/ufm_sdk_3.0/scripts/ufm_ports/load_ports.py

@@ -6,11 +6,13 @@ implementation details behind one generated plugin.
 The main idea is simple:
 
 1. Deploy the `Create UFM Plugin` skill into the AI agent.
-2. Use skill prompts to create or update a UFM plugin.
+2. Use skill prompts to create or update a UFM plugin from a tool.
 3. Deploy the generated plugin on UFM, or on the UFM simulator for a fast test.
 
 That is the story for the podcast: AI is useful here because it turns a manual
-plugin-development process into a reusable skill.
+plugin-development process into a reusable skill. In this workflow, a tool can
+be a UFM SDK script, an existing container image or Dockerfile, an existing
+plugin directory, or a behavior prompt.
 
 ## What We Are Building
 
@@ -25,7 +27,7 @@ The package contains:
 - A reusable AI-agent skill:
 
 ```text
-ai_ufm_plugin_blog/skills/create-ufm-plugin-from-script/SKILL.md
+ai_ufm_plugin_blog/skills/create-ufm-plugin-from-tool/SKILL.md
 ```
 
 - Example generated plugins:
@@ -62,8 +64,8 @@ directory:
 export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 mkdir -p "$CODEX_HOME/skills"
 rsync -a \
-  ai_ufm_plugin_blog/skills/create-ufm-plugin-from-script/ \
-  "$CODEX_HOME/skills/create-ufm-plugin-from-script/"
+  ai_ufm_plugin_blog/skills/create-ufm-plugin-from-tool/ \
+  "$CODEX_HOME/skills/create-ufm-plugin-from-tool/"
 ```
 
 Then start a fresh agent session from the SDK repository. The fresh session is
@@ -73,7 +75,7 @@ Use this as a smoke test prompt:
 
 ```text
 Use the Create UFM Plugin skill.
-Create UFM plugin from script scripts/ufm_ports/load_ports.py
+Create UFM plugin from tool scripts/ufm_ports/load_ports.py
 ```
 
 Expected result: the agent recognizes the skill, inspects the script, and
@@ -93,8 +95,8 @@ The useful prompts are:
 
 | Prompt | What the agent should do |
 | --- | --- |
-| `Create UFM plugin from script scripts/ufm_ports/load_ports.py` | Create a plugin from an existing SDK script. |
-| `Create UFM plugin from container <image_or_dockerfile>` | Wrap an existing container as a UFM-managed plugin. |
+| `Create UFM plugin from tool scripts/ufm_ports/load_ports.py` | Treat the tool as an SDK script and create a plugin from it. |
+| `Create UFM plugin from tool <image_or_dockerfile>` | Treat the tool as a container image or Dockerfile and wrap it as a UFM-managed plugin. |
 | `Create UFM plugin that will scrape UFM events and stream them to fluentd destination <destination> every <T> interval` | Create a new plugin from a behavior description. |
 | `Add UI <optional_ui_template>` | Add a UFM UI extension to an existing plugin. |
 | `Add API to plugin <api_description>` | Add a plugin API after the base plugin exists. |
@@ -104,7 +106,7 @@ The high-level flow looks like this:
 
 ```mermaid
 flowchart TD
-  A["Deploy Create UFM Plugin skill"] --> B["Create plugin from script, container, or behavior prompt"]
+  A["Deploy Create UFM Plugin skill"] --> B["Create plugin from tool: script, container, or behavior prompt"]
   B --> C["Review generated plugin package"]
   C --> D["Optional prompt: Add API"]
   D --> E["Optional prompt: Add UI"]
@@ -115,7 +117,7 @@ flowchart TD
 For the demo plugin, the first prompt can be:
 
 ```text
-Create UFM plugin from script scripts/ufm_ports/load_ports.py
+Create UFM plugin from tool scripts/ufm_ports/load_ports.py
 ```
 
 Then update the same plugin with:
@@ -186,7 +188,7 @@ Use this sequence:
 1. Show the SDK repository with `ai_ufm_plugin_blog/`.
 2. Deploy the `Create UFM Plugin` skill into the agent.
 3. Start a fresh agent session.
-4. Prompt: `Create UFM plugin from script scripts/ufm_ports/load_ports.py`.
+4. Prompt: `Create UFM plugin from tool scripts/ufm_ports/load_ports.py`.
 5. Prompt: `Add UI "Ports Snapshot dashboard"`.
 6. Prompt: `Deploy plugin on server <ufm-simulator-host>`.
 7. Open UFM and show the plugin running.
@@ -208,7 +210,7 @@ Those details still exist in the repository for readers who want to inspect
 them, but they are not the headline. The headline is the reusable skill:
 
 ```text
-Create UFM plugin from script XXX
+Create UFM plugin from tool XXX
 ```
 
 That is the prompt we want an AI agent to understand.
@@ -216,7 +218,7 @@ That is the prompt we want an AI agent to understand.
 ## Source Artifacts
 
 - SDK repository: [Mellanox/ufm_sdk_3.0](https://github.com/Mellanox/ufm_sdk_3.0)
-- Skill: `ai_ufm_plugin_blog/skills/create-ufm-plugin-from-script/SKILL.md`
+- Skill: `ai_ufm_plugin_blog/skills/create-ufm-plugin-from-tool/SKILL.md`
 - Blog demo plugin without UI: `ai_ufm_plugin_blog/examples/no_ui/ports_snapshot_plugin`
 - Blog demo plugin with UI: `ai_ufm_plugin_blog/examples/with_ui/ports_snapshot_plugin`
 - Initial SDK script: `scripts/ufm_ports/load_ports.py`
