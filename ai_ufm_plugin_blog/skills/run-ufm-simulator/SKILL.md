@@ -66,6 +66,7 @@ Resolve the simulator image in this order:
 2. If a simulator is already running on the target host, inspect `ufm-ibmgtsim` and reuse or report its image unless the user asked to upgrade or replace it.
 3. If the user asks for `latest GA`, look up the current GA simulator image from the corporate release source or registry first, then pin the chosen tag in the command and response. Do not guess from memory.
 4. If no image is provided and no running simulator exists, use the image/tag from the current project or user-provided simulator instructions.
+5. If no image is available, stop and ask for the simulator image instead of guessing.
 
 Known Harbor example from the current simulator workflow:
 
