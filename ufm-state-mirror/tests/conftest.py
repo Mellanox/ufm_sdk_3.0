@@ -58,6 +58,6 @@ class FakeRedis:
         return [k for k in self.store if fnmatch.fnmatch(k, pattern)]
 
 
-@pytest.fixture()
+@pytest.fixture
 def fake_redis():
     return FakeRedis()

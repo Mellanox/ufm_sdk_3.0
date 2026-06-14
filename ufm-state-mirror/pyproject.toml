@@ -13,5 +13,10 @@ line-length = 100
 select = ["B", "E", "F", "I", "PT", "SIM"]
 ignore = ["PT009"]
 
+[tool.ruff.lint.flake8-pytest-style]
+# Pin PT001 explicitly: the default flipped between ruff versions, so set it
+# so lint is deterministic regardless of the installed ruff.
+fixture-parentheses = false
+
 [tool.ruff.format]
 indent-style = "space"
