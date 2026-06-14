@@ -38,6 +38,16 @@ The same image runs in two roles inside the UFM pod:
   a periodic full scan reconciles anything events miss.
 - **Redis discovery**: Sentinel-aware (`redis_client.master_for`) so writes
   follow failovers automatically.
+- **Storage backends** (pluggable `Store`, per-entry `backend:` in the
+  classifier — HLD 5.2.3): `redis` (default) or `configmap`. The same
+  body+meta wire contract and fail-closed verification apply to both; the
+  `configmap` backend stores each key as one Kubernetes ConfigMap
+  (`binaryData` body + a `meta` field), enforces the ~1 MiB etcd object cap
+  fail-closed, and is meant only for small, low-churn config blobs. SQLite DBs
+  and large/high-churn files must stay on `redis`. Enabling `configmap` for any
+  entry requires the consumer to grant the pod's ServiceAccount ConfigMap RBAC
+  in its namespace (HLD 8.7); a Redis-only classifier needs no K8s API access
+  and never loads the kubernetes client.
 
 ## Resilience model
 

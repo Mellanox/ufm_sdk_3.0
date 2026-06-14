@@ -302,9 +302,8 @@ class Mirror:
 
 
 def main() -> int:
+    from state_mirror.backends import build_stores, default_configmap_store, default_redis_store
     from state_mirror.logconfig import setup_logging
-    from state_mirror.redis_client import RedisConfig, master_client
-    from state_mirror.store import RedisStore
 
     global log
     log = setup_logging("state_mirror.mirror")
@@ -318,10 +317,14 @@ def main() -> int:
     state = HealthState()
     HealthServer(state, port=port).start()
     try:
-        store = RedisStore(master_client(RedisConfig.from_env()))
         classifier = Classifier.load_file(classifier_path)
+        stores = build_stores(
+            classifier,
+            redis_factory=default_redis_store,
+            configmap_factory=default_configmap_store,
+        )
         mirror = Mirror(
-            classifier, store, ufm_version, written_by, state=state, max_queue=max_queue
+            classifier, stores, ufm_version, written_by, state=state, max_queue=max_queue
         )
     except Exception:
         log.exception("state-mirror sidecar failed to initialize")

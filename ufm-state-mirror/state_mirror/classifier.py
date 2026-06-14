@@ -47,11 +47,25 @@ class Handler(str, Enum):
 
 
 class Baseline(str, Enum):
-    """First-install behavior when Redis has no key yet (HLD 5.3.8)."""
+    """First-install behavior when the backend has no key yet (HLD 5.3.8)."""
 
     IMAGE = "image"
     EMPTY = "empty"
     SKIP = "skip"
+
+
+class Backend(str, Enum):
+    """Durable backend an entry is mirrored to (HLD 5.2.3, 5.3.11).
+
+    Chosen per entry by *size and churn*: ``configmap`` is for small,
+    low-churn config blobs (etcd-backed, ~1 MiB hard cap); everything else --
+    SQLite DBs and any large/high-churn file -- stays on ``redis`` (the
+    default). The choice only swaps the ``Store`` an entry's handler writes to;
+    the body+metadata wire contract is identical on both backends.
+    """
+
+    REDIS = "redis"
+    CONFIGMAP = "configmap"
 
 
 # Handlers that mirror to a single Redis key (everything except directory,
@@ -65,6 +79,7 @@ class Entry:
 
     path: str
     handler: Handler
+    backend: Backend = Backend.REDIS
     redis_key: Optional[str] = None
     redis_key_prefix: Optional[str] = None
     trigger: Optional[str] = None
@@ -100,6 +115,7 @@ class Entry:
         if not path or not isinstance(path, str):
             raise ClassifierError("entry is missing a non-empty string 'path'")
         handler = _coerce_enum(Handler, raw.get("handler"), "handler", path)
+        backend = _coerce_enum(Backend, raw.get("backend", Backend.REDIS.value), "backend", path)
         baseline = _coerce_enum(
             Baseline, raw.get("baseline", Baseline.SKIP.value), "baseline", path
         )
@@ -115,6 +131,7 @@ class Entry:
         entry = Entry(
             path=path,
             handler=handler,
+            backend=backend,
             redis_key=raw.get("redis_key"),
             redis_key_prefix=raw.get("redis_key_prefix"),
             trigger=raw.get("trigger"),
@@ -153,6 +170,13 @@ class Entry:
         if self.wal_threshold_bytes is not None and self.handler is not Handler.SQLITE:
             raise ClassifierError(
                 f"{self.path}: 'wal_threshold_bytes' is only valid for the sqlite handler"
+            )
+        if self.backend is Backend.CONFIGMAP and self.handler is Handler.SQLITE:
+            # A DB blows past the ~1 MiB etcd object cap and is exactly the churn
+            # etcd is worst at, so SQLite is fixed to Redis (HLD 5.2.3 / 5.5).
+            raise ClassifierError(
+                f"{self.path}: sqlite handler is not eligible for the configmap backend "
+                f"(~1 MiB etcd cap); use the redis backend"
             )
         if self.baseline is Baseline.IMAGE and not self.baseline_path:
             raise ClassifierError(f"{self.path}: baseline 'image' requires 'baseline_path'")

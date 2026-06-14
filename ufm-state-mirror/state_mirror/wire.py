@@ -160,6 +160,45 @@ def delete_pair(client: Any, body_key: str) -> None:
     log.info("deleted key pair for %s", body_key)
 
 
+def verify_body(body: Optional[bytes], meta: Meta, key: str) -> bytes:
+    """Verify a body against its metadata, failing closed (HLD 5.3.6).
+
+    Backend-neutral: used by every :mod:`state_mirror.store` backend (Redis or
+    ConfigMap) so a restored object is validated identically regardless of where
+    it was stored. Checks format version, presence, content hash and size.
+    Returns the verified body or raises :class:`WireError` (with no ``reason`` --
+    these are data-integrity failures, not transport failures).
+    """
+    if meta.format_version > FORMAT_VERSION:
+        log.error(
+            "%s stored format_version %d newer than supported %d",
+            key,
+            meta.format_version,
+            FORMAT_VERSION,
+        )
+        raise WireError(
+            f"{key}: stored format_version {meta.format_version} is newer "
+            f"than supported {FORMAT_VERSION} (refusing downgrade)"
+        )
+    if body is None:
+        log.error("%s: metadata present but body missing", key)
+        raise WireError(f"{key}: metadata present but body key missing")
+
+    actual = content_hash(body)
+    if actual != meta.content_hash:
+        log.error(
+            "%s content hash mismatch (stored %s, computed %s)", key, meta.content_hash, actual
+        )
+        raise WireError(
+            f"{key}: content hash mismatch (stored {meta.content_hash}, computed {actual})"
+        )
+    if len(body) != meta.size_bytes:
+        log.error("%s size mismatch (stored %d, got %d)", key, meta.size_bytes, len(body))
+        raise WireError(f"{key}: size mismatch (stored {meta.size_bytes}, got {len(body)})")
+    log.debug("verified %s (%d bytes, %s)", key, meta.size_bytes, meta.content_hash)
+    return body
+
+
 def read_and_verify(client: Any, body_key: str) -> Optional[tuple[bytes, Meta]]:
     """Read body+meta, fail closed on any inconsistency (HLD 5.3.6).
 
@@ -179,16 +218,8 @@ def read_and_verify(client: Any, body_key: str) -> Optional[tuple[bytes, Meta]]:
 
     meta = Meta.from_json(raw_meta)
     if meta.format_version > FORMAT_VERSION:
-        log.error(
-            "%s stored format_version %d newer than supported %d",
-            body_key,
-            meta.format_version,
-            FORMAT_VERSION,
-        )
-        raise WireError(
-            f"{body_key}: stored format_version {meta.format_version} is newer "
-            f"than supported {FORMAT_VERSION} (refusing downgrade)"
-        )
+        # Refuse before fetching the (possibly large) body.
+        return verify_body(None, meta, body_key), meta  # raises WireError
 
     try:
         body = client.get(body_key)
@@ -196,26 +227,7 @@ def read_and_verify(client: Any, body_key: str) -> Optional[tuple[bytes, Meta]]:
         reason = classify_redis_error(exc)
         log.error("read of body for %s failed [%s]: %s", body_key, reason, exc)
         raise WireError(f"{body_key}: body read failed: {exc}", reason=reason) from exc
-    if body is None:
-        log.error("%s: metadata present but body key missing", body_key)
-        raise WireError(f"{body_key}: metadata present but body key missing")
-
-    actual = content_hash(body)
-    if actual != meta.content_hash:
-        log.error(
-            "%s content hash mismatch (stored %s, computed %s)",
-            body_key,
-            meta.content_hash,
-            actual,
-        )
-        raise WireError(
-            f"{body_key}: content hash mismatch (stored {meta.content_hash}, " f"computed {actual})"
-        )
-    if len(body) != meta.size_bytes:
-        log.error("%s size mismatch (stored %d, got %d)", body_key, meta.size_bytes, len(body))
-        raise WireError(f"{body_key}: size mismatch (stored {meta.size_bytes}, got {len(body)})")
-    log.debug("verified %s (%d bytes, %s)", body_key, meta.size_bytes, meta.content_hash)
-    return body, meta
+    return verify_body(body, meta, body_key), meta
 
 
 def _utcnow_iso() -> str:

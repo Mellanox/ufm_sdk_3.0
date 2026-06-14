@@ -31,9 +31,14 @@ from state_mirror.handlers import make_handler
 log = logging.getLogger("state_mirror.restore")
 
 
-def run(classifier_path: str, store, ufm_version: str) -> int:
-    classifier = Classifier.load_file(classifier_path)
-    log.info("restore: %d classifier entries from %s", len(classifier), classifier_path)
+def run(classifier: Classifier, store, ufm_version: str) -> int:
+    """Restore every entry from its backend (``store`` may be a per-backend map).
+
+    ``store`` is forwarded to :func:`make_handler`, so it accepts either a
+    single ``Store`` or a mapping of backend to ``Store`` for mixed
+    Redis/ConfigMap classifiers (HLD 5.2.3).
+    """
+    log.info("restore: %d classifier entries", len(classifier))
     restored, bootstrapped = 0, 0
     written_by = _written_by()
     for entry in classifier.entries:
@@ -56,9 +61,8 @@ def run(classifier_path: str, store, ufm_version: str) -> int:
 def main() -> int:
     import os
 
+    from state_mirror.backends import build_stores, default_configmap_store, default_redis_store
     from state_mirror.logconfig import setup_logging
-    from state_mirror.redis_client import RedisConfig, master_client
-    from state_mirror.store import RedisStore
 
     global log
     log = setup_logging("state_mirror.restore")
@@ -66,8 +70,13 @@ def main() -> int:
     ufm_version = os.environ.get("UFM_VERSION", "unknown")
     log.info("state-mirror restore starting (ufm_version=%s)", ufm_version)
     try:
-        store = RedisStore(master_client(RedisConfig.from_env()))
-        rc = run(classifier_path, store, ufm_version)
+        classifier = Classifier.load_file(classifier_path)
+        stores = build_stores(
+            classifier,
+            redis_factory=default_redis_store,
+            configmap_factory=default_configmap_store,
+        )
+        rc = run(classifier, stores, ufm_version)
     except Exception:
         log.exception("restore failed; refusing to start UFM on incomplete state")
         return 1

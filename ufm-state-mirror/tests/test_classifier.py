@@ -16,7 +16,14 @@ import os
 
 import pytest
 
-from state_mirror.classifier import Baseline, Classifier, ClassifierError, Entry, Handler
+from state_mirror.classifier import (
+    Backend,
+    Baseline,
+    Classifier,
+    ClassifierError,
+    Entry,
+    Handler,
+)
 
 COMPONENT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # The engine ships no built-in classifier: each consumer (UFM, UFM HA) supplies
@@ -113,6 +120,52 @@ class TestEntryValidation:
             }
         )
         assert e.wal_threshold_bytes == 1024
+
+
+class TestBackendSelection:
+    def test_default_backend_is_redis(self):
+        assert Entry.from_dict(_blob()).backend is Backend.REDIS
+
+    def test_configmap_backend_parsed(self):
+        e = Entry.from_dict(_blob(backend="configmap"))
+        assert e.backend is Backend.CONFIGMAP
+
+    def test_invalid_backend_rejected(self):
+        with pytest.raises(ClassifierError, match="invalid backend"):
+            Entry.from_dict(_blob(backend="s3"))
+
+    def test_sqlite_on_configmap_rejected(self):
+        with pytest.raises(ClassifierError, match="not eligible for the configmap backend"):
+            Entry.from_dict(
+                {
+                    "path": "/opt/ufm/files/sqlite/x.db",
+                    "handler": "sqlite",
+                    "redis_key": "ufm:sqlite:x",
+                    "backend": "configmap",
+                }
+            )
+
+    def test_sqlite_on_redis_ok(self):
+        e = Entry.from_dict(
+            {
+                "path": "/opt/ufm/files/sqlite/x.db",
+                "handler": "sqlite",
+                "redis_key": "ufm:sqlite:x",
+                "backend": "redis",
+            }
+        )
+        assert e.backend is Backend.REDIS
+
+    def test_directory_on_configmap_allowed(self):
+        e = Entry.from_dict(
+            {
+                "path": "/opt/ufm/files/conf/plugins",
+                "handler": "directory",
+                "redis_key_prefix": "ufm:cfg:plugins:",
+                "backend": "configmap",
+            }
+        )
+        assert e.backend is Backend.CONFIGMAP
 
 
 class TestClassifierDocument:
