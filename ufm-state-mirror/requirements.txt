@@ -1,0 +1,5 @@
+# Runtime dependencies for the ufm-state-mirror sidecar.
+# Pinned for reproducible image builds.
+redis==5.0.8
+PyYAML==6.0.2
+watchdog==4.0.2
