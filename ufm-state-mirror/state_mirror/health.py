@@ -18,9 +18,9 @@ Exposes three endpoints on a small threaded HTTP server:
               503 otherwise. Gates UFM startup via the pod's native sidecar
               readiness ordering.
     /healthz  liveness of the *mirror loop itself*. Deliberately does NOT fail
-              when Redis is unreachable -- a Redis outage must not get the pod
-              killed (that would lose the emptyDir). Redis health is surfaced
-              through metrics/alerts instead (HLD 8.6).
+              when the storage backend is unreachable -- a backend outage must
+              not get the pod killed (that would lose the emptyDir). Backend
+              health is surfaced through metrics/alerts instead (HLD 8.6).
     /metrics  Prometheus text exposition of the gauges/counters below.
 
 ``HealthState`` is the thread-safe shared state updated by the mirror loop; the
@@ -34,12 +34,19 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+from state_mirror.k8s_errors import K8S_ERROR_REASONS
 from state_mirror.redis_errors import REDIS_ERROR_REASONS
 
 log = logging.getLogger(__name__)
 
 DEFAULT_PORT = 9180
 LIVENESS_TIMEOUT_S = 30.0
+
+# The error-reason label set spans both backends so every series is present in
+# /metrics regardless of which one is selected at install time (HLD 8.6.2).
+STORE_ERROR_REASONS: tuple[str, ...] = tuple(
+    sorted(set(REDIS_ERROR_REASONS) | set(K8S_ERROR_REASONS))
+)
 
 
 class HealthState:
@@ -52,13 +59,12 @@ class HealthState:
         self.watchdog_active = False
         self.loop_started = False
         self.last_loop_tick = 0.0
-        self.redis_reachable = False
-        self.last_redis_write = 0.0
-        self.redis_errors = {reason: 0 for reason in REDIS_ERROR_REASONS}
+        self.backend_reachable = False
+        self.last_store_write = 0.0
+        self.store_errors = {reason: 0 for reason in STORE_ERROR_REASONS}
         self.mirror_ops_total = 0
         self.full_scans_total = 0
         self.events_total = 0
-        self.unexpected_delete_total = 0
         self.dropped_events_total = 0
         self.dirty_queue_depth = 0
         self.pending_deletes = 0
@@ -79,17 +85,17 @@ class HealthState:
             self.dirty_queue_depth = dirty_depth
             self.pending_deletes = pending_deletes
 
-    def record_redis_ok(self) -> None:
+    def record_store_ok(self) -> None:
         with self._lock:
-            self.redis_reachable = True
-            self.last_redis_write = time.time()
+            self.backend_reachable = True
+            self.last_store_write = time.time()
 
-    def record_redis_down(self, reason: str = "other") -> None:
+    def record_store_down(self, reason: str = "other") -> None:
         with self._lock:
-            self.redis_reachable = False
-            if reason not in self.redis_errors:
+            self.backend_reachable = False
+            if reason not in self.store_errors:
                 reason = "other"
-            self.redis_errors[reason] += 1
+            self.store_errors[reason] += 1
 
     def add_mirror_ops(self, n: int) -> None:
         with self._lock:
@@ -122,7 +128,7 @@ class HealthState:
     def snapshot(self) -> dict:
         with self._lock:
             snap = dict(self.__dict__)
-            snap["redis_errors"] = dict(self.redis_errors)
+            snap["store_errors"] = dict(self.store_errors)
         return snap
 
 
@@ -143,9 +149,9 @@ def render_metrics(state: HealthState) -> str:
 
     gauge("state_mirror_ready", "1 if the sidecar is ready", int(state.is_ready()))
     gauge(
-        "state_mirror_redis_reachable",
-        "1 if Redis was reachable on the last op",
-        int(snap["redis_reachable"]),
+        "state_mirror_backend_reachable",
+        "1 if the storage backend was reachable on the last op",
+        int(snap["backend_reachable"]),
     )
     gauge(
         "state_mirror_watchdog_active",
@@ -153,22 +159,17 @@ def render_metrics(state: HealthState) -> str:
         int(snap["watchdog_active"]),
     )
     gauge(
-        "state_mirror_last_redis_write_timestamp_seconds",
-        "Unix time of the last successful Redis write (0 if never)",
-        snap["last_redis_write"],
+        "state_mirror_last_write_timestamp_seconds",
+        "Unix time of the last successful store write (0 if never)",
+        snap["last_store_write"],
     )
     gauge("state_mirror_dirty_queue_depth", "Entries pending mirror", snap["dirty_queue_depth"])
     gauge("state_mirror_pending_deletes", "Deletes pending propagation", snap["pending_deletes"])
     counter(
-        "state_mirror_mirror_ops_total", "Total Redis write/delete ops", snap["mirror_ops_total"]
+        "state_mirror_mirror_ops_total", "Total store write/delete ops", snap["mirror_ops_total"]
     )
     counter("state_mirror_full_scans_total", "Total full reconcile scans", snap["full_scans_total"])
     counter("state_mirror_events_total", "Total watchdog change/delete marks", snap["events_total"])
-    counter(
-        "state_mirror_unexpected_delete_total",
-        "Local deletes not propagated to Redis (drift)",
-        snap["unexpected_delete_total"],
-    )
     counter(
         "state_mirror_dropped_events_total",
         "Delete marks dropped from a full bounded queue (D2 drop policy); "
@@ -176,10 +177,10 @@ def render_metrics(state: HealthState) -> str:
         snap["dropped_events_total"],
     )
 
-    lines.append("# HELP state_mirror_redis_errors_total Redis op errors by classified reason")
-    lines.append("# TYPE state_mirror_redis_errors_total counter")
-    for reason, count in sorted(snap["redis_errors"].items()):
-        lines.append(f'state_mirror_redis_errors_total{{reason="{reason}"}} {count}')
+    lines.append("# HELP state_mirror_store_errors_total Store op errors by classified reason")
+    lines.append("# TYPE state_mirror_store_errors_total counter")
+    for reason, count in sorted(snap["store_errors"].items()):
+        lines.append(f'state_mirror_store_errors_total{{reason="{reason}"}} {count}')
 
     return "\n".join(lines) + "\n"
 

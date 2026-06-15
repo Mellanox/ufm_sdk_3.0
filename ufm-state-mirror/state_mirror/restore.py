@@ -10,14 +10,14 @@
 # provided with the software product.
 #
 
-"""StateMirror init container: materialize Redis -> emptyDir before UFM starts
-(HLD 5.3.2 / 5.3.6 / 5.3.8).
+"""StateMirror init container: materialize the storage backend -> emptyDir
+before UFM starts (HLD 5.3.2 / 5.3.6 / 5.3.8).
 
 Runs once, to completion, as a Kubernetes init container so UFM never starts on
-partial state. Every classifier entry is either restored from Redis or, on
-first install (no stored object), seeded from its baseline. Any restore failure
-exits non-zero so the pod fails closed rather than booting UFM on incomplete
-state.
+partial state. Every classifier entry is either restored from the backend or,
+on first install (no stored object), seeded from its baseline. Any restore
+failure exits non-zero so the pod fails closed rather than booting UFM on
+incomplete state.
 """
 
 from __future__ import annotations
@@ -32,12 +32,7 @@ log = logging.getLogger("state_mirror.restore")
 
 
 def run(classifier: Classifier, store, ufm_version: str) -> int:
-    """Restore every entry from its backend (``store`` may be a per-backend map).
-
-    ``store`` is forwarded to :func:`make_handler`, so it accepts either a
-    single ``Store`` or a mapping of backend to ``Store`` for mixed
-    Redis/ConfigMap classifiers (HLD 5.2.3).
-    """
+    """Restore every entry from the install-wide ``store`` (HLD 5.2.3, 5.3.6)."""
     log.info("restore: %d classifier entries", len(classifier))
     restored, bootstrapped = 0, 0
     written_by = _written_by()
@@ -61,7 +56,7 @@ def run(classifier: Classifier, store, ufm_version: str) -> int:
 def main() -> int:
     import os
 
-    from state_mirror.backends import build_stores, default_configmap_store, default_redis_store
+    from state_mirror.backends import backend_from_env, build_store
     from state_mirror.logconfig import setup_logging
 
     global log
@@ -71,12 +66,8 @@ def main() -> int:
     log.info("state-mirror restore starting (ufm_version=%s)", ufm_version)
     try:
         classifier = Classifier.load_file(classifier_path)
-        stores = build_stores(
-            classifier,
-            redis_factory=default_redis_store,
-            configmap_factory=default_configmap_store,
-        )
-        rc = run(classifier, stores, ufm_version)
+        store = build_store(backend_from_env())
+        rc = run(classifier, store, ufm_version)
     except Exception:
         log.exception("restore failed; refusing to start UFM on incomplete state")
         return 1

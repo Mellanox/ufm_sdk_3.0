@@ -117,14 +117,9 @@ class TestRoundTrip:
         assert meta is not None
         assert meta.size_bytes == 3
 
-    def test_get_value_returns_raw_body(self, cm_store):
-        _put(cm_store, "ufm:cfg:plugins", b"abc")
-        assert cm_store.get_value("ufm:cfg:plugins") == b"abc"
-
     def test_absent_key(self, cm_store):
         assert cm_store.get("ufm:cfg:absent") is None
         assert cm_store.get_meta("ufm:cfg:absent") is None
-        assert cm_store.get_value("ufm:cfg:absent") is None
 
     def test_overwrite(self, cm_store):
         _put(cm_store, "ufm:cfg:plugins", b"v1")
@@ -207,21 +202,6 @@ class TestErrorClassification:
         with pytest.raises(wire.WireError) as ei:
             cm_store.get("ufm:cfg:plugins")
         assert ei.value.reason == "conflict"
-
-
-class TestWriteTransaction:
-    def test_puts_value_puts_and_deletes(self, cm_store):
-        _put(cm_store, "ufm:cfg:stale", b"old")
-        meta = wire.build_meta(b"new", "blob", "7.0.1", "state-mirror:test")
-        cm_store.write_transaction(
-            puts=[("ufm:cfg:a", b"new", meta)],
-            value_puts=[("ufm:cfg:ptr", b"raw-pointer")],
-            deletes=["ufm:cfg:stale"],
-        )
-        body, _ = cm_store.get("ufm:cfg:a")
-        assert body == b"new"
-        assert cm_store.get_value("ufm:cfg:ptr") == b"raw-pointer"
-        assert cm_store.get("ufm:cfg:stale") is None
 
 
 class TestConfigMapName:

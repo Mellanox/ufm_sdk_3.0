@@ -25,12 +25,12 @@ The same image runs in two roles inside the UFM pod:
   files are durable and how (handler, Redis key, change trigger, first-install
   baseline). Validated and fails closed at load.
 - **Handlers**: `blob`, `atomic_blob`, `directory` (key-per-child fan-out), and
-  `sqlite`. SQLite DBs are converted to WAL mode (on restore, before UFM starts;
-  the sidecar owns the journal mode, UFM never sets it) and made durable with
-  consistent online-backup snapshots, polled by a WAL-aware change fingerprint.
-  A DB at/above `STATE_MIRROR_WAL_THRESHOLD_BYTES` (default 256 MiB) switches to
-  incremental WAL-shipping (periodic base + epoch-tagged WAL segments); restore
-  checkpoints and `PRAGMA integrity_check`s the DB, failing closed on corruption.
+  `sqlite`. SQLite DBs are made durable with consistent online-backup snapshots
+  (snapshot-only — the whole DB is shipped when it changes, no WAL-shipping),
+  polled by a WAL-aware change fingerprint so live writes are detected whether
+  the DB is in rollback-journal or WAL mode. The handler never changes a DB's
+  journal mode; restore `PRAGMA integrity_check`s the DB, failing closed on
+  corruption.
 - **Wire format**: each file is two Redis keys — `<key>` (raw bytes) and
   `<key>:meta` (JSON: content hash, size, versions) — written in one
   transaction and verified on restore (hash/size/format), failing closed.
@@ -38,16 +38,16 @@ The same image runs in two roles inside the UFM pod:
   a periodic full scan reconciles anything events miss.
 - **Redis discovery**: Sentinel-aware (`redis_client.master_for`) so writes
   follow failovers automatically.
-- **Storage backends** (pluggable `Store`, per-entry `backend:` in the
-  classifier — HLD 5.2.3): `redis` (default) or `configmap`. The same
-  body+meta wire contract and fail-closed verification apply to both; the
-  `configmap` backend stores each key as one Kubernetes ConfigMap
-  (`binaryData` body + a `meta` field), enforces the ~1 MiB etcd object cap
-  fail-closed, and is meant only for small, low-churn config blobs. SQLite DBs
-  and large/high-churn files must stay on `redis`. Enabling `configmap` for any
-  entry requires the consumer to grant the pod's ServiceAccount ConfigMap RBAC
-  in its namespace (HLD 8.7); a Redis-only classifier needs no K8s API access
-  and never loads the kubernetes client.
+- **Storage backends** (pluggable `Store`, install-wide — HLD 5.2.3): exactly
+  one backend is selected at install time via the `STATE_MIRROR_BACKEND` env var
+  and used for every entry — there is no per-file routing. `configmap` is the
+  default; `redis` is the alternative. The same body+meta wire contract and
+  fail-closed verification apply to both. The `configmap` backend stores each
+  key as one Kubernetes ConfigMap (`binaryData` body + a `meta` field) and
+  enforces the ~1 MiB etcd object cap fail-closed, so it requires the consumer
+  to grant the pod's ServiceAccount ConfigMap RBAC in its namespace (HLD 8.7).
+  Choose `redis` (BYO Redis/Valkey) when state exceeds the ConfigMap cap or is
+  high-churn; a Redis install never loads the kubernetes client.
 
 ## Resilience model
 
@@ -67,20 +67,24 @@ The same image runs in two roles inside the UFM pod:
 ## Metrics
 
 - `state_mirror_ready` — 1 when ready.
-- `state_mirror_redis_reachable` — 1 if Redis was reachable on the last op.
+- `state_mirror_backend_reachable` — 1 if the storage backend was reachable on
+  the last op.
 - `state_mirror_watchdog_active` — 1 if the watchdog observer is running.
-- `state_mirror_last_redis_write_timestamp_seconds` — last successful write.
+- `state_mirror_last_write_timestamp_seconds` — last successful store write.
 - `state_mirror_dirty_queue_depth`, `state_mirror_pending_deletes` — backlog.
 - `state_mirror_mirror_ops_total`, `state_mirror_full_scans_total`,
-  `state_mirror_events_total`, `state_mirror_unexpected_delete_total` — counters.
+  `state_mirror_events_total` — counters.
 - `state_mirror_dropped_events_total` — deletes dropped from the bounded queue
   under the D2 drop policy (recovered by the next full-scan reconcile). A
   persistently rising value means delete durability is lagging (HLD 8.2).
-- `state_mirror_redis_errors_total{reason="..."}` — Redis op errors by
-  classified reason (`oom`, `noreplicas`, `noauth`, `noperm`, `misconf`,
-  `readonly`, `loading`, `conn`, `timeout`, `response`, `local_io`, `other`).
-  This distinguishes "alive but can't mirror" causes that Sentinel cannot see
-  and that a failover would **not** fix (HLD 8.6.2).
+- `state_mirror_store_errors_total{reason="..."}` — store op errors by
+  classified reason. The label set spans both backends: Redis reasons (`oom`,
+  `noreplicas`, `noauth`, `noperm`, `misconf`, `readonly`, `loading`,
+  `response`, `local_io`) and ConfigMap reasons (`forbidden`, `notfound`,
+  `conflict`, `toolarge`, `invalid`, `server`), plus shared `conn`, `timeout`,
+  `other`. This distinguishes "alive but can't mirror" causes — e.g. missing
+  RBAC (`forbidden`) on ConfigMap, or an OOM that a Sentinel failover would
+  **not** fix (HLD 8.6.2).
 
 The Helm chart ships an optional `ServiceMonitor` + `PrometheusRule`
 (`stateMirror.metrics.*`) that alert on these.
@@ -93,7 +97,7 @@ The Helm chart ships an optional `ServiceMonitor` + `PrometheusRule`
 | `UFM_VERSION` | `unknown` | Stamped into metadata. |
 | `STATE_MIRROR_METRICS_PORT` | `9180` | HTTP port. |
 | `STATE_MIRROR_MAX_QUEUE` | `100000` | Max pending-delete queue; drop-oldest + reconcile on overflow (D2, HLD 8.2). |
-| `STATE_MIRROR_WAL_THRESHOLD_BYTES` | `268435456` (256 MiB) | SQLite DB size at/above which the handler switches from online-backup snapshots to incremental WAL-shipping. Per-DB `wal_threshold_bytes` in the classifier overrides it. |
+| `STATE_MIRROR_BACKEND` | `configmap` | Install-wide storage backend: `configmap` (default, etcd-backed) or `redis` (BYO). Invalid values fail closed at startup. |
 | `STATE_MIRROR_LOG_LEVEL` | `INFO` | Log level. |
 | `STATE_MIRROR_LOG_TO_FILE` | `true` | Also log to `/opt/ufm/files/log/state_mirror.log`. |
 | `STATE_MIRROR_LOG_DIR` | `/opt/ufm/files/log` | File log directory. |

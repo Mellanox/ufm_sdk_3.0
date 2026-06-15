@@ -13,11 +13,12 @@
 """Redis/Valkey client construction with Sentinel-aware master discovery
 (HLD 5.2, 8.6).
 
-The sidecar always writes to the *current* Redis master. With the bundled HA
-Valkey deployment that master is discovered through Sentinel, so a failover is
-handled by re-resolving ``master_for`` rather than reconnecting to a fixed
-address. A direct (non-Sentinel) endpoint is also supported for a single-node
-or bring-your-own Redis.
+The sidecar always writes to the *current* Redis master. Redis/Valkey is
+bring-your-own (UFM does not deploy it): when the operator points the sidecar
+at a Sentinel-managed deployment, the master is discovered through Sentinel so a
+failover is handled by re-resolving ``master_for`` rather than reconnecting to a
+fixed address. A direct (non-Sentinel) endpoint is also supported for a
+single-node Redis.
 
 redis-py is imported lazily so the rest of the package (classifier, wire,
 handlers, health) stays import-light and unit testable without the dependency.

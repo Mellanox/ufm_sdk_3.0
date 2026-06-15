@@ -17,7 +17,6 @@ import os
 import pytest
 
 from state_mirror.classifier import (
-    Backend,
     Baseline,
     Classifier,
     ClassifierError,
@@ -95,77 +94,15 @@ class TestEntryValidation:
         assert e.baseline is Baseline.IMAGE
         assert e.baseline_path == "/opt/ufm/baseline/a"
 
-    def test_wal_threshold_only_for_sqlite(self):
-        with pytest.raises(ClassifierError, match="only valid for the sqlite"):
-            Entry.from_dict(_blob(wal_threshold_bytes=1024))
-
-    def test_wal_threshold_must_be_positive_int(self):
-        with pytest.raises(ClassifierError, match="wal_threshold_bytes"):
-            Entry.from_dict(
-                {
-                    "path": "/opt/ufm/files/sqlite/x.db",
-                    "handler": "sqlite",
-                    "redis_key": "ufm:sqlite:x",
-                    "wal_threshold_bytes": 0,
-                }
-            )
-
-    def test_sqlite_with_wal_threshold_ok(self):
+    def test_sqlite_minimal_ok(self):
         e = Entry.from_dict(
             {
                 "path": "/opt/ufm/files/sqlite/x.db",
                 "handler": "sqlite",
                 "redis_key": "ufm:sqlite:x",
-                "wal_threshold_bytes": 1024,
             }
         )
-        assert e.wal_threshold_bytes == 1024
-
-
-class TestBackendSelection:
-    def test_default_backend_is_redis(self):
-        assert Entry.from_dict(_blob()).backend is Backend.REDIS
-
-    def test_configmap_backend_parsed(self):
-        e = Entry.from_dict(_blob(backend="configmap"))
-        assert e.backend is Backend.CONFIGMAP
-
-    def test_invalid_backend_rejected(self):
-        with pytest.raises(ClassifierError, match="invalid backend"):
-            Entry.from_dict(_blob(backend="s3"))
-
-    def test_sqlite_on_configmap_rejected(self):
-        with pytest.raises(ClassifierError, match="not eligible for the configmap backend"):
-            Entry.from_dict(
-                {
-                    "path": "/opt/ufm/files/sqlite/x.db",
-                    "handler": "sqlite",
-                    "redis_key": "ufm:sqlite:x",
-                    "backend": "configmap",
-                }
-            )
-
-    def test_sqlite_on_redis_ok(self):
-        e = Entry.from_dict(
-            {
-                "path": "/opt/ufm/files/sqlite/x.db",
-                "handler": "sqlite",
-                "redis_key": "ufm:sqlite:x",
-                "backend": "redis",
-            }
-        )
-        assert e.backend is Backend.REDIS
-
-    def test_directory_on_configmap_allowed(self):
-        e = Entry.from_dict(
-            {
-                "path": "/opt/ufm/files/conf/plugins",
-                "handler": "directory",
-                "redis_key_prefix": "ufm:cfg:plugins:",
-                "backend": "configmap",
-            }
-        )
-        assert e.backend is Backend.CONFIGMAP
+        assert e.handler is Handler.SQLITE
 
 
 class TestClassifierDocument:
@@ -181,7 +118,7 @@ class TestClassifierDocument:
         with pytest.raises(ClassifierError, match="duplicate redis key"):
             Classifier.from_dict({"entries": [_blob(), _blob(path="/opt/ufm/files/conf/b.json")]})
 
-    def test_by_handler(self):
+    def test_len(self):
         c = Classifier.from_dict(
             {
                 "entries": [
@@ -195,7 +132,6 @@ class TestClassifierDocument:
             }
         )
         assert len(c) == 2
-        assert len(c.by_handler(Handler.SQLITE)) == 1
 
 
 class TestExampleClassifier:

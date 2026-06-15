@@ -9,14 +9,14 @@
 #   directory    fan-out: one key per child under redis_key_prefix
 #   sqlite       consistent online-backup snapshot, polled by change-counter
 #
-# backend (per-entry durable store, HLD 5.2.3): redis | configmap
-#   redis     (default) Redis/Valkey; required for SQLite DBs and any large or
-#             high-churn file.
-#   configmap small, low-churn config blobs only -- one Kubernetes ConfigMap per
-#             key, etcd-backed, hard ~1 MiB object cap (fail-closed). Enabling it
-#             requires ConfigMap RBAC on the consumer's ServiceAccount (HLD 8.7).
-#   Per-class defaults (which small files default to configmap) are an open
-#   decision (HLD D13); entries below default to redis unless shown otherwise.
+# Storage backend (install-wide, HLD 5.2.3): the sidecar mirrors EVERY entry to
+# one backend, chosen once at install time via STATE_MIRROR_BACKEND -- there is
+# no per-file backend selection. It is NOT set in this classifier.
+#   configmap (default) one Kubernetes ConfigMap per key, etcd-backed, hard
+#             ~1 MiB object cap (fail-closed). Requires ConfigMap RBAC on the
+#             consumer's ServiceAccount (HLD 8.7). No external store to run.
+#   redis     BYO Redis/Valkey; choose this when state exceeds the ConfigMap cap
+#             or is high-churn.
 #
 # baseline (first install, no key in the backend yet): image | empty | skip
 #   All entries here use `skip`: the ufm-installer init container (k8s_init.sh)
@@ -143,13 +143,8 @@ entries:
 
   # Root GUID + port-group config (port-group-regex API + SIGHUP).
   # Writer: gvvm/model/mgr/smconf_mgr.py save_port_group_regex_guids
-  # Illustrative ConfigMap-backend entry: this file is small and low-churn, so
-  # it is a good `backend: configmap` candidate (HLD 5.2.3). The `redis_key` is
-  # the logical object key on whichever backend; on configmap it maps to one
-  # ConfigMap. Requires ConfigMap RBAC (HLD 8.7). Default remains redis (D13).
   - path: /opt/ufm/files/conf/opensm/root_guid.conf
     handler: blob
-    backend: configmap
     redis_key: ufm:opensm:root_guid.conf
     trigger: watchdog
     baseline: skip
@@ -194,11 +189,10 @@ entries:
   #
   # All four DBs ship from UFM in rollback-journal mode and are small in every
   # realistic deployment (gv.db typically < 50 MiB; telemetry history is opt-in,
-  # default off). The sqlite handler converts each DB to WAL mode on restore /
-  # first mirror, takes consistent online-backup snapshots, and only switches to
-  # incremental WAL-shipping for a DB at/above `wal_threshold_bytes` (default
-  # 256 MiB, also settable globally via STATE_MIRROR_WAL_THRESHOLD_BYTES). On
-  # restore the DB is checkpointed and PRAGMA integrity_check'd (fail-closed).
+  # default off). The sqlite handler takes consistent online-backup snapshots
+  # and ships the whole DB whenever it changes (snapshot-only; no WAL-shipping).
+  # The handler never changes a DB's journal mode. On restore the DB is
+  # PRAGMA integrity_check'd (fail-closed).
   # ---------------------------------------------------------------------------
 
   # Primary UFM config/topology DB (devices, ports, links, events, policies,

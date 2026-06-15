@@ -69,10 +69,10 @@ class TestLiveness:
         status, _ct, _body = handle_request("/healthz", s)
         assert status == 200
 
-    def test_liveness_ignores_redis_down(self):
+    def test_liveness_ignores_backend_down(self):
         s = HealthState()
         s.tick(0, 0)
-        s.record_redis_down()
+        s.record_store_down()
         assert s.is_alive() is True
 
 
@@ -88,13 +88,13 @@ class TestMetrics:
         s = HealthState()
         s.mark_watching(watchdog_active=True)
         s.mark_startup_scan_done()
-        s.record_redis_ok()
+        s.record_store_ok()
         s.add_mirror_ops(3)
         s.inc_full_scans()
         s.inc_events()
         text = render_metrics(s)
         assert "state_mirror_ready 1" in text
-        assert "state_mirror_redis_reachable 1" in text
+        assert "state_mirror_backend_reachable 1" in text
         assert "state_mirror_watchdog_active 1" in text
         assert "state_mirror_mirror_ops_total 3" in text
         assert "state_mirror_full_scans_total 1" in text
@@ -107,26 +107,28 @@ class TestMetrics:
         assert status == 404
         assert body == b"not found\n"
 
-    def test_redis_errors_series_present_at_zero(self):
+    def test_store_errors_series_present_at_zero(self):
         text = render_metrics(HealthState())
-        assert 'state_mirror_redis_errors_total{reason="oom"} 0' in text
-        assert 'state_mirror_redis_errors_total{reason="conn"} 0' in text
+        # A reason from each backend's label set is pre-seeded to 0.
+        assert 'state_mirror_store_errors_total{reason="oom"} 0' in text  # redis
+        assert 'state_mirror_store_errors_total{reason="forbidden"} 0' in text  # configmap
+        assert 'state_mirror_store_errors_total{reason="conn"} 0' in text  # shared
 
-    def test_redis_errors_counter_increments_by_reason(self):
+    def test_store_errors_counter_increments_by_reason(self):
         s = HealthState()
-        s.record_redis_down("oom")
-        s.record_redis_down("oom")
-        s.record_redis_down("readonly")
+        s.record_store_down("oom")
+        s.record_store_down("oom")
+        s.record_store_down("forbidden")
         text = render_metrics(s)
-        assert 'state_mirror_redis_errors_total{reason="oom"} 2' in text
-        assert 'state_mirror_redis_errors_total{reason="readonly"} 1' in text
-        assert s.redis_reachable is False
+        assert 'state_mirror_store_errors_total{reason="oom"} 2' in text
+        assert 'state_mirror_store_errors_total{reason="forbidden"} 1' in text
+        assert s.backend_reachable is False
 
     def test_unknown_reason_buckets_to_other(self):
         s = HealthState()
-        s.record_redis_down("not-a-real-reason")
+        s.record_store_down("not-a-real-reason")
         text = render_metrics(s)
-        assert 'state_mirror_redis_errors_total{reason="other"} 1' in text
+        assert 'state_mirror_store_errors_total{reason="other"} 1' in text
 
     def test_dropped_events_counter(self):
         s = HealthState()

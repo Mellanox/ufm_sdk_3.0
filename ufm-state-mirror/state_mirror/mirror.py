@@ -10,15 +10,15 @@
 # provided with the software product.
 #
 
-"""StateMirror runtime sidecar: continuously mirror emptyDir -> Redis (HLD
-5.3.2 / 5.3.7).
+"""StateMirror runtime sidecar: continuously mirror emptyDir -> storage backend
+(HLD 5.3.2 / 5.3.7).
 
 Change detection is event-driven (watchdog) and drained on a short loop so the
-watch callback never blocks on Redis. A periodic full scan reconciles anything
-events missed, and SQLite DBs are polled by their change-counter. All Redis
-failures are caught, classified, and surfaced via the health/metrics state -- a
-Redis outage degrades mirroring but never crashes the sidecar (which would lose
-the emptyDir).
+watch callback never blocks on backend I/O. A periodic full scan reconciles
+anything events missed, and SQLite DBs are polled by their change-counter. All
+backend failures are caught, classified, and surfaced via the health/metrics
+state -- a backend outage degrades mirroring but never crashes the sidecar
+(which would lose the emptyDir).
 """
 
 from __future__ import annotations
@@ -40,13 +40,14 @@ log = logging.getLogger("state_mirror.mirror")
 # D2: upper bound on the in-memory delete queue. The dirty queue is a set keyed
 # by entry path, so it is already bounded by the number of classifier entries;
 # the delete queue fans out per directory child and is the one that can grow
-# during a long Redis outage, so it gets an explicit cap with a drop policy.
+# during a long backend outage, so it gets an explicit cap with a drop policy.
 DEFAULT_MAX_QUEUE = 100_000
 
 
 def _reason(exc: BaseException) -> str:
     """Best reason for a failed mirror op: the WireError's classified reason if
-    present (set at the Redis boundary), else classify the exception directly.
+    present (set at the store boundary, by the active backend's classifier),
+    else fall back to a generic transport/OS classification.
     """
     return getattr(exc, "reason", None) or classify_redis_error(exc)
 
@@ -76,8 +77,8 @@ class Mirror:
         self._dirty: set[str] = set()
         self._deletes: list[tuple[str, str]] = []
         self._max_queue = max(1, max_queue)
-        # Set when a delete is dropped (overflow) or fails (Redis down) so the
-        # next full scan reconciles orphaned Redis objects (D2 recovery).
+        # Set when a delete is dropped (overflow) or fails (backend down) so the
+        # next full scan reconciles orphaned stored objects (D2 recovery).
         self._delete_reconcile_needed = False
         self._last_ship: dict[str, float] = {}
         self._wakeup = threading.Event()
@@ -95,10 +96,10 @@ class Mirror:
     def _mark_delete(self, entry: Entry, fs_path: str) -> None:
         dropped = 0
         with self._lock:
-            # D2 drop policy: bound memory during a long Redis outage. When the
+            # D2 drop policy: bound memory during a long backend outage. When the
             # delete queue is full, drop the OLDEST pending delete and flag a
             # reconcile so the dropped delete is recovered by the next full scan
-            # (eventual consistency) rather than leaking a stale Redis key.
+            # (eventual consistency) rather than leaking a stale stored key.
             while len(self._deletes) >= self._max_queue:
                 self._deletes.pop(0)
                 dropped += 1
@@ -115,7 +116,7 @@ class Mirror:
         self._wakeup.set()
 
     def drain_once(self, now: float, rate_limited: bool = True) -> int:
-        """Process queued watchdog marks. Returns the number of Redis ops.
+        """Process queued watchdog marks. Returns the number of store ops.
 
         Honors each entry's ``rate_limit_ms`` so a hot file is coalesced rather
         than shipped on every event; deferred paths are requeued.
@@ -144,11 +145,11 @@ class Mirror:
                 if handler.mirror():
                     ops += 1
                 self._last_ship[path] = now
-                self.state.record_redis_ok()
+                self.state.record_store_ok()
             except Exception as exc:
                 reason = _reason(exc)
                 log.exception("event mirror failed for %s [%s]; will retry", path, reason)
-                self.state.record_redis_down(reason)
+                self.state.record_store_down(reason)
                 requeue.add(path)
         for entry_path, fs_path in deletes:
             handler = self._by_path.get(entry_path)
@@ -156,14 +157,14 @@ class Mirror:
                 continue
             try:
                 ops += self._apply_delete(handler.entry, fs_path)
-                self.state.record_redis_ok()
+                self.state.record_store_ok()
             except Exception as exc:
                 reason = _reason(exc)
                 log.exception("event delete failed for %s [%s]; will reconcile", entry_path, reason)
-                self.state.record_redis_down(reason)
+                self.state.record_store_down(reason)
                 # Don't requeue (avoids unbounded growth / busy-loop on a long
                 # outage); flag a reconcile so the next full scan drops the
-                # orphaned Redis object once Redis is reachable again (D2).
+                # orphaned stored object once the backend is reachable again (D2).
                 with self._lock:
                     self._delete_reconcile_needed = True
         if requeue:
@@ -184,21 +185,21 @@ class Mirror:
         return 1
 
     def full_scan(self) -> int:
-        """Mirror every entry whose body differs from Redis. Returns #sent.
+        """Mirror every entry whose body differs from the store. Returns #sent.
 
         Also runs a delete reconcile when a delete was previously dropped or
-        failed (D2), so orphaned Redis objects are removed once Redis recovers.
+        failed (D2), so orphaned stored objects are removed once the backend recovers.
         """
         sent = 0
         for handler in self._handlers:
             try:
                 if handler.mirror():
                     sent += 1
-                self.state.record_redis_ok()
+                self.state.record_store_ok()
             except Exception as exc:
                 reason = _reason(exc)
                 log.exception("mirror failed for %s [%s]", handler.entry.path, reason)
-                self.state.record_redis_down(reason)
+                self.state.record_store_down(reason)
         with self._lock:
             reconcile_needed = self._delete_reconcile_needed
         if reconcile_needed and self._reconcile_deletes():
@@ -210,9 +211,9 @@ class Mirror:
         return sent
 
     def _reconcile_deletes(self) -> bool:
-        """Remove Redis objects whose local file no longer exists (D2 recovery).
+        """Remove stored objects whose local file no longer exists (D2 recovery).
 
-        Returns True only if every handler reconciled without a Redis error, so
+        Returns True only if every handler reconciled without a backend error, so
         the caller keeps the reconcile flag set (and retries next scan) until it
         fully succeeds.
         """
@@ -221,14 +222,14 @@ class Mirror:
         for handler in self._handlers:
             try:
                 removed += handler.reconcile_deletes()
-                self.state.record_redis_ok()
+                self.state.record_store_ok()
             except Exception as exc:
                 reason = _reason(exc)
                 log.exception("delete reconcile failed for %s [%s]", handler.entry.path, reason)
-                self.state.record_redis_down(reason)
+                self.state.record_store_down(reason)
                 ok = False
         if removed:
-            log.warning("delete reconcile removed %d orphaned Redis object(s)", removed)
+            log.warning("delete reconcile removed %d orphaned stored object(s)", removed)
             self.state.add_mirror_ops(removed)
         return ok
 
@@ -256,11 +257,11 @@ class Mirror:
                 if handler.mirror():
                     sent += 1
                 self._sql_sigs[path] = sig
-                self.state.record_redis_ok()
+                self.state.record_store_ok()
             except Exception as exc:
                 reason = _reason(exc)
                 log.exception("sqlite snapshot failed for %s [%s]", path, reason)
-                self.state.record_redis_down(reason)
+                self.state.record_store_down(reason)
         if sent:
             self.state.add_mirror_ops(sent)
         return sent
@@ -302,7 +303,7 @@ class Mirror:
 
 
 def main() -> int:
-    from state_mirror.backends import build_stores, default_configmap_store, default_redis_store
+    from state_mirror.backends import backend_from_env, build_store
     from state_mirror.logconfig import setup_logging
 
     global log
@@ -318,13 +319,9 @@ def main() -> int:
     HealthServer(state, port=port).start()
     try:
         classifier = Classifier.load_file(classifier_path)
-        stores = build_stores(
-            classifier,
-            redis_factory=default_redis_store,
-            configmap_factory=default_configmap_store,
-        )
+        store = build_store(backend_from_env())
         mirror = Mirror(
-            classifier, stores, ufm_version, written_by, state=state, max_queue=max_queue
+            classifier, store, ufm_version, written_by, state=state, max_queue=max_queue
         )
     except Exception:
         log.exception("state-mirror sidecar failed to initialize")

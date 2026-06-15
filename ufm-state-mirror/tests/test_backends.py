@@ -10,10 +10,18 @@
 # provided with the software product.
 #
 
-"""Unit tests for per-entry backend routing (build_stores + make_handler)."""
+"""Unit tests for install-wide backend selection (backend_from_env + build_store)."""
 
-from state_mirror.backends import build_stores, selected_backends
-from state_mirror.classifier import Backend, Classifier
+import pytest
+
+from state_mirror.backends import (
+    BACKEND_ENV,
+    DEFAULT_BACKEND,
+    Backend,
+    backend_from_env,
+    build_store,
+)
+from state_mirror.classifier import Classifier
 from state_mirror.handlers import make_handler
 
 UFM_VERSION = "7.0.1"
@@ -24,12 +32,8 @@ def _classifier(*entries):
     return Classifier.from_dict({"entries": list(entries)})
 
 
-def _redis_entry(key="ufm:state:a", path="/opt/ufm/files/conf/a.json"):
+def _entry(key="ufm:state:a", path="/opt/ufm/files/conf/a.json"):
     return {"path": path, "handler": "blob", "redis_key": key}
-
-
-def _cm_entry(key="ufm:cfg:plugins", path="/opt/ufm/files/conf/plugins.json"):
-    return {"path": path, "handler": "blob", "backend": "configmap", "redis_key": key}
 
 
 class _Recorder:
@@ -41,61 +45,46 @@ class _Recorder:
         return object()  # stand-in Store
 
 
-class TestSelectedBackends:
-    def test_default_is_redis_only(self):
-        c = _classifier(_redis_entry())
-        assert selected_backends(c) == {Backend.REDIS}
+class TestBackendFromEnv:
+    def test_default_is_configmap(self, monkeypatch):
+        monkeypatch.delenv(BACKEND_ENV, raising=False)
+        assert backend_from_env() is Backend.CONFIGMAP
+        assert DEFAULT_BACKEND is Backend.CONFIGMAP
 
-    def test_mixed(self):
-        c = _classifier(_redis_entry(), _cm_entry())
-        assert selected_backends(c) == {Backend.REDIS, Backend.CONFIGMAP}
+    def test_explicit_redis(self, monkeypatch):
+        monkeypatch.setenv(BACKEND_ENV, "redis")
+        assert backend_from_env() is Backend.REDIS
+
+    def test_case_and_whitespace_insensitive(self, monkeypatch):
+        monkeypatch.setenv(BACKEND_ENV, "  ConfigMap  ")
+        assert backend_from_env() is Backend.CONFIGMAP
+
+    def test_invalid_fails_closed(self, monkeypatch):
+        monkeypatch.setenv(BACKEND_ENV, "postgres")
+        with pytest.raises(ValueError, match="invalid"):
+            backend_from_env()
 
 
-class TestBuildStores:
-    def test_pure_redis_does_not_build_configmap(self):
+class TestBuildStore:
+    def test_configmap_builds_only_configmap(self):
         redis, cm = _Recorder(), _Recorder()
-        stores = build_stores(
-            _classifier(_redis_entry()), redis_factory=redis, configmap_factory=cm
-        )
-        assert set(stores) == {Backend.REDIS}
-        assert redis.calls == 1
-        assert cm.calls == 0  # never construct the K8s client for a Redis-only classifier
-
-    def test_configmap_only_does_not_build_redis(self):
-        redis, cm = _Recorder(), _Recorder()
-        stores = build_stores(_classifier(_cm_entry()), redis_factory=redis, configmap_factory=cm)
-        assert set(stores) == {Backend.CONFIGMAP}
-        assert redis.calls == 0
+        store = build_store(Backend.CONFIGMAP, redis_factory=redis, configmap_factory=cm)
         assert cm.calls == 1
+        assert redis.calls == 0  # never construct the Redis client for a ConfigMap install
+        assert store is not None
 
-    def test_mixed_builds_both_once(self):
+    def test_redis_builds_only_redis(self):
         redis, cm = _Recorder(), _Recorder()
-        stores = build_stores(
-            _classifier(_redis_entry(), _cm_entry()),
-            redis_factory=redis,
-            configmap_factory=cm,
-        )
-        assert set(stores) == {Backend.REDIS, Backend.CONFIGMAP}
+        store = build_store(Backend.REDIS, redis_factory=redis, configmap_factory=cm)
         assert redis.calls == 1
-        assert cm.calls == 1
+        assert cm.calls == 0  # never load the K8s client for a Redis install
+        assert store is not None
 
 
-class TestMakeHandlerRouting:
-    def test_mapping_routes_per_entry_backend(self):
-        redis_store = object()
-        cm_store = object()
-        stores = {Backend.REDIS: redis_store, Backend.CONFIGMAP: cm_store}
-
-        c = _classifier(_redis_entry(), _cm_entry())
-        redis_entry, cm_entry = c.entries
-
-        h_redis = make_handler(redis_entry, stores, UFM_VERSION, WRITTEN_BY)
-        h_cm = make_handler(cm_entry, stores, UFM_VERSION, WRITTEN_BY)
-        assert h_redis.store is redis_store
-        assert h_cm.store is cm_store
-
+class TestMakeHandler:
     def test_single_store_used_for_all(self):
         only = object()
-        c = _classifier(_redis_entry())
-        h = make_handler(c.entries[0], only, UFM_VERSION, WRITTEN_BY)
-        assert h.store is only
+        c = _classifier(_entry(), _entry(key="ufm:state:b", path="/opt/ufm/files/conf/b.json"))
+        for entry in c.entries:
+            h = make_handler(entry, only, UFM_VERSION, WRITTEN_BY)
+            assert h.store is only

@@ -15,16 +15,15 @@
 A *handler* knows *what* to capture from the filesystem and *when* (blob,
 atomic-blob, directory fan-out, sqlite online-backup). A ``Store`` knows *where*
 durable state lives and how to read it back. Splitting the two axes lets the
-same handlers run against different backends without change -- Redis today
-(:class:`RedisStore`), and (for example) a ConfigMap-backed store in the future
--- so the choice of durable backing is a single, swappable component.
+same handlers run against different backends without change -- ConfigMaps
+(:class:`ConfigMapStore`, the default) or Redis (:class:`RedisStore`) -- so the
+choice of durable backing is a single, install-wide, swappable component.
 
 Each logical object is a body plus its verified metadata (:class:`wire.Meta`):
 the store persists the two atomically and, on read, verifies the body against
 the metadata (content hash / size / format version), failing closed on any
-mismatch. The interface is intentionally backend-neutral -- ``write_transaction``
-(atomic multi-key writes) and ``get_value`` (raw, meta-less pointer values) are
-both expressible on a ConfigMap backend as well as on Redis.
+mismatch. The interface is intentionally backend-neutral so the same handlers
+run unchanged against Redis or ConfigMaps.
 """
 
 from __future__ import annotations
@@ -34,7 +33,7 @@ import hashlib
 import logging
 import re
 from abc import ABC, abstractmethod
-from typing import Iterable, Optional, Protocol
+from typing import Optional, Protocol
 
 from state_mirror import wire
 from state_mirror.k8s_errors import classify_k8s_error
@@ -60,10 +59,6 @@ class Store(ABC):
         """Read just the metadata for ``key`` (``None`` if absent)."""
 
     @abstractmethod
-    def get_value(self, key: str) -> Optional[bytes]:
-        """Read a raw, meta-less value (e.g. a pointer key); ``None`` if absent."""
-
-    @abstractmethod
     def put(self, key: str, body: bytes, meta: Meta) -> None:
         """Atomically write a body together with its metadata."""
 
@@ -74,23 +69,6 @@ class Store(ABC):
     @abstractmethod
     def list_keys(self, prefix: str) -> list[str]:
         """Return every stored key (decoded) beginning with ``prefix``."""
-
-    @abstractmethod
-    def write_transaction(
-        self,
-        *,
-        puts: Iterable[tuple[str, bytes, Meta]] = (),
-        value_puts: Iterable[tuple[str, bytes]] = (),
-        deletes: Iterable[str] = (),
-        value_deletes: Iterable[str] = (),
-    ) -> None:
-        """Apply several writes/deletes atomically.
-
-        ``puts`` write body+meta pairs; ``value_puts`` write raw, meta-less
-        values; ``deletes`` drop body+meta pairs; ``value_deletes`` drop raw
-        values. Used where several keys must move together (e.g. the sqlite
-        WAL-ship base/epoch rotation), so a reader never sees a partial update.
-        """
 
 
 class RedisStore(Store):
@@ -111,9 +89,6 @@ class RedisStore(Store):
         raw = self._client.get(wire.meta_key(key))
         return Meta.from_json(raw) if raw is not None else None
 
-    def get_value(self, key: str) -> Optional[bytes]:
-        return self._client.get(key)
-
     def put(self, key: str, body: bytes, meta: Meta) -> None:
         wire.write_pair(self._client, key, body, meta)
 
@@ -126,39 +101,12 @@ class RedisStore(Store):
             keys.append(key.decode() if isinstance(key, (bytes, bytearray)) else key)
         return keys
 
-    def write_transaction(
-        self,
-        *,
-        puts: Iterable[tuple[str, bytes, Meta]] = (),
-        value_puts: Iterable[tuple[str, bytes]] = (),
-        deletes: Iterable[str] = (),
-        value_deletes: Iterable[str] = (),
-    ) -> None:
-        try:
-            pipe = self._client.pipeline(transaction=True)
-            for key, body, meta in puts:
-                pipe.set(key, body)
-                pipe.set(wire.meta_key(key), meta.to_json())
-            for key, value in value_puts:
-                pipe.set(key, value)
-            for key in deletes:
-                pipe.delete(key)
-                pipe.delete(wire.meta_key(key))
-            for key in value_deletes:
-                pipe.delete(key)
-            pipe.execute()
-        except Exception as exc:  # redis.RedisError, connection drops, etc.
-            reason = wire.classify_redis_error(exc)
-            log.error("store transaction failed [%s]: %s", reason, exc)
-            raise wire.WireError(f"store transaction failed: {exc}", reason=reason) from exc
-
 
 # --- ConfigMap backend (HLD 5.3.x) ---------------------------------------
 #
-# A second :class:`Store` for small, low-churn files (e.g. plugin enablement
-# config) that should live in the cluster's own state rather than in Redis. The
-# handlers and wire format are unchanged: the choice of backing is a swappable
-# component, selected per classifier entry (``backend: configmap``).
+# The default :class:`Store`: each key lives in the cluster's own state as one
+# ConfigMap rather than in Redis. The handlers and wire format are unchanged --
+# the backend is an install-wide, swappable component (HLD 5.2.3).
 
 # ConfigMaps are managed objects we own; this label lets ``list_keys`` enumerate
 # only ours, and the annotation carries the authoritative logical key (the
@@ -258,12 +206,34 @@ class ConfigMapStore(Store):
         cm = self._read(key)
         return self._meta_of(cm) if cm is not None else None
 
-    def get_value(self, key: str) -> Optional[bytes]:
-        cm = self._read(key)
-        return self._body_of(cm) if cm is not None else None
-
     def put(self, key: str, body: bytes, meta: Meta) -> None:
-        self._write(key, body=body, meta=meta)
+        b64 = base64.b64encode(body).decode("ascii")
+        data = {META_FIELD: meta.to_json().decode("utf-8")}
+        binary_data = {BODY_FIELD: b64}
+
+        total = len(b64) + sum(len(k) + len(v) for k, v in data.items())
+        if total > self._max:
+            log.error("%s encoded object %d bytes exceeds limit %d", key, total, self._max)
+            raise wire.WireError(
+                f"{key}: encoded object {total} bytes exceeds ConfigMap limit {self._max}",
+                reason="toolarge",
+            )
+
+        try:
+            self._api.write_cm(
+                configmap_name(key),
+                labels={MANAGED_BY_LABEL: MANAGED_BY_VALUE},
+                annotations={KEY_ANNOTATION: key},
+                data=data,
+                binary_data=binary_data,
+            )
+        except Exception as exc:
+            reason = classify_k8s_error(exc)
+            log.error(
+                "configmap write failed for %s (%d bytes) [%s]: %s", key, len(body), reason, exc
+            )
+            raise wire.WireError(f"{key}: configmap write failed: {exc}", reason=reason) from exc
+        log.debug("wrote configmap for %s (%d bytes)", key, len(body))
 
     def delete(self, key: str) -> None:
         try:
@@ -291,28 +261,6 @@ class ConfigMapStore(Store):
                 keys.append(key)
         return keys
 
-    def write_transaction(
-        self,
-        *,
-        puts: Iterable[tuple[str, bytes, Meta]] = (),
-        value_puts: Iterable[tuple[str, bytes]] = (),
-        deletes: Iterable[str] = (),
-        value_deletes: Iterable[str] = (),
-    ) -> None:
-        # Kubernetes has no multi-object transaction, so this is NOT atomic
-        # across keys. That is acceptable because ConfigMap-eligible entries are
-        # single small blobs; anything needing cross-key atomicity (e.g. the
-        # sqlite WAL-ship rotation) stays on Redis (HLD 5.2.3). Apply puts before
-        # deletes and fail closed on the first error.
-        for key, body, meta in puts:
-            self._write(key, body=body, meta=meta)
-        for key, value in value_puts:
-            self._write(key, body=value, meta=None)
-        for key in deletes:
-            self.delete(key)
-        for key in value_deletes:
-            self.delete(key)
-
     # --- internals -------------------------------------------------------
 
     def _read(self, key: str) -> Optional[dict]:
@@ -324,35 +272,6 @@ class ConfigMapStore(Store):
                 return None
             log.error("configmap read failed for %s [%s]: %s", key, reason, exc)
             raise wire.WireError(f"{key}: configmap read failed: {exc}", reason=reason) from exc
-
-    def _write(self, key: str, *, body: bytes, meta: Optional[Meta]) -> None:
-        b64 = base64.b64encode(body).decode("ascii")
-        binary_data = {BODY_FIELD: b64}
-        data = {META_FIELD: meta.to_json().decode("utf-8")} if meta is not None else {}
-
-        total = len(b64) + sum(len(k) + len(v) for k, v in data.items())
-        if total > self._max:
-            log.error("%s encoded object %d bytes exceeds limit %d", key, total, self._max)
-            raise wire.WireError(
-                f"{key}: encoded object {total} bytes exceeds ConfigMap limit {self._max}",
-                reason="toolarge",
-            )
-
-        try:
-            self._api.write_cm(
-                configmap_name(key),
-                labels={MANAGED_BY_LABEL: MANAGED_BY_VALUE},
-                annotations={KEY_ANNOTATION: key},
-                data=data,
-                binary_data=binary_data,
-            )
-        except Exception as exc:
-            reason = classify_k8s_error(exc)
-            log.error(
-                "configmap write failed for %s (%d bytes) [%s]: %s", key, len(body), reason, exc
-            )
-            raise wire.WireError(f"{key}: configmap write failed: {exc}", reason=reason) from exc
-        log.debug("wrote configmap for %s (%d bytes)", key, len(body))
 
     @staticmethod
     def _meta_of(cm: dict) -> Optional[Meta]:

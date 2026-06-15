@@ -54,32 +54,12 @@ class Baseline(str, Enum):
     SKIP = "skip"
 
 
-class Backend(str, Enum):
-    """Durable backend an entry is mirrored to (HLD 5.2.3, 5.3.11).
-
-    Chosen per entry by *size and churn*: ``configmap`` is for small,
-    low-churn config blobs (etcd-backed, ~1 MiB hard cap); everything else --
-    SQLite DBs and any large/high-churn file -- stays on ``redis`` (the
-    default). The choice only swaps the ``Store`` an entry's handler writes to;
-    the body+metadata wire contract is identical on both backends.
-    """
-
-    REDIS = "redis"
-    CONFIGMAP = "configmap"
-
-
-# Handlers that mirror to a single Redis key (everything except directory,
-# which fans out under a key prefix).
-_SINGLE_KEY_HANDLERS = {Handler.BLOB, Handler.ATOMIC_BLOB, Handler.SQLITE}
-
-
 @dataclass(frozen=True)
 class Entry:
     """A single classified path. Mirrors one HLD 5.3.3 classifier entry."""
 
     path: str
     handler: Handler
-    backend: Backend = Backend.REDIS
     redis_key: Optional[str] = None
     redis_key_prefix: Optional[str] = None
     trigger: Optional[str] = None
@@ -87,25 +67,13 @@ class Entry:
     recursive: bool = False
     baseline: Baseline = Baseline.SKIP
     baseline_path: Optional[str] = None
-    notify_on_change: Optional[str] = None
     snapshot_method: Optional[str] = None
     poll_interval_ms: int = 200
-    # sqlite only: DB-size threshold (bytes) at/above which the handler switches
-    # from full online-backup snapshots to incremental WAL-shipping. None means
-    # "use the sidecar default" (STATE_MIRROR_WAL_THRESHOLD_BYTES env, else
-    # 256 MiB). See handlers/sqlite.py.
-    wal_threshold_bytes: Optional[int] = None
     phase: Optional[int] = None
 
     @property
     def is_directory(self) -> bool:
         return self.handler is Handler.DIRECTORY
-
-    def key_for(self, child_relpath: str = "") -> str:
-        """Resolve the Redis body key for this entry (or a child, for dirs)."""
-        if self.is_directory:
-            return f"{self.redis_key_prefix}{child_relpath}"
-        return self.redis_key
 
     @staticmethod
     def from_dict(raw: dict[str, Any]) -> "Entry":
@@ -115,7 +83,6 @@ class Entry:
         if not path or not isinstance(path, str):
             raise ClassifierError("entry is missing a non-empty string 'path'")
         handler = _coerce_enum(Handler, raw.get("handler"), "handler", path)
-        backend = _coerce_enum(Backend, raw.get("backend", Backend.REDIS.value), "backend", path)
         baseline = _coerce_enum(
             Baseline, raw.get("baseline", Baseline.SKIP.value), "baseline", path
         )
@@ -123,15 +90,9 @@ class Entry:
         poll_interval_ms = _coerce_positive_int(
             raw.get("poll_interval_ms", 200), "poll_interval_ms", path
         )
-        wal_threshold_bytes = raw.get("wal_threshold_bytes")
-        if wal_threshold_bytes is not None:
-            wal_threshold_bytes = _coerce_positive_int(
-                wal_threshold_bytes, "wal_threshold_bytes", path
-            )
         entry = Entry(
             path=path,
             handler=handler,
-            backend=backend,
             redis_key=raw.get("redis_key"),
             redis_key_prefix=raw.get("redis_key_prefix"),
             trigger=raw.get("trigger"),
@@ -139,10 +100,8 @@ class Entry:
             recursive=bool(raw.get("recursive", False)),
             baseline=baseline,
             baseline_path=raw.get("baseline_path"),
-            notify_on_change=raw.get("notify_on_change"),
             snapshot_method=raw.get("snapshot_method"),
             poll_interval_ms=poll_interval_ms,
-            wal_threshold_bytes=wal_threshold_bytes,
             phase=raw.get("phase"),
         )
         entry.validate()
@@ -167,17 +126,6 @@ class Entry:
                 raise ClassifierError(
                     f"{self.path}: 'redis_key_prefix' is only valid for the directory handler"
                 )
-        if self.wal_threshold_bytes is not None and self.handler is not Handler.SQLITE:
-            raise ClassifierError(
-                f"{self.path}: 'wal_threshold_bytes' is only valid for the sqlite handler"
-            )
-        if self.backend is Backend.CONFIGMAP and self.handler is Handler.SQLITE:
-            # A DB blows past the ~1 MiB etcd object cap and is exactly the churn
-            # etcd is worst at, so SQLite is fixed to Redis (HLD 5.2.3 / 5.5).
-            raise ClassifierError(
-                f"{self.path}: sqlite handler is not eligible for the configmap backend "
-                f"(~1 MiB etcd cap); use the redis backend"
-            )
         if self.baseline is Baseline.IMAGE and not self.baseline_path:
             raise ClassifierError(f"{self.path}: baseline 'image' requires 'baseline_path'")
         if self.baseline_path and self.baseline is not Baseline.IMAGE:
@@ -232,9 +180,6 @@ class Classifier:
             if key in keys:
                 raise ClassifierError(f"duplicate redis key/prefix in classifier: {key}")
             keys.add(key)
-
-    def by_handler(self, handler: Handler) -> list[Entry]:
-        return [e for e in self.entries if e.handler is handler]
 
     def __len__(self) -> int:
         return len(self.entries)

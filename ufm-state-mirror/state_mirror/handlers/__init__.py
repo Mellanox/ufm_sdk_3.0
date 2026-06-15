@@ -12,8 +12,6 @@
 
 """StateMirror per-handler logic (HLD 5.3.2)."""
 
-from collections.abc import Mapping
-
 from state_mirror.classifier import Entry, Handler
 from state_mirror.handlers.atomic_blob import AtomicBlobHandler
 from state_mirror.handlers.base import BaseHandler
@@ -30,20 +28,16 @@ _REGISTRY = {
 
 
 def make_handler(entry: Entry, store, ufm_version: str, written_by: str) -> BaseHandler:
-    """Instantiate the handler class for a classifier entry over its store.
+    """Instantiate the handler class for a classifier entry over ``store``.
 
-    ``store`` is either a single :class:`~state_mirror.store.Store` (used for
-    every entry) or a mapping of :class:`~state_mirror.classifier.Backend` to
-    ``Store``, in which case the entry's ``backend`` selects the one to bind --
-    this is what routes a ``backend: configmap`` entry to the ConfigMap store
-    while everything else stays on Redis (HLD 5.2.3).
+    A single install-wide :class:`~state_mirror.store.Store` backs every entry;
+    the backend is chosen once at install time (HLD 5.2.3), not per file.
     """
     try:
         cls = _REGISTRY[entry.handler]
     except KeyError:  # pragma: no cover - guarded by classifier validation
         raise ValueError(f"no handler registered for {entry.handler}") from None
-    resolved = store[entry.backend] if isinstance(store, Mapping) else store
-    return cls(entry, resolved, ufm_version, written_by)
+    return cls(entry, store, ufm_version, written_by)
 
 
 __all__ = [
