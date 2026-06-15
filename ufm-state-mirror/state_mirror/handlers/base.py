@@ -107,27 +107,19 @@ class BaseHandler:
         log.info("on_delete: dropping %s from store", self.entry.redis_key)
         self.store.delete(self.entry.redis_key)
 
-    def reconcile_deletes(self) -> int:
-        """Drop this entry's stored object if the local file is gone (D2 recovery).
-
-        Recovers a delete that was lost because the delete queue overflowed or
-        the store was unreachable when it happened. Returns the number of stored
-        objects removed (0 or 1).
+    def key_for_fs_path(self, fs_path: str) -> str:
+        """Store key for a deleted local path. Single-file handlers ignore the
+        path and use their one key; the directory handler derives a per-child key.
         """
-        if os.path.exists(self.entry.path):
-            return 0
-        if self.store.get_meta(self.entry.redis_key) is None:
-            return 0
-        self.on_delete()
-        return 1
+        return self.entry.redis_key
 
     def drift_keys(self) -> list[str]:
         """Keys present in the backend but whose local file is gone (HLD 5.3.7).
 
-        Unlike :meth:`reconcile_deletes`, this never deletes -- it only reports
-        the drift so the caller can surface ``state_mirror_unexpected_delete_total``.
-        The backend object wins on ambiguity; the next restore re-materializes the
-        file. An empty list means no drift.
+        Reports drift without deleting -- the caller surfaces it via
+        ``state_mirror_unexpected_delete_total`` and the backend object wins on
+        ambiguity (the next restore re-materializes the file). An empty list means
+        no drift.
         """
         if os.path.exists(self.entry.path):
             return []

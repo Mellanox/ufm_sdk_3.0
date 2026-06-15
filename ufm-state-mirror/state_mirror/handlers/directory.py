@@ -57,12 +57,23 @@ class DirectoryHandler(BaseHandler):
 
     def restore(self) -> bool:
         count = 0
+        root = os.path.realpath(self.entry.path)
         for relpath in self._iter_redis_relpaths():
             dest = os.path.join(self.entry.path, relpath)
+            # Restore is the fail-closed boundary: a corrupt/hostile backend key
+            # containing ``..`` must not let us write outside the entry root.
+            if not self._within(root, dest):
+                log.error("restore: skipping child key with out-of-root path %r", relpath)
+                continue
             if self._restore_one(self.store, self._key_for_rel(relpath), dest) is not None:
                 count += 1
         log.info("restore: %s restored %d child file(s)", self.entry.path, count)
         return count > 0
+
+    @staticmethod
+    def _within(root: str, dest: str) -> bool:
+        real = os.path.realpath(dest)
+        return real == root or real.startswith(root + os.sep)
 
     def mirror(self) -> bool:
         sent_any = False
@@ -85,20 +96,9 @@ class DirectoryHandler(BaseHandler):
         for relpath in list(self._iter_redis_relpaths()):
             self.on_delete_child(relpath)
 
-    def reconcile_deletes(self) -> int:
-        """Delete Redis children that have no local file (orphans) (D2 recovery).
-
-        Recovers per-child deletes lost to a delete-queue overflow or a Redis
-        outage by diffing the Redis key set under the prefix against the local
-        tree. Returns the number of orphaned children removed.
-        """
-        local = {relpath for relpath, _full in self._iter_local_files()}
-        removed = 0
-        for relpath in list(self._iter_redis_relpaths()):
-            if relpath not in local:
-                self.on_delete_child(relpath)
-                removed += 1
-        return removed
+    def key_for_fs_path(self, fs_path: str) -> str:
+        """Per-child store key for a deleted file under the watched directory."""
+        return self._key_for_rel(os.path.relpath(fs_path, self.entry.path))
 
     def drift_keys(self) -> list[str]:
         """Per-child orphans: backend children with no local file (HLD 5.3.7)."""

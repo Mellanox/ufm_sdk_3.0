@@ -4,6 +4,10 @@ testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "--disable-warnings"
 
+# This component standardizes on ruff 0.6.9 (matches .github/workflows/
+# state-mirror-ci.yml). Use that version locally -- the formatter's handling of
+# dummy `...` bodies and some lint defaults differ across ruff releases, so an
+# older ruff (e.g. 0.2.x) will disagree with CI on formatting.
 [tool.ruff]
 target-version = "py39"
 include = ["state_mirror/**/*.py", "tests/**/*.py"]

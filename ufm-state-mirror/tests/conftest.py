@@ -57,6 +57,10 @@ class FakeRedis:
     def keys(self, pattern):
         return [k for k in self.store if fnmatch.fnmatch(k, pattern)]
 
+    def scan_iter(self, match=None, count=None):
+        pattern = match if match is not None else "*"
+        return iter([k for k in list(self.store) if fnmatch.fnmatch(k, pattern)])
+
 
 @pytest.fixture
 def fake_redis():

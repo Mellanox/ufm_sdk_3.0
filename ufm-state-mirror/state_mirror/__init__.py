@@ -10,9 +10,9 @@
 # provided with the software product.
 #
 
-"""StateMirror sidecar: mirrors UFM runtime state between the pod's emptyDir
-and Redis (HLD section 5.3). Ships as the ``ufm-state-mirror`` image, pinned to
-the UFM version.
+"""StateMirror sidecar: mirrors UFM runtime state between the pod's emptyDir and
+its durable backend -- a ConfigMap (default) or Redis/Valkey (HLD section 5.3).
+Ships as the standalone, consumer-agnostic ``ufm-state-mirror`` image.
 """
 
-__version__ = "0.1.0-poc"
+__version__ = "1.0.0"

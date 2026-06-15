@@ -52,8 +52,14 @@ _HEADER_MIN_SIZE = _CHANGE_COUNTER_OFFSET + _CHANGE_COUNTER_SIZE
 class SqliteHandler(BaseHandler):
     # Wall-clock (seconds) of the most recent online-backup snapshot, surfaced as
     # state_mirror_snapshot_duration_seconds{db=...} for the Phase 5 / R2 gate
-    # ("snapshot-duration headroom under load"). None until the first snapshot.
+    # ("snapshot-duration headroom under load"). None when the last mirror() did
+    # not take a snapshot (so a stale value is never re-published).
     last_snapshot_seconds: float | None = None
+    # Signature of the DB the last time we shipped (or confirmed in-sync) it, so
+    # mirror() can skip the expensive online-backup snapshot when nothing changed
+    # -- the periodic full scan calls mirror() on every entry, and a counter-only
+    # idle DB must not be re-snapshotted every cycle.
+    _last_shipped_sig: tuple | None = None
 
     # ---- change detection --------------------------------------------------
     @staticmethod
@@ -140,6 +146,8 @@ class SqliteHandler(BaseHandler):
 
     # ---- mirror ------------------------------------------------------------
     def mirror(self) -> bool:
+        # Each mirror() reports the snapshot cost only if it actually snapshots.
+        self.last_snapshot_seconds = None
         if not os.path.exists(self.entry.path):
             log.debug("mirror: sqlite db %s does not exist yet, skipping", self.entry.path)
             return False
@@ -151,8 +159,16 @@ class SqliteHandler(BaseHandler):
         if size == 0:
             log.debug("mirror: sqlite db %s is empty, skipping", self.entry.path)
             return False
+        # Cheap change fingerprint first: skip the O(DB-size) online backup when
+        # the DB is unchanged since the last successful ship (HLD 5.3.4).
+        sig = self.signature()
+        if sig == self._last_shipped_sig:
+            return False
         body = self.snapshot_bytes()
         sent = self._push_if_changed(self.entry.redis_key, body)
+        # The snapshot at this signature is now persisted (or byte-identical to
+        # what the backend already holds), so don't snapshot again until it moves.
+        self._last_shipped_sig = sig
         if sent:
             log.info(
                 "mirror: shipped sqlite snapshot %s (%d bytes) -> %s",

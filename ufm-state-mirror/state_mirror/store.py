@@ -96,8 +96,12 @@ class RedisStore(Store):
         wire.delete_pair(self._client, key)
 
     def list_keys(self, prefix: str) -> list[str]:
+        # SCAN (cursor-based), never KEYS: KEYS is O(N) and blocks the entire
+        # Redis server for the scan, which is unacceptable on a shared/large
+        # keyspace. ``scan_iter`` walks the keyspace incrementally without
+        # blocking other clients (called on directory restore and per full-scan).
         keys = []
-        for key in self._client.keys(prefix + "*"):
+        for key in self._client.scan_iter(match=prefix + "*"):
             keys.append(key.decode() if isinstance(key, (bytes, bytearray)) else key)
         return keys
 
@@ -207,6 +211,10 @@ class ConfigMapStore(Store):
         data = {META_FIELD: meta.to_json().decode("utf-8")}
         binary_data = {BODY_FIELD: b64}
 
+        # Intentionally conservative: we count the base64 length of the body,
+        # which is ~33% larger than the raw bytes etcd actually stores (base64 is
+        # only the REST/JSON representation of binaryData). This fails closed a bit
+        # early rather than risk an apiserver rejection near the ~1 MiB ceiling.
         total = len(b64) + sum(len(k) + len(v) for k, v in data.items())
         if total > self._max:
             log.error("%s encoded object %d bytes exceeds limit %d", key, total, self._max)

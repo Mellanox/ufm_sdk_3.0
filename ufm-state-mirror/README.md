@@ -74,9 +74,11 @@ The same image runs in two roles inside the UFM pod:
 - `state_mirror_dirty_queue_depth`, `state_mirror_pending_deletes` — backlog.
 - `state_mirror_mirror_ops_total`, `state_mirror_full_scans_total`,
   `state_mirror_events_total` — counters.
-- `state_mirror_dropped_events_total` — deletes dropped from the bounded queue
-  under the D2 drop policy (recovered by the next full-scan reconcile). A
-  persistently rising value means delete durability is lagging (HLD 8.2).
+- `state_mirror_dropped_events_total` — observed deletes dropped from the bounded
+  queue under the D2 drop policy (oldest dropped first during a long outage).
+  A dropped delete is **not** propagated: the file stays in the backend and is
+  re-materialized on the next restore (the backend wins). A persistently rising
+  value means delete durability is lagging (HLD 8.2).
 - `state_mirror_unexpected_delete_total` — files gone from `emptyDir` but still
   present in the backend, detected at full scan **without** an observed delete
   (unobserved drift, HLD 5.3.7/5.3.9). The backend object is kept (it wins on
@@ -104,7 +106,7 @@ The Helm chart ships an optional `ServiceMonitor` + `PrometheusRule`
 | `CLASSIFIER_PATH` | `/etc/state_mirror/state_mirror.yaml` | Classifier file. |
 | `UFM_VERSION` | `unknown` | Stamped into metadata. |
 | `STATE_MIRROR_METRICS_PORT` | `9180` | HTTP port. |
-| `STATE_MIRROR_MAX_QUEUE` | `100000` | Max pending-delete queue; drop-oldest + reconcile on overflow (D2, HLD 8.2). |
+| `STATE_MIRROR_MAX_QUEUE` | `100000` | Max observed-delete queue; drop-oldest on overflow (dropped deletes fall back to backend-wins, D2/HLD 8.2). |
 | `STATE_MIRROR_BACKEND` | `configmap` | Install-wide storage backend: `configmap` (default, etcd-backed) or `redis` (BYO). Invalid values fail closed at startup. |
 | `STATE_MIRROR_LOG_LEVEL` | `INFO` | Log level. |
 | `STATE_MIRROR_LOG_TO_FILE` | `true` | Also log to `/opt/ufm/files/log/state_mirror.log`. |

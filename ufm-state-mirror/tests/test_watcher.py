@@ -195,6 +195,7 @@ class TestDrain:
         m._mark_dirty(entry)
         m.drain_once(now=0.0)
         assert fake_redis.get("ufm:pkey") == b"v1"
+        p.unlink()  # a real delete event means the file is actually gone
         m._mark_delete(entry, str(p))
         m.drain_once(now=1.0)
         assert fake_redis.get("ufm:pkey") is None
@@ -211,6 +212,7 @@ class TestDrain:
         m._mark_dirty(entry)
         m.drain_once(now=0.0)
         assert fake_redis.get("ufm:plugins:a.conf") == b"AAA"
+        (root / "a.conf").unlink()  # real delete event -> file is actually gone
         m._mark_delete(entry, str(root / "a.conf"))
         m.drain_once(now=1.0)
         assert fake_redis.get("ufm:plugins:a.conf") is None

@@ -88,6 +88,19 @@ class HealthState:
             self.dirty_queue_depth = dirty_depth
             self.pending_deletes = pending_deletes
 
+    def heartbeat(self) -> None:
+        """Mark forward progress without touching the queue depths.
+
+        Called from inside the long scan/drain loops so a slow backend (e.g. a
+        high-latency apiserver on the ConfigMap path, or a large SQLite snapshot)
+        keeps the liveness probe satisfied between ``tick`` calls. Without this a
+        single scan that runs longer than ``LIVENESS_TIMEOUT_S`` would get the pod
+        killed -- which would lose the emptyDir, the one thing we must never do.
+        """
+        with self._lock:
+            self.loop_started = True
+            self.last_loop_tick = time.monotonic()
+
     def record_store_ok(self) -> None:
         with self._lock:
             self.backend_reachable = True

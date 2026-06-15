@@ -27,6 +27,7 @@ import logging
 import os
 import threading
 import time
+from collections import OrderedDict
 
 from state_mirror.classifier import Classifier, Entry, Handler
 from state_mirror.handlers import make_handler
@@ -67,19 +68,21 @@ class Mirror:
             make_handler(e, store, ufm_version, written_by) for e in classifier.entries
         ]
         self._by_path = {h.entry.path: h for h in self._handlers}
-        # Per-sqlite-DB change fingerprint and last-poll time, so a DB is only
-        # snapshotted when it changed and no more often than its poll_interval_ms.
-        self._sql_sigs: dict[str, tuple] = {}
+        # Per-sqlite-DB last-poll time so a DB is fingerprinted no more often than
+        # its poll_interval_ms. The change fingerprint itself lives on the handler
+        # (SqliteHandler gates its own snapshot), so there is no signature cache here.
         self._sql_last_poll: dict[str, float] = {}
         self.state = state or HealthState()
         self._resolver = PathResolver(classifier.entries)
         self._lock = threading.Lock()
         self._dirty: set[str] = set()
-        self._deletes: list[tuple[str, str]] = []
+        # Deletes the sidecar actually *observed* (watchdog delete/move-out),
+        # awaiting propagation. Keyed by store key so duplicates collapse and the
+        # drift scan can exclude them; value is (entry_path, fs_path). Only keys in
+        # here are ever removed from the backend -- an unobserved missing file is
+        # drift, never a delete (HLD 5.3.7/5.3.9, "the backend wins on ambiguity").
+        self._pending_deletes: OrderedDict[str, tuple[str, str]] = OrderedDict()
         self._max_queue = max(1, max_queue)
-        # Set when a delete is dropped (overflow) or fails (backend down) so the
-        # next full scan reconciles orphaned stored objects (D2 recovery).
-        self._delete_reconcile_needed = False
         # Keys already counted as unobserved drift (file gone but backend has it),
         # so persistent drift bumps state_mirror_unexpected_delete_total once per
         # onset rather than every scan (HLD 5.3.7).
@@ -98,20 +101,27 @@ class Mirror:
         self._wakeup.set()
 
     def _mark_delete(self, entry: Entry, fs_path: str) -> None:
+        handler = self._by_path.get(entry.path)
+        if handler is None:
+            return
+        key = handler.key_for_fs_path(fs_path)
         dropped = 0
         with self._lock:
-            # D2 drop policy: bound memory during a long backend outage. When the
-            # delete queue is full, drop the OLDEST pending delete and flag a
-            # reconcile so the dropped delete is recovered by the next full scan
-            # (eventual consistency) rather than leaking a stale stored key.
-            while len(self._deletes) >= self._max_queue:
-                self._deletes.pop(0)
+            # Collapse duplicate observations of the same key; keep it newest.
+            self._pending_deletes.pop(key, None)
+            self._pending_deletes[key] = (entry.path, fs_path)
+            # D2 drop policy: bound memory during a long backend outage by dropping
+            # the OLDEST pending delete (O(1) on an OrderedDict). A dropped delete
+            # is simply not propagated -- the file stays in the backend and is
+            # re-materialized on the next restore (the backend wins), so we never
+            # leak unbounded memory and never mistakenly delete on ambiguity.
+            while len(self._pending_deletes) > self._max_queue:
+                self._pending_deletes.popitem(last=False)
                 dropped += 1
-                self._delete_reconcile_needed = True
-            self._deletes.append((entry.path, fs_path))
         if dropped:
             log.warning(
-                "delete queue full (max=%d); dropped %d oldest delete(s), will reconcile",
+                "delete queue full (max=%d); dropped %d oldest delete(s); "
+                "those files stay in the backend until next restore",
                 self._max_queue,
                 dropped,
             )
@@ -127,12 +137,11 @@ class Mirror:
         """
         with self._lock:
             dirty = list(self._dirty)
-            deletes = list(self._deletes)
             self._dirty = set()
-            self._deletes = []
         ops = 0
         requeue: set[str] = set()
         for path in dirty:
+            self.state.heartbeat()
             handler = self._by_path.get(path)
             if handler is None:
                 continue
@@ -155,47 +164,63 @@ class Mirror:
                 log.exception("event mirror failed for %s [%s]; will retry", path, reason)
                 self.state.record_store_down(reason)
                 requeue.add(path)
-        for entry_path, fs_path in deletes:
-            handler = self._by_path.get(entry_path)
-            if handler is None:
-                continue
-            try:
-                ops += self._apply_delete(handler.entry, fs_path)
-                self.state.record_store_ok()
-            except Exception as exc:
-                reason = _reason(exc)
-                log.exception("event delete failed for %s [%s]; will reconcile", entry_path, reason)
-                self.state.record_store_down(reason)
-                # Don't requeue (avoids unbounded growth / busy-loop on a long
-                # outage); flag a reconcile so the next full scan drops the
-                # orphaned stored object once the backend is reachable again (D2).
-                with self._lock:
-                    self._delete_reconcile_needed = True
         if requeue:
             with self._lock:
                 self._dirty |= requeue
+        ops += self.flush_pending_deletes()
         if ops:
             self.state.add_mirror_ops(ops)
         return ops
 
-    def _apply_delete(self, entry: Entry, fs_path: str) -> int:
-        handler = self._by_path.get(entry.path)
+    def flush_pending_deletes(self) -> int:
+        """Propagate observed deletes to the backend; retry the ones that failed.
+
+        Only keys the sidecar actually observed being deleted are in
+        ``_pending_deletes``, so this never removes a backend object for a file
+        that merely went missing unobserved (that is drift -- see
+        :meth:`_scan_unexpected_deletes`). A delete whose file reappeared before
+        we propagated it is dropped (no longer a delete). Returns ops applied.
+        """
+        with self._lock:
+            items = list(self._pending_deletes.items())
+        ops = 0
+        for key, (entry_path, fs_path) in items:
+            self.state.heartbeat()
+            if os.path.exists(fs_path):
+                with self._lock:
+                    self._pending_deletes.pop(key, None)
+                continue
+            try:
+                self._apply_delete(entry_path, fs_path)
+                with self._lock:
+                    self._pending_deletes.pop(key, None)
+                ops += 1
+                self.state.record_store_ok()
+            except Exception as exc:
+                reason = _reason(exc)
+                log.exception("delete failed for %s [%s]; will retry next cycle", key, reason)
+                self.state.record_store_down(reason)
+        return ops
+
+    def _apply_delete(self, entry_path: str, fs_path: str) -> None:
+        handler = self._by_path.get(entry_path)
         if handler is None:
-            return 0
-        if entry.is_directory:
-            handler.on_delete_child(os.path.relpath(fs_path, entry.path))
+            return
+        if handler.entry.is_directory:
+            handler.on_delete_child(os.path.relpath(fs_path, entry_path))
         else:
             handler.on_delete()
-        return 1
 
     def full_scan(self) -> int:
         """Mirror every entry whose body differs from the store. Returns #sent.
 
-        Also runs a delete reconcile when a delete was previously dropped or
-        failed (D2), so orphaned stored objects are removed once the backend recovers.
+        Also retries any observed-but-unpropagated deletes and accounts for
+        unobserved drift (HLD 5.3.7). Heartbeats per entry so a slow backend can
+        extend the scan without tripping the liveness probe.
         """
         sent = 0
         for handler in self._handlers:
+            self.state.heartbeat()
             try:
                 if handler.mirror():
                     sent += 1
@@ -204,19 +229,12 @@ class Mirror:
                 reason = _reason(exc)
                 log.exception("mirror failed for %s [%s]", handler.entry.path, reason)
                 self.state.record_store_down(reason)
-        with self._lock:
-            reconcile_needed = self._delete_reconcile_needed
-        if reconcile_needed:
-            if self._reconcile_deletes():
-                with self._lock:
-                    self._delete_reconcile_needed = False
-        else:
-            # No intended delete is pending, so a file that is gone locally but
-            # still in the backend is *unobserved* drift -- count it, keep the key.
-            self._scan_unexpected_deletes()
+        flushed = self.flush_pending_deletes()
+        self._scan_unexpected_deletes()
         self.state.inc_full_scans()
-        if sent:
-            self.state.add_mirror_ops(sent)
+        total = sent + flushed
+        if total:
+            self.state.add_mirror_ops(total)
         return sent
 
     def _scan_unexpected_deletes(self) -> int:
@@ -224,17 +242,23 @@ class Mirror:
 
         Does not delete anything (the backend wins on ambiguity); only bumps
         ``state_mirror_unexpected_delete_total`` for keys newly entering drift, so
-        the gap is visible instead of silent. Returns the number of newly-drifted keys.
+        the gap is visible instead of silent. Keys with an observed delete still
+        pending propagation are excluded -- those are intended deletes, not drift.
+        Returns the number of newly-drifted keys. Reads only, so it never updates
+        the last-write timestamp (which would mask mirror lag).
         """
+        with self._lock:
+            pending = set(self._pending_deletes)
         current: set[str] = set()
         for handler in self._handlers:
+            self.state.heartbeat()
             try:
                 current.update(handler.drift_keys())
-                self.state.record_store_ok()
             except Exception as exc:
                 reason = _reason(exc)
                 log.exception("drift check failed for %s [%s]", handler.entry.path, reason)
                 self.state.record_store_down(reason)
+        current -= pending
         new_drift = current - self._known_drift
         self._known_drift = current
         if new_drift:
@@ -246,29 +270,6 @@ class Mirror:
             )
             self.state.inc_unexpected_deletes(len(new_drift))
         return len(new_drift)
-
-    def _reconcile_deletes(self) -> bool:
-        """Remove stored objects whose local file no longer exists (D2 recovery).
-
-        Returns True only if every handler reconciled without a backend error, so
-        the caller keeps the reconcile flag set (and retries next scan) until it
-        fully succeeds.
-        """
-        ok = True
-        removed = 0
-        for handler in self._handlers:
-            try:
-                removed += handler.reconcile_deletes()
-                self.state.record_store_ok()
-            except Exception as exc:
-                reason = _reason(exc)
-                log.exception("delete reconcile failed for %s [%s]", handler.entry.path, reason)
-                self.state.record_store_down(reason)
-                ok = False
-        if removed:
-            log.warning("delete reconcile removed %d orphaned stored object(s)", removed)
-            self.state.add_mirror_ops(removed)
-        return ok
 
     def poll_sqlite(self, now: float | None = None) -> int:
         now = time.monotonic() if now is None else now
@@ -286,14 +287,12 @@ class Mirror:
             if last is not None and (now - last) < interval_s:
                 continue
             self._sql_last_poll[path] = now
-            # WAL-aware change fingerprint: skip if nothing changed.
-            sig = handler.signature()
-            if sig == self._sql_sigs.get(path):
-                continue
+            self.state.heartbeat()
             try:
+                # mirror() self-gates on the WAL-aware fingerprint, so an idle DB
+                # is just a cheap header read; only an actual change snapshots.
                 if handler.mirror():
                     sent += 1
-                self._sql_sigs[path] = sig
                 if handler.last_snapshot_seconds is not None:
                     self.state.set_snapshot_duration(
                         os.path.basename(path), handler.last_snapshot_seconds
@@ -337,7 +336,7 @@ class Mirror:
                     last_scan = now
                 with self._lock:
                     dirty_depth = len(self._dirty)
-                    pending = len(self._deletes)
+                    pending = len(self._pending_deletes)
                 self.state.tick(dirty_depth=dirty_depth, pending_deletes=pending)
             except Exception:
                 log.exception("mirror loop iteration failed; retrying")
