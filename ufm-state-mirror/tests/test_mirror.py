@@ -173,6 +173,40 @@ class TestDeleteReconcile:
         assert m._delete_reconcile_needed is False
 
 
+class TestUnexpectedDelete:
+    def test_full_scan_counts_drift_and_keeps_key(self, fake_redis, tmp_path):
+        f = tmp_path / "o.conf"
+        f.write_bytes(b"X")
+        m = _mirror(_blob_classifier(f), fake_redis)
+        m.full_scan()
+        assert fake_redis.get("ufm:state:o") == b"X"
+
+        # File vanishes WITHOUT an observed delete (no reconcile flag) -> drift.
+        f.unlink()
+        m.full_scan()
+        # Backend key is kept (it wins on ambiguity, HLD 5.3.7)...
+        assert fake_redis.get("ufm:state:o") == b"X"
+        # ...and the drift is surfaced exactly once.
+        assert m.state.unexpected_deletes_total == 1
+
+        # Persistent drift is not double-counted on the next scan.
+        m.full_scan()
+        assert m.state.unexpected_deletes_total == 1
+
+    def test_drift_not_counted_when_reconcile_pending(self, fake_redis, tmp_path):
+        f = tmp_path / "o.conf"
+        f.write_bytes(b"X")
+        m = _mirror(_blob_classifier(f), fake_redis)
+        m.full_scan()
+
+        # An *intended* delete (reconcile flag set) is propagated, not counted.
+        f.unlink()
+        m._delete_reconcile_needed = True
+        m.full_scan()
+        assert fake_redis.get("ufm:state:o") is None
+        assert m.state.unexpected_deletes_total == 0
+
+
 class TestDrainFailureFlagsReconcile:
     def test_failed_event_delete_sets_reconcile_flag(self, tmp_path):
         f = tmp_path / "o.conf"

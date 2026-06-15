@@ -77,7 +77,15 @@ The same image runs in two roles inside the UFM pod:
 - `state_mirror_dropped_events_total` — deletes dropped from the bounded queue
   under the D2 drop policy (recovered by the next full-scan reconcile). A
   persistently rising value means delete durability is lagging (HLD 8.2).
-- `state_mirror_store_errors_total{reason="..."}` — store op errors by
+- `state_mirror_unexpected_delete_total` — files gone from `emptyDir` but still
+  present in the backend, detected at full scan **without** an observed delete
+  (unobserved drift, HLD 5.3.7/5.3.9). The backend object is kept (it wins on
+  ambiguity; the next restore re-materializes the file); this counter only makes
+  the drift visible. Counted once per drift onset, not per scan.
+- `state_mirror_snapshot_duration_seconds{db="..."}` — wall-clock of the last
+  SQLite online-backup snapshot per DB (basename label), for snapshot-duration
+  headroom under load (HLD 5.3.4 / Phase 5 / R2).
+- `state_mirror_backend_errors_total{reason="..."}` — backend op errors by
   classified reason. The label set spans both backends: Redis reasons (`oom`,
   `noreplicas`, `noauth`, `noperm`, `misconf`, `readonly`, `loading`,
   `response`, `local_io`) and ConfigMap reasons (`forbidden`, `notfound`,

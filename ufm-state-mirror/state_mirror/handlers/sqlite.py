@@ -36,6 +36,7 @@ import logging
 import os
 import sqlite3
 import tempfile
+import time
 
 from state_mirror.handlers.base import BaseHandler
 
@@ -49,6 +50,11 @@ _HEADER_MIN_SIZE = _CHANGE_COUNTER_OFFSET + _CHANGE_COUNTER_SIZE
 
 
 class SqliteHandler(BaseHandler):
+    # Wall-clock (seconds) of the most recent online-backup snapshot, surfaced as
+    # state_mirror_snapshot_duration_seconds{db=...} for the Phase 5 / R2 gate
+    # ("snapshot-duration headroom under load"). None until the first snapshot.
+    last_snapshot_seconds: float | None = None
+
     # ---- change detection --------------------------------------------------
     @staticmethod
     def _wal_path(db_path: str) -> str:
@@ -96,10 +102,15 @@ class SqliteHandler(BaseHandler):
 
     # ---- snapshot (online backup) -----------------------------------------
     def snapshot_bytes(self) -> bytes:
-        """Consistent copy of the live DB via the SQLite online backup API."""
+        """Consistent copy of the live DB via the SQLite online backup API.
+
+        Records the wall-clock of the backup in :attr:`last_snapshot_seconds` so
+        the loop can publish ``state_mirror_snapshot_duration_seconds`` (HLD 5.3.4).
+        """
         fd, tmp = tempfile.mkstemp(prefix="statemirror-sqlite-", suffix=".db")
         os.close(fd)
         try:
+            started = time.perf_counter()
             src = sqlite3.connect(f"file:{self.entry.path}?mode=ro", uri=True, timeout=30.0)
             try:
                 dst = sqlite3.connect(tmp, timeout=30.0)
@@ -109,6 +120,7 @@ class SqliteHandler(BaseHandler):
                     dst.close()
             finally:
                 src.close()
+            self.last_snapshot_seconds = time.perf_counter() - started
             with open(tmp, "rb") as f:
                 return f.read()
         except sqlite3.Error as exc:

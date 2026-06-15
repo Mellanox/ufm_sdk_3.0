@@ -44,7 +44,7 @@ LIVENESS_TIMEOUT_S = 30.0
 
 # The error-reason label set spans both backends so every series is present in
 # /metrics regardless of which one is selected at install time (HLD 8.6.2).
-STORE_ERROR_REASONS: tuple[str, ...] = tuple(
+BACKEND_ERROR_REASONS: tuple[str, ...] = tuple(
     sorted(set(REDIS_ERROR_REASONS) | set(K8S_ERROR_REASONS))
 )
 
@@ -61,13 +61,16 @@ class HealthState:
         self.last_loop_tick = 0.0
         self.backend_reachable = False
         self.last_store_write = 0.0
-        self.store_errors = {reason: 0 for reason in STORE_ERROR_REASONS}
+        self.backend_errors = {reason: 0 for reason in BACKEND_ERROR_REASONS}
         self.mirror_ops_total = 0
         self.full_scans_total = 0
         self.events_total = 0
         self.dropped_events_total = 0
+        self.unexpected_deletes_total = 0
         self.dirty_queue_depth = 0
         self.pending_deletes = 0
+        # Last snapshot wall-clock per SQLite DB (basename label), HLD 5.3.4.
+        self.snapshot_durations: dict[str, float] = {}
 
     def mark_watching(self, watchdog_active: bool) -> None:
         with self._lock:
@@ -93,9 +96,9 @@ class HealthState:
     def record_store_down(self, reason: str = "other") -> None:
         with self._lock:
             self.backend_reachable = False
-            if reason not in self.store_errors:
+            if reason not in self.backend_errors:
                 reason = "other"
-            self.store_errors[reason] += 1
+            self.backend_errors[reason] += 1
 
     def add_mirror_ops(self, n: int) -> None:
         with self._lock:
@@ -113,6 +116,21 @@ class HealthState:
         with self._lock:
             self.dropped_events_total += n
 
+    def inc_unexpected_deletes(self, n: int = 1) -> None:
+        """Count files gone from emptyDir but still present in the backend.
+
+        Surfaces unobserved drift (HLD 5.3.7/5.3.9). The backend object is kept;
+        this is observability only, so an "alive but silently drifting" pod is
+        visible instead of failing closed.
+        """
+        with self._lock:
+            self.unexpected_deletes_total += n
+
+    def set_snapshot_duration(self, db: str, seconds: float) -> None:
+        """Record the last online-backup wall-clock for a SQLite DB (HLD 5.3.4)."""
+        with self._lock:
+            self.snapshot_durations[db] = seconds
+
     def is_ready(self) -> bool:
         with self._lock:
             return self.watching_started and self.startup_scan_done
@@ -128,7 +146,8 @@ class HealthState:
     def snapshot(self) -> dict:
         with self._lock:
             snap = dict(self.__dict__)
-            snap["store_errors"] = dict(self.store_errors)
+            snap["backend_errors"] = dict(self.backend_errors)
+            snap["snapshot_durations"] = dict(self.snapshot_durations)
         return snap
 
 
@@ -176,11 +195,25 @@ def render_metrics(state: HealthState) -> str:
         "recovered by the next full-scan delete reconcile",
         snap["dropped_events_total"],
     )
+    counter(
+        "state_mirror_unexpected_delete_total",
+        "Files gone from emptyDir but still present in the backend (unobserved "
+        "drift, HLD 5.3.7/5.3.9); the backend object is kept (it wins on ambiguity)",
+        snap["unexpected_deletes_total"],
+    )
 
-    lines.append("# HELP state_mirror_store_errors_total Store op errors by classified reason")
-    lines.append("# TYPE state_mirror_store_errors_total counter")
-    for reason, count in sorted(snap["store_errors"].items()):
-        lines.append(f'state_mirror_store_errors_total{{reason="{reason}"}} {count}')
+    lines.append("# HELP state_mirror_backend_errors_total Backend op errors by classified reason")
+    lines.append("# TYPE state_mirror_backend_errors_total counter")
+    for reason, count in sorted(snap["backend_errors"].items()):
+        lines.append(f'state_mirror_backend_errors_total{{reason="{reason}"}} {count}')
+
+    lines.append(
+        "# HELP state_mirror_snapshot_duration_seconds "
+        "Wall-clock of the last SQLite online-backup snapshot per DB"
+    )
+    lines.append("# TYPE state_mirror_snapshot_duration_seconds gauge")
+    for db, seconds in sorted(snap["snapshot_durations"].items()):
+        lines.append(f'state_mirror_snapshot_duration_seconds{{db="{db}"}} {seconds}')
 
     return "\n".join(lines) + "\n"
 

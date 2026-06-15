@@ -121,6 +121,20 @@ class BaseHandler:
         self.on_delete()
         return 1
 
+    def drift_keys(self) -> list[str]:
+        """Keys present in the backend but whose local file is gone (HLD 5.3.7).
+
+        Unlike :meth:`reconcile_deletes`, this never deletes -- it only reports
+        the drift so the caller can surface ``state_mirror_unexpected_delete_total``.
+        The backend object wins on ambiguity; the next restore re-materializes the
+        file. An empty list means no drift.
+        """
+        if os.path.exists(self.entry.path):
+            return []
+        if self.store.get_meta(self.entry.redis_key) is None:
+            return []
+        return [self.entry.redis_key]
+
     def _push_if_changed(self, key: str, body: bytes) -> bool:
         meta = self.store.get_meta(key)
         if meta is not None and meta.content_hash == wire.content_hash(body):

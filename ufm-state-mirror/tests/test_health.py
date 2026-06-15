@@ -107,34 +107,50 @@ class TestMetrics:
         assert status == 404
         assert body == b"not found\n"
 
-    def test_store_errors_series_present_at_zero(self):
+    def test_backend_errors_series_present_at_zero(self):
         text = render_metrics(HealthState())
         # A reason from each backend's label set is pre-seeded to 0.
-        assert 'state_mirror_store_errors_total{reason="oom"} 0' in text  # redis
-        assert 'state_mirror_store_errors_total{reason="forbidden"} 0' in text  # configmap
-        assert 'state_mirror_store_errors_total{reason="conn"} 0' in text  # shared
+        assert 'state_mirror_backend_errors_total{reason="oom"} 0' in text  # redis
+        assert 'state_mirror_backend_errors_total{reason="forbidden"} 0' in text  # configmap
+        assert 'state_mirror_backend_errors_total{reason="conn"} 0' in text  # shared
 
-    def test_store_errors_counter_increments_by_reason(self):
+    def test_backend_errors_counter_increments_by_reason(self):
         s = HealthState()
         s.record_store_down("oom")
         s.record_store_down("oom")
         s.record_store_down("forbidden")
         text = render_metrics(s)
-        assert 'state_mirror_store_errors_total{reason="oom"} 2' in text
-        assert 'state_mirror_store_errors_total{reason="forbidden"} 1' in text
+        assert 'state_mirror_backend_errors_total{reason="oom"} 2' in text
+        assert 'state_mirror_backend_errors_total{reason="forbidden"} 1' in text
         assert s.backend_reachable is False
 
     def test_unknown_reason_buckets_to_other(self):
         s = HealthState()
         s.record_store_down("not-a-real-reason")
         text = render_metrics(s)
-        assert 'state_mirror_store_errors_total{reason="other"} 1' in text
+        assert 'state_mirror_backend_errors_total{reason="other"} 1' in text
 
     def test_dropped_events_counter(self):
         s = HealthState()
         assert "state_mirror_dropped_events_total 0" in render_metrics(s)
         s.inc_dropped_events(5)
         assert "state_mirror_dropped_events_total 5" in render_metrics(s)
+
+    def test_unexpected_delete_counter(self):
+        s = HealthState()
+        assert "state_mirror_unexpected_delete_total 0" in render_metrics(s)
+        s.inc_unexpected_deletes(2)
+        assert "state_mirror_unexpected_delete_total 3" not in render_metrics(s)
+        s.inc_unexpected_deletes()
+        assert "state_mirror_unexpected_delete_total 3" in render_metrics(s)
+
+    def test_snapshot_duration_gauge_labeled_by_db(self):
+        s = HealthState()
+        # Present (with HELP/TYPE) even before any snapshot.
+        assert "state_mirror_snapshot_duration_seconds" in render_metrics(s)
+        s.set_snapshot_duration("gv.db", 0.42)
+        text = render_metrics(s)
+        assert 'state_mirror_snapshot_duration_seconds{db="gv.db"} 0.42' in text
 
 
 class TestLiveServer:

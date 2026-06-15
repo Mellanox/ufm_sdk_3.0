@@ -80,6 +80,10 @@ class Mirror:
         # Set when a delete is dropped (overflow) or fails (backend down) so the
         # next full scan reconciles orphaned stored objects (D2 recovery).
         self._delete_reconcile_needed = False
+        # Keys already counted as unobserved drift (file gone but backend has it),
+        # so persistent drift bumps state_mirror_unexpected_delete_total once per
+        # onset rather than every scan (HLD 5.3.7).
+        self._known_drift: set[str] = set()
         self._last_ship: dict[str, float] = {}
         self._wakeup = threading.Event()
         self._event_handler = MirrorEventHandler(
@@ -202,13 +206,46 @@ class Mirror:
                 self.state.record_store_down(reason)
         with self._lock:
             reconcile_needed = self._delete_reconcile_needed
-        if reconcile_needed and self._reconcile_deletes():
-            with self._lock:
-                self._delete_reconcile_needed = False
+        if reconcile_needed:
+            if self._reconcile_deletes():
+                with self._lock:
+                    self._delete_reconcile_needed = False
+        else:
+            # No intended delete is pending, so a file that is gone locally but
+            # still in the backend is *unobserved* drift -- count it, keep the key.
+            self._scan_unexpected_deletes()
         self.state.inc_full_scans()
         if sent:
             self.state.add_mirror_ops(sent)
         return sent
+
+    def _scan_unexpected_deletes(self) -> int:
+        """Count keys present in the backend whose local file vanished (HLD 5.3.7).
+
+        Does not delete anything (the backend wins on ambiguity); only bumps
+        ``state_mirror_unexpected_delete_total`` for keys newly entering drift, so
+        the gap is visible instead of silent. Returns the number of newly-drifted keys.
+        """
+        current: set[str] = set()
+        for handler in self._handlers:
+            try:
+                current.update(handler.drift_keys())
+                self.state.record_store_ok()
+            except Exception as exc:
+                reason = _reason(exc)
+                log.exception("drift check failed for %s [%s]", handler.entry.path, reason)
+                self.state.record_store_down(reason)
+        new_drift = current - self._known_drift
+        self._known_drift = current
+        if new_drift:
+            log.warning(
+                "drift: %d object(s) present in backend but missing locally; "
+                "keeping backend copy (HLD 5.3.7): %s",
+                len(new_drift),
+                sorted(new_drift),
+            )
+            self.state.inc_unexpected_deletes(len(new_drift))
+        return len(new_drift)
 
     def _reconcile_deletes(self) -> bool:
         """Remove stored objects whose local file no longer exists (D2 recovery).
@@ -257,6 +294,10 @@ class Mirror:
                 if handler.mirror():
                     sent += 1
                 self._sql_sigs[path] = sig
+                if handler.last_snapshot_seconds is not None:
+                    self.state.set_snapshot_duration(
+                        os.path.basename(path), handler.last_snapshot_seconds
+                    )
                 self.state.record_store_ok()
             except Exception as exc:
                 reason = _reason(exc)
