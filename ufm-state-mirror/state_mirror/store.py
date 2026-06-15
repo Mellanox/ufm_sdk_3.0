@@ -157,8 +157,7 @@ class ConfigMapApi(Protocol):
     :mod:`state_mirror.k8s_client` and imports the client lazily.
     """
 
-    def read_cm(self, name: str) -> Optional[dict]:
-        ...
+    def read_cm(self, name: str) -> Optional[dict]: ...
 
     def write_cm(
         self,
@@ -168,14 +167,11 @@ class ConfigMapApi(Protocol):
         annotations: dict[str, str],
         data: dict[str, str],
         binary_data: dict[str, str],
-    ) -> None:
-        ...
+    ) -> None: ...
 
-    def delete_cm(self, name: str) -> None:
-        ...
+    def delete_cm(self, name: str) -> None: ...
 
-    def list_cms(self, label_selector: str) -> list[dict]:
-        ...
+    def list_cms(self, label_selector: str) -> list[dict]: ...
 
 
 class ConfigMapStore(Store):
