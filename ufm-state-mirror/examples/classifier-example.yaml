@@ -1,0 +1,202 @@
+# Copyright © 2009-2026 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+#
+# StateMirror classifier (HLD 5.3.3 / 5.4): the single source of truth for which
+# UFM runtime files are made durable in Redis and how each is handled.
+#
+# Handlers:
+#   blob         single file, mirrored as one key on close-write
+#   atomic_blob  single file written via tmp+rename (move event)
+#   directory    fan-out: one key per child under redis_key_prefix
+#   sqlite       consistent online-backup snapshot, polled by change-counter
+#
+# Storage backend (install-wide, HLD 5.2.3): the sidecar mirrors EVERY entry to
+# one backend, chosen once at install time via STATE_MIRROR_BACKEND -- there is
+# no per-file backend selection. It is NOT set in this classifier.
+#   configmap (default) one Kubernetes ConfigMap per key, etcd-backed, hard
+#             ~1 MiB object cap (fail-closed). Requires ConfigMap RBAC on the
+#             consumer's ServiceAccount (HLD 8.7). No external store to run.
+#   redis     BYO Redis/Valkey; choose this when state exceeds the ConfigMap cap
+#             or is high-churn.
+#
+# baseline (first install, no key in the backend yet): image | empty | skip
+#   All entries here use `skip`: the ufm-installer init container (k8s_init.sh)
+#   copies the image-baked defaults into the shared emptyDir BEFORE
+#   state-mirror-restore runs, so a fresh install already has the baked files on
+#   disk; the sidecar's first full scan mirrors them to Redis. A later restart
+#   then restores from Redis (which wins for classified files).
+#
+# NOTE: image-baked immutable files and operator-editable ConfigMaps (gv.cfg)
+# are intentionally NOT listed -- only runtime-mutable state that must survive a
+# pod restart is mirrored. Every path/handler below was verified against the UFM
+# source and a running UFM pod's filesystem (writer citations in comments).
+#
+# Phasing (HLD 6): Phases 3, 4 and 5 are active. Each later phase only adds
+# classifier entries -- the sidecar binary, init container and Helm wiring all
+# shipped in Phase 3 (HLD 6, Phase 4/5).
+entries:
+  # ---------------------------------------------------------------------------
+  # Phase 3 -- small mutable UFM state written by UFM management APIs.
+  # ---------------------------------------------------------------------------
+
+  # SHArP user-defined host->port GUID map (JSON).
+  # Writer: gvvm/api/app/sharp_resources_api.py __write_to_host2port_guids_extended_file
+  - path: /opt/ufm/files/conf/host2port_guids_extended.json
+    handler: blob
+    redis_key: ufm:state:host2port_guids_extended
+    baseline: skip
+
+  # Client certificate authentication store (JSON, despite the .db extension).
+  # Writer: gvvm/infra/client_authentication/ufm_client_authen.py _write_client_authen_data_to_db
+  - path: /opt/ufm/files/conf/webclient/ufm_client_authen.db
+    handler: blob
+    redis_key: ufm:state:client_authen
+    baseline: skip
+
+  # Unhealthy-port API state. UFM's merged port-health policy + the persisted
+  # marked-port pairs/counters.
+  # Writers: gvvm/model/physical/unhealthy_ports.py (_updatePolicy / _storeUnhealthyPortsPairs)
+  - path: /opt/ufm/files/conf/health-policy.conf
+    handler: blob
+    redis_key: ufm:state:health_policy
+    baseline: skip
+
+  - path: /opt/ufm/files/conf/unhealthy_ports_peers.csv
+    handler: blob
+    redis_key: ufm:state:unhealthy_ports_peers
+    baseline: skip
+
+  - path: /opt/ufm/files/conf/unhealthy_ports_counters.csv
+    handler: blob
+    redis_key: ufm:state:unhealthy_ports_counters
+    baseline: skip
+
+  # Partition keys written by the pkey/partition API. OpenSM-bound (also serves
+  # Phase 4), but UFM-written and frequently changed, so it lands in Phase 3.
+  # Writer: gvvm/smclient/SetNetwork.py sendrequest -> setOptConfig
+  - path: /opt/ufm/files/conf/opensm/partitions.conf
+    handler: blob
+    redis_key: ufm:opensm:partitions.conf
+    baseline: skip
+
+  # UFM-managed plugin metadata tree (per-plugin runtime args/attrs/volumes,
+  # health-plugin XML, NVP transaction data under conf/plugins/tools/nvp, ...).
+  # Writers: gvvm/infra/ufm_plugin/* , gvvm/.../ufm_health_plugin_conf_mgr.py , nvpmgr.py
+  - path: /opt/ufm/files/conf/plugins
+    handler: directory
+    redis_key_prefix: "ufm:cfg:plugins:"
+    recursive: true
+
+  # ---------------------------------------------------------------------------
+  # Phase 4 -- OpenSM-bound files (UFM- or OpenSM-written). All paths verified
+  # on a running UFM pod's /opt/ufm/files/conf/opensm/ (all world-readable 0644).
+  # ---------------------------------------------------------------------------
+
+  # Runtime opensm.conf (patched at each OpenSM start by scripts/ufmd_ib). Carries
+  # the SM-config REST API customizations (sm_conf params) that must survive a
+  # restart; dynamic fields are re-patched by ufmd_ib at the next OpenSM start.
+  - path: /opt/ufm/files/conf/opensm/opensm.conf
+    handler: blob
+    redis_key: ufm:opensm:opensm.conf
+    baseline: skip
+
+  # OpenSM health policy (unhealthy-port API + SIGHUP).
+  # Writer: gvvm/model/physical/unhealthy_ports.py write_policies_into_health_policy
+  - path: /opt/ufm/files/conf/opensm/opensm-health-policy.conf
+    handler: blob
+    redis_key: ufm:opensm:health-policy.conf
+    baseline: skip
+
+  # QoS policy (setOptConfig).  Writer: gvvm/smclient/SetNetwork.py
+  - path: /opt/ufm/files/conf/opensm/qos-policy.conf
+    handler: blob
+    redis_key: ufm:opensm:qos-policy.conf
+    baseline: skip
+
+  # Enhanced QoS policy (+ SIGHUP).
+  # Writer: gvvm/model/physical/ports_configuration.py write_to_enhanced_qos_policy_file
+  - path: /opt/ufm/files/conf/opensm/enhanced_qos_policy.conf
+    handler: blob
+    redis_key: ufm:opensm:enhanced-qos-policy.conf
+    baseline: skip
+
+  # Root GUID + port-group config (port-group-regex API + SIGHUP).
+  # Writer: gvvm/model/mgr/smconf_mgr.py save_port_group_regex_guids
+  - path: /opt/ufm/files/conf/opensm/root_guid.conf
+    handler: blob
+    redis_key: ufm:opensm:root_guid.conf
+    baseline: skip
+
+  - path: /opt/ufm/files/conf/opensm/pgrp.conf
+    handler: blob
+    redis_key: ufm:opensm:pgrp.conf
+    baseline: skip
+
+  # OpenSM-written cache: pre-assigned LIDs (LID stability across reschedule).
+  # OpenSM writes via tmp+rename; the cache dir is OSM_CACHE_DIR=conf/opensm
+  # (scripts/ufmd_ib), not log/opensm.
+  - path: /opt/ufm/files/conf/opensm/guid2lid
+    handler: atomic_blob
+    redis_key: ufm:opensm:guid2lid
+    baseline: skip
+
+  - path: /opt/ufm/files/conf/opensm/guid2mkey
+    handler: blob
+    redis_key: ufm:opensm:guid2mkey
+    baseline: skip
+
+  - path: /opt/ufm/files/conf/opensm/neighbors
+    handler: blob
+    redis_key: ufm:opensm:neighbors
+    baseline: skip
+
+  # sa-db (OpenSM SA database) is intentionally NOT classified: OpenSM persists
+  # an SA DB only when `sa_db_file` is set in opensm.conf, but UFM ships it as
+  # `sa_db_file (null)` (verified on a running pod), so no SA-DB file is ever
+  # written. If a deployment sets sa_db_file, add an atomic_blob entry for that
+  # path.
+
+  # ---------------------------------------------------------------------------
+  # Phase 5 -- relational state (SQLite).
+  #
+  # All four DBs ship from UFM in rollback-journal mode and are small in every
+  # realistic deployment (gv.db typically < 50 MiB; telemetry history is opt-in,
+  # default off). The sqlite handler takes consistent online-backup snapshots
+  # and ships the whole DB whenever it changes (snapshot-only; no WAL-shipping).
+  # The handler never changes a DB's journal mode. On restore the DB is
+  # PRAGMA integrity_check'd (fail-closed).
+  # ---------------------------------------------------------------------------
+
+  # Primary UFM config/topology DB (devices, ports, links, events, policies,
+  # users, ...). Continuous writes from ModelMain.
+  # Writer: gvvm/model/db/__init__.py db_connect (pydo alias 'gv')
+  - path: /opt/ufm/files/sqlite/gv.db
+    handler: sqlite
+    redis_key: ufm:sqlite:gv.db
+    snapshot_method: online_backup
+    poll_interval_ms: 2000
+
+  # Telemetry history (table telemetry_calculated). Empty unless
+  # [Telemetry] history_enabled=true; can grow large on big fabrics.
+  # Writer: gvvm/telemetry/sqlite_handler.py / telemetry_service/history_writer.py
+  - path: /opt/ufm/files/sqlite/ufm_telemetry.db
+    handler: sqlite
+    redis_key: ufm:sqlite:ufm_telemetry.db
+    snapshot_method: online_backup
+    poll_interval_ms: 5000
+
+  # API tokens. Low churn, small.
+  # Writer: gvvm/model/mgr/tokens_mgr.py -> infra/ufm_sqlite/ufm_sqlite_handler.py
+  - path: /opt/ufm/files/sqlite/token_based_auth.db
+    handler: sqlite
+    redis_key: ufm:sqlite:token_based_auth.db
+    snapshot_method: online_backup
+    poll_interval_ms: 5000
+
+  # SHARP reservation persistence. Only written when use_sharp_storage=false
+  # (default true -> file stays empty; the handler skips empty DBs).
+  # Writer: gvvm/infra/sharp_smx_wrapper.py
+  - path: /opt/ufm/files/sqlite/ufm_sharp_config.db
+    handler: sqlite
+    redis_key: ufm:sqlite:ufm_sharp_config.db
+    snapshot_method: online_backup
+    poll_interval_ms: 5000
