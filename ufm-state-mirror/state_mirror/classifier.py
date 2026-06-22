@@ -28,6 +28,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Optional
 
+import yaml
+
 log = logging.getLogger(__name__)
 
 
@@ -95,7 +97,7 @@ class Entry:
             redis_key=raw.get("redis_key"),
             redis_key_prefix=raw.get("redis_key_prefix"),
             rate_limit_ms=rate_limit_ms,
-            recursive=bool(raw.get("recursive", False)),
+            recursive=_coerce_bool(raw.get("recursive", False), "recursive", path),
             baseline=baseline,
             baseline_path=raw.get("baseline_path"),
             snapshot_method=raw.get("snapshot_method"),
@@ -150,9 +152,7 @@ class Classifier:
 
     @staticmethod
     def load_file(yaml_path: str) -> "Classifier":
-        """Load and validate a classifier YAML file (imports PyYAML lazily)."""
-        import yaml
-
+        """Load and validate a classifier YAML file."""
         try:
             with open(yaml_path, "r", encoding="utf-8") as f:
                 doc = yaml.safe_load(f)
@@ -167,16 +167,34 @@ class Classifier:
         return classifier
 
     def _check_uniqueness(self) -> None:
-        paths = set()
-        keys = set()
+        """Reject duplicate paths and duplicate/overlapping keyspaces.
+
+        Reports *every* problem in one error rather than failing on the first,
+        so a misconfigured classifier surfaces all its issues at once -- but
+        still fails closed (a bad classifier never loads). Beyond exact
+        duplicates this also rejects *nested* keyspaces: a non-directory
+        ``redis_key`` that falls under a directory ``redis_key_prefix`` (or one
+        prefix nested under another) would collide on restore, where the
+        directory handler enumerates every key under its prefix.
+        """
+        errors: list[str] = []
+        paths: set[str] = set()
+        seen: list[tuple[str, bool]] = []  # (key_or_prefix, is_prefix), in order
         for e in self.entries:
             if e.path in paths:
-                raise ClassifierError(f"duplicate path in classifier: {e.path}")
+                errors.append(f"duplicate path: {e.path}")
             paths.add(e.path)
             key = e.redis_key_prefix if e.is_directory else e.redis_key
-            if key in keys:
-                raise ClassifierError(f"duplicate redis key/prefix in classifier: {key}")
-            keys.add(key)
+            if key is None:
+                continue  # missing key already reported by Entry.validate()
+            for other_key, other_is_prefix in seen:
+                if _keys_collide(key, e.is_directory, other_key, other_is_prefix):
+                    errors.append(
+                        f"redis key/prefix {key!r} ({e.path}) collides with {other_key!r}"
+                    )
+            seen.append((key, e.is_directory))
+        if errors:
+            raise ClassifierError("invalid classifier: " + "; ".join(errors))
 
     def __len__(self) -> int:
         return len(self.entries)
@@ -200,3 +218,37 @@ def _coerce_positive_int(value: Any, field_name: str, path: str) -> int:
     if value <= 0:
         raise ClassifierError(f"{path}: '{field_name}' must be > 0")
     return value
+
+
+def _coerce_bool(value: Any, field_name: str, path: str) -> bool:
+    """Strictly coerce a YAML boolean.
+
+    A plain ``bool()`` cast is unsafe: a quoted ``"false"`` is a non-empty
+    string and would become ``True``, silently flipping the meaning. Accept only
+    a real boolean or the explicit strings ``true``/``false`` (case-insensitive).
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        low = value.strip().lower()
+        if low == "true":
+            return True
+        if low == "false":
+            return False
+    raise ClassifierError(
+        f"{path}: '{field_name}' must be a boolean (true/false), got {value!r}"
+    )
+
+
+def _keys_collide(key_a: str, a_is_prefix: bool, key_b: str, b_is_prefix: bool) -> bool:
+    """True if two key/prefix specs share keyspace.
+
+    Exact keys collide only when equal; a prefix collides with any key or prefix
+    that starts with it (in either direction), since the directory handler reads
+    back every key under its prefix.
+    """
+    return (
+        key_a == key_b
+        or (a_is_prefix and key_b.startswith(key_a))
+        or (b_is_prefix and key_a.startswith(key_b))
+    )

@@ -44,18 +44,18 @@ def setup_logging(component: str) -> logging.Logger:
     installs handlers.
     """
     global _configured
-    root = logging.getLogger()
+    root_logger = logging.getLogger()
     if not _configured:
         level = _resolve_level()
-        root.setLevel(level)
+        root_logger.setLevel(level)
         formatter = logging.Formatter(_LOG_FORMAT)
 
         stream = logging.StreamHandler(stream=sys.stdout)
         stream.setFormatter(formatter)
-        root.addHandler(stream)
+        root_logger.addHandler(stream)
 
         log = logging.getLogger(component)
-        _maybe_add_file_handler(root, formatter, log)
+        _maybe_add_file_handler(root_logger, formatter, log)
         _configured = True
         log.info(
             "logging initialized (level=%s, component=%s)",
@@ -74,7 +74,7 @@ def _resolve_level() -> int:
 
 
 def _maybe_add_file_handler(
-    root: logging.Logger, formatter: logging.Formatter, log: logging.Logger
+    root_logger: logging.Logger, formatter: logging.Formatter, log: logging.Logger
 ) -> None:
     if os.environ.get("STATE_MIRROR_LOG_TO_FILE", "true").lower() != "true":
         return
@@ -86,7 +86,7 @@ def _maybe_add_file_handler(
             path, maxBytes=_MAX_BYTES, backupCount=_BACKUP_COUNT, encoding="utf-8"
         )
         handler.setFormatter(formatter)
-        root.addHandler(handler)
+        root_logger.addHandler(handler)
         log.info("file logging enabled at %s", path)
     except OSError as exc:
         log.warning("file logging to %s unavailable (%s); continuing on stdout only", path, exc)

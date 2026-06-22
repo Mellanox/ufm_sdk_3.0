@@ -94,19 +94,19 @@ class Meta:
     @staticmethod
     def from_json(raw: bytes) -> "Meta":
         try:
-            d: dict[str, Any] = json.loads(raw)
+            data: dict[str, Any] = json.loads(raw)
         except (ValueError, TypeError) as exc:
             raise WireError(f"metadata is not valid JSON: {exc}") from exc
         try:
             return Meta(
-                handler=d["handler"],
-                content_hash=d["content_hash"],
-                size_bytes=int(d["size_bytes"]),
-                ufm_version=d.get("ufm_version", "unknown"),
-                written_by=d.get("written_by", "unknown"),
-                schema_version=int(d.get("schema_version", 1)),
-                format_version=int(d["format_version"]),
-                written_at=d.get("written_at"),
+                handler=data["handler"],
+                content_hash=data["content_hash"],
+                size_bytes=int(data["size_bytes"]),
+                ufm_version=data.get("ufm_version", "unknown"),
+                written_by=data.get("written_by", "unknown"),
+                schema_version=int(data.get("schema_version", 1)),
+                format_version=int(data["format_version"]),
+                written_at=data.get("written_at"),
             )
         except KeyError as exc:
             raise WireError(f"metadata missing required field: {exc}") from exc

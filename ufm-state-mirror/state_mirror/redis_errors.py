@@ -56,6 +56,23 @@ REDIS_ERROR_REASONS: tuple[str, ...] = (
     "other",
 )
 
+# redis-py exception class name -> reason. Matched by name (not isinstance) so
+# this module never imports redis-py and stays unit testable with fakes. The
+# lookup walks the exception's MRO most-derived-first, so a subclass wins over
+# its base -- e.g. a specific ``ReadOnlyError`` is classified before the shared
+# ``ResponseError`` it inherits from.
+_CLASS_REASONS: dict[str, str] = {
+    "OutOfMemoryError": "oom",
+    "ReadOnlyError": "readonly",
+    "NoPermissionError": "noperm",
+    "AuthenticationError": "noauth",
+    "AuthenticationWrongNumberOfArgsError": "noauth",
+    "BusyLoadingError": "loading",
+    "TimeoutError": "timeout",
+    "ConnectionError": "conn",
+    "ResponseError": "response",
+}
+
 
 def classify_redis_error(exc: BaseException) -> str:
     """Map an exception to one of :data:`REDIS_ERROR_REASONS`.
@@ -68,7 +85,8 @@ def classify_redis_error(exc: BaseException) -> str:
         return "local_io"
 
     msg = str(exc).upper()
-    # Redis server error string codes (most specific first).
+    # Redis server error string codes (most specific first). Substring matching,
+    # so this stays an ordered chain rather than a dict lookup.
     if "OOM " in msg or "OUT OF MEMORY" in msg or "OUTOFMEMORY" in msg:
         return "oom"
     if "NOREPLICAS" in msg:
@@ -84,22 +102,9 @@ def classify_redis_error(exc: BaseException) -> str:
     if "LOADING" in msg:
         return "loading"
 
-    # redis-py exception classes (matched by name to avoid importing redis).
-    names = {c.__name__ for c in type(exc).__mro__}
-    if "OutOfMemoryError" in names:
-        return "oom"
-    if "ReadOnlyError" in names:
-        return "readonly"
-    if "NoPermissionError" in names:
-        return "noperm"
-    if "AuthenticationError" in names or "AuthenticationWrongNumberOfArgsError" in names:
-        return "noauth"
-    if "BusyLoadingError" in names:
-        return "loading"
-    if "TimeoutError" in names:
-        return "timeout"
-    if "ConnectionError" in names:
-        return "conn"
-    if "ResponseError" in names:
-        return "response"
+    # redis-py exception classes: first reason found along the MRO wins.
+    for cls in type(exc).__mro__:
+        reason = _CLASS_REASONS.get(cls.__name__)
+        if reason is not None:
+            return reason
     return "other"

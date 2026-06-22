@@ -3,6 +3,14 @@
 # StateMirror classifier (HLD 5.3.3 / 5.4): the single source of truth for which
 # UFM runtime files are made durable in Redis and how each is handled.
 #
+# ILLUSTRATIVE EXAMPLE -- NOT AUTHORITATIVE. This file documents the classifier
+# format and a verified-at-time-of-writing UFM file set, but the authoritative,
+# file-set-reconciled classifier ships in the *consumer* repo (UFM / UFM-HA)
+# mounted at CLASSIFIER_PATH, not from this image. The list below was derived by
+# auditing the UFM source (writer citations in the comments) against a running
+# UFM pod's filesystem; treat it as a starting point and re-verify per release,
+# since a file that exists on disk but is missing here is silently not mirrored.
+#
 # Handlers:
 #   blob         single file, mirrored as one key on close-write
 #   atomic_blob  single file written via tmp+rename (move event)

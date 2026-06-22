@@ -94,6 +94,37 @@ class TestEntryValidation:
         assert e.baseline is Baseline.IMAGE
         assert e.baseline_path == "/opt/ufm/baseline/a"
 
+    def test_recursive_accepts_bool_and_explicit_strings(self):
+        assert Entry.from_dict(
+            {
+                "path": "/opt/ufm/files/conf/plugins",
+                "handler": "directory",
+                "redis_key_prefix": "ufm:cfg:plugins:",
+                "recursive": True,
+            }
+        ).recursive is True
+        # A quoted "false" must NOT become True (the bug a bare bool() cast has).
+        assert Entry.from_dict(
+            {
+                "path": "/opt/ufm/files/conf/plugins",
+                "handler": "directory",
+                "redis_key_prefix": "ufm:cfg:plugins:",
+                "recursive": "false",
+            }
+        ).recursive is False
+
+    @pytest.mark.parametrize("bad", ["yes", "1", "notabool", 1])
+    def test_recursive_rejects_non_bool(self, bad):
+        with pytest.raises(ClassifierError, match="recursive"):
+            Entry.from_dict(
+                {
+                    "path": "/opt/ufm/files/conf/plugins",
+                    "handler": "directory",
+                    "redis_key_prefix": "ufm:cfg:plugins:",
+                    "recursive": bad,
+                }
+            )
+
     def test_sqlite_minimal_ok(self):
         e = Entry.from_dict(
             {
@@ -115,8 +146,66 @@ class TestClassifierDocument:
             Classifier.from_dict({"entries": [_blob(), _blob(redis_key="ufm:state:b")]})
 
     def test_duplicate_key_rejected(self):
-        with pytest.raises(ClassifierError, match="duplicate redis key"):
+        with pytest.raises(ClassifierError, match="collides with"):
             Classifier.from_dict({"entries": [_blob(), _blob(path="/opt/ufm/files/conf/b.json")]})
+
+    def test_key_under_directory_prefix_rejected(self):
+        # A non-directory key that falls under a directory prefix collides in
+        # the keyspace the directory handler reads back on restore.
+        with pytest.raises(ClassifierError, match="collides with"):
+            Classifier.from_dict(
+                {
+                    "entries": [
+                        {
+                            "path": "/opt/ufm/files/conf/plugins",
+                            "handler": "directory",
+                            "redis_key_prefix": "ufm:cfg:",
+                        },
+                        _blob(path="/opt/ufm/files/conf/a.json", redis_key="ufm:cfg:a"),
+                    ]
+                }
+            )
+
+    def test_nested_directory_prefixes_rejected(self):
+        with pytest.raises(ClassifierError, match="collides with"):
+            Classifier.from_dict(
+                {
+                    "entries": [
+                        {
+                            "path": "/opt/ufm/files/conf/plugins",
+                            "handler": "directory",
+                            "redis_key_prefix": "ufm:cfg:",
+                        },
+                        {
+                            "path": "/opt/ufm/files/conf/plugins/tools",
+                            "handler": "directory",
+                            "redis_key_prefix": "ufm:cfg:tools:",
+                        },
+                    ]
+                }
+            )
+
+    def test_disjoint_keys_sharing_text_prefix_ok(self):
+        # Two exact (non-directory) keys where one is a string prefix of the
+        # other do NOT collide -- they are distinct exact keys.
+        c = Classifier.from_dict(
+            {
+                "entries": [
+                    _blob(path="/opt/ufm/files/conf/a.json", redis_key="ufm:state:a"),
+                    _blob(path="/opt/ufm/files/conf/b.json", redis_key="ufm:state:ab"),
+                ]
+            }
+        )
+        assert len(c) == 2
+
+    def test_multiple_errors_aggregated(self):
+        # Two identical entries trip both the duplicate-path and the key-collision
+        # checks; the error reports both rather than failing on the first.
+        with pytest.raises(ClassifierError) as excinfo:
+            Classifier.from_dict({"entries": [_blob(), _blob()]})
+        msg = str(excinfo.value)
+        assert "duplicate path" in msg
+        assert "collides with" in msg
 
     def test_len(self):
         c = Classifier.from_dict(
