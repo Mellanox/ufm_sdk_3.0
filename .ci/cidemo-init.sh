@@ -4,7 +4,7 @@ cd .ci
 # You can print specific environment variables here if required
 
 # Get the list of changed files
-changed_files=$(git diff --name-only remotes/origin/$ghprbTargetBranch)
+changed_files=$(git diff --name-only --ignore-submodules remotes/origin/$ghprbTargetBranch)
 
 # Check for changes excluding .gitmodules and root .ci directory
 changes_excluding_gitmodules_and_root_ci=$(echo "$changed_files" | grep -v -e '.gitmodules' -e '^scripts/' -e '.gitignore' -e '^\.ci/' -e '^\.github/workflows' -e '\utils' -e '\plugins/ufm_log_analyzer_plugin') #Removing ufm_log_analyzer_plugin as for now it does not need a formal build
