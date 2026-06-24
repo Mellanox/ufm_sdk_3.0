@@ -120,6 +120,30 @@ class TestMirrorEventHandler:
         )
         assert self.dirty == ["/opt/ufm/files/conf/pkey.conf"]
 
+    def test_moved_from_tracked_source_queues_delete(self):
+        # Renaming a tracked file away must drop its old key so a restore does
+        # not revive it (FIX-1). Destination is untracked -> no dirty mark.
+        self.handler.dispatch(
+            _evt(EVENT_MOVED, "/opt/ufm/files/conf/pkey.conf", "/opt/ufm/files/conf/pkey.conf.bak")
+        )
+        assert self.dirty == []
+        assert self.deletes == [("/opt/ufm/files/conf/pkey.conf", "/opt/ufm/files/conf/pkey.conf")]
+
+    def test_moved_child_within_directory_ships_dest_and_deletes_src(self):
+        # Renaming a child inside a watched dir ships the new name and drops the
+        # old child key (FIX-1).
+        self.handler.dispatch(
+            _evt(
+                EVENT_MOVED,
+                "/opt/ufm/files/conf/plugins/a.conf",
+                "/opt/ufm/files/conf/plugins/b.conf",
+            )
+        )
+        assert self.dirty == ["/opt/ufm/files/conf/plugins"]
+        assert self.deletes == [
+            ("/opt/ufm/files/conf/plugins", "/opt/ufm/files/conf/plugins/a.conf")
+        ]
+
     def test_deleted_marks_delete(self):
         self.handler.dispatch(_evt(EVENT_DELETED, "/opt/ufm/files/conf/plugins/a.conf"))
         assert self.deletes == [

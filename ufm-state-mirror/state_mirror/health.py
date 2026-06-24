@@ -158,7 +158,9 @@ class HealthState:
 
     def snapshot(self) -> dict:
         with self._lock:
-            snap = dict(self.__dict__)
+            # Skip private attrs (e.g. the lock) so the result is a clean,
+            # serializable data-only snapshot.
+            snap = {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
             snap["backend_errors"] = dict(self.backend_errors)
             snap["snapshot_durations"] = dict(self.snapshot_durations)
         return snap
@@ -179,7 +181,10 @@ def render_metrics(state: HealthState) -> str:
         lines.append(f"# TYPE {name} counter")
         lines.append(f"{name} {value}")
 
-    gauge("state_mirror_ready", "1 if the sidecar is ready", int(state.is_ready()))
+    # Derive readiness from the same snapshot (not a second is_ready() lock) so
+    # the gauge is consistent with the rest of this scrape.
+    ready = snap["watching_started"] and snap["startup_scan_done"]
+    gauge("state_mirror_ready", "1 if the sidecar is ready", int(ready))
     gauge(
         "state_mirror_backend_reachable",
         "1 if the storage backend was reachable on the last op",

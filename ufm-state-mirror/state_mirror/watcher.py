@@ -100,7 +100,23 @@ class MirrorEventHandler:
         if event_type == EVENT_CLOSED:
             self._dirty(event.src_path)
         elif event_type == EVENT_MOVED:
-            self._dirty(getattr(event, "dest_path", None) or event.src_path)
+            dest = getattr(event, "dest_path", None) or event.src_path
+            self._dirty(dest)
+            # The move is observed, so honor it: if the OLD path was a tracked
+            # entry (a renamed single file, or a child inside a watched dir), its
+            # backend key must be dropped or a later restore revives the file at
+            # the old location. Safe against atomic write-temp-then-rename -- the
+            # drain only deletes when the source path is actually gone and
+            # store.delete is idempotent, so a move-then-recreate is a no-op.
+            if event.src_path != dest:
+                src_entry = self._resolver.resolve(event.src_path)
+                if src_entry is not None:
+                    log.debug(
+                        "watchdog move: queuing delete for old path %s -> entry %s",
+                        event.src_path,
+                        src_entry.path,
+                    )
+                    self._mark_delete(src_entry, event.src_path)
         elif event_type == EVENT_DELETED:
             entry = self._resolver.resolve(event.src_path)
             if entry is not None:
@@ -126,6 +142,8 @@ def build_observer(resolver: PathResolver, handler: MirrorEventHandler):
     scheduled = 0
     for directory, recursive in resolver.watch_dirs():
         try:
+            if not os.path.isdir(directory):
+                log.info("creating missing watch directory %s", directory)
             os.makedirs(directory, exist_ok=True)
             observer.schedule(handler, directory, recursive=recursive)
             log.info("watching %s (recursive=%s)", directory, recursive)

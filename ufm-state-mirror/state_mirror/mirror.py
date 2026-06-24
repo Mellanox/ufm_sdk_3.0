@@ -318,6 +318,14 @@ class Mirror:
             self.state.mark_watching(watchdog_active=False)
 
     def run_forever(self, scan_interval_s: float = 60.0, poll_interval_s: float = 0.5) -> None:
+        """Run the mirror loop until the process is killed.
+
+        ``scan_interval_s`` (default 60s) is how often the periodic full scan
+        reconciles anything the watch events missed. ``poll_interval_s`` (default
+        0.5s) is the loop wake interval that drains queued watch events -- it is
+        NOT the per-DB SQLite cadence, which is each entry's ``poll_interval_ms``
+        enforced inside :meth:`poll_sqlite`.
+        """
         self.start_watching()
         log.info("startup full scan (%d entries)", len(self._handlers))
         self.full_scan()

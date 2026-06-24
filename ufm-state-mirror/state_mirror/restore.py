@@ -27,11 +27,12 @@ import sys
 
 from state_mirror.classifier import Classifier
 from state_mirror.handlers import make_handler
+from state_mirror.store import Store
 
 log = logging.getLogger("state_mirror.restore")
 
 
-def run(classifier: Classifier, store, ufm_version: str) -> int:
+def run(classifier: Classifier, store: Store, ufm_version: str) -> int:
     """Restore every entry from the install-wide ``store`` (HLD 5.2.3, 5.3.6)."""
     log.info("restore: %d classifier entries", len(classifier))
     restored, bootstrapped = 0, 0
