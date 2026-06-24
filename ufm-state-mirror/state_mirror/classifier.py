@@ -235,9 +235,7 @@ def _coerce_bool(value: Any, field_name: str, path: str) -> bool:
             return True
         if low == "false":
             return False
-    raise ClassifierError(
-        f"{path}: '{field_name}' must be a boolean (true/false), got {value!r}"
-    )
+    raise ClassifierError(f"{path}: '{field_name}' must be a boolean (true/false), got {value!r}")
 
 
 def _keys_collide(key_a: str, a_is_prefix: bool, key_b: str, b_is_prefix: bool) -> bool:
