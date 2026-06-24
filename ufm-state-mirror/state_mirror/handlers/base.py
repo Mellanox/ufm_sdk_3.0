@@ -104,7 +104,16 @@ class BaseHandler:
         return sent
 
     def on_delete(self) -> None:
-        """Propagate a local delete to the store (HLD 5.3.9)."""
+        """Propagate a local delete to the store (HLD 5.3.9).
+
+        Deletes are NOT durable across restarts for entries with
+        ``baseline=image`` or ``baseline=empty``: dropping the key means the next
+        startup finds no stored object, :meth:`restore` returns ``False``, and
+        ``bootstrap`` re-seeds the file from its baseline -- so a deliberately
+        deleted file reappears. This is consistent with the "backend wins on
+        ambiguity" policy; making deletes survive a restore would require writing
+        a tombstone key (future work).
+        """
         log.info("on_delete: dropping %s from store", self.entry.redis_key)
         self.store.delete(self.entry.redis_key)
 
@@ -221,9 +230,7 @@ class BaseHandler:
         try:
             os.chown(path, prev.st_uid, prev.st_gid)
         except OSError as exc:
-            log.warning(
-                "chown of %s to %d:%d failed: %s", path, prev.st_uid, prev.st_gid, exc
-            )
+            log.warning("chown of %s to %d:%d failed: %s", path, prev.st_uid, prev.st_gid, exc)
 
     @staticmethod
     def _restore_one(store: Store, key: str, dest_path: str) -> Optional[wire.Meta]:

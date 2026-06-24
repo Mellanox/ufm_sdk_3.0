@@ -43,10 +43,13 @@ class DirectoryHandler(BaseHandler):
                     full = os.path.join(dirpath, name)
                     yield os.path.relpath(full, root), full
         else:
-            for name in sorted(os.listdir(root)):
-                full = os.path.join(root, name)
-                if os.path.isfile(full):
-                    yield name, full
+            # scandir reuses the stat already done by the OS (one syscall per
+            # entry instead of listdir + isfile). follow_symlinks=True keeps the
+            # prior os.path.isfile semantics: a symlink to a file still counts.
+            with os.scandir(root) as it:
+                for de in sorted(it, key=lambda e: e.name):
+                    if de.is_file(follow_symlinks=True):
+                        yield de.name, de.path
 
     def _iter_redis_relpaths(self):
         prefix = self.entry.redis_key_prefix
@@ -78,14 +81,19 @@ class DirectoryHandler(BaseHandler):
     def mirror(self) -> bool:
         sent_any = False
         for relpath, full in self._iter_local_files():
+            # A local read error for one child (e.g. it vanished mid-scan) is
+            # skipped so the rest of the tree still mirrors. A backend error
+            # (WireError) is NOT swallowed -- it propagates so the caller records
+            # the outage via record_store_down instead of seeing a healthy run.
             try:
                 body = self._read_file(full)
-                key = self._key_for_rel(relpath)
-                if self._push_if_changed(key, body):
-                    log.info("mirror: shipped %s -> %s", full, key)
-                    sent_any = True
-            except Exception:
-                log.exception("mirror: failed to ship child %s; continuing", relpath)
+            except OSError:
+                log.exception("mirror: cannot read child %s; skipping", full)
+                continue
+            key = self._key_for_rel(relpath)
+            if self._push_if_changed(key, body):
+                log.info("mirror: shipped %s -> %s", full, key)
+                sent_any = True
         return sent_any
 
     def on_delete_child(self, relpath: str) -> None:

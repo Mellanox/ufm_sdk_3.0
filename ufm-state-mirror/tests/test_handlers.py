@@ -15,6 +15,9 @@
 import os
 import sqlite3
 
+import pytest
+
+from state_mirror import wire
 from state_mirror.classifier import Entry
 from state_mirror.handlers import base, make_handler
 from state_mirror.handlers.base import BaseHandler
@@ -138,6 +141,47 @@ class TestDirectoryHandler:
         handler.mirror()
         handler.on_delete_child("a.conf")
         assert fake_redis.get("ufm:cfg:plugins:a.conf") is None
+
+    def test_mirror_propagates_backend_error(self, fake_redis, tmp_path, monkeypatch):
+        # A backend failure on a child must NOT be swallowed: it propagates so
+        # the caller records the outage instead of seeing a healthy run (FIX-2).
+        root = tmp_path / "plugins"
+        root.mkdir()
+        (root / "a.conf").write_bytes(b"AAA")
+        entry = Entry.from_dict(
+            {"path": str(root), "handler": "directory", "redis_key_prefix": "ufm:cfg:plugins:"}
+        )
+        handler = _handler(entry, fake_redis)
+
+        def boom(*_a, **_k):
+            raise wire.WireError("backend down", reason="conn")
+
+        monkeypatch.setattr(handler.store, "get_meta", boom)
+        with pytest.raises(wire.WireError):
+            handler.mirror()
+
+    def test_mirror_skips_unreadable_child(self, fake_redis, tmp_path, monkeypatch):
+        # A local read error for one child is skipped (not fatal) so the rest of
+        # the tree still mirrors (FIX-2).
+        root = tmp_path / "plugins"
+        root.mkdir()
+        (root / "a.conf").write_bytes(b"AAA")
+        (root / "b.conf").write_bytes(b"BBB")
+        entry = Entry.from_dict(
+            {"path": str(root), "handler": "directory", "redis_key_prefix": "ufm:cfg:plugins:"}
+        )
+        handler = _handler(entry, fake_redis)
+        real_read = base.BaseHandler._read_file
+
+        def selective(path):
+            if path.endswith("a.conf"):
+                raise OSError("unreadable")
+            return real_read(path)
+
+        monkeypatch.setattr(base.BaseHandler, "_read_file", staticmethod(selective))
+        assert handler.mirror() is True  # b.conf still shipped despite a.conf failing
+        assert fake_redis.get("ufm:cfg:plugins:a.conf") is None
+        assert fake_redis.get("ufm:cfg:plugins:b.conf") == b"BBB"
 
 
 class TestSqliteHandler:

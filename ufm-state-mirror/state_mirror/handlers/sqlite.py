@@ -182,6 +182,11 @@ class SqliteHandler(BaseHandler):
     def restore(self) -> bool:
         """Restore the snapshot and verify integrity.
 
+        The stored object is integrity-checked on a throwaway temp copy *before*
+        the live DB is touched, so a corrupt backend snapshot can never destroy
+        the installer-seeded DB: the check raises and the on-disk file is left
+        intact. Only once it verifies do we write it into place via
+        :meth:`_write_file`, which preserves the DB's original uid/gid/mode.
         Fails closed (raises) on an integrity-check failure so the init
         container never lets UFM start on a corrupt DB.
         """
@@ -190,8 +195,8 @@ class SqliteHandler(BaseHandler):
             log.debug("restore: no stored object for %s", self.entry.path)
             return False
         body, _meta = result
+        self._verify_snapshot(body)
         self._write_file(self.entry.path, body)
-        self.integrity_check(self.entry.path)
         log.info(
             "restore: wrote %s (%d bytes) from %s",
             self.entry.path,
@@ -199,3 +204,22 @@ class SqliteHandler(BaseHandler):
             self.entry.redis_key,
         )
         return True
+
+    def _verify_snapshot(self, body: bytes) -> None:
+        """Integrity-check ``body`` as a SQLite DB without touching the live file.
+
+        Writes to a throwaway temp (cleaned up in all cases) and runs
+        ``integrity_check`` there; raises on failure so the caller never replaces
+        the live DB with a bad snapshot.
+        """
+        fd, tmp = tempfile.mkstemp(prefix="statemirror-restore-", suffix=".db")
+        os.close(fd)
+        try:
+            with open(tmp, "wb") as f:
+                f.write(body)
+                f.flush()
+                os.fsync(f.fileno())
+            self.integrity_check(tmp)
+        finally:
+            for suffix in ("", "-wal", "-shm"):
+                self._safe_unlink(tmp + suffix)

@@ -137,3 +137,21 @@ class TestRestoreFailClosed:
         rh = _handler(tmp_path / "gv.db", fake_redis)
         with pytest.raises(sqlite3.Error):
             rh.restore()
+
+    def test_restore_does_not_clobber_live_db_on_corrupt_snapshot(self, fake_redis, tmp_path):
+        # A pre-existing, valid live DB must survive a corrupt stored snapshot:
+        # restore verifies on a temp copy first and fails closed WITHOUT touching
+        # the live file (FIX-1).
+        live = tmp_path / "gv.db"
+        _make_db(str(live), ["keep1", "keep2"])
+        key = "ufm:sqlite:gv.db"
+        body = b"this is not a sqlite database" * 10
+        meta = wire.build_meta(
+            body, handler="sqlite", ufm_version=UFM_VERSION, written_by=WRITTEN_BY
+        )
+        wire.write_pair(fake_redis, key, body, meta)
+        rh = _handler(live, fake_redis)
+        with pytest.raises(sqlite3.Error):
+            rh.restore()
+        # The live DB is intact -- its rows were never overwritten.
+        assert _row_count(str(live)) == 2
