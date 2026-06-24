@@ -95,23 +95,29 @@ class TestEntryValidation:
         assert e.baseline_path == "/opt/ufm/baseline/a"
 
     def test_recursive_accepts_bool_and_explicit_strings(self):
-        assert Entry.from_dict(
-            {
-                "path": "/opt/ufm/files/conf/plugins",
-                "handler": "directory",
-                "redis_key_prefix": "ufm:cfg:plugins:",
-                "recursive": True,
-            }
-        ).recursive is True
+        assert (
+            Entry.from_dict(
+                {
+                    "path": "/opt/ufm/files/conf/plugins",
+                    "handler": "directory",
+                    "redis_key_prefix": "ufm:cfg:plugins:",
+                    "recursive": True,
+                }
+            ).recursive
+            is True
+        )
         # A quoted "false" must NOT become True (the bug a bare bool() cast has).
-        assert Entry.from_dict(
-            {
-                "path": "/opt/ufm/files/conf/plugins",
-                "handler": "directory",
-                "redis_key_prefix": "ufm:cfg:plugins:",
-                "recursive": "false",
-            }
-        ).recursive is False
+        assert (
+            Entry.from_dict(
+                {
+                    "path": "/opt/ufm/files/conf/plugins",
+                    "handler": "directory",
+                    "redis_key_prefix": "ufm:cfg:plugins:",
+                    "recursive": "false",
+                }
+            ).recursive
+            is False
+        )
 
     @pytest.mark.parametrize("bad", ["yes", "1", "notabool", 1])
     def test_recursive_rejects_non_bool(self, bad):
