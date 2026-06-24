@@ -73,6 +73,29 @@ class TestReadVerify:
         with pytest.raises(wire.WireError, match="refusing downgrade"):
             wire.read_and_verify(fake_redis, "ufm:state:a")
 
+    def test_verify_body_none_reports_body_missing_even_with_newer_format(self):
+        # The cheap, more-specific presence check must win over the format check
+        # when both would fire, so a missing body reports the right error (FIX-2).
+        meta = wire.build_meta(b"x", "blob", "7.0.1", "state-mirror:test")
+        meta.format_version = wire.FORMAT_VERSION + 1
+        with pytest.raises(wire.WireError, match="body key missing"):
+            wire.verify_body(None, meta, "ufm:state:a")
+
+    def test_newer_format_refused_before_body_fetch(self):
+        # read_and_verify must refuse a too-new format WITHOUT fetching the
+        # (possibly huge) body -- the format check stays a pre-fetch guard (FIX-2).
+        meta = wire.build_meta(b"payload", "blob", "7.0.1", "state-mirror:test")
+        meta.format_version = wire.FORMAT_VERSION + 1
+
+        class _MetaOnlyClient:
+            def get(self, key):
+                if key.endswith(wire.META_SUFFIX):
+                    return meta.to_json()
+                raise AssertionError("body must not be fetched for a too-new format")
+
+        with pytest.raises(wire.WireError, match="refusing downgrade"):
+            wire.read_and_verify(_MetaOnlyClient(), "ufm:state:a")
+
     def test_delete_pair(self, fake_redis):
         _put(fake_redis, "ufm:state:a", b"payload")
         wire.delete_pair(fake_redis, "ufm:state:a")

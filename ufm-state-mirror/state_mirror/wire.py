@@ -69,6 +69,19 @@ def content_hash(body: bytes) -> str:
 
 @dataclass
 class Meta:
+    """On-the-wire metadata stored next to each body (HLD 5.3.6).
+
+    Two version fields are intentionally distinct:
+
+    * ``format_version`` -- the **wire/layout** version, enforced on read:
+      :func:`verify_body` refuses an object whose ``format_version`` is newer
+      than this code supports (fail-closed, no silent downgrade). Bump it only
+      on a breaking change to how the body/meta are laid out.
+    * ``schema_version`` -- a softer **content-schema** marker, reserved for
+      evolving the meaning of existing fields without a layout change. Recorded
+      for forward compatibility; not currently gated on read.
+    """
+
     handler: str
     content_hash: str
     size_bytes: int
@@ -160,14 +173,12 @@ def delete_pair(client: Any, body_key: str) -> None:
     log.info("deleted key pair for %s", body_key)
 
 
-def verify_body(body: Optional[bytes], meta: Meta, key: str) -> bytes:
-    """Verify a body against its metadata, failing closed (HLD 5.3.6).
+def _ensure_supported_format(meta: Meta, key: str) -> None:
+    """Refuse a stored object whose format is newer than this code supports.
 
-    Backend-neutral: used by every :mod:`state_mirror.store` backend (Redis or
-    ConfigMap) so a restored object is validated identically regardless of where
-    it was stored. Checks format version, presence, content hash and size.
-    Returns the verified body or raises :class:`WireError` (with no ``reason`` --
-    these are data-integrity failures, not transport failures).
+    Factored out so :func:`read_and_verify` can fail closed *before* fetching a
+    possibly large body, while :func:`verify_body` runs it only after the cheap
+    ``body is None`` presence check (HLD 5.3.6).
     """
     if meta.format_version > FORMAT_VERSION:
         log.error(
@@ -180,9 +191,23 @@ def verify_body(body: Optional[bytes], meta: Meta, key: str) -> bytes:
             f"{key}: stored format_version {meta.format_version} is newer "
             f"than supported {FORMAT_VERSION} (refusing downgrade)"
         )
+
+
+def verify_body(body: Optional[bytes], meta: Meta, key: str) -> bytes:
+    """Verify a body against its metadata, failing closed (HLD 5.3.6).
+
+    Backend-neutral: used by every :mod:`state_mirror.store` backend (Redis or
+    ConfigMap) so a restored object is validated identically regardless of where
+    it was stored. Checks presence, format version, content hash and size -- the
+    cheap ``body is None`` check comes first so a missing body reports the right
+    error even when the metadata also carries an unsupported format version.
+    Returns the verified body or raises :class:`WireError` (with no ``reason`` --
+    these are data-integrity failures, not transport failures).
+    """
     if body is None:
         log.error("%s: metadata present but body missing", key)
         raise WireError(f"{key}: metadata present but body key missing")
+    _ensure_supported_format(meta, key)
 
     actual = content_hash(body)
     if actual != meta.content_hash:
@@ -217,9 +242,10 @@ def read_and_verify(client: Any, body_key: str) -> Optional[tuple[bytes, Meta]]:
         return None  # never written -> bootstrap path
 
     meta = Meta.from_json(raw_meta)
-    if meta.format_version > FORMAT_VERSION:
-        # Refuse before fetching the (possibly large) body.
-        return verify_body(None, meta, body_key), meta  # raises WireError
+    # Refuse a too-new format before fetching the (possibly large) body. Checked
+    # directly (not via verify_body(None, ...)) because verify_body now tests
+    # body presence first, which would otherwise mask this format error here.
+    _ensure_supported_format(meta, body_key)
 
     try:
         body = client.get(body_key)

@@ -15,6 +15,12 @@
 #   restore (init):  python -m state_mirror.restore
 #   mirror (sidecar): python -m state_mirror.mirror
 
+# Base image: python:3.12-slim (Debian Bookworm), not an Ubuntu image. The
+# sidecar is stdlib-only (no Ubuntu/UFM-specific system packages or ABI), and
+# python:3.12-slim is the smallest official image carrying the exact Python
+# 3.12 runtime the engine targets -- smaller CVE/attack surface and image size
+# than ubuntu:22.04 + apt-installed Python. Revisit only if the sidecar ever
+# needs UFM/Ubuntu system libraries.
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
