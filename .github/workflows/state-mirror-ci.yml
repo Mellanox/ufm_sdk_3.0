@@ -1,0 +1,56 @@
+name: UFM State Mirror CI
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "ufm-state-mirror/**"
+      - ".github/workflows/state-mirror-ci.yml"
+  pull_request:
+    paths:
+      - "ufm-state-mirror/**"
+      - ".github/workflows/state-mirror-ci.yml"
+
+defaults:
+  run:
+    working-directory: ufm-state-mirror
+
+jobs:
+  lint-and-test:
+    timeout-minutes: 10
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff==0.6.9 pytest
+
+      - name: Ruff lint
+        run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+      - name: Unit tests
+        run: python -m pytest -q
+
+  docker-build:
+    timeout-minutes: 15
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build image (no push)
+        run: |
+          VERSION="$(tr -d '\n' < VERSION)"
+          build/docker_build.sh "${VERSION}"
