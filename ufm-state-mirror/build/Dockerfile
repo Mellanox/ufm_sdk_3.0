@@ -15,16 +15,20 @@
 #   restore (init):  python -m state_mirror.restore
 #   mirror (sidecar): python -m state_mirror.mirror
 
-# Base image: python:3.12-slim (Debian Bookworm), not an Ubuntu image. The
-# sidecar is stdlib-only (no Ubuntu/UFM-specific system packages or ABI), and
-# python:3.12-slim is the smallest official image carrying the exact Python
-# 3.12 runtime the engine targets -- smaller CVE/attack surface and image size
-# than ubuntu:22.04 + apt-installed Python. Revisit only if the sidecar ever
-# needs UFM/Ubuntu system libraries.
-FROM python:3.12-slim
+# UFM standardizes on Ubuntu; Noble ships the Python 3.12 the engine targets.
+# Deps install into /opt/venv (on PATH) to satisfy PEP 668 and keep `python` usable.
+FROM ubuntu:24.04
 
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+    PYTHONDONTWRITEBYTECODE=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    PATH=/opt/venv/bin:$PATH
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        python3 python3-venv ca-certificates \
+    && python3 -m venv /opt/venv \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
