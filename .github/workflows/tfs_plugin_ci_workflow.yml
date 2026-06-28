@@ -22,3 +22,32 @@ jobs:
         pip install pylint
     - name: Run PyLint
       run: pylint --rcfile=plugins/fluentd_telemetry_plugin/.pylintrc plugins/fluentd_telemetry_plugin
+
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@main
+
+    - name: Set up Python
+      uses: actions/setup-python@main
+      with:
+        python-version: 3.9
+
+    - name: Install dependencies
+      run: pip install -r plugins/fluentd_telemetry_plugin/requirements.txt
+
+    - name: Run pytests
+      run: |
+        pip install pytest
+        docker pull fluent/fluentd:edge
+        # PYTHONPATH=${PWD} pytest plugins/fluentd_telemetry_plugin/tests/
+        echo "Pytest command was commented, skipping"
+
+    - name: Upload Logs  
+      if: always()  # Ensures logs are uploaded even if previous steps fail  
+      uses: actions/upload-artifact@v4  
+      with:  
+        name: pytest-logs  
+        path: /log/  
+        retention-days: 7  
