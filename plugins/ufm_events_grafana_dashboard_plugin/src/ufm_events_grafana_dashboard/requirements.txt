@@ -1,0 +1,10 @@
+apscheduler==3.10.1
+httpx==0.24.1
+protobuf==3.20.2
+prometheus-client==0.17.1
+jsonschema==4.18.4
+requests==2.31.0
+python-snappy==0.6.1
+# installing this version of numpy as its dependency for pandas
+numpy==1.26.4
+pandas==2.0.3
