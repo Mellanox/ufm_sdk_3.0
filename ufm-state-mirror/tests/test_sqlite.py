@@ -125,6 +125,7 @@ class TestSnapshot:
         assert rh.restore() is True
         assert _row_count(str(dest)) == 2
 
+
 class TestRestoreFailClosed:
     def test_restore_raises_on_corrupt_base(self, fake_redis, tmp_path):
         # Store a base whose bytes are not a valid DB; restore must fail closed.
