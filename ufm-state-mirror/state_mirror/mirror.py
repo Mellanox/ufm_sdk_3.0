@@ -28,9 +28,10 @@ import os
 import threading
 import time
 from collections import OrderedDict
+from contextlib import suppress
 
 from state_mirror.classifier import Classifier, Entry, Handler
-from state_mirror.handlers import make_handler
+from state_mirror.handlers import MirrorResult, make_handler
 from state_mirror.handlers.sqlite import SqliteHandler
 from state_mirror.health import DEFAULT_PORT, HealthServer, HealthState
 from state_mirror.redis_errors import classify_redis_error
@@ -83,9 +84,10 @@ class Mirror:
         # drift, never a delete (HLD 5.3.7/5.3.9, "the backend wins on ambiguity").
         self._pending_deletes: OrderedDict[str, tuple[str, str]] = OrderedDict()
         self._max_queue = max(1, max_queue)
-        # Keys already counted as unobserved drift (file gone but backend has it),
-        # so persistent drift bumps state_mirror_unexpected_delete_total once per
-        # onset rather than every scan (HLD 5.3.7).
+        # Keys already counted as missing-local drift. Usually the backend still
+        # has the object; an observed SQLite deletion is retained here even if
+        # its backend snapshot is absent, because only local reappearance ends
+        # that operator-error onset (HLD 5.3.7/5.3.9).
         self._known_drift: set[str] = set()
         self._last_ship: dict[str, float] = {}
         self._wakeup = threading.Event()
@@ -97,6 +99,8 @@ class Mirror:
     def _mark_dirty(self, entry: Entry) -> None:
         with self._lock:
             self._dirty.add(entry.path)
+            if entry.handler is Handler.SQLITE and entry.redis_key and os.path.exists(entry.path):
+                self._known_drift.discard(entry.redis_key)
         self.state.inc_events()
         self._wakeup.set()
 
@@ -105,6 +109,28 @@ class Mirror:
         if handler is None:
             return
         key = handler.key_for_fs_path(fs_path)
+        if isinstance(handler, SqliteHandler):
+            if os.path.exists(fs_path):
+                # The delete event raced with DB recreation. Mirror the current
+                # file, but do not open an unexpected-delete onset.
+                with self._lock:
+                    self._dirty.add(entry.path)
+                    self._known_drift.discard(key)
+                self.state.inc_events()
+                self._wakeup.set()
+                return
+            with self._lock:
+                new_onset = key not in self._known_drift
+                self._known_drift.add(key)
+            log.error(
+                "sqlite database deleted locally; retaining backend snapshot for restore: %s",
+                entry.path,
+            )
+            if new_onset:
+                self.state.inc_unexpected_deletes()
+            self.state.inc_events()
+            self._wakeup.set()
+            return
         dropped = 0
         with self._lock:
             # Collapse duplicate observations of the same key; keep it newest.
@@ -139,6 +165,7 @@ class Mirror:
             dirty = list(self._dirty)
             self._dirty = set()
         ops = 0
+        aggregate = MirrorResult()
         requeue: set[str] = set()
         for path in dirty:
             self.state.heartbeat()
@@ -154,36 +181,41 @@ class Mirror:
             ):
                 requeue.add(path)
                 continue
-            try:
-                if handler.mirror():
-                    ops += 1
-                self._last_ship[path] = now
-                self.state.record_store_ok()
-            except Exception as exc:
-                reason = _reason(exc)
-                log.exception("event mirror failed for %s [%s]; will retry", path, reason)
-                self.state.record_store_down(reason)
+            result = self._mirror_handler(handler)
+            self._record_result(result)
+            aggregate = aggregate.plus(result)
+            ops += result.writes
+            if result.failures:
+                log.error("event mirror failed for %s; will retry", path)
                 requeue.add(path)
+            else:
+                self._last_ship[path] = now
         if requeue:
             with self._lock:
                 self._dirty |= requeue
-        ops += self.flush_pending_deletes()
+        deleted = self.flush_pending_deletes()
+        aggregate = aggregate.plus(deleted)
+        ops += deleted.writes
+        if aggregate.failures:
+            self.state.mark_backend_unreachable()
         if ops:
             self.state.add_mirror_ops(ops)
         return ops
 
-    def flush_pending_deletes(self) -> int:
+    def flush_pending_deletes(self) -> MirrorResult:
         """Propagate observed deletes to the backend; retry the ones that failed.
 
         Only keys the sidecar actually observed being deleted are in
         ``_pending_deletes``, so this never removes a backend object for a file
         that merely went missing unobserved (that is drift -- see
         :meth:`_scan_unexpected_deletes`). A delete whose file reappeared before
-        we propagated it is dropped (no longer a delete). Returns ops applied.
+        we propagated it is dropped (no longer a delete). The result preserves
+        successful deletes and failures separately for aggregate health.
         """
         with self._lock:
             items = list(self._pending_deletes.items())
-        ops = 0
+        writes = 0
+        failures: list[BaseException] = []
         for key, (entry_path, fs_path) in items:
             self.state.heartbeat()
             if os.path.exists(fs_path):
@@ -194,13 +226,14 @@ class Mirror:
                 self._apply_delete(entry_path, fs_path)
                 with self._lock:
                     self._pending_deletes.pop(key, None)
-                ops += 1
-                self.state.record_store_ok()
+                writes += 1
+                self.state.record_write_ok()
             except Exception as exc:
                 reason = _reason(exc)
                 log.exception("delete failed for %s [%s]; will retry next cycle", key, reason)
                 self.state.record_store_down(reason)
-        return ops
+                failures.append(exc)
+        return MirrorResult(writes=writes, failures=tuple(failures))
 
     def _apply_delete(self, entry_path: str, fs_path: str) -> None:
         handler = self._by_path.get(entry_path)
@@ -211,56 +244,99 @@ class Mirror:
         else:
             handler.on_delete()
 
-    def full_scan(self) -> int:
-        """Mirror every entry whose body differs from the store. Returns #sent.
+    def full_scan(self) -> MirrorResult:
+        """Mirror every entry and report all work and failures.
 
         Also retries any observed-but-unpropagated deletes and accounts for
         unobserved drift (HLD 5.3.7). Heartbeats per entry so a slow backend can
         extend the scan without tripping the liveness probe.
         """
-        sent = 0
+        aggregate = MirrorResult()
         for handler in self._handlers:
             self.state.heartbeat()
-            try:
-                if handler.mirror():
-                    sent += 1
-                self.state.record_store_ok()
-            except Exception as exc:
-                reason = _reason(exc)
-                log.exception("mirror failed for %s [%s]", handler.entry.path, reason)
-                self.state.record_store_down(reason)
+            result = self._mirror_handler(handler)
+            self._record_result(result)
+            aggregate = aggregate.plus(result)
         flushed = self.flush_pending_deletes()
-        self._scan_unexpected_deletes()
+        aggregate = aggregate.plus(flushed)
+        aggregate = aggregate.plus(self._scan_unexpected_deletes())
+        if aggregate.failures:
+            # Successful siblings may have followed a failed operation. Preserve
+            # their write/read accounting, but let any failure win final
+            # reachability for this aggregate reconcile.
+            self.state.mark_backend_unreachable()
+        elif aggregate.reads:
+            # Drift enumeration is itself a backend read. This matters when all
+            # local entries were no-ops: a successful scan must clear a prior
+            # outage even though no handler read or wrote an object body.
+            self.state.record_read_ok()
         self.state.inc_full_scans()
-        total = sent + flushed
-        if total:
-            self.state.add_mirror_ops(total)
-        return sent
+        if aggregate.writes:
+            self.state.add_mirror_ops(aggregate.writes)
+        return aggregate
 
-    def _scan_unexpected_deletes(self) -> int:
+    def _scan_unexpected_deletes(self) -> MirrorResult:
         """Count keys present in the backend whose local file vanished (HLD 5.3.7).
 
         Does not delete anything (the backend wins on ambiguity); only bumps
         ``state_mirror_unexpected_delete_total`` for keys newly entering drift, so
         the gap is visible instead of silent. Keys with an observed delete still
         pending propagation are excluded -- those are intended deletes, not drift.
-        Returns the number of newly-drifted keys. Reads only, so it never updates
-        the last-write timestamp (which would mask mirror lag).
+        Reads only, so it never updates the last-write timestamp (which would
+        mask mirror lag).
         """
         with self._lock:
             pending = set(self._pending_deletes)
+            known_at_start = set(self._known_drift)
         current: set[str] = set()
+        failures: list[BaseException] = []
+        reads = 0
         for handler in self._handlers:
             self.state.heartbeat()
             try:
+                # Single-file handlers short-circuit locally when the file is
+                # present; directories always enumerate their backend prefix.
+                # Count only real backend reads so startup still probes when a
+                # scan consisted entirely of local no-ops.
+                reads_backend = handler.entry.is_directory or not os.path.exists(handler.entry.path)
                 current.update(handler.drift_keys())
+                if (
+                    isinstance(handler, SqliteHandler)
+                    and handler.entry.redis_key in known_at_start
+                    and not os.path.exists(handler.entry.path)
+                ):
+                    # Observed SQLite deletion is an operator-error onset even
+                    # when no durable snapshot exists. Do not count it again
+                    # until the DB actually reappears.
+                    current.add(handler.entry.redis_key)
+                reads += int(reads_backend)
             except Exception as exc:
                 reason = _reason(exc)
                 log.exception("drift check failed for %s [%s]", handler.entry.path, reason)
                 self.state.record_store_down(reason)
+                failures.append(exc)
+                # A failed scope is unknown, not healthy. Retain its previous
+                # drift-onset state so a transient outage cannot double-count
+                # the same missing SQLite DB on the next successful scan.
+                current.update(
+                    key for key in known_at_start if self._key_belongs_to_handler(key, handler)
+                )
         current -= pending
-        new_drift = current - self._known_drift
-        self._known_drift = current
+        with self._lock:
+            # Watchdog callbacks may add a SQLite onset or clear one on local
+            # reappearance while this backend scan is running. Merge additions
+            # and honor removals so the scan cannot overwrite newer event state.
+            current |= self._known_drift - known_at_start
+            current -= known_at_start - self._known_drift
+            for handler in self._handlers:
+                if (
+                    isinstance(handler, SqliteHandler)
+                    and handler.entry.redis_key
+                    and os.path.exists(handler.entry.path)
+                ):
+                    current.discard(handler.entry.redis_key)
+            new_drift = current - self._known_drift
+            self._known_drift = current
         if new_drift:
             log.warning(
                 "drift: %d object(s) present in backend but missing locally; "
@@ -269,11 +345,18 @@ class Mirror:
                 sorted(new_drift),
             )
             self.state.inc_unexpected_deletes(len(new_drift))
-        return len(new_drift)
+        return MirrorResult(reads=reads, failures=tuple(failures))
+
+    @staticmethod
+    def _key_belongs_to_handler(key: str, handler) -> bool:
+        if handler.entry.is_directory:
+            return key.startswith(handler.entry.redis_key_prefix)
+        return key == handler.entry.redis_key
 
     def poll_sqlite(self, now: float | None = None) -> int:
         now = time.monotonic() if now is None else now
         sent = 0
+        aggregate = MirrorResult()
         for handler in self._handlers:
             if handler.entry.handler is not Handler.SQLITE or not isinstance(
                 handler, SqliteHandler
@@ -288,36 +371,123 @@ class Mirror:
                 continue
             self._sql_last_poll[path] = now
             self.state.heartbeat()
-            try:
-                # mirror() self-gates on the WAL-aware fingerprint, so an idle DB
-                # is just a cheap header read; only an actual change snapshots.
-                if handler.mirror():
-                    sent += 1
-                if handler.last_snapshot_seconds is not None:
-                    self.state.set_snapshot_duration(
-                        os.path.basename(path), handler.last_snapshot_seconds
-                    )
-                self.state.record_store_ok()
-            except Exception as exc:
-                reason = _reason(exc)
-                log.exception("sqlite snapshot failed for %s [%s]", path, reason)
-                self.state.record_store_down(reason)
+            result = self._mirror_handler(handler)
+            self._record_result(result)
+            aggregate = aggregate.plus(result)
+            sent += result.writes
+            if handler.last_snapshot_seconds is not None:
+                self.state.set_snapshot_duration(
+                    os.path.basename(path), handler.last_snapshot_seconds
+                )
         if sent:
             self.state.add_mirror_ops(sent)
+        if aggregate.failures:
+            self.state.mark_backend_unreachable()
         return sent
 
-    def start_watching(self) -> None:
-        """Arm the watchdog observer. Fail-soft: poll-only if it can't start."""
+    def _mirror_handler(self, handler) -> MirrorResult:
         try:
-            self._observer = build_observer(self._resolver, self._event_handler)
-            self._observer.start()
-            log.info("watchdog observer started")
-            self.state.mark_watching(watchdog_active=True)
-        except Exception:
-            log.exception("watchdog observer failed to start; running poll-only")
-            self.state.mark_watching(watchdog_active=False)
+            return handler.mirror()
+        except Exception as exc:
+            reason = _reason(exc)
+            log.exception("mirror failed for %s [%s]", handler.entry.path, reason)
+            return MirrorResult(failures=(exc,))
 
-    def run_forever(self, scan_interval_s: float = 60.0, poll_interval_s: float = 0.5) -> None:
+    def _record_result(self, result: MirrorResult) -> None:
+        """Apply WROTE > READ_OK > LOCAL_NOOP, then let failures win."""
+        if result.writes:
+            self.state.record_write_ok()
+        elif result.reads:
+            self.state.record_read_ok()
+        for exc in result.failures:
+            self.state.record_store_down(_reason(exc))
+
+    def _cleanup_observer(self, observer) -> None:
+        with suppress(Exception):
+            observer.stop()
+        with suppress(RuntimeError, AttributeError):
+            observer.join(timeout=5.0)
+
+    @staticmethod
+    def _observer_healthy(observer) -> bool:
+        """Require the dispatcher and every scheduled emitter to be alive."""
+        if observer is None or not observer.is_alive():
+            return False
+        emitters = getattr(observer, "emitters", None)
+        return emitters is None or all(emitter.is_alive() for emitter in emitters)
+
+    def start_watching(self) -> bool:
+        """Arm every required watchdog watch; return whether strict setup passed."""
+        try:
+            setup = build_observer(self._resolver, self._event_handler)
+            if not setup.complete:
+                for exc in setup.failures:
+                    log.error("required watchdog setup failed: %s", exc)
+                self.state.mark_watching(False, all_required_armed=False)
+                return False
+            observer = setup.observer
+            observer.start()
+            if not self._observer_healthy(observer):
+                raise RuntimeError("watchdog observer or required emitter did not become active")
+            self._observer = observer
+            log.info("watchdog observer started")
+            self.state.mark_watching(True, all_required_armed=True)
+            return True
+        except Exception:
+            log.exception("watchdog observer failed to start")
+            if "observer" in locals():
+                self._cleanup_observer(observer)
+            self._observer = None
+            self.state.mark_watching(False, all_required_armed=False)
+            return False
+
+    def startup_once(self) -> bool:
+        """Attempt watcher setup plus one fail-closed startup reconcile.
+
+        Clear the reconcile gate first: a watcher recovered from an earlier
+        attempt must not combine with that attempt's successful scan and expose
+        readiness before the current scan has completed.
+        """
+        self.state.mark_initial_reconcile(False)
+        watchers_ok = self._observer_healthy(self._observer)
+        if not watchers_ok and self._observer is not None:
+            self._cleanup_observer(self._observer)
+            self._observer = None
+            self.state.mark_watching(False, all_required_armed=False)
+        if watchers_ok:
+            self.state.mark_watching(True, all_required_armed=True)
+        if not watchers_ok:
+            watchers_ok = self.start_watching()
+        result = self.full_scan()
+        if result.succeeded and result.backend_ops == 0:
+            try:
+                self.store.probe()
+                self.state.record_read_ok()
+                result = result.plus(MirrorResult(reads=1))
+            except Exception as exc:
+                log.exception("startup backend probe failed")
+                self.state.record_store_down(_reason(exc))
+                result = result.plus(MirrorResult(failures=(exc,)))
+
+        # The initial reconcile can be slow. Recheck after it completes so an
+        # observer that died during the scan cannot satisfy strict readiness.
+        watchers_ok = self._observer_healthy(self._observer)
+        if not watchers_ok and self._observer is not None:
+            self._cleanup_observer(self._observer)
+            self._observer = None
+        self.state.mark_watching(watchers_ok, all_required_armed=watchers_ok)
+        if not watchers_ok and self.state.allow_poll_only:
+            log.warning("UNSUPPORTED poll-only mode enabled; readiness may pass without watchdog")
+        watcher_gate = watchers_ok or self.state.allow_poll_only
+        self.state.mark_initial_reconcile(result.succeeded)
+        return result.succeeded and watcher_gate
+
+    def run_forever(
+        self,
+        scan_interval_s: float = 60.0,
+        poll_interval_s: float = 0.5,
+        startup_retry_s: float = 2.0,
+    ) -> None:
         """Run the mirror loop until the process is killed.
 
         ``scan_interval_s`` (default 60s) is how often the periodic full scan
@@ -326,13 +496,19 @@ class Mirror:
         NOT the per-DB SQLite cadence, which is each entry's ``poll_interval_ms``
         enforced inside :meth:`poll_sqlite`.
         """
-        self.start_watching()
-        log.info("startup full scan (%d entries)", len(self._handlers))
-        self.full_scan()
-        self.state.mark_startup_scan_done()
+        while not self.startup_once():
+            log.error("startup reconcile incomplete; retrying in %.1fs", startup_retry_s)
+            self._wakeup.wait(timeout=startup_retry_s)
+            self._wakeup.clear()
+        log.info("startup reconcile complete; sidecar ready")
         last_scan = time.monotonic()
         while True:
             try:
+                if self._observer is not None and not self._observer_healthy(self._observer):
+                    log.error("watchdog observer stopped after readiness; running degraded")
+                    self._cleanup_observer(self._observer)
+                    self._observer = None
+                    self.state.mark_watching(False, all_required_armed=False)
                 self._wakeup.wait(timeout=poll_interval_s)
                 self._wakeup.clear()
                 now = time.monotonic()
@@ -363,7 +539,13 @@ def main() -> int:
     max_queue = int(os.environ.get("STATE_MIRROR_MAX_QUEUE", DEFAULT_MAX_QUEUE))
     log.info("state-mirror sidecar starting (ufm_version=%s, max_queue=%d)", ufm_version, max_queue)
 
-    state = HealthState()
+    allow_poll_only = os.environ.get("STATE_MIRROR_ALLOW_POLL_ONLY", "false").lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+    state = HealthState(allow_poll_only=allow_poll_only)
     HealthServer(state, port=port).start()
     try:
         classifier = Classifier.load_file(classifier_path)

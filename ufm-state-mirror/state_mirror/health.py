@@ -50,12 +50,20 @@ BACKEND_ERROR_REASONS: tuple[str, ...] = tuple(
 
 
 class HealthState:
-    """Mutable, thread-safe view of the sidecar's health and counters."""
+    """Mutable, thread-safe view of sidecar health and counters.
 
-    def __init__(self):
+    Startup readiness latches only after a successful initial reconcile and
+    either all required watchers are armed or the explicit poll-only escape
+    hatch is enabled. Once latched, later runtime degradation is reported by
+    the backend/watchdog gauges without withdrawing pod readiness.
+    """
+
+    def __init__(self, *, allow_poll_only: bool = False):
         self._lock = threading.Lock()
-        self.watching_started = False
-        self.startup_scan_done = False
+        self.initial_reconcile_ok = False
+        self.required_watchers_armed = False
+        self.allow_poll_only = allow_poll_only
+        self.readiness_latched = False
         self.watchdog_active = False
         self.loop_started = False
         self.last_loop_tick = 0.0
@@ -72,14 +80,27 @@ class HealthState:
         # Last snapshot wall-clock per SQLite DB (basename label), HLD 5.3.4.
         self.snapshot_durations: dict[str, float] = {}
 
-    def mark_watching(self, watchdog_active: bool) -> None:
+    def mark_watching(
+        self, watchdog_active: bool, *, all_required_armed: bool | None = None
+    ) -> None:
+        """Record observer state and re-evaluate the startup readiness gate."""
         with self._lock:
-            self.watching_started = True
             self.watchdog_active = watchdog_active
+            self.required_watchers_armed = (
+                watchdog_active if all_required_armed is None else all_required_armed
+            )
+            self._maybe_latch_ready()
 
-    def mark_startup_scan_done(self) -> None:
+    def mark_initial_reconcile(self, succeeded: bool) -> None:
+        """Record the latest startup reconcile result and evaluate readiness."""
         with self._lock:
-            self.startup_scan_done = True
+            self.initial_reconcile_ok = succeeded
+            self._maybe_latch_ready()
+
+    def _maybe_latch_ready(self) -> None:
+        watcher_gate = self.required_watchers_armed or self.allow_poll_only
+        if self.initial_reconcile_ok and watcher_gate:
+            self.readiness_latched = True
 
     def tick(self, dirty_depth: int, pending_deletes: int) -> None:
         with self._lock:
@@ -101,7 +122,11 @@ class HealthState:
             self.loop_started = True
             self.last_loop_tick = time.monotonic()
 
-    def record_store_ok(self) -> None:
+    def record_read_ok(self) -> None:
+        with self._lock:
+            self.backend_reachable = True
+
+    def record_write_ok(self) -> None:
         with self._lock:
             self.backend_reachable = True
             self.last_store_write = time.time()
@@ -112,6 +137,11 @@ class HealthState:
             if reason not in self.backend_errors:
                 reason = "other"
             self.backend_errors[reason] += 1
+
+    def mark_backend_unreachable(self) -> None:
+        """Make a previously counted failure win final aggregate reachability."""
+        with self._lock:
+            self.backend_reachable = False
 
     def add_mirror_ops(self, n: int) -> None:
         with self._lock:
@@ -146,7 +176,7 @@ class HealthState:
 
     def is_ready(self) -> bool:
         with self._lock:
-            return self.watching_started and self.startup_scan_done
+            return self.readiness_latched
 
     def is_alive(self, now: float | None = None, timeout: float = LIVENESS_TIMEOUT_S) -> bool:
         if now is None:
@@ -183,11 +213,16 @@ def render_metrics(state: HealthState) -> str:
 
     # Derive readiness from the same snapshot (not a second is_ready() lock) so
     # the gauge is consistent with the rest of this scrape.
-    ready = snap["watching_started"] and snap["startup_scan_done"]
+    ready = snap["readiness_latched"]
     gauge("state_mirror_ready", "1 if the sidecar is ready", int(ready))
     gauge(
+        "state_mirror_poll_only_enabled",
+        "1 if the unsupported poll-only readiness escape hatch is enabled",
+        int(snap["allow_poll_only"]),
+    )
+    gauge(
         "state_mirror_backend_reachable",
-        "1 if the storage backend was reachable on the last op",
+        "1 if the latest backend activity completed without a recorded failure",
         int(snap["backend_reachable"]),
     )
     gauge(
@@ -209,8 +244,8 @@ def render_metrics(state: HealthState) -> str:
     counter("state_mirror_events_total", "Total watchdog change/delete marks", snap["events_total"])
     counter(
         "state_mirror_dropped_events_total",
-        "Delete marks dropped from a full bounded queue (D2 drop policy); "
-        "recovered by the next full-scan delete reconcile",
+        "Delete marks dropped from a full bounded queue; backend copies remain "
+        "and deleted files are recreated on restore unless removed manually",
         snap["dropped_events_total"],
     )
     counter(

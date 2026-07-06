@@ -24,7 +24,7 @@ import logging
 import os
 
 from state_mirror import wire
-from state_mirror.handlers.base import BaseHandler
+from state_mirror.handlers.base import BaseHandler, MirrorResult
 
 log = logging.getLogger(__name__)
 
@@ -41,11 +41,13 @@ class DirectoryHandler(BaseHandler):
             for dirpath, _dirs, files in os.walk(root):
                 for name in sorted(files):
                     full = os.path.join(dirpath, name)
+                    # Do not pre-stat here: _read_file_nofollow performs the
+                    # authoritative open/fstat and returns any inspection error
+                    # through MirrorResult instead of silently skipping a child.
                     yield os.path.relpath(full, root), full
         else:
-            # scandir reuses the stat already done by the OS (one syscall per
-            # entry instead of listdir + isfile). follow_symlinks=True keeps the
-            # prior os.path.isfile semantics: a symlink to a file still counts.
+            # Preserve the existing traversal behavior in the outcome-accounting
+            # change; symlink hardening is delivered by the next stacked PR.
             with os.scandir(root) as it:
                 for de in sorted(it, key=lambda e: e.name):
                     if de.is_file(follow_symlinks=True):
@@ -78,23 +80,24 @@ class DirectoryHandler(BaseHandler):
         real = os.path.realpath(dest)
         return real == root or real.startswith(root + os.sep)
 
-    def mirror(self) -> bool:
-        sent_any = False
+    def mirror(self) -> MirrorResult:
+        writes = 0
+        reads = 0
+        failures: list[BaseException] = []
         for relpath, full in self._iter_local_files():
-            # A local read error for one child (e.g. it vanished mid-scan) is
-            # skipped so the rest of the tree still mirrors. A backend error
-            # (WireError) is NOT swallowed -- it propagates so the caller records
-            # the outage via record_store_down instead of seeing a healthy run.
             try:
                 body = self._read_file(full)
-            except OSError:
-                log.exception("mirror: cannot read child %s; skipping", full)
+                key = self._key_for_rel(relpath)
+                if self._push_if_changed(key, body):
+                    log.info("mirror: shipped %s -> %s", full, key)
+                    writes += 1
+                else:
+                    reads += 1
+            except Exception as exc:
+                log.exception("mirror: child failed %s; continuing with siblings", full)
+                failures.append(exc)
                 continue
-            key = self._key_for_rel(relpath)
-            if self._push_if_changed(key, body):
-                log.info("mirror: shipped %s -> %s", full, key)
-                sent_any = True
-        return sent_any
+        return MirrorResult(writes=writes, reads=reads, failures=tuple(failures))
 
     def on_delete_child(self, relpath: str) -> None:
         log.info("on_delete_child: dropping %s", relpath)

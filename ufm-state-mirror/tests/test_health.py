@@ -33,7 +33,27 @@ class TestReadiness:
         assert s.is_ready() is False
         s.mark_watching(watchdog_active=True)
         assert s.is_ready() is False
-        s.mark_startup_scan_done()
+        s.mark_initial_reconcile(True)
+        assert s.is_ready() is True
+
+    def test_strict_mode_requires_watchers(self):
+        s = HealthState()
+        s.mark_initial_reconcile(True)
+        s.mark_watching(False, all_required_armed=False)
+        assert s.is_ready() is False
+
+    def test_explicit_poll_only_mode_can_be_ready(self):
+        s = HealthState(allow_poll_only=True)
+        s.mark_watching(False, all_required_armed=False)
+        s.mark_initial_reconcile(True)
+        assert s.is_ready() is True
+
+    def test_readiness_stays_latched_after_runtime_failure(self):
+        s = HealthState()
+        s.mark_watching(True)
+        s.mark_initial_reconcile(True)
+        s.mark_initial_reconcile(False)
+        s.mark_watching(False, all_required_armed=False)
         assert s.is_ready() is True
 
     def test_ready_route(self):
@@ -42,7 +62,7 @@ class TestReadiness:
         assert status == 503
         assert body == b"not ready\n"
         s.mark_watching(watchdog_active=True)
-        s.mark_startup_scan_done()
+        s.mark_initial_reconcile(True)
         status, _ct, body = handle_request("/ready", s)
         assert status == 200
         assert body == b"ready\n"
@@ -87,8 +107,8 @@ class TestMetrics:
     def test_metrics_reflect_state(self):
         s = HealthState()
         s.mark_watching(watchdog_active=True)
-        s.mark_startup_scan_done()
-        s.record_store_ok()
+        s.mark_initial_reconcile(True)
+        s.record_write_ok()
         s.add_mirror_ops(3)
         s.inc_full_scans()
         s.inc_events()
@@ -96,6 +116,7 @@ class TestMetrics:
         assert "state_mirror_ready 1" in text
         assert "state_mirror_backend_reachable 1" in text
         assert "state_mirror_watchdog_active 1" in text
+        assert "state_mirror_poll_only_enabled 0" in text
         assert "state_mirror_mirror_ops_total 3" in text
         assert "state_mirror_full_scans_total 1" in text
         assert "state_mirror_events_total 1" in text
@@ -129,6 +150,19 @@ class TestMetrics:
         s.record_store_down("not-a-real-reason")
         text = render_metrics(s)
         assert 'state_mirror_backend_errors_total{reason="other"} 1' in text
+
+    def test_read_ok_does_not_advance_write_timestamp(self):
+        s = HealthState()
+        s.record_store_down("conn")
+        s.record_read_ok()
+        assert s.backend_reachable is True
+        assert s.last_store_write == 0.0
+
+    def test_write_ok_advances_timestamp(self):
+        s = HealthState()
+        s.record_write_ok()
+        assert s.backend_reachable is True
+        assert s.last_store_write > 0.0
 
     def test_dropped_events_counter(self):
         s = HealthState()
@@ -165,7 +199,7 @@ class TestLiveServer:
             assert status == 503
             assert body == b"not ready\n"
             s.mark_watching(watchdog_active=True)
-            s.mark_startup_scan_done()
+            s.mark_initial_reconcile(True)
             status, body = _get(base + "/ready")
             assert status == 200
             assert body == b"ready\n"

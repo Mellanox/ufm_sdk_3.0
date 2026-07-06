@@ -38,7 +38,7 @@ import sqlite3
 import tempfile
 import time
 
-from state_mirror.handlers.base import BaseHandler
+from state_mirror.handlers.base import BaseHandler, MirrorResult
 
 log = logging.getLogger(__name__)
 
@@ -82,15 +82,11 @@ class SqliteHandler(BaseHandler):
         return int.from_bytes(header[_CHANGE_COUNTER_OFFSET:_HEADER_MIN_SIZE], "big")
 
     def signature(self) -> tuple[int, int, int]:
-        """A cheap change fingerprint: (header change counter, wal size, wal mtime).
-
-        Includes the ``-wal`` file because WAL-mode writes don't bump the header
-        change counter until a checkpoint.
-        """
+        """A cheap change fingerprint: (header change counter, wal size, wal mtime)."""
         cc = self.read_change_counter(self.entry.path)
         try:
-            st = os.stat(self._wal_path(self.entry.path))
-            return (cc, st.st_size, st.st_mtime_ns)
+            wal = os.stat(self._wal_path(self.entry.path))
+            return (cc, wal.st_size, wal.st_mtime_ns)
         except OSError:
             return (cc, -1, -1)
 
@@ -145,25 +141,25 @@ class SqliteHandler(BaseHandler):
             log.warning("could not remove temp file %s", path)
 
     # ---- mirror ------------------------------------------------------------
-    def mirror(self) -> bool:
+    def mirror(self) -> MirrorResult:
         # Each mirror() reports the snapshot cost only if it actually snapshots.
         self.last_snapshot_seconds = None
         if not os.path.exists(self.entry.path):
             log.debug("mirror: sqlite db %s does not exist yet, skipping", self.entry.path)
-            return False
+            return MirrorResult()
         try:
             size = os.path.getsize(self.entry.path)
         except OSError as exc:
-            log.warning("mirror: cannot stat %s: %s; skipping", self.entry.path, exc)
-            return False
+            log.warning("mirror: cannot stat %s: %s", self.entry.path, exc)
+            raise
         if size == 0:
             log.debug("mirror: sqlite db %s is empty, skipping", self.entry.path)
-            return False
+            return MirrorResult()
         # Cheap change fingerprint first: skip the O(DB-size) online backup when
         # the DB is unchanged since the last successful ship (HLD 5.3.4).
         sig = self.signature()
         if sig == self._last_shipped_sig:
-            return False
+            return MirrorResult()
         body = self.snapshot_bytes()
         sent = self._push_if_changed(self.entry.redis_key, body)
         # The snapshot at this signature is now persisted (or byte-identical to
@@ -176,7 +172,7 @@ class SqliteHandler(BaseHandler):
                 len(body),
                 self.entry.redis_key,
             )
-        return sent
+        return MirrorResult(writes=1) if sent else MirrorResult(reads=1)
 
     # ---- restore -----------------------------------------------------------
     def restore(self) -> bool:

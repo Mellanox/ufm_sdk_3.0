@@ -70,6 +70,10 @@ class Store(ABC):
     def list_keys(self, prefix: str) -> list[str]:
         """Return every stored key (decoded) beginning with ``prefix``."""
 
+    @abstractmethod
+    def probe(self) -> None:
+        """Perform a cheap backend round-trip or raise on failure."""
+
 
 class RedisStore(Store):
     """:class:`Store` backed by Redis/Valkey: one body key + one ``:meta`` key.
@@ -104,6 +108,9 @@ class RedisStore(Store):
         for key in self._client.scan_iter(match=prefix + "*"):
             keys.append(key.decode() if isinstance(key, (bytes, bytearray)) else key)
         return keys
+
+    def probe(self) -> None:
+        self._client.ping()
 
 
 # --- ConfigMap backend (HLD 5.3.x) ---------------------------------------
@@ -264,6 +271,15 @@ class ConfigMapStore(Store):
             if key is not None and key.startswith(prefix):
                 keys.append(key)
         return keys
+
+    def probe(self) -> None:
+        """Prove API/RBAC reachability without mutating cluster state."""
+        selector = f"{MANAGED_BY_LABEL}={MANAGED_BY_VALUE}"
+        try:
+            self._api.list_cms(selector)
+        except Exception as exc:
+            reason = classify_k8s_error(exc)
+            raise wire.WireError(f"configmap probe failed: {exc}", reason=reason) from exc
 
     # --- internals -------------------------------------------------------
 

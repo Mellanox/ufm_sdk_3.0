@@ -15,12 +15,10 @@
 import os
 import sqlite3
 
-import pytest
-
 from state_mirror import wire
 from state_mirror.classifier import Entry
 from state_mirror.handlers import base, make_handler
-from state_mirror.handlers.base import BaseHandler
+from state_mirror.handlers.base import BaseHandler, MirrorOutcome
 from state_mirror.handlers.blob import BlobHandler
 from state_mirror.handlers.directory import DirectoryHandler
 from state_mirror.handlers.sqlite import SqliteHandler
@@ -42,12 +40,12 @@ class TestBlobHandler:
         handler = _handler(entry, fake_redis)
         assert isinstance(handler, BlobHandler)
 
-        assert handler.mirror() is True
+        assert handler.mirror().outcome is MirrorOutcome.WROTE
         # unchanged -> idempotent no-op
-        assert handler.mirror() is False
+        assert handler.mirror().outcome is MirrorOutcome.READ_OK
         # change -> ships again
         src.write_bytes(b'{"v": 2}')
-        assert handler.mirror() is True
+        assert handler.mirror().outcome is MirrorOutcome.WROTE
 
         # restore into a fresh location
         dest = tmp_path / "restored" / "a.json"
@@ -109,7 +107,7 @@ class TestDirectoryHandler:
         )
         handler = _handler(entry, fake_redis)
         assert isinstance(handler, DirectoryHandler)
-        assert handler.mirror() is True
+        assert handler.mirror().outcome is MirrorOutcome.WROTE
         assert fake_redis.get("ufm:cfg:plugins:a.conf") == b"AAA"
         assert fake_redis.get("ufm:cfg:plugins:sub/b.conf") == b"BBB"
 
@@ -157,8 +155,10 @@ class TestDirectoryHandler:
             raise wire.WireError("backend down", reason="conn")
 
         monkeypatch.setattr(handler.store, "get_meta", boom)
-        with pytest.raises(wire.WireError):
-            handler.mirror()
+        result = handler.mirror()
+        assert result.outcome is MirrorOutcome.LOCAL_NOOP
+        assert len(result.failures) == 1
+        assert isinstance(result.failures[0], wire.WireError)
 
     def test_mirror_skips_unreadable_child(self, fake_redis, tmp_path, monkeypatch):
         # A local read error for one child is skipped (not fatal) so the rest of
@@ -171,15 +171,17 @@ class TestDirectoryHandler:
             {"path": str(root), "handler": "directory", "redis_key_prefix": "ufm:cfg:plugins:"}
         )
         handler = _handler(entry, fake_redis)
-        real_read = base.BaseHandler._read_file
+        real_read = handler._read_file
 
         def selective(path):
             if path.endswith("a.conf"):
                 raise OSError("unreadable")
             return real_read(path)
 
-        monkeypatch.setattr(base.BaseHandler, "_read_file", staticmethod(selective))
-        assert handler.mirror() is True  # b.conf still shipped despite a.conf failing
+        monkeypatch.setattr(handler, "_read_file", selective)
+        result = handler.mirror()
+        assert result.outcome is MirrorOutcome.WROTE
+        assert len(result.failures) == 1  # b.conf still shipped despite a.conf failing
         assert fake_redis.get("ufm:cfg:plugins:a.conf") is None
         assert fake_redis.get("ufm:cfg:plugins:b.conf") == b"BBB"
 
@@ -220,7 +222,7 @@ class TestSqliteHandler:
         )
         handler = _handler(entry, fake_redis)
         assert isinstance(handler, SqliteHandler)
-        assert handler.mirror() is True
+        assert handler.mirror().outcome is MirrorOutcome.WROTE
 
         # restore to a new path and confirm it opens with the same rows
         dest = str(tmp_path / "restored" / "gv.db")
