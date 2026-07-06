@@ -144,6 +144,39 @@ class TestSnapshot:
         assert rh.restore() is True
         assert _row_count(str(dest)) == 2
 
+    def test_signature_detects_same_counter_main_file_replacement(self, fake_redis, tmp_path):
+        db = tmp_path / "gv.db"
+        _make_db(str(db), ["a"])
+        h = _handler(db, fake_redis)
+        original = h.signature()
+        stat = db.stat()
+        replacement = tmp_path / "replacement.db"
+        _make_db(str(replacement), ["different" * 100 for _ in range(1000)])
+        # Force the header counter and mtime back to the original values; size
+        # remains part of the signature and must still detect replacement.
+        data = bytearray(replacement.read_bytes())
+        data[24:28] = db.read_bytes()[24:28]
+        db.write_bytes(data)
+        db.touch()
+        os.utime(db, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+        assert h.signature() != original
+
+    def test_signature_detects_same_size_mtime_counter_replacement(self, fake_redis, tmp_path):
+        db = tmp_path / "gv.db"
+        replacement = tmp_path / "replacement.db"
+        _make_db(str(db), ["a"])
+        _make_db(str(replacement), ["b"])
+        h = _handler(db, fake_redis)
+        original = h.signature()
+        original_stat = db.stat()
+        data = bytearray(replacement.read_bytes())
+        data[24:28] = db.read_bytes()[24:28]
+        replacement.write_bytes(data)
+        assert replacement.stat().st_size == original_stat.st_size
+        os.replace(replacement, db)
+        os.utime(db, ns=(original_stat.st_atime_ns, original_stat.st_mtime_ns))
+        assert h.signature() != original
+
 
 class TestRestoreFailClosed:
     def test_restore_raises_on_corrupt_base(self, fake_redis, tmp_path):

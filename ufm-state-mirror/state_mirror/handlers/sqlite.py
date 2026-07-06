@@ -26,8 +26,8 @@ a DB's journal mode -- it only reads.
 Change detection: a counter-only poll would miss live writes on a WAL-mode DB,
 because in WAL mode a write lands in ``-wal`` and does NOT bump the main DB
 header's change counter until a checkpoint. ``signature()`` therefore combines
-the header change counter with the ``-wal`` file's size and mtime, so it is
-correct whether the DB is in rollback-journal or WAL mode.
+main DB identity, size, timestamps, header change counter, and the ``-wal``
+file's size and mtime, so it detects both replacement and ordinary WAL writes.
 """
 
 from __future__ import annotations
@@ -78,14 +78,32 @@ class SqliteHandler(BaseHandler):
             return 0
         return int.from_bytes(header[_CHANGE_COUNTER_OFFSET:_HEADER_MIN_SIZE], "big")
 
-    def signature(self) -> tuple[int, int, int]:
-        """A cheap change fingerprint: (header change counter, wal size, wal mtime)."""
+    def signature(self) -> tuple[int, int, int, int, int, int, int, int]:
+        """Fingerprint main DB and WAL metadata plus the header counter.
+
+        Main-file identity, size and timestamps detect same-counter replacement;
+        WAL size/mtime detects writes that have not advanced the main header.
+        """
         cc = self.read_change_counter(self.entry.path)
+        main = os.stat(self.entry.path)
         try:
             wal = os.stat(self._wal_path(self.entry.path))
-            return (cc, wal.st_size, wal.st_mtime_ns)
         except FileNotFoundError:
-            return (cc, -1, -1)
+            wal_size = -1
+            wal_mtime_ns = -1
+        else:
+            wal_size = wal.st_size
+            wal_mtime_ns = wal.st_mtime_ns
+        return (
+            cc,
+            main.st_dev,
+            main.st_ino,
+            main.st_size,
+            main.st_mtime_ns,
+            main.st_ctime_ns,
+            wal_size,
+            wal_mtime_ns,
+        )
 
     @staticmethod
     def integrity_check(path: str) -> None:
