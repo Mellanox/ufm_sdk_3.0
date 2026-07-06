@@ -25,6 +25,8 @@ from __future__ import annotations
 import logging
 import os
 import stat
+from dataclasses import dataclass
+from enum import Enum
 from typing import Optional
 
 from state_mirror import wire
@@ -32,6 +34,53 @@ from state_mirror.classifier import Baseline, Entry
 from state_mirror.store import Store
 
 log = logging.getLogger(__name__)
+
+
+class MirrorOutcome(str, Enum):
+    """Highest-precedence successful activity from one mirror pass."""
+
+    WROTE = "wrote"
+    READ_OK = "read_ok"
+    LOCAL_NOOP = "local_noop"
+
+
+@dataclass(frozen=True)
+class MirrorResult:
+    """Backend activity and failures produced by one handler pass.
+
+    Counts make directory aggregation unambiguous: writes dominate successful
+    reads, which dominate a purely local no-op. Failures are deliberately kept
+    separate so a partially successful directory pass can advance the last
+    write timestamp while still leaving final backend reachability false.
+    """
+
+    writes: int = 0
+    reads: int = 0
+    failures: tuple[BaseException, ...] = ()
+
+    @property
+    def outcome(self) -> MirrorOutcome:
+        if self.writes:
+            return MirrorOutcome.WROTE
+        if self.reads:
+            return MirrorOutcome.READ_OK
+        return MirrorOutcome.LOCAL_NOOP
+
+    @property
+    def backend_ops(self) -> int:
+        return self.writes + self.reads
+
+    @property
+    def succeeded(self) -> bool:
+        return not self.failures
+
+    def plus(self, other: "MirrorResult") -> "MirrorResult":
+        """Combine sibling operations while retaining every failure."""
+        return MirrorResult(
+            writes=self.writes + other.writes,
+            reads=self.reads + other.reads,
+            failures=self.failures + other.failures,
+        )
 
 
 class BaseHandler:
@@ -83,15 +132,16 @@ class BaseHandler:
             self.entry.baseline.value,
         )
 
-    def mirror(self) -> bool:
-        """Push the current file to Redis if it differs. Returns True if sent.
+    def mirror(self) -> MirrorResult:
+        """Push the current file to the store if it differs.
 
         Idempotent: compares the stored content hash before writing so an
-        unchanged file is a cheap no-op.
+        unchanged file is a cheap backend read; a missing local file is a true
+        local no-op and does not imply anything about backend reachability.
         """
         if not os.path.exists(self.entry.path):
             log.debug("mirror: %s does not exist yet, skipping", self.entry.path)
-            return False
+            return MirrorResult()
         body = self._read_file(self.entry.path)
         sent = self._push_if_changed(self.entry.redis_key, body)
         if sent:
@@ -101,7 +151,7 @@ class BaseHandler:
                 len(body),
                 self.entry.redis_key,
             )
-        return sent
+        return MirrorResult(writes=1) if sent else MirrorResult(reads=1)
 
     def on_delete(self) -> None:
         """Propagate a local delete to the store (HLD 5.3.9).

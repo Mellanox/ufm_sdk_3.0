@@ -22,9 +22,10 @@ from __future__ import annotations
 
 import logging
 import os
+import stat
 
 from state_mirror import wire
-from state_mirror.handlers.base import BaseHandler
+from state_mirror.handlers.base import BaseHandler, MirrorResult
 
 log = logging.getLogger(__name__)
 
@@ -41,14 +42,14 @@ class DirectoryHandler(BaseHandler):
             for dirpath, _dirs, files in os.walk(root):
                 for name in sorted(files):
                     full = os.path.join(dirpath, name)
+                    # Do not pre-stat here: _read_file_nofollow performs the
+                    # authoritative open/fstat and returns any inspection error
+                    # through MirrorResult instead of silently skipping a child.
                     yield os.path.relpath(full, root), full
         else:
-            # scandir reuses the stat already done by the OS (one syscall per
-            # entry instead of listdir + isfile). follow_symlinks=True keeps the
-            # prior os.path.isfile semantics: a symlink to a file still counts.
             with os.scandir(root) as it:
                 for de in sorted(it, key=lambda e: e.name):
-                    if de.is_file(follow_symlinks=True):
+                    if de.is_file(follow_symlinks=False):
                         yield de.name, de.path
 
     def _iter_redis_relpaths(self):
@@ -59,15 +60,25 @@ class DirectoryHandler(BaseHandler):
             yield key[len(prefix) :]
 
     def restore(self) -> bool:
+        """Restore children only after every backend path passes containment.
+
+        Validation is deliberately a separate first pass. If one malicious or
+        corrupt key escapes the configured root, no earlier safe child should
+        already have been written before the entry fails closed.
+        """
         count = 0
         root = os.path.realpath(self.entry.path)
+        children: list[tuple[str, str]] = []
         for relpath in self._iter_redis_relpaths():
             dest = os.path.join(self.entry.path, relpath)
             # Restore is the fail-closed boundary: a corrupt/hostile backend key
             # containing ``..`` must not let us write outside the entry root.
             if not self._within(root, dest):
-                log.error("restore: skipping child key with out-of-root path %r", relpath)
-                continue
+                raise wire.WireError(
+                    f"{self.entry.redis_key_prefix}: child key has out-of-root path {relpath!r}"
+                )
+            children.append((relpath, dest))
+        for relpath, dest in children:
             if self._restore_one(self.store, self._key_for_rel(relpath), dest) is not None:
                 count += 1
         log.info("restore: %s restored %d child file(s)", self.entry.path, count)
@@ -78,23 +89,40 @@ class DirectoryHandler(BaseHandler):
         real = os.path.realpath(dest)
         return real == root or real.startswith(root + os.sep)
 
-    def mirror(self) -> bool:
-        sent_any = False
+    def mirror(self) -> MirrorResult:
+        writes = 0
+        reads = 0
+        failures: list[BaseException] = []
         for relpath, full in self._iter_local_files():
-            # A local read error for one child (e.g. it vanished mid-scan) is
-            # skipped so the rest of the tree still mirrors. A backend error
-            # (WireError) is NOT swallowed -- it propagates so the caller records
-            # the outage via record_store_down instead of seeing a healthy run.
             try:
-                body = self._read_file(full)
-            except OSError:
-                log.exception("mirror: cannot read child %s; skipping", full)
+                body = self._read_file_nofollow(full)
+                key = self._key_for_rel(relpath)
+                if self._push_if_changed(key, body):
+                    log.info("mirror: shipped %s -> %s", full, key)
+                    writes += 1
+                else:
+                    reads += 1
+            except Exception as exc:
+                log.exception("mirror: child failed %s; continuing with siblings", full)
+                failures.append(exc)
                 continue
-            key = self._key_for_rel(relpath)
-            if self._push_if_changed(key, body):
-                log.info("mirror: shipped %s -> %s", full, key)
-                sent_any = True
-        return sent_any
+        return MirrorResult(writes=writes, reads=reads, failures=tuple(failures))
+
+    @staticmethod
+    def _read_file_nofollow(path: str) -> bytes:
+        """Read one regular file without following a final symlink."""
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+        fd = os.open(path, flags)
+        try:
+            mode = os.fstat(fd).st_mode
+            if not stat.S_ISREG(mode):
+                raise OSError(f"refusing to mirror non-regular file: {path}")
+            with os.fdopen(fd, "rb") as fh:
+                fd = -1
+                return fh.read()
+        finally:
+            if fd >= 0:
+                os.close(fd)
 
     def on_delete_child(self, relpath: str) -> None:
         log.info("on_delete_child: dropping %s", relpath)

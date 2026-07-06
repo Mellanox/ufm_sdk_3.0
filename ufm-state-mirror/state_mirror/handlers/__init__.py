@@ -14,7 +14,7 @@
 
 from state_mirror.classifier import Entry, Handler
 from state_mirror.handlers.atomic_blob import AtomicBlobHandler
-from state_mirror.handlers.base import BaseHandler
+from state_mirror.handlers.base import BaseHandler, MirrorResult
 from state_mirror.handlers.blob import BlobHandler
 from state_mirror.handlers.directory import DirectoryHandler
 from state_mirror.handlers.sqlite import SqliteHandler
@@ -42,6 +42,7 @@ def make_handler(entry: Entry, store, ufm_version: str, written_by: str) -> Base
 
 __all__ = [
     "BaseHandler",
+    "MirrorResult",
     "BlobHandler",
     "AtomicBlobHandler",
     "DirectoryHandler",

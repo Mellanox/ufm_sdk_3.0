@@ -72,9 +72,11 @@ The same image runs in two roles inside the UFM pod:
 ## Metrics
 
 - `state_mirror_ready` — 1 when ready.
-- `state_mirror_backend_reachable` — 1 if the storage backend was reachable on
-  the last op.
+- `state_mirror_backend_reachable` — 1 if the latest backend activity completed
+  without a recorded failure (a partial reconcile remains 0).
 - `state_mirror_watchdog_active` — 1 if the watchdog observer is running.
+- `state_mirror_poll_only_enabled` — 1 only when the internal, unsupported
+  poll-only readiness escape hatch was explicitly enabled.
 - `state_mirror_last_write_timestamp_seconds` — last successful store write.
 - `state_mirror_dirty_queue_depth`, `state_mirror_pending_deletes` — backlog.
 - `state_mirror_mirror_ops_total`, `state_mirror_full_scans_total`,
@@ -112,9 +114,10 @@ The Helm chart ships an optional `ServiceMonitor` + `PrometheusRule`
 | `UFM_VERSION` | `unknown` | Stamped into metadata. |
 | `STATE_MIRROR_METRICS_PORT` | `9180` | HTTP port. |
 | `STATE_MIRROR_MAX_QUEUE` | `100000` | Max observed-delete queue; drop-oldest on overflow (dropped deletes fall back to backend-wins, D2/HLD 8.2). |
+| `STATE_MIRROR_ALLOW_POLL_ONLY` | `false` | Internal unsupported escape hatch: permit readiness without watchdog after a clean reconcile; emits warnings and metrics. |
 | `STATE_MIRROR_BACKEND` | `configmap` | Install-wide storage backend: `configmap` (default, etcd-backed) or `redis` (BYO). Invalid values fail closed at startup. |
 | `STATE_MIRROR_LOG_LEVEL` | `INFO` | Log level. |
-| `STATE_MIRROR_LOG_TO_FILE` | `true` | Also log to `/opt/ufm/files/log/state_mirror.log`. |
+| `STATE_MIRROR_LOG_TO_FILE` | `false` | Also log to `/opt/ufm/files/log/state_mirror.log` when explicitly enabled. |
 | `STATE_MIRROR_LOG_DIR` | `/opt/ufm/files/log` | File log directory. |
 | `REDIS_SENTINEL_HOSTS` | _(empty)_ | `host:port,...`; enables Sentinel discovery. |
 | `REDIS_MASTER_NAME` | `ufm` | Sentinel master name. |

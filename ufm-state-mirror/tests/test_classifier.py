@@ -204,6 +204,54 @@ class TestClassifierDocument:
         )
         assert len(c) == 2
 
+    def test_body_key_cannot_collide_with_another_metadata_key(self):
+        with pytest.raises(ClassifierError, match="metadata key"):
+            Classifier.from_dict(
+                {
+                    "entries": [
+                        _blob(redis_key="ufm:state:a"),
+                        _blob(
+                            path="/opt/ufm/files/conf/b.json",
+                            redis_key="ufm:state:a:meta",
+                        ),
+                    ]
+                }
+            )
+
+    def test_directory_prefix_cannot_contain_another_metadata_key(self):
+        with pytest.raises(ClassifierError, match="metadata key"):
+            Classifier.from_dict(
+                {
+                    "entries": [
+                        _blob(redis_key="ufm:state:a"),
+                        {
+                            "path": "/opt/ufm/files/conf/plugins",
+                            "handler": "directory",
+                            "redis_key_prefix": "ufm:state:a:m",
+                        },
+                    ]
+                }
+            )
+
+    def test_file_under_recursive_directory_rejected(self):
+        with pytest.raises(ClassifierError, match="overlap a recursive entry"):
+            Classifier.from_dict(
+                {
+                    "entries": [
+                        {
+                            "path": "/opt/ufm/files/conf/plugins",
+                            "handler": "directory",
+                            "redis_key_prefix": "ufm:cfg:plugins:",
+                            "recursive": True,
+                        },
+                        _blob(
+                            path="/opt/ufm/files/conf/plugins/child.json",
+                            redis_key="ufm:state:child",
+                        ),
+                    ]
+                }
+            )
+
     def test_multiple_errors_aggregated(self):
         # Two identical entries trip both the duplicate-path and the key-collision
         # checks; the error reports both rather than failing on the first.
