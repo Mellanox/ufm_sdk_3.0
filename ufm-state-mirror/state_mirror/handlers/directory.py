@@ -126,12 +126,17 @@ class DirectoryHandler(BaseHandler):
 
     def drift_keys(self) -> list[str]:
         """Per-child orphans: backend children with no local file (HLD 5.3.7)."""
+        return self.drift_scan()[0]
+
+    def drift_scan(self) -> tuple[list[str], int]:
+        """Return per-child drift after one backend-prefix enumeration."""
         local = {relpath for relpath, _full in self._iter_local_files()}
-        return [
+        drift = [
             self._key_for_rel(relpath)
             for relpath in self._iter_redis_relpaths()
             if relpath not in local
         ]
+        return drift, 1
 
     def bootstrap(self) -> None:
         # Directories have no single-file baseline; first-install is whatever

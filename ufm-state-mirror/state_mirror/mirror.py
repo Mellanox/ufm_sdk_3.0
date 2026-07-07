@@ -320,31 +320,25 @@ class Mirror:
             pending = set(self._pending_deletes)
             known_at_start = set(self._known_drift)
         current: set[str] = set()
-        present_paths: set[str] = set()
         failures: list[BaseException] = []
         reads = 0
         for handler in self._handlers:
             self.state.heartbeat()
             try:
-                # Single-file handlers short-circuit locally when the file is
-                # present; directories always enumerate their backend prefix.
-                # Count only real backend reads so startup still probes when a
-                # scan consisted entirely of local no-ops.
-                local_exists = path_exists(handler.entry.path)
-                if local_exists:
-                    present_paths.add(handler.entry.path)
-                reads_backend = handler.entry.is_directory or not local_exists
-                current.update(handler.drift_keys())
+                # The handler reports actual backend activity; inferring it from
+                # path presence is racy when a file appears during the scan.
+                handler_drift, backend_reads = handler.drift_scan()
+                current.update(handler_drift)
                 if (
                     isinstance(handler, SqliteHandler)
                     and handler.entry.redis_key in known_at_start
-                    and not local_exists
+                    and not path_exists(handler.entry.path)
                 ):
                     # Observed SQLite deletion is an operator-error onset even
                     # when no durable snapshot exists. Do not count it again
                     # until the DB actually reappears.
                     current.add(handler.entry.redis_key)
-                reads += int(reads_backend)
+                reads += backend_reads
             except Exception as exc:
                 reason = _reason(exc)
                 log.exception("drift check failed for %s [%s]", handler.entry.path, reason)
@@ -359,6 +353,7 @@ class Mirror:
                     key for key in known_at_start if self._key_belongs_to_handler(key, handler)
                 )
         current -= pending
+        final_presence_errors: list[BaseException] = []
         with self._lock:
             # Watchdog callbacks may add a SQLite onset or clear one on local
             # reappearance while this backend scan is running. Merge additions
@@ -366,14 +361,28 @@ class Mirror:
             current |= self._known_drift - known_at_start
             current -= known_at_start - self._known_drift
             for handler in self._handlers:
-                if (
-                    isinstance(handler, SqliteHandler)
-                    and handler.entry.redis_key
-                    and handler.entry.path in present_paths
-                ):
+                if not isinstance(handler, SqliteHandler) or not handler.entry.redis_key:
+                    continue
+                try:
+                    present = path_exists(handler.entry.path)
+                except OSError as exc:
+                    final_presence_errors.append(exc)
+                    # Presence is unknown: preserve the latest onset state,
+                    # including a watchdog update that arrived during the scan.
+                    if handler.entry.redis_key in self._known_drift:
+                        current.add(handler.entry.redis_key)
+                    else:
+                        current.discard(handler.entry.redis_key)
+                    continue
+                if present:
                     current.discard(handler.entry.redis_key)
             new_drift = current - self._known_drift
             self._known_drift = current
+        for exc in final_presence_errors:
+            reason = _reason(exc)
+            log.exception("final SQLite presence check failed [%s]", reason, exc_info=exc)
+            self.state.record_error(reason, backend_unreachable=False)
+            failures.append(exc)
         if new_drift:
             log.warning(
                 "drift: %d object(s) present in backend but missing locally; "

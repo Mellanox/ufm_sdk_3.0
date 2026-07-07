@@ -551,9 +551,9 @@ class TestSqliteDeletePolicy:
 
         def reappear_while_scanning():
             path.write_bytes(b"reappeared")
-            return ["ufm:sqlite:gv.db"]
+            return ["ufm:sqlite:gv.db"], 1
 
-        m._handlers[0].drift_keys = reappear_while_scanning
+        m._handlers[0].drift_scan = reappear_while_scanning
         m._scan_unexpected_deletes()
         assert "ufm:sqlite:gv.db" not in m._known_drift
         assert m.state.unexpected_deletes_total == 0

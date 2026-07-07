@@ -217,11 +217,15 @@ class BaseHandler:
         ambiguity (the next restore re-materializes the file). An empty list means
         no drift.
         """
+        return self.drift_scan()[0]
+
+    def drift_scan(self) -> tuple[list[str], int]:
+        """Return drift keys and the number of backend reads performed."""
         if path_exists(self.entry.path):
-            return []
+            return [], 0
         if self.store.get_meta(self.entry.redis_key) is None:
-            return []
-        return [self.entry.redis_key]
+            return [], 1
+        return [self.entry.redis_key], 1
 
     def _push_if_changed(self, key: str, body: bytes) -> bool:
         meta = self.store.get_meta(key)
