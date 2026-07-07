@@ -32,6 +32,7 @@ from typing import Optional
 
 from state_mirror import wire
 from state_mirror.classifier import Baseline, Entry
+from state_mirror.redis_errors import LOCAL_IO_REASON
 from state_mirror.store import Store
 
 log = logging.getLogger(__name__)
@@ -96,7 +97,7 @@ class MirrorResult:
         """Return whether ``exc`` invalidates backend health."""
         return (
             not isinstance(exc, (OSError, sqlite3.Error))
-            and getattr(exc, "reason", None) != "local_io"
+            and getattr(exc, "reason", None) != LOCAL_IO_REASON
         )
 
     @property

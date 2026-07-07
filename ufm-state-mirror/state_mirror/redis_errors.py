@@ -39,6 +39,8 @@ with fakes (matching the rest of the package's lazy-import discipline).
 
 from __future__ import annotations
 
+LOCAL_IO_REASON = "local_io"
+
 # Canonical, fixed label set. Pre-seeded to 0 in metrics so every series is
 # present for dashboards/alerts before the first error occurs.
 REDIS_ERROR_REASONS: tuple[str, ...] = (
@@ -52,7 +54,7 @@ REDIS_ERROR_REASONS: tuple[str, ...] = (
     "conn",
     "timeout",
     "response",
-    "local_io",
+    LOCAL_IO_REASON,
     "other",
 )
 
@@ -82,7 +84,7 @@ def classify_redis_error(exc: BaseException) -> str:
     the fallback. Never raises -- an unknown exception classifies as ``other``.
     """
     if isinstance(exc, OSError):
-        return "local_io"
+        return LOCAL_IO_REASON
 
     msg = str(exc).upper()
     # Redis server error string codes (most specific first). Substring matching,

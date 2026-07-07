@@ -36,7 +36,7 @@ from state_mirror.handlers import MirrorResult, make_handler
 from state_mirror.handlers.base import path_exists
 from state_mirror.handlers.sqlite import SqliteHandler
 from state_mirror.health import DEFAULT_PORT, HealthServer, HealthState
-from state_mirror.redis_errors import classify_redis_error
+from state_mirror.redis_errors import LOCAL_IO_REASON, classify_redis_error
 from state_mirror.watcher import MirrorEventHandler, PathResolver, build_observer
 
 log = logging.getLogger("state_mirror.mirror")
@@ -54,7 +54,7 @@ def _reason(exc: BaseException) -> str:
     else fall back to a generic transport/OS classification.
     """
     if isinstance(exc, sqlite3.Error):
-        return "local_io"
+        return LOCAL_IO_REASON
     return getattr(exc, "reason", None) or classify_redis_error(exc)
 
 
