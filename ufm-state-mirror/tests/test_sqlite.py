@@ -13,6 +13,7 @@
 """Unit tests for the Phase 5 SQLite handler: snapshot-only online-backup
 mirroring, change detection, and integrity-checked, fail-closed restore."""
 
+import os
 import sqlite3
 
 import pytest
@@ -108,6 +109,24 @@ class TestSnapshot:
         conn.commit()
         conn.close()
         assert h.signature() != sig1
+
+    def test_signature_propagates_local_wal_inspection_error(
+        self, fake_redis, tmp_path, monkeypatch
+    ):
+        db = tmp_path / "gv.db"
+        _make_db(str(db), ["a"])
+        h = _handler(db, fake_redis)
+        real_stat = os.stat
+
+        def deny_wal_stat(path):
+            if str(path).endswith("-wal"):
+                raise PermissionError("cannot inspect WAL")
+            return real_stat(path)
+
+        with monkeypatch.context() as patch:
+            patch.setattr("state_mirror.handlers.sqlite.os.stat", deny_wal_stat)
+            with pytest.raises(PermissionError):
+                h.signature()
 
     def test_mirror_reships_after_change(self, fake_redis, tmp_path):
         db = tmp_path / "gv.db"

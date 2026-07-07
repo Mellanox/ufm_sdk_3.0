@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import logging
 import os
+import stat
 
 from state_mirror import wire
 from state_mirror.handlers.base import BaseHandler, MirrorResult
@@ -35,10 +36,14 @@ class DirectoryHandler(BaseHandler):
 
     def _iter_local_files(self):
         root = self.entry.path
-        if not os.path.isdir(root):
+        try:
+            root_stat = os.stat(root)
+        except FileNotFoundError:
             return
+        if not stat.S_ISDIR(root_stat.st_mode):
+            raise NotADirectoryError(f"classified directory path is not a directory: {root}")
         if self.entry.recursive:
-            for dirpath, _dirs, files in os.walk(root):
+            for dirpath, _dirs, files in os.walk(root, onerror=self._raise_walk_error):
                 for name in sorted(files):
                     full = os.path.join(dirpath, name)
                     # Do not pre-stat here: _read_file_nofollow performs the
@@ -52,6 +57,11 @@ class DirectoryHandler(BaseHandler):
                 for de in sorted(it, key=lambda e: e.name):
                     if de.is_file(follow_symlinks=True):
                         yield de.name, de.path
+
+    @staticmethod
+    def _raise_walk_error(exc: OSError) -> None:
+        """Make an unreadable recursive subtree fail reconciliation."""
+        raise exc
 
     def _iter_redis_relpaths(self):
         prefix = self.entry.redis_key_prefix
@@ -84,19 +94,22 @@ class DirectoryHandler(BaseHandler):
         writes = 0
         reads = 0
         failures: list[BaseException] = []
-        for relpath, full in self._iter_local_files():
-            try:
-                body = self._read_file(full)
-                key = self._key_for_rel(relpath)
-                if self._push_if_changed(key, body):
-                    log.info("mirror: shipped %s -> %s", full, key)
-                    writes += 1
-                else:
-                    reads += 1
-            except Exception as exc:
-                log.exception("mirror: child failed %s; continuing with siblings", full)
-                failures.append(exc)
-                continue
+        try:
+            for relpath, full in self._iter_local_files():
+                try:
+                    body = self._read_file(full)
+                    key = self._key_for_rel(relpath)
+                    if self._push_if_changed(key, body):
+                        log.info("mirror: shipped %s -> %s", full, key)
+                        writes += 1
+                    else:
+                        reads += 1
+                except Exception as exc:
+                    log.exception("mirror: child failed %s; continuing with siblings", full)
+                    failures.append(exc)
+        except Exception as exc:
+            log.exception("mirror: directory traversal failed for %s", self.entry.path)
+            failures.append(exc)
         return MirrorResult(writes=writes, reads=reads, failures=tuple(failures))
 
     def on_delete_child(self, relpath: str) -> None:

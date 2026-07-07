@@ -38,7 +38,7 @@ import sqlite3
 import tempfile
 import time
 
-from state_mirror.handlers.base import BaseHandler, MirrorResult
+from state_mirror.handlers.base import BaseHandler, MirrorResult, path_exists
 
 log = logging.getLogger(__name__)
 
@@ -68,14 +68,11 @@ class SqliteHandler(BaseHandler):
 
     @staticmethod
     def read_change_counter(path: str) -> int:
-        """Return the DB header's file_change_counter (0 if unreadable)."""
+        """Return the DB header change counter, using 0 only for absence/short data."""
         try:
             with open(path, "rb") as f:
                 header = f.read(_HEADER_MIN_SIZE)
         except FileNotFoundError:
-            return 0
-        except OSError as exc:
-            log.warning("change-counter read of %s failed: %s; treating as unchanged", path, exc)
             return 0
         if len(header) < _HEADER_MIN_SIZE:
             return 0
@@ -87,7 +84,7 @@ class SqliteHandler(BaseHandler):
         try:
             wal = os.stat(self._wal_path(self.entry.path))
             return (cc, wal.st_size, wal.st_mtime_ns)
-        except OSError:
+        except FileNotFoundError:
             return (cc, -1, -1)
 
     @staticmethod
@@ -144,7 +141,7 @@ class SqliteHandler(BaseHandler):
     def mirror(self) -> MirrorResult:
         # Each mirror() reports the snapshot cost only if it actually snapshots.
         self.last_snapshot_seconds = None
-        if not os.path.exists(self.entry.path):
+        if not path_exists(self.entry.path):
             log.debug("mirror: sqlite db %s does not exist yet, skipping", self.entry.path)
             return MirrorResult()
         try:

@@ -243,6 +243,27 @@ class TestDrainFailureKeepsPending:
         m.full_scan()
         assert client.get("ufm:state:o") is None
 
+    def test_local_delete_inspection_error_keeps_backend_and_pending(
+        self, fake_redis, tmp_path, monkeypatch
+    ):
+        path = tmp_path / "o.conf"
+        path.write_bytes(b"X")
+        state = HealthState()
+        m = _mirror(_blob_classifier(path), fake_redis, state=state)
+        m.full_scan()
+        path.unlink()
+        m._mark_delete(m._handlers[0].entry, str(path))
+
+        def deny_inspection(_path):
+            raise PermissionError("cannot determine local presence")
+
+        monkeypatch.setattr(mirror_mod, "path_exists", deny_inspection)
+        assert m.drain_once(now=0.0, rate_limited=False) == 0
+        assert fake_redis.get("ufm:state:o") == b"X"
+        assert "ufm:state:o" in m._pending_deletes
+        assert state.backend_reachable is True
+        assert state.backend_errors["local_io"] == 1
+
 
 class _AliveObserver:
     def is_alive(self):
@@ -402,6 +423,18 @@ class TestReadinessAndHealth:
         assert state.backend_reachable is False
         assert state.backend_errors["conn"] == 1
 
+    def test_partial_local_failure_does_not_mark_backend_unreachable(self, fake_redis, tmp_path):
+        state = HealthState()
+        m = _mirror(_blob_classifier(tmp_path / "state"), fake_redis, state=state)
+        failure = PermissionError("unreadable local child")
+        m._handlers[0].mirror = lambda: MirrorResult(writes=1, failures=(failure,))
+        result = m.full_scan()
+        assert result.succeeded is False
+        assert result.backend_failures == ()
+        assert state.last_store_write > 0
+        assert state.backend_reachable is True
+        assert state.backend_errors["local_io"] == 1
+
     def test_runtime_batch_failure_wins_over_later_success(self, fake_redis, tmp_path):
         first = tmp_path / "first"
         second = tmp_path / "second"
@@ -425,6 +458,43 @@ class TestReadinessAndHealth:
         assert m.drain_once(now=0.0, rate_limited=False) == 1
         assert state.backend_reachable is False
 
+    def test_runtime_local_failure_does_not_override_backend_success(self, fake_redis, tmp_path):
+        path = tmp_path / "state"
+        path.write_bytes(b"state")
+        state = HealthState()
+        m = _mirror(_blob_classifier(path), fake_redis, state=state)
+        failure = PermissionError("unreadable local file")
+        m._handlers[0].mirror = lambda: MirrorResult(failures=(failure,))
+        state.record_read_ok()
+        m._mark_dirty(m._handlers[0].entry)
+        m.drain_once(now=0.0, rate_limited=False)
+        assert state.backend_reachable is True
+        assert state.backend_errors["local_io"] == 1
+
+    def test_sqlite_poll_local_failure_does_not_mark_backend_unreachable(
+        self, fake_redis, tmp_path
+    ):
+        path = tmp_path / "gv.db"
+        classifier = Classifier.from_dict(
+            {
+                "entries": [
+                    {
+                        "path": str(path),
+                        "handler": "sqlite",
+                        "redis_key": "ufm:sqlite:gv.db",
+                    }
+                ]
+            }
+        )
+        state = HealthState()
+        m = _mirror(classifier, fake_redis, state=state)
+        failure = sqlite3.DatabaseError("local database is malformed")
+        m._handlers[0].mirror = lambda: MirrorResult(failures=(failure,))
+        state.record_read_ok()
+        assert m.poll_sqlite(now=0.0) == 0
+        assert state.backend_reachable is True
+        assert state.backend_errors["local_io"] == 1
+
     def test_zero_backend_op_startup_uses_probe(self, tmp_path):
         client = FlakyRedis()
         state = HealthState(allow_poll_only=True)
@@ -437,12 +507,27 @@ class TestReadinessAndHealth:
         assert client.ping_calls == 1
         assert state.backend_reachable is True
 
-    def test_failed_zero_op_startup_does_not_probe(self, tmp_path):
+    def test_local_failure_zero_op_startup_probes_but_remains_not_ready(self, tmp_path):
         client = FlakyRedis()
         state = HealthState(allow_poll_only=True)
         m = _mirror(_blob_classifier(tmp_path / "missing"), client, state=state)
         m.start_watching = lambda: False
-        m.full_scan = lambda: MirrorResult(failures=(RuntimeError("scan failed"),))
+        failure = PermissionError("unreadable local file")
+        m._handlers[0].mirror = lambda: MirrorResult(failures=(failure,))
+        m._scan_unexpected_deletes = lambda: MirrorResult()
+        assert m.startup_once() is False
+        assert client.ping_calls == 1
+        assert state.backend_reachable is True
+        assert state.backend_errors["local_io"] == 1
+        assert state.initial_reconcile_ok is False
+
+    def test_backend_failure_zero_op_startup_does_not_probe(self, tmp_path):
+        client = FlakyRedis()
+        state = HealthState(allow_poll_only=True)
+        m = _mirror(_blob_classifier(tmp_path / "missing"), client, state=state)
+        m.start_watching = lambda: False
+        failure = wire.WireError("backend down", reason="conn")
+        m.full_scan = lambda: MirrorResult(failures=(failure,))
         assert m.startup_once() is False
         assert client.ping_calls == 0
         assert state.backend_reachable is False

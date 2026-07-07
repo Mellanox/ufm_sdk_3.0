@@ -132,8 +132,18 @@ class HealthState:
             self.last_store_write = time.time()
 
     def record_store_down(self, reason: str = "other") -> None:
+        self.record_error(reason, backend_unreachable=True)
+
+    def record_error(self, reason: str = "other", *, backend_unreachable: bool) -> None:
+        """Count a mirror failure and optionally mark the backend unavailable.
+
+        Local I/O errors remain visible in the existing classified counter but
+        must not fire the backend-unreachable signal. They still fail the
+        startup reconcile through ``MirrorResult.succeeded``.
+        """
         with self._lock:
-            self.backend_reachable = False
+            if backend_unreachable:
+                self.backend_reachable = False
             if reason not in self.backend_errors:
                 reason = "other"
             self.backend_errors[reason] += 1
@@ -222,7 +232,7 @@ def render_metrics(state: HealthState) -> str:
     )
     gauge(
         "state_mirror_backend_reachable",
-        "1 if the latest backend activity completed without a recorded failure",
+        "1 if the latest backend activity completed without a backend failure",
         int(snap["backend_reachable"]),
     )
     gauge(

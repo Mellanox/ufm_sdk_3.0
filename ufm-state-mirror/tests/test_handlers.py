@@ -15,6 +15,8 @@
 import os
 import sqlite3
 
+import pytest
+
 from state_mirror import wire
 from state_mirror.classifier import Entry
 from state_mirror.handlers import base, make_handler
@@ -90,6 +92,20 @@ class TestBlobHandler:
         assert fake_redis.get("ufm:state:a") is None
         assert fake_redis.get("ufm:state:a:meta") is None
 
+    def test_mirror_propagates_local_inspection_error(self, fake_redis, tmp_path, monkeypatch):
+        src = tmp_path / "a.json"
+        src.write_bytes(b"content")
+        entry = Entry.from_dict({"path": str(src), "handler": "blob", "redis_key": "ufm:state:a"})
+        handler = _handler(entry, fake_redis)
+
+        def deny_stat(_path):
+            raise PermissionError("cannot inspect local file")
+
+        with monkeypatch.context() as patch:
+            patch.setattr(base.os, "stat", deny_stat)
+            with pytest.raises(PermissionError):
+                handler.mirror()
+
 
 class TestDirectoryHandler:
     def test_directory_roundtrip(self, fake_redis, tmp_path):
@@ -140,6 +156,22 @@ class TestDirectoryHandler:
         handler.on_delete_child("a.conf")
         assert fake_redis.get("ufm:cfg:plugins:a.conf") is None
 
+    def test_present_non_directory_root_fails_reconcile(self, fake_redis, tmp_path):
+        root = tmp_path / "plugins"
+        root.write_bytes(b"not a directory")
+        entry = Entry.from_dict(
+            {
+                "path": str(root),
+                "handler": "directory",
+                "redis_key_prefix": "ufm:cfg:plugins:",
+                "recursive": True,
+            }
+        )
+        result = _handler(entry, fake_redis).mirror()
+        assert result.succeeded is False
+        assert isinstance(result.failures[0], NotADirectoryError)
+        assert result.backend_failures == ()
+
     def test_mirror_propagates_backend_error(self, fake_redis, tmp_path, monkeypatch):
         # A backend failure on a child must NOT be swallowed: it propagates so
         # the caller records the outage instead of seeing a healthy run (FIX-2).
@@ -184,6 +216,63 @@ class TestDirectoryHandler:
         assert len(result.failures) == 1  # b.conf still shipped despite a.conf failing
         assert fake_redis.get("ufm:cfg:plugins:a.conf") is None
         assert fake_redis.get("ufm:cfg:plugins:b.conf") == b"BBB"
+
+    def test_recursive_walk_error_fails_reconcile(self, fake_redis, tmp_path, monkeypatch):
+        root = tmp_path / "plugins"
+        root.mkdir()
+        entry = Entry.from_dict(
+            {
+                "path": str(root),
+                "handler": "directory",
+                "redis_key_prefix": "ufm:cfg:plugins:",
+                "recursive": True,
+            }
+        )
+        handler = _handler(entry, fake_redis)
+
+        def fail_walk(_root, *, onerror):
+            onerror(PermissionError("cannot traverse local subtree"))
+            return iter(())
+
+        with monkeypatch.context() as patch:
+            patch.setattr(os, "walk", fail_walk)
+            result = handler.mirror()
+        assert result.succeeded is False
+        assert isinstance(result.failures[0], PermissionError)
+        assert result.backend_failures == ()
+
+    def test_traversal_failure_preserves_earlier_backend_failure(
+        self, fake_redis, tmp_path, monkeypatch
+    ):
+        root = tmp_path / "plugins"
+        root.mkdir()
+        child = root / "a.conf"
+        child.write_bytes(b"AAA")
+        entry = Entry.from_dict(
+            {
+                "path": str(root),
+                "handler": "directory",
+                "redis_key_prefix": "ufm:cfg:plugins:",
+                "recursive": True,
+            }
+        )
+        handler = _handler(entry, fake_redis)
+        backend_failure = wire.WireError("backend down", reason="conn")
+
+        def partial_walk():
+            yield "a.conf", str(child)
+            raise PermissionError("cannot traverse later subtree")
+
+        def backend_down(*_args):
+            raise backend_failure
+
+        monkeypatch.setattr(handler, "_iter_local_files", partial_walk)
+        monkeypatch.setattr(handler, "_push_if_changed", backend_down)
+        result = handler.mirror()
+        assert len(result.failures) == 2
+        assert result.failures[0] is backend_failure
+        assert isinstance(result.failures[1], PermissionError)
+        assert result.backend_failures == (backend_failure,)
 
 
 class TestSqliteHandler:

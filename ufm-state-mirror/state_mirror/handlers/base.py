@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sqlite3
 import stat
 from dataclasses import dataclass
 from enum import Enum
@@ -34,6 +35,20 @@ from state_mirror.classifier import Baseline, Entry
 from state_mirror.store import Store
 
 log = logging.getLogger(__name__)
+
+
+def path_exists(path: str) -> bool:
+    """Check presence without hiding local inspection failures.
+
+    ``os.path.exists`` converts every ``OSError`` to ``False``. That is too
+    permissive for reconciliation: only true absence is a local no-op;
+    permission and I/O failures must propagate and keep startup fail-closed.
+    """
+    try:
+        os.stat(path)
+        return True
+    except FileNotFoundError:
+        return False
 
 
 class MirrorOutcome(str, Enum):
@@ -51,7 +66,9 @@ class MirrorResult:
     Counts make directory aggregation unambiguous: writes dominate successful
     reads, which dominate a purely local no-op. Failures are deliberately kept
     separate so a partially successful directory pass can advance the last
-    write timestamp while still leaving final backend reachability false.
+    write timestamp while still failing the reconcile. Only failures caused by
+    backend activity affect backend reachability; local filesystem and SQLite
+    failures remain fail-closed for startup without misreporting the backend.
     """
 
     writes: int = 0
@@ -73,6 +90,25 @@ class MirrorResult:
     @property
     def succeeded(self) -> bool:
         return not self.failures
+
+    @staticmethod
+    def failure_affects_backend(exc: BaseException) -> bool:
+        """Return whether ``exc`` invalidates backend health."""
+        return (
+            not isinstance(exc, (OSError, sqlite3.Error))
+            and getattr(exc, "reason", None) != "local_io"
+        )
+
+    @property
+    def backend_failures(self) -> tuple[BaseException, ...]:
+        """Failures that mean the storage operation did not complete.
+
+        Local filesystem and SQLite errors prevent a complete reconcile, but
+        they say nothing about Redis or the Kubernetes API. Unknown failures
+        remain backend-affecting conservatively so an unclassified store error
+        cannot be reported as healthy.
+        """
+        return tuple(exc for exc in self.failures if self.failure_affects_backend(exc))
 
     def plus(self, other: "MirrorResult") -> "MirrorResult":
         """Combine sibling operations while retaining every failure."""
@@ -139,7 +175,7 @@ class BaseHandler:
         unchanged file is a cheap backend read; a missing local file is a true
         local no-op and does not imply anything about backend reachability.
         """
-        if not os.path.exists(self.entry.path):
+        if not path_exists(self.entry.path):
             log.debug("mirror: %s does not exist yet, skipping", self.entry.path)
             return MirrorResult()
         body = self._read_file(self.entry.path)
@@ -181,7 +217,7 @@ class BaseHandler:
         ambiguity (the next restore re-materializes the file). An empty list means
         no drift.
         """
-        if os.path.exists(self.entry.path):
+        if path_exists(self.entry.path):
             return []
         if self.store.get_meta(self.entry.redis_key) is None:
             return []

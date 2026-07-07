@@ -73,7 +73,8 @@ The same image runs in two roles inside the UFM pod:
 
 - `state_mirror_ready` — 1 when ready.
 - `state_mirror_backend_reachable` — 1 if the latest backend activity completed
-  without a recorded failure (a partial reconcile remains 0).
+  without a backend failure. Local filesystem errors fail reconciliation but do
+  not mark Redis or the Kubernetes API unreachable.
 - `state_mirror_watchdog_active` — 1 if the watchdog observer is running.
 - `state_mirror_poll_only_enabled` — 1 only when the internal, unsupported
   poll-only readiness escape hatch was explicitly enabled.

@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sqlite3
 import threading
 import time
 from collections import OrderedDict
@@ -32,6 +33,7 @@ from contextlib import suppress
 
 from state_mirror.classifier import Classifier, Entry, Handler
 from state_mirror.handlers import MirrorResult, make_handler
+from state_mirror.handlers.base import path_exists
 from state_mirror.handlers.sqlite import SqliteHandler
 from state_mirror.health import DEFAULT_PORT, HealthServer, HealthState
 from state_mirror.redis_errors import classify_redis_error
@@ -51,6 +53,8 @@ def _reason(exc: BaseException) -> str:
     present (set at the store boundary, by the active backend's classifier),
     else fall back to a generic transport/OS classification.
     """
+    if isinstance(exc, sqlite3.Error):
+        return "local_io"
     return getattr(exc, "reason", None) or classify_redis_error(exc)
 
 
@@ -99,8 +103,16 @@ class Mirror:
     def _mark_dirty(self, entry: Entry) -> None:
         with self._lock:
             self._dirty.add(entry.path)
-            if entry.handler is Handler.SQLITE and entry.redis_key and os.path.exists(entry.path):
-                self._known_drift.discard(entry.redis_key)
+        if entry.handler is Handler.SQLITE and entry.redis_key:
+            try:
+                reappeared = path_exists(entry.path)
+            except OSError as exc:
+                log.error("cannot inspect dirty SQLite path %s: %s", entry.path, exc)
+                self.state.record_error(_reason(exc), backend_unreachable=False)
+            else:
+                if reappeared:
+                    with self._lock:
+                        self._known_drift.discard(entry.redis_key)
         self.state.inc_events()
         self._wakeup.set()
 
@@ -110,7 +122,17 @@ class Mirror:
             return
         key = handler.key_for_fs_path(fs_path)
         if isinstance(handler, SqliteHandler):
-            if os.path.exists(fs_path):
+            try:
+                reappeared = path_exists(fs_path)
+            except OSError as exc:
+                log.error("cannot inspect deleted SQLite path %s: %s", fs_path, exc)
+                with self._lock:
+                    self._dirty.add(entry.path)
+                self.state.record_error(_reason(exc), backend_unreachable=False)
+                self.state.inc_events()
+                self._wakeup.set()
+                return
+            if reappeared:
                 # The delete event raced with DB recreation. Mirror the current
                 # file, but do not open an unexpected-delete onset.
                 with self._lock:
@@ -196,7 +218,7 @@ class Mirror:
         deleted = self.flush_pending_deletes()
         aggregate = aggregate.plus(deleted)
         ops += deleted.writes
-        if aggregate.failures:
+        if aggregate.backend_failures:
             self.state.mark_backend_unreachable()
         if ops:
             self.state.add_mirror_ops(ops)
@@ -218,7 +240,15 @@ class Mirror:
         failures: list[BaseException] = []
         for key, (entry_path, fs_path) in items:
             self.state.heartbeat()
-            if os.path.exists(fs_path):
+            try:
+                reappeared = path_exists(fs_path)
+            except OSError as exc:
+                reason = _reason(exc)
+                log.exception("cannot inspect pending delete %s [%s]; retaining it", key, reason)
+                self.state.record_error(reason, backend_unreachable=False)
+                failures.append(exc)
+                continue
+            if reappeared:
                 with self._lock:
                     self._pending_deletes.pop(key, None)
                 continue
@@ -260,10 +290,11 @@ class Mirror:
         flushed = self.flush_pending_deletes()
         aggregate = aggregate.plus(flushed)
         aggregate = aggregate.plus(self._scan_unexpected_deletes())
-        if aggregate.failures:
+        if aggregate.backend_failures:
             # Successful siblings may have followed a failed operation. Preserve
-            # their write/read accounting, but let any failure win final
-            # reachability for this aggregate reconcile.
+            # their write/read accounting, but let any backend failure win final
+            # reachability for this aggregate reconcile. Local failures still
+            # make the reconcile unsuccessful without misreporting the backend.
             self.state.mark_backend_unreachable()
         elif aggregate.reads:
             # Drift enumeration is itself a backend read. This matters when all
@@ -289,6 +320,7 @@ class Mirror:
             pending = set(self._pending_deletes)
             known_at_start = set(self._known_drift)
         current: set[str] = set()
+        present_paths: set[str] = set()
         failures: list[BaseException] = []
         reads = 0
         for handler in self._handlers:
@@ -298,12 +330,15 @@ class Mirror:
                 # present; directories always enumerate their backend prefix.
                 # Count only real backend reads so startup still probes when a
                 # scan consisted entirely of local no-ops.
-                reads_backend = handler.entry.is_directory or not os.path.exists(handler.entry.path)
+                local_exists = path_exists(handler.entry.path)
+                if local_exists:
+                    present_paths.add(handler.entry.path)
+                reads_backend = handler.entry.is_directory or not local_exists
                 current.update(handler.drift_keys())
                 if (
                     isinstance(handler, SqliteHandler)
                     and handler.entry.redis_key in known_at_start
-                    and not os.path.exists(handler.entry.path)
+                    and not local_exists
                 ):
                     # Observed SQLite deletion is an operator-error onset even
                     # when no durable snapshot exists. Do not count it again
@@ -313,7 +348,9 @@ class Mirror:
             except Exception as exc:
                 reason = _reason(exc)
                 log.exception("drift check failed for %s [%s]", handler.entry.path, reason)
-                self.state.record_store_down(reason)
+                self.state.record_error(
+                    reason, backend_unreachable=MirrorResult.failure_affects_backend(exc)
+                )
                 failures.append(exc)
                 # A failed scope is unknown, not healthy. Retain its previous
                 # drift-onset state so a transient outage cannot double-count
@@ -332,7 +369,7 @@ class Mirror:
                 if (
                     isinstance(handler, SqliteHandler)
                     and handler.entry.redis_key
-                    and os.path.exists(handler.entry.path)
+                    and handler.entry.path in present_paths
                 ):
                     current.discard(handler.entry.redis_key)
             new_drift = current - self._known_drift
@@ -381,7 +418,7 @@ class Mirror:
                 )
         if sent:
             self.state.add_mirror_ops(sent)
-        if aggregate.failures:
+        if aggregate.backend_failures:
             self.state.mark_backend_unreachable()
         return sent
 
@@ -394,13 +431,16 @@ class Mirror:
             return MirrorResult(failures=(exc,))
 
     def _record_result(self, result: MirrorResult) -> None:
-        """Apply WROTE > READ_OK > LOCAL_NOOP, then let failures win."""
+        """Apply activity first, then record failures by their health domain."""
         if result.writes:
             self.state.record_write_ok()
         elif result.reads:
             self.state.record_read_ok()
         for exc in result.failures:
-            self.state.record_store_down(_reason(exc))
+            self.state.record_error(
+                _reason(exc),
+                backend_unreachable=MirrorResult.failure_affects_backend(exc),
+            )
 
     def _cleanup_observer(self, observer) -> None:
         with suppress(Exception):
@@ -459,7 +499,7 @@ class Mirror:
         if not watchers_ok:
             watchers_ok = self.start_watching()
         result = self.full_scan()
-        if result.succeeded and result.backend_ops == 0:
+        if not result.backend_failures and result.backend_ops == 0:
             try:
                 self.store.probe()
                 self.state.record_read_ok()

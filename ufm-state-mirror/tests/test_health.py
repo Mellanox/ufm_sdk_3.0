@@ -145,6 +145,13 @@ class TestMetrics:
         assert 'state_mirror_backend_errors_total{reason="forbidden"} 1' in text
         assert s.backend_reachable is False
 
+    def test_local_error_is_counted_without_marking_backend_unreachable(self):
+        s = HealthState()
+        s.record_read_ok()
+        s.record_error("local_io", backend_unreachable=False)
+        assert s.backend_errors["local_io"] == 1
+        assert s.backend_reachable is True
+
     def test_unknown_reason_buckets_to_other(self):
         s = HealthState()
         s.record_store_down("not-a-real-reason")
