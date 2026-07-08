@@ -61,6 +61,9 @@ class FakeRedis:
         pattern = match if match is not None else "*"
         return iter([k for k in list(self.store) if fnmatch.fnmatch(k, pattern)])
 
+    def ping(self):
+        return True
+
 
 @pytest.fixture
 def fake_redis():

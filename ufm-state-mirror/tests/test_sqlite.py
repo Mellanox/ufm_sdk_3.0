@@ -13,12 +13,14 @@
 """Unit tests for the Phase 5 SQLite handler: snapshot-only online-backup
 mirroring, change detection, and integrity-checked, fail-closed restore."""
 
+import os
 import sqlite3
 
 import pytest
 
 from state_mirror import wire
 from state_mirror.classifier import Entry
+from state_mirror.handlers.base import MirrorOutcome
 from state_mirror.handlers.sqlite import SqliteHandler
 from state_mirror.store import RedisStore
 
@@ -73,17 +75,17 @@ class TestIntegrity:
 class TestSnapshot:
     def test_mirror_skips_missing_and_empty(self, fake_redis, tmp_path):
         h = _handler(tmp_path / "absent.db", fake_redis)
-        assert h.mirror() is False
+        assert h.mirror().outcome is MirrorOutcome.LOCAL_NOOP
         empty = tmp_path / "empty.db"
         empty.write_bytes(b"")
-        assert _handler(empty, fake_redis).mirror() is False
+        assert _handler(empty, fake_redis).mirror().outcome is MirrorOutcome.LOCAL_NOOP
 
     def test_snapshot_roundtrip(self, fake_redis, tmp_path):
         db = tmp_path / "gv.db"
         _make_db(str(db), ["a", "b", "c"])
         h = _handler(db, fake_redis)
-        assert h.mirror() is True
-        assert h.mirror() is False  # unchanged -> no-op
+        assert h.mirror().outcome is MirrorOutcome.WROTE
+        assert h.mirror().outcome is MirrorOutcome.LOCAL_NOOP
         assert fake_redis.get("ufm:sqlite:gv.db") is not None
         # Snapshot-only: no WAL/epoch keys are ever written.
         assert fake_redis.get("ufm:sqlite:gv.db:epoch") is None
@@ -108,16 +110,34 @@ class TestSnapshot:
         conn.close()
         assert h.signature() != sig1
 
+    def test_signature_propagates_local_wal_inspection_error(
+        self, fake_redis, tmp_path, monkeypatch
+    ):
+        db = tmp_path / "gv.db"
+        _make_db(str(db), ["a"])
+        h = _handler(db, fake_redis)
+        real_stat = os.stat
+
+        def deny_wal_stat(path):
+            if str(path).endswith("-wal"):
+                raise PermissionError("cannot inspect WAL")
+            return real_stat(path)
+
+        with monkeypatch.context() as patch:
+            patch.setattr("state_mirror.handlers.sqlite.os.stat", deny_wal_stat)
+            with pytest.raises(PermissionError):
+                h.signature()
+
     def test_mirror_reships_after_change(self, fake_redis, tmp_path):
         db = tmp_path / "gv.db"
         _make_db(str(db), ["a"])
         h = _handler(db, fake_redis)
-        assert h.mirror() is True
+        assert h.mirror().outcome is MirrorOutcome.WROTE
         conn = sqlite3.connect(str(db))
         conn.execute("INSERT INTO t (v) VALUES ('b')")
         conn.commit()
         conn.close()
-        assert h.mirror() is True  # content changed -> re-shipped
+        assert h.mirror().outcome is MirrorOutcome.WROTE
 
         dest = tmp_path / "restored" / "gv.db"
         rh = _handler(dest, fake_redis)

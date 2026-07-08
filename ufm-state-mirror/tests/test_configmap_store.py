@@ -98,6 +98,10 @@ def _put(store, key, body, handler="blob", ufm_version="7.0.1"):
 
 
 class TestRoundTrip:
+    def test_probe_is_read_only(self, cm_store, cm_api):
+        cm_store.probe()
+        assert cm_api.objs == {}
+
     def test_put_then_get(self, cm_store):
         _put(cm_store, "ufm:cfg:plugins", b"payload")
         body, meta = cm_store.get("ufm:cfg:plugins")
@@ -177,6 +181,15 @@ class TestFailClosed:
 
 
 class TestErrorClassification:
+    def test_probe_403_raises_forbidden(self, cm_store, cm_api):
+        def boom(_selector):
+            raise _ApiException(403)
+
+        cm_api.list_cms = boom
+        with pytest.raises(wire.WireError) as ei:
+            cm_store.probe()
+        assert ei.value.reason == "forbidden"
+
     def test_read_404_returns_none(self, cm_store, cm_api):
         def boom(_name):
             raise _ApiException(404)

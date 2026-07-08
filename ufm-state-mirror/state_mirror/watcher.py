@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import logging
 import os
+from dataclasses import dataclass
 from typing import Callable, Optional
 
 from state_mirror.classifier import Entry
@@ -36,6 +37,20 @@ log = logging.getLogger(__name__)
 EVENT_CLOSED = "closed"
 EVENT_MOVED = "moved"
 EVENT_DELETED = "deleted"
+
+
+@dataclass(frozen=True)
+class ObserverSetup:
+    """Result of scheduling every required watch before observer startup."""
+
+    observer: object
+    required: int
+    scheduled: int
+    failures: tuple[BaseException, ...] = ()
+
+    @property
+    def complete(self) -> bool:
+        return not self.failures and self.scheduled == self.required
 
 
 class PathResolver:
@@ -130,17 +145,20 @@ class MirrorEventHandler:
             self._mark_dirty(entry)
 
 
-def build_observer(resolver: PathResolver, handler: MirrorEventHandler):
+def build_observer(resolver: PathResolver, handler: MirrorEventHandler) -> ObserverSetup:
     """Create, schedule, and return a watchdog ``Observer`` (not started).
 
-    Missing watch directories are created; a directory that cannot be watched is
-    logged and skipped (the periodic full scan still covers it).
+    Missing watch directories are created. Failures are returned to the caller,
+    which blocks readiness in strict mode or exposes the explicit unsupported
+    poll-only escape hatch.
     """
     from watchdog.observers import Observer
 
     observer = Observer()
+    watches = resolver.watch_dirs()
     scheduled = 0
-    for directory, recursive in resolver.watch_dirs():
+    failures: list[BaseException] = []
+    for directory, recursive in watches:
         try:
             if not os.path.isdir(directory):
                 log.info("creating missing watch directory %s", directory)
@@ -149,6 +167,12 @@ def build_observer(resolver: PathResolver, handler: MirrorEventHandler):
             log.info("watching %s (recursive=%s)", directory, recursive)
             scheduled += 1
         except OSError as exc:
-            log.error("cannot watch %s: %s (relying on periodic scan)", directory, exc)
+            log.error("cannot create/schedule required watch %s: %s", directory, exc)
+            failures.append(exc)
     log.info("watchdog scheduled %d watch(es)", scheduled)
-    return observer
+    return ObserverSetup(
+        observer=observer,
+        required=len(watches),
+        scheduled=scheduled,
+        failures=tuple(failures),
+    )

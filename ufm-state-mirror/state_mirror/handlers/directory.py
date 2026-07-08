@@ -22,9 +22,10 @@ from __future__ import annotations
 
 import logging
 import os
+import stat
 
 from state_mirror import wire
-from state_mirror.handlers.base import BaseHandler
+from state_mirror.handlers.base import BaseHandler, MirrorResult
 
 log = logging.getLogger(__name__)
 
@@ -35,21 +36,32 @@ class DirectoryHandler(BaseHandler):
 
     def _iter_local_files(self):
         root = self.entry.path
-        if not os.path.isdir(root):
+        try:
+            root_stat = os.stat(root)
+        except FileNotFoundError:
             return
+        if not stat.S_ISDIR(root_stat.st_mode):
+            raise NotADirectoryError(f"classified directory path is not a directory: {root}")
         if self.entry.recursive:
-            for dirpath, _dirs, files in os.walk(root):
+            for dirpath, _dirs, files in os.walk(root, onerror=self._raise_walk_error):
                 for name in sorted(files):
                     full = os.path.join(dirpath, name)
+                    # Do not pre-stat here: _read_file_nofollow performs the
+                    # authoritative open/fstat and returns any inspection error
+                    # through MirrorResult instead of silently skipping a child.
                     yield os.path.relpath(full, root), full
         else:
-            # scandir reuses the stat already done by the OS (one syscall per
-            # entry instead of listdir + isfile). follow_symlinks=True keeps the
-            # prior os.path.isfile semantics: a symlink to a file still counts.
+            # Preserve the existing traversal behavior in the outcome-accounting
+            # change; symlink hardening is delivered by the next stacked PR.
             with os.scandir(root) as it:
                 for de in sorted(it, key=lambda e: e.name):
                     if de.is_file(follow_symlinks=True):
                         yield de.name, de.path
+
+    @staticmethod
+    def _raise_walk_error(exc: OSError) -> None:
+        """Make an unreadable recursive subtree fail reconciliation."""
+        raise exc
 
     def _iter_redis_relpaths(self):
         prefix = self.entry.redis_key_prefix
@@ -78,23 +90,27 @@ class DirectoryHandler(BaseHandler):
         real = os.path.realpath(dest)
         return real == root or real.startswith(root + os.sep)
 
-    def mirror(self) -> bool:
-        sent_any = False
-        for relpath, full in self._iter_local_files():
-            # A local read error for one child (e.g. it vanished mid-scan) is
-            # skipped so the rest of the tree still mirrors. A backend error
-            # (WireError) is NOT swallowed -- it propagates so the caller records
-            # the outage via record_store_down instead of seeing a healthy run.
-            try:
-                body = self._read_file(full)
-            except OSError:
-                log.exception("mirror: cannot read child %s; skipping", full)
-                continue
-            key = self._key_for_rel(relpath)
-            if self._push_if_changed(key, body):
-                log.info("mirror: shipped %s -> %s", full, key)
-                sent_any = True
-        return sent_any
+    def mirror(self) -> MirrorResult:
+        writes = 0
+        reads = 0
+        failures: list[BaseException] = []
+        try:
+            for relpath, full in self._iter_local_files():
+                try:
+                    body = self._read_file(full)
+                    key = self._key_for_rel(relpath)
+                    if self._push_if_changed(key, body):
+                        log.info("mirror: shipped %s -> %s", full, key)
+                        writes += 1
+                    else:
+                        reads += 1
+                except Exception as exc:
+                    log.exception("mirror: child failed %s; continuing with siblings", full)
+                    failures.append(exc)
+        except Exception as exc:
+            log.exception("mirror: directory traversal failed for %s", self.entry.path)
+            failures.append(exc)
+        return MirrorResult(writes=writes, reads=reads, failures=tuple(failures))
 
     def on_delete_child(self, relpath: str) -> None:
         log.info("on_delete_child: dropping %s", relpath)
@@ -110,12 +126,17 @@ class DirectoryHandler(BaseHandler):
 
     def drift_keys(self) -> list[str]:
         """Per-child orphans: backend children with no local file (HLD 5.3.7)."""
+        return self.drift_scan()[0]
+
+    def drift_scan(self) -> tuple[list[str], int]:
+        """Return per-child drift after one backend-prefix enumeration."""
         local = {relpath for relpath, _full in self._iter_local_files()}
-        return [
+        drift = [
             self._key_for_rel(relpath)
             for relpath in self._iter_redis_relpaths()
             if relpath not in local
         ]
+        return drift, 1
 
     def bootstrap(self) -> None:
         # Directories have no single-file baseline; first-install is whatever
