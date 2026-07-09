@@ -293,6 +293,30 @@ class TestClassifierDocument:
                 }
             )
 
+    def test_duplicate_directory_path_does_not_also_report_overlap(self):
+        with pytest.raises(ClassifierError) as excinfo:
+            Classifier.from_dict(
+                {
+                    "entries": [
+                        {
+                            "path": "/opt/ufm/files/conf/plugins",
+                            "handler": "directory",
+                            "redis_key_prefix": "ufm:cfg:plugins-a:",
+                            "recursive": True,
+                        },
+                        {
+                            "path": "/opt/ufm/files/conf/plugins",
+                            "handler": "directory",
+                            "redis_key_prefix": "ufm:cfg:plugins-b:",
+                            "recursive": True,
+                        },
+                    ]
+                }
+            )
+        msg = str(excinfo.value)
+        assert "duplicate path" in msg
+        assert "overlapping ownership" not in msg
+
     def test_multiple_errors_aggregated(self):
         # Two identical entries trip both the duplicate-path and the key-collision
         # checks; the error reports both rather than failing on the first.

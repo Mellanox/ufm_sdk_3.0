@@ -31,6 +31,8 @@ from typing import Any, Optional
 
 import yaml
 
+from state_mirror.wire import META_SUFFIX
+
 log = logging.getLogger(__name__)
 
 
@@ -269,13 +271,13 @@ def _keys_collide(key_a: str, a_is_prefix: bool, key_b: str, b_is_prefix: bool) 
 
 
 def _metadata_keys_collide(key_a: str, a_is_prefix: bool, key_b: str, b_is_prefix: bool) -> bool:
-    """Whether either entry can overwrite the other's generated ``:meta`` key."""
+    """Whether either entry can overwrite the other's generated metadata key."""
     if not a_is_prefix and not b_is_prefix:
-        return key_a == key_b + ":meta" or key_b == key_a + ":meta"
+        return key_a == key_b + META_SUFFIX or key_b == key_a + META_SUFFIX
     if a_is_prefix != b_is_prefix:
         prefix = key_a if a_is_prefix else key_b
         exact_key = key_b if a_is_prefix else key_a
-        return (exact_key + ":meta").startswith(prefix)
+        return (exact_key + META_SUFFIX).startswith(prefix)
     return False
 
 
@@ -283,6 +285,8 @@ def _filesystem_path_overlap(a: Entry, b: Entry) -> bool:
     """Whether two handlers can mirror the same filesystem object."""
     a_path = os.path.realpath(a.path)
     b_path = os.path.realpath(b.path)
+    if a_path == b_path:
+        return False
 
     def contains(directory: str, candidate: str) -> bool:
         try:

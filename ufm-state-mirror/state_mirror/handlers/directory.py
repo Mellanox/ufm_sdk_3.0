@@ -30,6 +30,8 @@ from state_mirror.handlers.base import BaseHandler, MirrorResult
 
 log = logging.getLogger(__name__)
 
+DEFAULT_RESTORED_FILE_MODE = 0o644
+
 
 class DirectoryHandler(BaseHandler):
     def _key_for_rel(self, relpath: str) -> str:
@@ -47,9 +49,8 @@ class DirectoryHandler(BaseHandler):
             for dirpath, _dirs, files in os.walk(root, onerror=self._raise_walk_error):
                 for name in sorted(files):
                     full = os.path.join(dirpath, name)
-                    # Do not pre-stat here: _read_file_nofollow performs the
-                    # authoritative open/fstat and returns any inspection error
-                    # through MirrorResult instead of silently skipping a child.
+                    if os.path.islink(full):
+                        continue
                     yield os.path.relpath(full, root), full
         else:
             with os.scandir(root) as it:
@@ -128,13 +129,19 @@ class DirectoryHandler(BaseHandler):
             except FileNotFoundError:
                 pass
             flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
-            # Match normal open(..., "wb") creation semantics for a new child:
-            # 0666 filtered by the process umask, rather than root-only 0600.
+            # New children must stay readable regardless of the restore process umask.
             fd = os.open(tmp, flags, 0o666, dir_fd=parent_fd)
-            with os.fdopen(fd, "wb") as fh:
-                fh.write(body)
-                fh.flush()
-                os.fsync(fh.fileno())
+            try:
+                if prev is None:
+                    os.fchmod(fd, DEFAULT_RESTORED_FILE_MODE)
+                with os.fdopen(fd, "wb") as fh:
+                    fd = -1
+                    fh.write(body)
+                    fh.flush()
+                    os.fsync(fh.fileno())
+            finally:
+                if fd >= 0:
+                    os.close(fd)
             os.replace(tmp, name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
             if prev is not None:
                 dest_fd = os.open(

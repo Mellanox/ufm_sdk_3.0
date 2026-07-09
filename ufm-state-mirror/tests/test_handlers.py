@@ -232,6 +232,25 @@ class TestDirectoryHandler:
         assert not result.failures
         assert fake_redis.get("ufm:cfg:linked.conf") is None
 
+    def test_recursive_directory_skips_symlink_child(self, fake_redis, tmp_path):
+        root = tmp_path / "plugins"
+        root.mkdir()
+        secret = tmp_path / "secret"
+        secret.write_bytes(b"do-not-copy")
+        (root / "linked.conf").symlink_to(secret)
+        entry = Entry.from_dict(
+            {
+                "path": str(root),
+                "handler": "directory",
+                "redis_key_prefix": "ufm:cfg:",
+                "recursive": True,
+            }
+        )
+        result = _handler(entry, fake_redis).mirror()
+        assert result.outcome is MirrorOutcome.LOCAL_NOOP
+        assert not result.failures
+        assert fake_redis.get("ufm:cfg:linked.conf") is None
+
     def test_directory_refuses_symlink_parent_component(self, fake_redis, tmp_path):
         root = tmp_path / "plugins"
         outside = tmp_path / "outside"
@@ -365,7 +384,9 @@ class TestDirectoryHandler:
             _handler(entry, fake_redis).restore()
         assert not (outside / "file.conf").exists()
 
-    def test_directory_restore_new_child_is_readable(self, fake_redis, tmp_path):
+    def test_directory_restore_new_child_uses_deterministic_readable_mode(
+        self, fake_redis, tmp_path
+    ):
         root = tmp_path / "plugins"
         key = "ufm:cfg:plugins:new.conf"
         body = b"config"
@@ -382,9 +403,13 @@ class TestDirectoryHandler:
                 "redis_key_prefix": "ufm:cfg:plugins:",
             }
         )
-        assert _handler(entry, fake_redis).restore() is True
+        old_umask = os.umask(0o077)
+        try:
+            assert _handler(entry, fake_redis).restore() is True
+        finally:
+            os.umask(old_umask)
         mode = stat.S_IMODE((root / "new.conf").stat().st_mode)
-        assert mode & 0o044
+        assert mode == directory.DEFAULT_RESTORED_FILE_MODE
 
     def test_directory_restore_chown_failure_is_nonfatal(self, fake_redis, tmp_path, monkeypatch):
         root = tmp_path / "plugins"
