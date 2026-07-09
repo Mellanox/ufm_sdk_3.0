@@ -57,6 +57,11 @@ class TestResolveLevel:
 
 
 class TestSetupLogging:
+    def test_stdout_only_by_default(self, monkeypatch):
+        monkeypatch.delenv("STATE_MIRROR_LOG_TO_FILE", raising=False)
+        logconfig.setup_logging("state_mirror.test")
+        assert _file_handlers() == []
+
     def test_stdout_only_when_file_disabled(self, monkeypatch):
         monkeypatch.setenv("STATE_MIRROR_LOG_TO_FILE", "false")
         logconfig.setup_logging("state_mirror.test")

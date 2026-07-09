@@ -118,7 +118,7 @@ The Helm chart ships an optional `ServiceMonitor` + `PrometheusRule`
 | `STATE_MIRROR_ALLOW_POLL_ONLY` | `false` | Internal unsupported escape hatch: permit readiness without watchdog after a clean reconcile; emits warnings and metrics. |
 | `STATE_MIRROR_BACKEND` | `configmap` | Install-wide storage backend: `configmap` (default, etcd-backed) or `redis` (BYO). Invalid values fail closed at startup. |
 | `STATE_MIRROR_LOG_LEVEL` | `INFO` | Log level. |
-| `STATE_MIRROR_LOG_TO_FILE` | `true` | Also log to `/opt/ufm/files/log/state_mirror.log`. |
+| `STATE_MIRROR_LOG_TO_FILE` | `false` | Also log to `/opt/ufm/files/log/state_mirror.log` when explicitly enabled. |
 | `STATE_MIRROR_LOG_DIR` | `/opt/ufm/files/log` | File log directory. |
 | `REDIS_SENTINEL_HOSTS` | _(empty)_ | `host:port,...`; enables Sentinel discovery. |
 | `REDIS_MASTER_NAME` | `ufm` | Sentinel master name. |

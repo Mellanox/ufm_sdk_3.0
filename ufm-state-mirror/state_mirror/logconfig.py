@@ -76,7 +76,7 @@ def _resolve_level() -> int:
 def _maybe_add_file_handler(
     root_logger: logging.Logger, formatter: logging.Formatter, log: logging.Logger
 ) -> None:
-    if os.environ.get("STATE_MIRROR_LOG_TO_FILE", "true").lower() != "true":
+    if os.environ.get("STATE_MIRROR_LOG_TO_FILE", "false").lower() != "true":
         return
     log_dir = os.environ.get("STATE_MIRROR_LOG_DIR", DEFAULT_LOG_DIR)
     path = os.path.join(log_dir, LOG_FILE_NAME)
