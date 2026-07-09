@@ -24,11 +24,14 @@ descriptive fields without breaking the load.
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Optional
 
 import yaml
+
+from state_mirror.wire import META_SUFFIX
 
 log = logging.getLogger(__name__)
 
@@ -167,7 +170,7 @@ class Classifier:
         return classifier
 
     def _check_uniqueness(self) -> None:
-        """Reject duplicate paths and duplicate/overlapping keyspaces.
+        """Reject overlapping filesystem ownership and backend keyspaces.
 
         Reports *every* problem in one error rather than failing on the first,
         so a misconfigured classifier surfaces all its issues at once -- but
@@ -175,15 +178,25 @@ class Classifier:
         duplicates this also rejects *nested* keyspaces: a non-directory
         ``redis_key`` that falls under a directory ``redis_key_prefix`` (or one
         prefix nested under another) would collide on restore, where the
-        directory handler enumerates every key under its prefix.
+        directory handler enumerates every key under its prefix. A file nested
+        below a recursive directory is likewise rejected because two handlers
+        would otherwise own the same filesystem path.
         """
         errors: list[str] = []
         paths: set[str] = set()
         seen: list[tuple[str, bool]] = []  # (key_or_prefix, is_prefix), in order
+        entries_seen: list[Entry] = []
         for e in self.entries:
-            if e.path in paths:
+            normalized_path = os.path.realpath(e.path)
+            if normalized_path in paths:
                 errors.append(f"duplicate path: {e.path}")
-            paths.add(e.path)
+            paths.add(normalized_path)
+            for other in entries_seen:
+                if _filesystem_path_overlap(e, other):
+                    errors.append(
+                        f"filesystem paths {e.path!r} and {other.path!r} have overlapping ownership"
+                    )
+            entries_seen.append(e)
             key = e.redis_key_prefix if e.is_directory else e.redis_key
             if key is None:
                 continue  # missing key already reported by Entry.validate()
@@ -191,6 +204,11 @@ class Classifier:
                 if _keys_collide(key, e.is_directory, other_key, other_is_prefix):
                     errors.append(
                         f"redis key/prefix {key!r} ({e.path}) collides with {other_key!r}"
+                    )
+                elif _metadata_keys_collide(key, e.is_directory, other_key, other_is_prefix):
+                    errors.append(
+                        f"redis key/prefix {key!r} ({e.path}) collides with a metadata key "
+                        f"generated for {other_key!r}"
                     )
             seen.append((key, e.is_directory))
         if errors:
@@ -250,3 +268,37 @@ def _keys_collide(key_a: str, a_is_prefix: bool, key_b: str, b_is_prefix: bool) 
         or (a_is_prefix and key_b.startswith(key_a))
         or (b_is_prefix and key_a.startswith(key_b))
     )
+
+
+def _metadata_keys_collide(key_a: str, a_is_prefix: bool, key_b: str, b_is_prefix: bool) -> bool:
+    """Whether either entry can overwrite the other's generated metadata key."""
+    if not a_is_prefix and not b_is_prefix:
+        return key_a == key_b + META_SUFFIX or key_b == key_a + META_SUFFIX
+    if a_is_prefix != b_is_prefix:
+        prefix = key_a if a_is_prefix else key_b
+        exact_key = key_b if a_is_prefix else key_a
+        return (exact_key + META_SUFFIX).startswith(prefix)
+    return False
+
+
+def _filesystem_path_overlap(a: Entry, b: Entry) -> bool:
+    """Whether two handlers can mirror the same filesystem object."""
+    a_path = os.path.realpath(a.path)
+    b_path = os.path.realpath(b.path)
+    if a_path == b_path:
+        return False
+
+    def contains(directory: str, candidate: str) -> bool:
+        try:
+            return os.path.commonpath([directory, candidate]) == directory
+        except ValueError:
+            return False
+
+    def owns(entry: Entry, directory: str, other: Entry, candidate: str) -> bool:
+        if not entry.is_directory:
+            return False
+        if entry.recursive:
+            return contains(directory, candidate)
+        return not other.is_directory and os.path.dirname(candidate) == directory
+
+    return owns(a, a_path, b, b_path) or owns(b, b_path, a, a_path)

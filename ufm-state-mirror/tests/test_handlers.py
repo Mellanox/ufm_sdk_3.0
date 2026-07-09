@@ -14,12 +14,13 @@
 
 import os
 import sqlite3
+import stat
 
 import pytest
 
 from state_mirror import wire
 from state_mirror.classifier import Entry
-from state_mirror.handlers import base, make_handler
+from state_mirror.handlers import base, directory, make_handler
 from state_mirror.handlers.base import BaseHandler, MirrorOutcome
 from state_mirror.handlers.blob import BlobHandler
 from state_mirror.handlers.directory import DirectoryHandler
@@ -203,19 +204,72 @@ class TestDirectoryHandler:
             {"path": str(root), "handler": "directory", "redis_key_prefix": "ufm:cfg:plugins:"}
         )
         handler = _handler(entry, fake_redis)
-        real_read = handler._read_file
+        real_read = handler._read_file_nofollow
 
         def selective(path):
             if path.endswith("a.conf"):
                 raise OSError("unreadable")
             return real_read(path)
 
-        monkeypatch.setattr(handler, "_read_file", selective)
+        monkeypatch.setattr(handler, "_read_file_nofollow", selective)
         result = handler.mirror()
         assert result.outcome is MirrorOutcome.WROTE
         assert len(result.failures) == 1  # b.conf still shipped despite a.conf failing
         assert fake_redis.get("ufm:cfg:plugins:a.conf") is None
         assert fake_redis.get("ufm:cfg:plugins:b.conf") == b"BBB"
+
+    def test_directory_refuses_symlink_child(self, fake_redis, tmp_path):
+        root = tmp_path / "plugins"
+        root.mkdir()
+        secret = tmp_path / "secret"
+        secret.write_bytes(b"do-not-copy")
+        (root / "linked.conf").symlink_to(secret)
+        entry = Entry.from_dict(
+            {"path": str(root), "handler": "directory", "redis_key_prefix": "ufm:cfg:"}
+        )
+        result = _handler(entry, fake_redis).mirror()
+        assert result.outcome is MirrorOutcome.LOCAL_NOOP
+        assert not result.failures
+        assert fake_redis.get("ufm:cfg:linked.conf") is None
+
+    def test_recursive_directory_skips_symlink_child(self, fake_redis, tmp_path):
+        root = tmp_path / "plugins"
+        root.mkdir()
+        secret = tmp_path / "secret"
+        secret.write_bytes(b"do-not-copy")
+        (root / "linked.conf").symlink_to(secret)
+        entry = Entry.from_dict(
+            {
+                "path": str(root),
+                "handler": "directory",
+                "redis_key_prefix": "ufm:cfg:",
+                "recursive": True,
+            }
+        )
+        result = _handler(entry, fake_redis).mirror()
+        assert result.outcome is MirrorOutcome.LOCAL_NOOP
+        assert not result.failures
+        assert fake_redis.get("ufm:cfg:linked.conf") is None
+
+    def test_directory_refuses_symlink_parent_component(self, fake_redis, tmp_path):
+        root = tmp_path / "plugins"
+        outside = tmp_path / "outside"
+        root.mkdir()
+        outside.mkdir()
+        (outside / "secret.conf").write_bytes(b"secret")
+        (root / "sub").symlink_to(outside, target_is_directory=True)
+
+        entry = Entry.from_dict(
+            {
+                "path": str(root),
+                "handler": "directory",
+                "redis_key_prefix": "ufm:cfg:",
+                "recursive": True,
+            }
+        )
+        handler = _handler(entry, fake_redis)
+        with pytest.raises(OSError, match="Not a directory|Too many levels"):
+            handler._read_file_nofollow("sub/secret.conf")
 
     def test_recursive_walk_error_fails_reconcile(self, fake_redis, tmp_path, monkeypatch):
         root = tmp_path / "plugins"
@@ -273,6 +327,157 @@ class TestDirectoryHandler:
         assert result.failures[0] is backend_failure
         assert isinstance(result.failures[1], PermissionError)
         assert result.backend_failures == (backend_failure,)
+
+    def test_directory_restore_fails_closed_on_out_of_root_key(self, fake_redis, tmp_path):
+        root = tmp_path / "plugins"
+        safe_key = "ufm:cfg:plugins:safe.conf"
+        key = "ufm:cfg:plugins:../escaped"
+        body = b"unsafe"
+        wire.write_pair(
+            fake_redis,
+            safe_key,
+            b"safe",
+            wire.build_meta(b"safe", "directory", UFM_VERSION, WRITTEN_BY),
+        )
+        wire.write_pair(
+            fake_redis,
+            key,
+            body,
+            wire.build_meta(body, "directory", UFM_VERSION, WRITTEN_BY),
+        )
+        entry = Entry.from_dict(
+            {
+                "path": str(root),
+                "handler": "directory",
+                "redis_key_prefix": "ufm:cfg:plugins:",
+                "recursive": True,
+            }
+        )
+        with pytest.raises(wire.WireError, match="out-of-root"):
+            _handler(entry, fake_redis).restore()
+        assert not (root / "safe.conf").exists()
+        assert not (tmp_path / "escaped").exists()
+
+    def test_directory_restore_refuses_symlink_parent(self, fake_redis, tmp_path):
+        root = tmp_path / "plugins"
+        outside = tmp_path / "outside"
+        root.mkdir()
+        outside.mkdir()
+        (root / "sub").symlink_to(outside, target_is_directory=True)
+        key = "ufm:cfg:plugins:sub/file.conf"
+        body = b"safe"
+        wire.write_pair(
+            fake_redis,
+            key,
+            body,
+            wire.build_meta(body, "directory", UFM_VERSION, WRITTEN_BY),
+        )
+        entry = Entry.from_dict(
+            {
+                "path": str(root),
+                "handler": "directory",
+                "redis_key_prefix": "ufm:cfg:plugins:",
+                "recursive": True,
+            }
+        )
+        with pytest.raises(OSError, match="Not a directory|Too many levels"):
+            _handler(entry, fake_redis).restore()
+        assert not (outside / "file.conf").exists()
+
+    def test_directory_restore_new_child_uses_deterministic_readable_mode(
+        self, fake_redis, tmp_path
+    ):
+        root = tmp_path / "plugins"
+        key = "ufm:cfg:plugins:new.conf"
+        body = b"config"
+        wire.write_pair(
+            fake_redis,
+            key,
+            body,
+            wire.build_meta(body, "directory", UFM_VERSION, WRITTEN_BY),
+        )
+        entry = Entry.from_dict(
+            {
+                "path": str(root),
+                "handler": "directory",
+                "redis_key_prefix": "ufm:cfg:plugins:",
+            }
+        )
+        old_umask = os.umask(0o077)
+        try:
+            assert _handler(entry, fake_redis).restore() is True
+        finally:
+            os.umask(old_umask)
+        mode = stat.S_IMODE((root / "new.conf").stat().st_mode)
+        assert mode == directory.DEFAULT_RESTORED_FILE_MODE
+
+    def test_directory_restore_new_subdirs_use_deterministic_traversable_mode(
+        self, fake_redis, tmp_path
+    ):
+        root = tmp_path / "plugins"
+        preserved = root / "preserved"
+        preserved.mkdir(parents=True)
+        preserved.chmod(0o700)
+        key = "ufm:cfg:plugins:preserved/tools/nvp/new.conf"
+        body = b"config"
+        wire.write_pair(
+            fake_redis,
+            key,
+            body,
+            wire.build_meta(body, "directory", UFM_VERSION, WRITTEN_BY),
+        )
+        entry = Entry.from_dict(
+            {
+                "path": str(root),
+                "handler": "directory",
+                "redis_key_prefix": "ufm:cfg:plugins:",
+                "recursive": True,
+            }
+        )
+        old_umask = os.umask(0o077)
+        try:
+            assert _handler(entry, fake_redis).restore() is True
+        finally:
+            os.umask(old_umask)
+
+        assert stat.S_IMODE(preserved.stat().st_mode) == 0o700
+        assert stat.S_IMODE((preserved / "tools").stat().st_mode) == (
+            directory.DEFAULT_RESTORED_DIR_MODE
+        )
+        assert stat.S_IMODE((preserved / "tools" / "nvp").stat().st_mode) == (
+            directory.DEFAULT_RESTORED_DIR_MODE
+        )
+        assert stat.S_IMODE((preserved / "tools" / "nvp" / "new.conf").stat().st_mode) == (
+            directory.DEFAULT_RESTORED_FILE_MODE
+        )
+
+    def test_directory_restore_chown_failure_is_nonfatal(self, fake_redis, tmp_path, monkeypatch):
+        root = tmp_path / "plugins"
+        root.mkdir()
+        (root / "existing.conf").write_bytes(b"old")
+        key = "ufm:cfg:plugins:existing.conf"
+        body = b"new"
+        wire.write_pair(
+            fake_redis,
+            key,
+            body,
+            wire.build_meta(body, "directory", UFM_VERSION, WRITTEN_BY),
+        )
+        entry = Entry.from_dict(
+            {
+                "path": str(root),
+                "handler": "directory",
+                "redis_key_prefix": "ufm:cfg:plugins:",
+            }
+        )
+        monkeypatch.setattr(directory.os, "geteuid", lambda: 0)
+
+        def deny_chown(*_args):
+            raise PermissionError
+
+        monkeypatch.setattr(directory.os, "fchown", deny_chown)
+        assert _handler(entry, fake_redis).restore() is True
+        assert (root / "existing.conf").read_bytes() == body
 
 
 class TestSqliteHandler:

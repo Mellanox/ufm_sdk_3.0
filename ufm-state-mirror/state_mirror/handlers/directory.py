@@ -23,11 +23,15 @@ from __future__ import annotations
 import logging
 import os
 import stat
+from contextlib import suppress
 
 from state_mirror import wire
 from state_mirror.handlers.base import BaseHandler, MirrorResult
 
 log = logging.getLogger(__name__)
+
+DEFAULT_RESTORED_FILE_MODE = 0o644
+DEFAULT_RESTORED_DIR_MODE = 0o755
 
 
 class DirectoryHandler(BaseHandler):
@@ -46,16 +50,13 @@ class DirectoryHandler(BaseHandler):
             for dirpath, _dirs, files in os.walk(root, onerror=self._raise_walk_error):
                 for name in sorted(files):
                     full = os.path.join(dirpath, name)
-                    # Do not pre-stat here: _read_file_nofollow performs the
-                    # authoritative open/fstat and returns any inspection error
-                    # through MirrorResult instead of silently skipping a child.
+                    if os.path.islink(full):
+                        continue
                     yield os.path.relpath(full, root), full
         else:
-            # Preserve the existing traversal behavior in the outcome-accounting
-            # change; symlink hardening is delivered by the next stacked PR.
             with os.scandir(root) as it:
                 for de in sorted(it, key=lambda e: e.name):
-                    if de.is_file(follow_symlinks=True):
+                    if de.is_file(follow_symlinks=False):
                         yield de.name, de.path
 
     @staticmethod
@@ -71,24 +72,111 @@ class DirectoryHandler(BaseHandler):
             yield key[len(prefix) :]
 
     def restore(self) -> bool:
+        """Restore children only after every backend path passes containment.
+
+        Validation is deliberately a separate first pass. If one malicious or
+        corrupt key escapes the configured root, no earlier safe child should
+        already have been written before the entry fails closed.
+        """
         count = 0
-        root = os.path.realpath(self.entry.path)
-        for relpath in self._iter_redis_relpaths():
-            dest = os.path.join(self.entry.path, relpath)
-            # Restore is the fail-closed boundary: a corrupt/hostile backend key
-            # containing ``..`` must not let us write outside the entry root.
-            if not self._within(root, dest):
-                log.error("restore: skipping child key with out-of-root path %r", relpath)
-                continue
-            if self._restore_one(self.store, self._key_for_rel(relpath), dest) is not None:
+        children = list(self._iter_redis_relpaths())
+        for relpath in children:
+            self._validate_relpath(relpath)
+        os.makedirs(self.entry.path, exist_ok=True)
+        for relpath in children:
+            if self._restore_child_secure(relpath):
                 count += 1
         log.info("restore: %s restored %d child file(s)", self.entry.path, count)
         return count > 0
 
     @staticmethod
-    def _within(root: str, dest: str) -> bool:
-        real = os.path.realpath(dest)
-        return real == root or real.startswith(root + os.sep)
+    def _validate_relpath(relpath: str) -> list[str]:
+        parts = relpath.split(os.sep)
+        if not relpath or os.path.isabs(relpath) or any(part in ("", ".", "..") for part in parts):
+            raise wire.WireError(f"directory child has out-of-root path {relpath!r}")
+        return parts
+
+    def _open_parent(self, relpath: str, *, create: bool) -> tuple[int, str]:
+        """Open a child's parent via no-follow directory descriptors."""
+        parts = self._validate_relpath(relpath)
+        flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+        parent_fd = os.open(self.entry.path, flags)
+        try:
+            for part in parts[:-1]:
+                created = False
+                if create:
+                    try:
+                        os.mkdir(part, DEFAULT_RESTORED_DIR_MODE, dir_fd=parent_fd)
+                        created = True
+                    except FileExistsError:
+                        created = False
+                next_fd = os.open(part, flags, dir_fd=parent_fd)
+                try:
+                    if created:
+                        os.fchmod(next_fd, DEFAULT_RESTORED_DIR_MODE)
+                except Exception:
+                    os.close(next_fd)
+                    raise
+                os.close(parent_fd)
+                parent_fd = next_fd
+            return parent_fd, parts[-1]
+        except Exception:
+            os.close(parent_fd)
+            raise
+
+    def _restore_child_secure(self, relpath: str) -> bool:
+        result = self.store.get(self._key_for_rel(relpath))
+        if result is None:
+            return False
+        body, _meta = result
+        parent_fd, name = self._open_parent(relpath, create=True)
+        tmp = name + ".statemirror.tmp"
+        prev = None
+        try:
+            try:
+                prev = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+                if not stat.S_ISREG(prev.st_mode):
+                    raise OSError(f"refusing to replace non-regular file: {relpath}")
+            except FileNotFoundError:
+                pass
+            flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
+            # New children must stay readable regardless of the restore process umask.
+            fd = os.open(tmp, flags, 0o666, dir_fd=parent_fd)
+            try:
+                if prev is None:
+                    os.fchmod(fd, DEFAULT_RESTORED_FILE_MODE)
+                with os.fdopen(fd, "wb") as fh:
+                    fd = -1
+                    fh.write(body)
+                    fh.flush()
+                    os.fsync(fh.fileno())
+            finally:
+                if fd >= 0:
+                    os.close(fd)
+            os.replace(tmp, name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+            if prev is not None:
+                dest_fd = os.open(
+                    name, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0), dir_fd=parent_fd
+                )
+                try:
+                    try:
+                        os.fchmod(dest_fd, stat.S_IMODE(prev.st_mode))
+                    except OSError as exc:
+                        log.debug("fchmod of restored child %s failed: %s", relpath, exc)
+                    if hasattr(os, "geteuid") and os.geteuid() == 0:
+                        try:
+                            os.fchown(dest_fd, prev.st_uid, prev.st_gid)
+                        except OSError as exc:
+                            log.warning("fchown of restored child %s failed: %s", relpath, exc)
+                finally:
+                    os.close(dest_fd)
+            return True
+        except Exception:
+            with suppress(FileNotFoundError):
+                os.unlink(tmp, dir_fd=parent_fd)
+            raise
+        finally:
+            os.close(parent_fd)
 
     def mirror(self) -> MirrorResult:
         writes = 0
@@ -97,7 +185,7 @@ class DirectoryHandler(BaseHandler):
         try:
             for relpath, full in self._iter_local_files():
                 try:
-                    body = self._read_file(full)
+                    body = self._read_file_nofollow(relpath)
                     key = self._key_for_rel(relpath)
                     if self._push_if_changed(key, body):
                         log.info("mirror: shipped %s -> %s", full, key)
@@ -111,6 +199,24 @@ class DirectoryHandler(BaseHandler):
             log.exception("mirror: directory traversal failed for %s", self.entry.path)
             failures.append(exc)
         return MirrorResult(writes=writes, reads=reads, failures=tuple(failures))
+
+    def _read_file_nofollow(self, relpath: str) -> bytes:
+        """Read one regular child without following any path component."""
+        parent_fd, name = self._open_parent(relpath, create=False)
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+        fd = -1
+        try:
+            fd = os.open(name, flags, dir_fd=parent_fd)
+            mode = os.fstat(fd).st_mode
+            if not stat.S_ISREG(mode):
+                raise OSError(f"refusing to mirror non-regular file: {relpath}")
+            with os.fdopen(fd, "rb") as fh:
+                fd = -1
+                return fh.read()
+        finally:
+            if fd >= 0:
+                os.close(fd)
+            os.close(parent_fd)
 
     def on_delete_child(self, relpath: str) -> None:
         log.info("on_delete_child: dropping %s", relpath)
