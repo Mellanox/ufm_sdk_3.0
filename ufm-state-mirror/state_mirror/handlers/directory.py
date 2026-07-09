@@ -31,6 +31,7 @@ from state_mirror.handlers.base import BaseHandler, MirrorResult
 log = logging.getLogger(__name__)
 
 DEFAULT_RESTORED_FILE_MODE = 0o644
+DEFAULT_RESTORED_DIR_MODE = 0o755
 
 
 class DirectoryHandler(BaseHandler):
@@ -102,10 +103,20 @@ class DirectoryHandler(BaseHandler):
         parent_fd = os.open(self.entry.path, flags)
         try:
             for part in parts[:-1]:
+                created = False
                 if create:
-                    with suppress(FileExistsError):
-                        os.mkdir(part, dir_fd=parent_fd)
+                    try:
+                        os.mkdir(part, DEFAULT_RESTORED_DIR_MODE, dir_fd=parent_fd)
+                        created = True
+                    except FileExistsError:
+                        created = False
                 next_fd = os.open(part, flags, dir_fd=parent_fd)
+                try:
+                    if created:
+                        os.fchmod(next_fd, DEFAULT_RESTORED_DIR_MODE)
+                except Exception:
+                    os.close(next_fd)
+                    raise
                 os.close(parent_fd)
                 parent_fd = next_fd
             return parent_fd, parts[-1]

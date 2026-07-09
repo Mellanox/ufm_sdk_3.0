@@ -411,6 +411,46 @@ class TestDirectoryHandler:
         mode = stat.S_IMODE((root / "new.conf").stat().st_mode)
         assert mode == directory.DEFAULT_RESTORED_FILE_MODE
 
+    def test_directory_restore_new_subdirs_use_deterministic_traversable_mode(
+        self, fake_redis, tmp_path
+    ):
+        root = tmp_path / "plugins"
+        preserved = root / "preserved"
+        preserved.mkdir(parents=True)
+        preserved.chmod(0o700)
+        key = "ufm:cfg:plugins:preserved/tools/nvp/new.conf"
+        body = b"config"
+        wire.write_pair(
+            fake_redis,
+            key,
+            body,
+            wire.build_meta(body, "directory", UFM_VERSION, WRITTEN_BY),
+        )
+        entry = Entry.from_dict(
+            {
+                "path": str(root),
+                "handler": "directory",
+                "redis_key_prefix": "ufm:cfg:plugins:",
+                "recursive": True,
+            }
+        )
+        old_umask = os.umask(0o077)
+        try:
+            assert _handler(entry, fake_redis).restore() is True
+        finally:
+            os.umask(old_umask)
+
+        assert stat.S_IMODE(preserved.stat().st_mode) == 0o700
+        assert stat.S_IMODE((preserved / "tools").stat().st_mode) == (
+            directory.DEFAULT_RESTORED_DIR_MODE
+        )
+        assert stat.S_IMODE((preserved / "tools" / "nvp").stat().st_mode) == (
+            directory.DEFAULT_RESTORED_DIR_MODE
+        )
+        assert stat.S_IMODE((preserved / "tools" / "nvp" / "new.conf").stat().st_mode) == (
+            directory.DEFAULT_RESTORED_FILE_MODE
+        )
+
     def test_directory_restore_chown_failure_is_nonfatal(self, fake_redis, tmp_path, monkeypatch):
         root = tmp_path / "plugins"
         root.mkdir()
