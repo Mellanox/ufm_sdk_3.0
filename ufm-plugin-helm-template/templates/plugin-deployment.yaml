@@ -1,6 +1,8 @@
 {{- $ufmFullname := .Values.ufmFullname }}
 {{- $namespace := include "ufm-plugin.namespace" . }}
 {{- $pvcClaimName := include "ufm-plugin.pvcClaimName" . }}
+{{- $ufmFilesMode := include "ufm-plugin.ufmFilesMode" . }}
+{{- $useUfmFilesPvc := eq $ufmFilesMode "pvc" }}
 {{- range $name := .Values.plugins.entries | keys | sortAlpha }}
 {{- $plugin := index $.Values.plugins.entries $name }}
 {{- $enabled := true }}{{- if hasKey $plugin "enabled" }}{{ $enabled = $plugin.enabled }}{{- end }}
@@ -116,6 +118,7 @@ spec:
               {{ $pluginRdma.resourceName }}: {{ $pluginRdma.resourceCount }}
           {{- end }}
           volumeMounts:
+            {{- if $useUfmFilesPvc }}
             - name: ufm-files
               mountPath: /opt/ufm/files
             - name: ufm-files
@@ -124,6 +127,17 @@ spec:
             - name: ufm-files
               mountPath: /log
               subPath: log/plugins/{{ $name }}
+            - name: ufm-files
+              mountPath: /data
+              subPath: data/plugins/{{ $name }}
+            {{- else }}
+            - name: plugin-config
+              mountPath: /config
+            - name: plugin-log
+              mountPath: /log
+            - name: plugin-data
+              mountPath: /data
+            {{- end }}
       {{- end }}
       containers:
         - name: {{ $k8sName }}
@@ -173,6 +187,7 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
           volumeMounts:
+            {{- if $useUfmFilesPvc }}
             - name: ufm-files
               mountPath: /opt/ufm/files
             - name: ufm-files
@@ -181,6 +196,17 @@ spec:
             - name: ufm-files
               mountPath: /log
               subPath: log/plugins/{{ $name }}
+            - name: ufm-files
+              mountPath: /data
+              subPath: data/plugins/{{ $name }}
+            {{- else }}
+            - name: plugin-config
+              mountPath: /config
+            - name: plugin-log
+              mountPath: /log
+            - name: plugin-data
+              mountPath: /data
+            {{- end }}
             {{- if $plugin.mountHealthScripts }}
             - name: health-scripts
               mountPath: /health-scripts
@@ -244,9 +270,18 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
       volumes:
+        {{- if $useUfmFilesPvc }}
         - name: ufm-files
           persistentVolumeClaim:
             claimName: {{ $pvcClaimName }}
+        {{- else }}
+        - name: plugin-config
+          emptyDir: {}
+        - name: plugin-log
+          emptyDir: {}
+        - name: plugin-data
+          emptyDir: {}
+        {{- end }}
         {{- if $plugin.mountHealthScripts }}
         - name: health-scripts
           configMap:

@@ -21,7 +21,13 @@
 {{- end }}
 
 {{- define "ufm-plugin.pvcClaimName" -}}
-{{- .Values.existingClaim | default (printf "%s-files" .Values.ufmFullname) }}
+{{- $ufmFiles := .Values.ufmFiles | default dict -}}
+{{- $ufmFiles.existingClaim | default .Values.existingClaim | default (printf "%s-files" .Values.ufmFullname) }}
+{{- end }}
+
+{{- define "ufm-plugin.ufmFilesMode" -}}
+{{- $ufmFiles := .Values.ufmFiles | default dict -}}
+{{- $ufmFiles.mode | default "configmap" }}
 {{- end }}
 
 {{- define "ufm-plugin.configMapName" -}}
