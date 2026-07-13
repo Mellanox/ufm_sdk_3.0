@@ -127,11 +127,16 @@ spec:
             - name: ufm-files
               mountPath: /log
               subPath: log/plugins/{{ $name }}
+            - name: ufm-files
+              mountPath: /data
+              subPath: data/plugins/{{ $name }}
             {{- else }}
             - name: plugin-config
               mountPath: /config
             - name: plugin-log
               mountPath: /log
+            - name: plugin-data
+              mountPath: /data
             {{- end }}
       {{- end }}
       containers:
@@ -191,11 +196,16 @@ spec:
             - name: ufm-files
               mountPath: /log
               subPath: log/plugins/{{ $name }}
+            - name: ufm-files
+              mountPath: /data
+              subPath: data/plugins/{{ $name }}
             {{- else }}
             - name: plugin-config
               mountPath: /config
             - name: plugin-log
               mountPath: /log
+            - name: plugin-data
+              mountPath: /data
             {{- end }}
             {{- if $plugin.mountHealthScripts }}
             - name: health-scripts
@@ -268,6 +278,8 @@ spec:
         - name: plugin-config
           emptyDir: {}
         - name: plugin-log
+          emptyDir: {}
+        - name: plugin-data
           emptyDir: {}
         {{- end }}
         {{- if $plugin.mountHealthScripts }}

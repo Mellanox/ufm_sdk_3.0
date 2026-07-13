@@ -6,7 +6,7 @@ namespaceSearchList: ["ufm-enterprise"]
 
 # UFM files storage integration:
 # - configmap (default): do not mount UFM's legacy files PVC. Plugin pods get
-#   local writable /config and /log volumes so existing init scripts can run.
+#   local writable /config, /log, and /data volumes so existing init scripts can run.
 # - pvc: legacy mode for UFM deployments that still expose {ufmFullname}-files.
 ufmFiles:
   mode: configmap

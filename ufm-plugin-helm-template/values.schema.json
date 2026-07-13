@@ -23,7 +23,7 @@
         "mode": {
           "type": "string",
           "enum": ["configmap", "pvc"],
-          "description": "UFM files integration mode. configmap is the default no-PVC mode; pvc preserves legacy shared UFM files PVC mounts."
+          "description": "UFM files integration mode. configmap is the default no-PVC mode with local /config, /log, and /data volumes; pvc preserves legacy shared UFM files PVC mounts."
         },
         "existingClaim": {
           "type": "string",
