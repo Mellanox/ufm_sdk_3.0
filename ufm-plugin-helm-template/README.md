@@ -7,7 +7,7 @@ Generic Helm chart for deploying UFM plugins. You **install the chart once** and
 - **UFM Enterprise** must already be installed in the cluster (this chart does not install UFM).
 - **Namespace**: Can be **discovered at install time** when `namespaceSearchList` is set and Helm has cluster access (chart looks up ConfigMap `{ufmFullname}-config` in those namespaces only). Otherwise set `namespace` in your file or rely on default **`ufm-enterprise`**.
 - **`ufmFullname`**: Set in your plugins file to match your UFM release (e.g. `ufm-<release-name>`). Required.
-- **Shared PVC**: This chart uses the same PVC as UFM and mounts subpaths `conf/plugins/<plugin_name>` and `log/plugins/<plugin_name>`. Default claim name is `{ufmFullname}-files`; set `existingClaim` in your file if UFM uses a different PVC name.
+- **UFM files mode**: Default is `ufmFiles.mode: configmap`, which does **not** mount the legacy UFM files PVC. Set `ufmFiles.mode: pvc` only for UFM deployments that still expose a shared UFM files PVC.
 - **UFM ConfigMap**: A ConfigMap named `{ufmFullname}-config` with key `UFM_VERSION` must exist (typically from the UFM Enterprise chart). If missing, plugin pods will not start.
 - **RDMA** (if needed): If your plugins use InfiniBand, set `rdma.resourceCount` and ensure the cluster has the RDMA device plugin. Some plugins may need the NVIDIA Network Operator.
 
@@ -82,7 +82,7 @@ The file you pass with `-f` is a standard Helm values file. It must define:
 - **`ufmFullname`** – UFM release full name (e.g. `ufm-ufm-enterprise`).
 - **`plugins.entries`** – Map of plugins to deploy, keyed by plugin name. Each entry must have `image` and `tag`; all other fields are optional.
 
-You can override any chart value in this file (namespace, existingClaim, rdma, affinity, etc.). See the values reference below.
+You can override any chart value in this file (namespace, ufmFiles, rdma, affinity, etc.). See the values reference below.
 
 ### Values reference (what you can set in your plugins file)
 
@@ -91,7 +91,9 @@ You can override any chart value in this file (namespace, existingClaim, rdma, a
 | `ufmFullname` | Full name of the UFM Enterprise release. Must match the release name used when you installed UFM. | Yes |
 | `namespace` | Kubernetes namespace for chart resources. When `namespaceSearchList` is set and Helm has cluster access, the chart discovers it by looking up ConfigMap `{ufmFullname}-config` in each listed namespace. Otherwise falls back to this value, then **`ufm-enterprise`**. | No |
 | `namespaceSearchList` | Optional list of namespaces to search for `{ufmFullname}-config` at install time (e.g. `["ufm-enterprise"]`). Only requires **get ConfigMap** in those namespaces. Omit or set to `[]` to skip discovery. | No |
-| `existingClaim` | PVC claim name for UFM files. Defaults to `{ufmFullname}-files`. | No |
+| `ufmFiles.mode` | UFM files integration mode. `configmap` (default) creates local writable `/config` and `/log` volumes and does not mount UFM files PVC. `pvc` preserves legacy shared UFM files PVC behavior. | No |
+| `ufmFiles.existingClaim` | PVC claim name for UFM files when `ufmFiles.mode: pvc`. Defaults to `{ufmFullname}-files`. | No |
+| `existingClaim` | Deprecated alias for `ufmFiles.existingClaim`, used only when `ufmFiles.mode: pvc`. | No |
 | `configMapName` | ConfigMap name for `plugins.yaml`. Defaults to `{ufmFullname}-plugins`. | No |
 | `rdma.resourceName` | RDMA resource name (e.g. `rdma/hca_shared`). Only used when `rdma.resourceCount` is not `"0"`. | No |
 | `rdma.resourceCount` | Number of RDMA resources per plugin pod; default `"0"`. Set to `"1"` when the plugin uses InfiniBand. | No |
@@ -213,8 +215,8 @@ To disable watchdog for all plugins: `watchdog.enabled: false`. For a single plu
 ## What the chart generates
 
 - **ClusterIP Service per plugin** (when `port` and/or `ports` is set): name `{ufmFullname}-plugin-{k8s-name}`, selector matches the Deployment, ports align with container ports so in-cluster DNS matches `plugins.yaml` defaults.
-- **Deployment per plugin**: One Deployment per enabled entry in `plugins.entries` (sorted alphabetically for stable output), using `Recreate` strategy by default (old pod is terminated before new pod starts)—safer for single-replica plugins sharing a PVC. Override per plugin with `strategy: RollingUpdate` if you need zero-downtime. Each Deployment includes:
-  - Init container that runs `/init.sh -ufm_version ${UFM_VERSION}`; `UFM_VERSION` is read from the ConfigMap `{ufmFullname}-config` (see Prerequisites). Mounts plugin config/log dirs from the shared PVC.
+- **Deployment per plugin**: One Deployment per enabled entry in `plugins.entries` (sorted alphabetically for stable output), using `Recreate` strategy by default (old pod is terminated before new pod starts)—safer for single-replica plugins that share resources. Override per plugin with `strategy: RollingUpdate` if you need zero-downtime. Each Deployment includes:
+  - Init container that runs `/init.sh -ufm_version ${UFM_VERSION}`; `UFM_VERSION` is read from the ConfigMap `{ufmFullname}-config` (see Prerequisites). In default `configmap` mode, `/config` and `/log` are local writable pod volumes. In explicit `pvc` mode, the chart preserves the legacy shared PVC mounts.
   - Main container with the same mounts, optional `PLUGIN_PORT` and `HEALTH_ENDPOINT`/`HEALTH_PORT` (for the default liveness script), and RDMA resources when configured.
   - Optional placement control via `affinity`, `nodeSelector`, and `tolerations` (no default affinity; set `affinity` if you want e.g. same node as UFM).
   - **Liveness**: default is **native Kubernetes**—**httpGet** when `healthEndpoint` is set, **tcpSocket** when `port` is set; otherwise no default. Override with `livenessProbe`.
@@ -228,6 +230,33 @@ Your plugin image should:
 
 - Provide **`/init.sh`** that accepts `-ufm_version <version>` and initializes config under `/config` and logs under `/log`.
 - Default liveness uses native Kubernetes httpGet (when `healthEndpoint` is set) or tcpSocket (when `port` is set). Override with `livenessProbe` or set `disableLivenessProbe: true`.
+
+## UFM files modes
+
+Default mode supports UFM deployments that do not create the legacy `{ufmFullname}-files` PVC:
+
+```yaml
+ufmFiles:
+  mode: configmap
+```
+
+In this mode plugin pods do not mount `/opt/ufm/files`; `/config` and `/log` are local writable volumes shared between the plugin init container and main container.
+
+Use legacy PVC mode only when UFM was deployed with a shared UFM files PVC:
+
+```yaml
+ufmFiles:
+  mode: pvc
+  existingClaim: ""  # optional; defaults to {ufmFullname}-files
+```
+
+In PVC mode the chart preserves the previous mounts:
+
+- `/opt/ufm/files` from the UFM files PVC.
+- `/config` from `conf/plugins/<plugin_name>`.
+- `/log` from `log/plugins/<plugin_name>`.
+
+HTTP-based UFM-to-plugin communication changes are intentionally outside this chart release and must be handled in the UFM/plugin code that owns those APIs.
 
 ## RDMA / InfiniBand
 

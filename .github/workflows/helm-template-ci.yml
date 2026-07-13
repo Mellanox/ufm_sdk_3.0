@@ -36,6 +36,7 @@ jobs:
             ci-values.yaml \
             ci-values-empty-plugins.yaml \
             ci-values-comprehensive.yaml \
+            ci-values-pvc.yaml \
             ci-values-service.yaml; do
             echo "--- lint + template: ${f} ---"
             helm lint "${CHART}" -f "${CHART}/${f}"
@@ -112,6 +113,30 @@ jobs:
           assert_contains "containerPort 8080"            "$OUT" "containerPort: 8080"
           assert_contains "plugins.yaml has plugin name"  "$OUT" "name: ci_test_plugin"
           assert_contains "default host is in-cluster DNS" "$OUT" "ufm-ufm-enterprise-plugin-ci-test-plugin.ufm-enterprise.svc.cluster.local"
+          assert_not_contains "default mode has no PVC"   "$OUT" "persistentVolumeClaim"
+          assert_not_contains "default mode has no claimName" "$OUT" "claimName:"
+          assert_not_contains "default mode has no UFM files claim" "$OUT" "ufm-ufm-enterprise-files"
+          assert_not_contains "default mode has no UFM files mount" "$OUT" "mountPath: /opt/ufm/files"
+          assert_not_contains "default mode has no ufm-files volume" "$OUT" "name: ufm-files"
+          assert_contains "default mode has /config mount" "$OUT" "mountPath: /config"
+          assert_contains "default mode has /log mount"   "$OUT" "mountPath: /log"
+          assert_contains "default mode has plugin-config volume" "$OUT" "name: plugin-config"
+          assert_contains "default mode has plugin-log volume" "$OUT" "name: plugin-log"
+          assert_contains "default mode uses emptyDir"    "$OUT" "emptyDir:"
+
+          # --- Explicit legacy PVC mode ---
+          echo "--- ci-values-pvc.yaml: legacy PVC assertions ---"
+          OUT=$(render ci-values-pvc.yaml)
+          assert_contains "PVC mode has persistentVolumeClaim" "$OUT" "persistentVolumeClaim"
+          assert_contains "PVC mode default claim"        "$OUT" "claimName: ufm-ufm-enterprise-files"
+          assert_contains "PVC mode mounts UFM files"     "$OUT" "mountPath: /opt/ufm/files"
+          assert_contains "PVC mode has ufm-files volume" "$OUT" "name: ufm-files"
+          assert_contains "PVC mode config subPath"       "$OUT" "subPath: conf/plugins/ci_test_plugin"
+          assert_contains "PVC mode log subPath"          "$OUT" "subPath: log/plugins/ci_test_plugin"
+
+          echo "--- ci-values.yaml + custom PVC claim: custom claim assertions ---"
+          OUT=$(render_set ci-values.yaml "ufmFiles.mode=pvc,ufmFiles.existingClaim=my-ufm-files")
+          assert_contains "PVC mode custom claim"         "$OUT" "claimName: my-ufm-files"
 
           # --- Empty plugins ---
           echo "--- ci-values-empty-plugins.yaml: empty assertions ---"

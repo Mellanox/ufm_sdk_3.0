@@ -17,6 +17,20 @@
       "items": { "type": "string" },
       "description": "Namespaces to search for {ufmFullname}-config at install time. Set to [] to skip discovery."
     },
+    "ufmFiles": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["configmap", "pvc"],
+          "description": "UFM files integration mode. configmap is the default no-PVC mode; pvc preserves legacy shared UFM files PVC mounts."
+        },
+        "existingClaim": {
+          "type": "string",
+          "description": "Existing UFM files PVC claim name to use when ufmFiles.mode is pvc."
+        }
+      }
+    },
     "existingClaim": { "type": "string" },
     "configMapName": { "type": "string" },
     "rdma": {

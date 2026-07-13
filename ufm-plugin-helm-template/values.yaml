@@ -3,6 +3,17 @@ ufmFullname: "ufm-ufm-enterprise"
 namespace: ""
 # namespaceSearchList: namespaces to search for {ufmFullname}-config at install time. Only requires get ConfigMap in those namespaces. Set to [] to skip discovery.
 namespaceSearchList: ["ufm-enterprise"]
+
+# UFM files storage integration:
+# - configmap (default): do not mount UFM's legacy files PVC. Plugin pods get
+#   local writable /config and /log volumes so existing init scripts can run.
+# - pvc: legacy mode for UFM deployments that still expose {ufmFullname}-files.
+ufmFiles:
+  mode: configmap
+  existingClaim: ""
+
+# Deprecated compatibility alias for ufmFiles.existingClaim. Used only when
+# ufmFiles.mode=pvc.
 existingClaim: ""
 configMapName: ""
 

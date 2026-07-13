@@ -1,7 +1,8 @@
 # CI Test Values - Used for helm lint and template validation
 # These are not production values, only for CI testing.
-# CI also runs helm template with ci-values-empty-plugins.yaml (no plugins), ci-values-service.yaml
-# (ClusterIP Service + multi-port), and examples/log-streamer-config.yaml.
+# CI also runs helm template with ci-values-empty-plugins.yaml (no plugins),
+# ci-values-service.yaml (ClusterIP Service + multi-port), ci-values-pvc.yaml
+# (legacy UFM files PVC mode), and examples/log-streamer-config.yaml.
 
 ufmFullname: "ufm-ufm-enterprise"
 namespace: "ufm-enterprise"
