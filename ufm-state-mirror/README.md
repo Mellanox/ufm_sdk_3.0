@@ -107,6 +107,21 @@ The same image runs in two roles inside the UFM pod:
 The Helm chart ships an optional `ServiceMonitor` + `PrometheusRule`
 (`stateMirror.metrics.*`) that alert on these.
 
+### PrometheusRule Contract
+
+StateMirror owns the alert contract in
+[`deploy/state-mirror-prometheusrule.yaml`](deploy/state-mirror-prometheusrule.yaml).
+Consumer charts should package or template that rule with their own
+namespace/labels. The contract includes `StateMirrorConfigMapTooLarge`, which
+alerts on:
+
+```promql
+increase(state_mirror_backend_errors_total{reason="toolarge"}[5m]) > 0
+```
+
+This alert covers ConfigMap backend object-size failures where StateMirror is
+still running, but newer snapshots are not durable.
+
 ## Configuration (environment)
 
 | Variable | Default | Meaning |
