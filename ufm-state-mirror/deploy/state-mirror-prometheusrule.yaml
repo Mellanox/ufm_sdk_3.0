@@ -1,0 +1,30 @@
+# StateMirror alert contract for consumers that deploy the Prometheus Operator.
+# Consumer charts should template metadata.namespace/labels as needed, but keep
+# the rule expression and remediation text aligned with this source artifact.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: state-mirror
+  labels:
+    app.kubernetes.io/name: ufm-state-mirror
+    app.kubernetes.io/component: state-mirror
+spec:
+  groups:
+    - name: ufm-state-mirror
+      rules:
+        - alert: StateMirrorConfigMapTooLarge
+          expr: |
+            increase(state_mirror_backend_errors_total{reason="toolarge"}[5m]) > 0
+          for: 5m
+          labels:
+            severity: critical
+            component: state-mirror
+          annotations:
+            summary: "StateMirror ConfigMap backend object is too large"
+            description: >-
+              StateMirror has failed to persist state because a ConfigMap
+              backend object exceeded the effective Kubernetes object size
+              limit for 5m. Newer snapshots for that object are not durable;
+              a pod restart can restore an older snapshot. Reduce the mirrored
+              state size or switch this deployment to the supported BYO
+              Redis/Valkey backend.
