@@ -15,4 +15,4 @@ its durable backend -- a ConfigMap (default) or Redis/Valkey (HLD section 5.3).
 Ships as the standalone, consumer-agnostic ``ufm-state-mirror`` image.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"

@@ -53,6 +53,7 @@
                 - snmp_receiver_plugin
                 - sysinfo_plugin
                 - ufm_consumer_plugin
+                - ufm-state-mirror
                 - ufm_syslog_streaming_plugin
             description: "On which project to run?"
         - string:

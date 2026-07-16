@@ -51,6 +51,7 @@
                 - SLURM-Integration
                 - snmp_receiver_plugin
                 - UFM_NDT_Plugin
+                - ufm-state-mirror
                 - ufm_syslog_streaming_plugin
                 - zabbix_telemetry_plugin
             description: "On which project to run?"
