@@ -15,6 +15,8 @@ is supplied at runtime by each consumer (UFM, UFM HA) via a ConfigMap mounted at
 - CI validates lint (`ruff`), unit tests (`pytest`), and a no-push image build.
 - Blossom publishes the release artifact as
   `/auto/mswg/release/ufm/plugins/ufm-state-mirror/ufm-state-mirror_<VERSION>-docker.img.gz`.
+- The StateMirror-specific release logic lives under `ufm-state-mirror/.ci`;
+  the shared release matrix only dispatches to that component-owned helper.
 - Always build from git-tracked files, not from the live working directory.
 - Create the tag from the exact same commit that produced the released image.
 - `ufm-state-mirror` stays at the repository top level. It is released through
@@ -81,6 +83,7 @@ Use these parameters:
 
 The matrix job fails fast if `PLUGIN_VERSION` does not match
 `ufm-state-mirror/VERSION` or if the target artifact already exists.
+The StateMirror selector is dispatched to `ufm-state-mirror/.ci/release_build.sh`.
 
 Expected output:
 

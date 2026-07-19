@@ -19,26 +19,23 @@ steps:
     run: |
       set -x
       NAME="${PLUGIN_NAME}"
-      if [ "${NAME}" = "ufm-state-mirror" ]; then
-        BUILD_DIR="ufm-state-mirror/build"
-        ARTIFACT_PREFIX="ufm-state-mirror"
-        EXPECTED_VERSION="$(tr -d '\n' < ufm-state-mirror/VERSION)"
-        if [ "${PLUGIN_VERSION}" != "${EXPECTED_VERSION}" ]; then
-          echo -e "Error: ufm-state-mirror release version must match ufm-state-mirror/VERSION."
-          echo -e "PLUGIN_VERSION: ${PLUGIN_VERSION}"
-          echo -e "Expected: ${EXPECTED_VERSION}"
-          exit 1
-        fi
-      else
-        BUILD_DIR="plugins/${NAME}/build"
-        ARTIFACT_PREFIX="ufm-plugin-${NAME}"
-      fi
       RELEASE_DIR="/auto/mswg/release/ufm/plugins/${NAME}"
-      EXACT_ARTIFACT="${RELEASE_DIR}/${ARTIFACT_PREFIX}_${PLUGIN_VERSION}-docker.img.gz"
-      HASHED_ARTIFACT_PATTERN="${RELEASE_DIR}/${ARTIFACT_PREFIX}_${PLUGIN_VERSION}-"*-docker.img.gz
+
+      if [ "${NAME}" = "ufm-state-mirror" ]; then
+        bash -x ufm-state-mirror/.ci/release_build.sh "${PLUGIN_VERSION}" "${RELEASE_DIR}"
+        BUILD_EXIT_CODE=$?
+        ls "${RELEASE_DIR}"
+        if [ $BUILD_EXIT_CODE -eq 1 ];then
+          echo -e "Error: Docker build failed in ufm-state-mirror/.ci/release_build.sh"
+        fi
+        exit ${BUILD_EXIT_CODE}
+      fi
+
+      EXACT_ARTIFACT="${RELEASE_DIR}/ufm-plugin-${NAME}_${PLUGIN_VERSION}-docker.img.gz"
+      HASHED_ARTIFACT_PATTERN="${RELEASE_DIR}/ufm-plugin-${NAME}_${PLUGIN_VERSION}-"*-docker.img.gz
 
       if ls "${EXACT_ARTIFACT}" >/dev/null 2>&1 || { [ "${PLUGIN_VERSION}" = "0.0.00-0" ] && ls ${HASHED_ARTIFACT_PATTERN} >/dev/null 2>&1; }; then
-        echo -e "A build for ${NAME} ${PLUGIN_VERSION} already exists."
+        echo -e "A path and plugin with this version already exist."
         echo -e "Path: ${EXACT_ARTIFACT}"
         if [ "${PLUGIN_VERSION}" = "0.0.00-0" ]; then
           echo -e "Path: ${HASHED_ARTIFACT_PATTERN}"
@@ -46,8 +43,8 @@ steps:
         exit 1
       fi
       mkdir -p "${RELEASE_DIR}"
-      cd "${BUILD_DIR}"
-      bash -x ./docker_build.sh "${PLUGIN_VERSION}" "${RELEASE_DIR}"
+      cd plugins/${NAME}/build
+      bash -x ./docker_build.sh ${PLUGIN_VERSION} "${RELEASE_DIR}"
       BUILD_EXIT_CODE=$?
       ls "${RELEASE_DIR}"
       if [ $BUILD_EXIT_CODE -eq 1 ];then 
