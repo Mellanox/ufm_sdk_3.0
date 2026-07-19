@@ -18,35 +18,16 @@ steps:
     agentSelector: "{nodeLabel: 'SWX-CI-DOCKER'}"
     run: |
       set -x
-      NAME="${PLUGIN_NAME}"
-      RELEASE_DIR="/auto/mswg/release/ufm/plugins/${NAME}"
-
-      if [ "${NAME}" = "ufm-state-mirror" ]; then
-        bash -x ufm-state-mirror/.ci/release_build.sh "${PLUGIN_VERSION}" "${RELEASE_DIR}"
-        BUILD_EXIT_CODE=$?
-        ls "${RELEASE_DIR}"
-        if [ $BUILD_EXIT_CODE -eq 1 ];then
-          echo -e "Error: Docker build failed in ufm-state-mirror/.ci/release_build.sh"
-        fi
-        exit ${BUILD_EXIT_CODE}
-      fi
-
-      EXACT_ARTIFACT="${RELEASE_DIR}/ufm-plugin-${NAME}_${PLUGIN_VERSION}-docker.img.gz"
-      HASHED_ARTIFACT_PATTERN="${RELEASE_DIR}/ufm-plugin-${NAME}_${PLUGIN_VERSION}-"*-docker.img.gz
-
-      if ls "${EXACT_ARTIFACT}" >/dev/null 2>&1 || { [ "${PLUGIN_VERSION}" = "0.0.00-0" ] && ls ${HASHED_ARTIFACT_PATTERN} >/dev/null 2>&1; }; then
+      if [ -e "/auto/mswg/release/ufm/plugins/${PLUGIN_NAME}/ufm-plugin-${PLUGIN_NAME}_${PLUGIN_VERSION}*" ];then 
         echo -e "A path and plugin with this version already exist."
-        echo -e "Path: ${EXACT_ARTIFACT}"
-        if [ "${PLUGIN_VERSION}" = "0.0.00-0" ]; then
-          echo -e "Path: ${HASHED_ARTIFACT_PATTERN}"
-        fi
+        echo -e "Path: /auto/mswg/release/ufm/plugins/${PLUGIN_NAME}/ufm-plugin-${PLUGIN_NAME}_${PLUGIN_VERSION}*"
         exit 1
       fi
-      mkdir -p "${RELEASE_DIR}"
-      cd plugins/${NAME}/build
-      bash -x ./docker_build.sh ${PLUGIN_VERSION} "${RELEASE_DIR}"
+      mkdir -p /auto/mswg/release/ufm/plugins/${PLUGIN_NAME}
+      cd plugins/${PLUGIN_NAME}/build
+      bash -x ./docker_build.sh ${PLUGIN_VERSION} /auto/mswg/release/ufm/plugins/${PLUGIN_NAME} 
       BUILD_EXIT_CODE=$?
-      ls "${RELEASE_DIR}"
+      ls /auto/mswg/release/ufm/plugins/${PLUGIN_NAME}
       if [ $BUILD_EXIT_CODE -eq 1 ];then 
         echo -e "Error: Docker build failed in ./docker_build.sh"
       fi

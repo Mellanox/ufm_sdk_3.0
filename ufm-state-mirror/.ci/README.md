@@ -1,8 +1,11 @@
 # ufm-state-mirror CI
 
-This directory owns the StateMirror release helper used by the shared
-`UFM_PLUGINS_SDK_RELEASE` Blossom job.
+This directory owns StateMirror CI definitions used by Blossom jobs.
 
-The root release matrix dispatches here when the selected release target is
-`ufm-state-mirror`. Existing UFM plugins continue to use their own
-`plugins/<name>/.ci` and `plugins/<name>/build` layout.
+Release builds must use the StateMirror-owned release matrix files:
+
+- stable: `ufm-state-mirror/.ci/matrix_job_release.yaml`
+- nbuprod: `ufm-state-mirror/.ci/matrix_job_release_nbuprod.yaml`
+
+Both matrices delegate the actual release artifact creation to
+`ufm-state-mirror/.ci/release_build.sh`.

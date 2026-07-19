@@ -59,7 +59,7 @@
         - string:
             name: "conf_file"
             default: ".ci/matrix_job_release_nbuprod.yaml"
-            description: "Regex to select job config file. Do not change it"
+            description: "Regex to select job config file. For ufm-state-mirror use ufm-state-mirror/.ci/matrix_job_release_nbuprod.yaml"
     pipeline-scm:
         scm:
             - git:

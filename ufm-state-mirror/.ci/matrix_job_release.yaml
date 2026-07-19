@@ -1,0 +1,51 @@
+---
+job: ufm-state-mirror-release
+
+registry_host: harbor.mellanox.com
+registry_path: /swx-storage/ci-demo
+registry_auth: swx-storage
+step_allow_single_selector: true
+
+kubernetes:
+  cloud: swx-k8s-spray
+
+credentials:
+  # harbor login/password
+  - {credentialsId: '425bb907-c357-4fde-92e0-67854a857b4f', usernameVariable: 'UFM_USER', passwordVariable: 'UFM_PASS'}
+
+runs_on_agents:
+  - nodeLabel: 'SWX-CI-DOCKER'
+
+steps:
+  - name: Build StateMirror
+    agentSelector: "{nodeLabel: 'SWX-CI-DOCKER'}"
+    run: |
+      if [ "${Plugin_name}" != "ufm-state-mirror" ]; then
+        echo -e "Error: ufm-state-mirror release matrix requires Plugin_name=ufm-state-mirror."
+        echo -e "Plugin_name: ${Plugin_name}"
+        exit 1
+      fi
+
+      printenv
+      pwd
+      ls
+      whoami
+
+      RELEASE_DIR="/auto/mswg/release/ufm/plugins/ufm-state-mirror"
+      bash -x ufm-state-mirror/.ci/release_build.sh "${PLUGIN_VERSION}" "${RELEASE_DIR}"
+      BUILD_EXIT_CODE=$?
+      ls "${RELEASE_DIR}" || true
+      if [ $BUILD_EXIT_CODE -ne 0 ];then
+        echo -e "Error: Docker build failed in ufm-state-mirror/.ci/release_build.sh"
+      fi
+      exit ${BUILD_EXIT_CODE}
+
+    parallel: false
+
+
+pipeline_start:
+  run: echo "Build StateMirror"
+
+
+pipeline_stop:
+  run: echo All done
