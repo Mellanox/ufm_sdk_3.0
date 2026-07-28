@@ -14,7 +14,7 @@ is supplied at runtime by each consumer (UFM, UFM HA) via a ConfigMap mounted at
 - The image tag is derived from `VERSION` (`mellanox/ufm-state-mirror:<VERSION>`).
 - CI validates lint (`ruff`), unit tests (`pytest`), and a no-push image build.
 - Blossom publishes the release artifact as
-  `/auto/mswg/release/ufm/plugins/ufm-state-mirror/ufm-state-mirror_<VERSION>-docker.img.gz`.
+  `/auto/mswg/release/ufm/ufm-state-mirror/ufm-state-mirror_<VERSION>-docker.img.gz`.
 - The StateMirror-specific release matrices and release helper live under
   `ufm-state-mirror/.ci`.
 - Always build from git-tracked files, not from the live working directory.
@@ -89,7 +89,7 @@ The StateMirror release matrices dispatch to
 Expected output:
 
 ```text
-/auto/mswg/release/ufm/plugins/ufm-state-mirror/ufm-state-mirror_<VERSION>-docker.img.gz
+/auto/mswg/release/ufm/ufm-state-mirror/ufm-state-mirror_<VERSION>-docker.img.gz
 ```
 
 ### 3. Tag the same commit
@@ -111,7 +111,7 @@ Use this only if the Blossom job is unavailable. It should produce the same
 CHART=ufm-state-mirror
 VERSION="$(git show HEAD:${CHART}/VERSION | tr -d '\n')"
 STAGE_DIR="$(mktemp -d /tmp/ufm-state-mirror-stage.XXXXXX)"
-OUT_DIR="/auto/mswg/release/ufm/plugins/${CHART}"
+OUT_DIR="/auto/mswg/release/ufm/${CHART}"
 
 git archive --format=tar HEAD "${CHART}" | tar -xf - -C "${STAGE_DIR}"
 
