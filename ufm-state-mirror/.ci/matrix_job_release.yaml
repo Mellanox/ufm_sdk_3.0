@@ -13,12 +13,16 @@ credentials:
   # harbor login/password
   - {credentialsId: '425bb907-c357-4fde-92e0-67854a857b4f', usernameVariable: 'UFM_USER', passwordVariable: 'UFM_PASS'}
 
-runs_on_agents:
-  - nodeLabel: 'SWX-CI-DOCKER'
+volumes:
+  - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
+  - {mountPath: /auto/mswg, hostPath: /auto/mswg}
+
+runs_on_dockers:
+  - {file: '.ci/Dockerfile', arch: 'x86_64', name: 'plugin_worker', tag: 'latest'}
 
 steps:
   - name: Build StateMirror
-    agentSelector: "{nodeLabel: 'SWX-CI-DOCKER'}"
+    containerSelector: "{name: 'plugin_worker'}"
     run: |
       if [ "${Plugin_name}" != "ufm-state-mirror" ]; then
         echo -e "Error: ufm-state-mirror release matrix requires Plugin_name=ufm-state-mirror."
