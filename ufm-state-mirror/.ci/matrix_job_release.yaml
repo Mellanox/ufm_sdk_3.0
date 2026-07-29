@@ -34,10 +34,10 @@ steps:
       ls
       whoami
 
-      RELEASE_DIR="/auto/mswg/release/ufm/ufm-state-mirror"
-      bash -x ufm-state-mirror/.ci/release_build.sh "${PLUGIN_VERSION}" "${RELEASE_DIR}"
+      RELEASE_ROOT="/auto/mswg/release/ufm/ufm-state-mirror"
+      bash -x ufm-state-mirror/.ci/release_build.sh "${PLUGIN_VERSION}" "${RELEASE_ROOT}"
       BUILD_EXIT_CODE=$?
-      ls "${RELEASE_DIR}" || true
+      ls -l "${RELEASE_ROOT}" || true
       if [ $BUILD_EXIT_CODE -ne 0 ];then
         echo -e "Error: Docker build failed in ufm-state-mirror/.ci/release_build.sh"
       fi
