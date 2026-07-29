@@ -23,7 +23,7 @@
 #   REGISTRY     image registry/namespace prefix (default: mellanox).
 #   PUSH         "y" to `docker push` the tagged image after build.
 
-set -eE
+set -eEo pipefail
 
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 COMPONENT_DIR="$(realpath "${SCRIPT_DIR}/..")"

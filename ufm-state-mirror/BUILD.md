@@ -1,6 +1,7 @@
 # ufm-state-mirror - Build and Release
 
-This process is manual.
+The release path is automated through the existing Blossom
+`UFM_PLUGINS_SDK_RELEASE` job.
 
 The `ufm-state-mirror` image is a **standalone, consumer-agnostic** component.
 It ships only the StateMirror engine; the file set it mirrors (the classifier)
@@ -10,11 +11,24 @@ is supplied at runtime by each consumer (UFM, UFM HA) via a ConfigMap mounted at
 ## Release rules
 
 - `ufm-state-mirror/VERSION` is the release version source of truth and must be committed.
+- Release versions use numeric `MAJOR.MINOR.PATCH` format.
 - The image tag is derived from `VERSION` (`mellanox/ufm-state-mirror:<VERSION>`).
-- CI already validates lint (`ruff`) and unit tests (`pytest`). The manual steps
-  below are for image build verification and publishing.
+- CI validates lint (`ruff`), unit tests (`pytest`), and a no-push image build.
+- Blossom publishes the release artifact as
+  `/auto/mswg/release/ufm/ufm-state-mirror/<VERSION>/ufm-state-mirror_<VERSION>-docker.img.gz`.
+- Each version is immutable and contains exactly one release artifact. Publishing
+  an existing version is rejected.
+- After a successful release, `ufm-state-mirror/latest` points to the new
+  versioned artifact using a relative symlink.
+- Stable, nbuprod, and manual releases share one lock. Artifacts and `latest`
+  are staged and renamed atomically, and `latest` is never moved to an older
+  version. An interrupted publication is rolled back or safely resumed.
+- The StateMirror-specific release matrices and release helper live under
+  `ufm-state-mirror/.ci`.
 - Always build from git-tracked files, not from the live working directory.
 - Create the tag from the exact same commit that produced the released image.
+- `ufm-state-mirror` stays at the repository top level. It is released through
+  the plugin release job for consistency, but it is not a UFM plugin.
 
 ## Phase A - Pre-merge verification
 
@@ -52,7 +66,7 @@ Merge only after:
 - the `ufm-state-mirror` CI job passes
 - the PR is approved and merged
 
-## Phase B - Release from the merged commit
+## Phase B - Automated release from the merged commit
 
 ### 1. Check out the merged commit on `main`
 
@@ -61,31 +75,73 @@ git checkout main
 git pull origin main
 ```
 
-### 2. Build and push the release image from the merged commit
+### 2. Run the Blossom release job
+
+Run `UFM_PLUGINS_SDK_RELEASE` from the merged commit.
+
+Use these parameters:
+
+- `sha1`: the merged commit SHA, release branch, or `main` after it contains the
+  version bump.
+- `PLUGIN_VERSION`: the exact content of `ufm-state-mirror/VERSION`.
+- Stable job selector: `Plugin_name=ufm-state-mirror`.
+- Nbuprod job selector: `PLUGIN_NAME=ufm-state-mirror`.
+- Stable `conf_file`: `ufm-state-mirror/.ci/matrix_job_release.yaml`.
+- Nbuprod `conf_file`: `ufm-state-mirror/.ci/matrix_job_release_nbuprod.yaml`.
+
+The matrix job fails fast if `PLUGIN_VERSION` does not match
+`ufm-state-mirror/VERSION` or if the target artifact already exists.
+The StateMirror release matrices dispatch to
+`ufm-state-mirror/.ci/release_build.sh`.
+
+Expected output:
+
+```text
+/auto/mswg/release/ufm/ufm-state-mirror/<VERSION>/ufm-state-mirror_<VERSION>-docker.img.gz
+```
+
+Expected release layout:
+
+```text
+/auto/mswg/release/ufm/ufm-state-mirror/
+├── 1.0.1/
+│   └── ufm-state-mirror_1.0.1-docker.img.gz
+├── 1.0.2/
+│   └── ufm-state-mirror_1.0.2-docker.img.gz
+└── latest -> 1.0.2/ufm-state-mirror_1.0.2-docker.img.gz
+```
+
+### 3. Tag the same commit
+
+After the Blossom job succeeds, tag the commit that produced the artifact:
+
+```bash
+VERSION="$(git show HEAD:ufm-state-mirror/VERSION | tr -d '\n')"
+git tag -a "ufm-state-mirror-v${VERSION}" -m "Release ufm-state-mirror ${VERSION}"
+git push origin "ufm-state-mirror-v${VERSION}"
+```
+
+## Manual fallback
+
+Use this only if the Blossom job is unavailable. It should produce the same
+`.img.gz` artifact from a committed snapshot:
 
 ```bash
 CHART=ufm-state-mirror
 VERSION="$(git show HEAD:${CHART}/VERSION | tr -d '\n')"
 STAGE_DIR="$(mktemp -d /tmp/ufm-state-mirror-stage.XXXXXX)"
+RELEASE_ROOT="/auto/mswg/release/ufm/${CHART}"
 
 git archive --format=tar HEAD "${CHART}" | tar -xf - -C "${STAGE_DIR}"
 
-# Authenticate to the registry first (docker login harbor.mellanox.com ...).
-REGISTRY=<registry/namespace> PUSH=y \
-  "${STAGE_DIR}/${CHART}/build/docker_build.sh" "${VERSION}"
-```
-
-### 3. Tag the same commit
-
-```bash
-git tag -a "ufm-state-mirror-v${VERSION}" -m "Release ufm-state-mirror ${VERSION}"
-git push origin "ufm-state-mirror-v${VERSION}"
+REGISTRY=mellanox \
+  "${STAGE_DIR}/${CHART}/.ci/release_build.sh" "${VERSION}" "${RELEASE_ROOT}"
 ```
 
 ## Consuming the image
 
-A consumer (the UFM `ufm-enterprise` chart, the UFM HA chart) references the
-published image by pinned tag and provides its own classifier:
+A consumer (the UFM `ufm-enterprise` chart, the UFM HA chart) loads or publishes
+the released artifact under the pinned image tag and provides its own classifier:
 
 - `image: <registry>/ufm-state-mirror:<VERSION>` on the init container
   (`python -m state_mirror.restore`) and the native sidecar
@@ -96,6 +152,11 @@ published image by pinned tag and provides its own classifier:
 See `examples/classifier-example.yaml` for the classifier schema. The
 authoritative, file-set-reconciled classifier lives in the consumer repo, not
 here.
+
+UFM packaging may use `ufm-state-mirror/latest` to discover the newest artifact,
+but each versioned UFM package must resolve that symlink and link or copy the
+concrete versioned artifact. A versioned UFM package must not retain a link to
+the moving StateMirror `latest` symlink.
 
 ## Why this flow
 
