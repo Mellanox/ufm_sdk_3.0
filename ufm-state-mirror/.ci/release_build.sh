@@ -214,10 +214,17 @@ if [ "${RESUME_PUBLISH}" = false ]; then
         exit 1
     fi
 
+    chmod 0644 "${STAGED_ARTIFACT}"
+    chmod u+rwx,go+rx "${STAGING_DIR}"
     touch "${STAGING_DIR}/.pending-latest"
     mv -T "${STAGING_DIR}" "${VERSION_DIR}"
     STAGING_DIR=""
     VERSION_PUBLISHED=true
+fi
+
+if [ "${RESUME_PUBLISH}" = true ]; then
+    chmod 0644 "${VERSION_DIR}/${ARTIFACT_NAME}"
+    chmod u+rwx,go+rx "${VERSION_DIR}"
 fi
 
 LATEST_TMP_DIR="$(mktemp -d "${RELEASE_ROOT}/.latest.staging.XXXXXX")"
