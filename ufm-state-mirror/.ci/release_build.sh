@@ -34,6 +34,15 @@ if [ -z "${VERSION}" ] || [ -z "${RELEASE_ROOT}" ]; then
     exit 2
 fi
 
+if [[ "${RELEASE_ROOT}" != /* ]] || [ "${RELEASE_ROOT}" = "/" ]; then
+    echo -e "Error: release root must be an absolute path other than /."
+    echo -e "Path: ${RELEASE_ROOT}"
+    exit 1
+fi
+while [[ "${RELEASE_ROOT}" == */ ]]; do
+    RELEASE_ROOT="${RELEASE_ROOT%/}"
+done
+
 EXPECTED_VERSION="$(tr -d '\n' < "${COMPONENT_DIR}/VERSION")"
 if [ "${VERSION}" != "${EXPECTED_VERSION}" ]; then
     echo -e "Error: ufm-state-mirror release version must match ufm-state-mirror/VERSION."
@@ -110,7 +119,6 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "${RELEASE_ROOT}"
-RELEASE_ROOT="$(cd "${RELEASE_ROOT}" && pwd -P)"
 exec 9>"${RELEASE_ROOT}/.release.lock"
 if ! flock -n 9; then
     echo -e "Error: another ${IMAGE_NAME} release is already in progress."

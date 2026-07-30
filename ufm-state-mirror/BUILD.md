@@ -20,7 +20,9 @@ is supplied at runtime by each consumer (UFM, UFM HA) via a ConfigMap mounted at
   an existing version is rejected.
 - After a successful release, `ufm-state-mirror/latest` points to the new
   versioned artifact using an absolute symlink so consumers can reuse the
-  `readlink` result from another directory.
+  `readlink` result from another directory. The target preserves the configured
+  release-root path and does not resolve filesystem aliases such as
+  `/auto/mswg` to `/auto/sw`.
 - Stable, nbuprod, and manual releases share one lock. Artifacts and `latest`
   are staged and renamed atomically, and `latest` is never moved to an older
   version. An interrupted publication is rolled back or safely resumed.
