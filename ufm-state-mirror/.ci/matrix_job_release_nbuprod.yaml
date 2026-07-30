@@ -6,23 +6,16 @@ registry_path: /swx-storage/ci-demo
 registry_auth: swx-storage
 step_allow_single_selector: true
 
-kubernetes:
-  cloud: swx-k8s-spray
-
 credentials:
   # harbor login/password
   - {credentialsId: '425bb907-c357-4fde-92e0-67854a857b4f', usernameVariable: 'UFM_USER', passwordVariable: 'UFM_PASS'}
 
-volumes:
-  - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
-  - {mountPath: /auto/mswg, hostPath: /auto/mswg}
-
-runs_on_dockers:
-  - {file: '.ci/Dockerfile', arch: 'x86_64', name: 'plugin_worker', tag: 'latest'}
+runs_on_agents:
+  - nodeLabel: 'SWX-CI-DOCKER'
 
 steps:
   - name: Build StateMirror
-    containerSelector: "{name: 'plugin_worker'}"
+    agentSelector: "{nodeLabel: 'SWX-CI-DOCKER'}"
     run: |
       set -x
       if [ "${PLUGIN_NAME}" != "ufm-state-mirror" ]; then
