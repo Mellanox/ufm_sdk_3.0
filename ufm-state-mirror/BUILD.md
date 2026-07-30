@@ -19,7 +19,8 @@ is supplied at runtime by each consumer (UFM, UFM HA) via a ConfigMap mounted at
 - Each version is immutable and contains exactly one release artifact. Publishing
   an existing version is rejected.
 - After a successful release, `ufm-state-mirror/latest` points to the new
-  versioned artifact using a relative symlink.
+  versioned artifact using an absolute symlink so consumers can reuse the
+  `readlink` result from another directory.
 - Stable, nbuprod, and manual releases share one lock. Artifacts and `latest`
   are staged and renamed atomically, and `latest` is never moved to an older
   version. An interrupted publication is rolled back or safely resumed.
@@ -108,7 +109,7 @@ Expected release layout:
 │   └── ufm-state-mirror_1.0.1-docker.img.gz
 ├── 1.0.2/
 │   └── ufm-state-mirror_1.0.2-docker.img.gz
-└── latest -> 1.0.2/ufm-state-mirror_1.0.2-docker.img.gz
+└── latest -> /auto/mswg/release/ufm/ufm-state-mirror/1.0.2/ufm-state-mirror_1.0.2-docker.img.gz
 ```
 
 ### 3. Tag the same commit

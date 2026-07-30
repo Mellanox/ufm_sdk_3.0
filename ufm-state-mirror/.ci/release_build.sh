@@ -110,6 +110,7 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "${RELEASE_ROOT}"
+RELEASE_ROOT="$(cd "${RELEASE_ROOT}" && pwd -P)"
 exec 9>"${RELEASE_ROOT}/.release.lock"
 if ! flock -n 9; then
     echo -e "Error: another ${IMAGE_NAME} release is already in progress."
@@ -120,7 +121,7 @@ fi
 VERSION_DIR="${RELEASE_ROOT}/${VERSION}"
 ARTIFACT_NAME="${IMAGE_NAME}_${VERSION}-docker.img.gz"
 LATEST_LINK="${RELEASE_ROOT}/latest"
-LATEST_TARGET="${VERSION}/${ARTIFACT_NAME}"
+LATEST_TARGET="${VERSION_DIR}/${ARTIFACT_NAME}"
 PENDING_MARKER="${VERSION_DIR}/.pending-latest"
 RESUME_PUBLISH=false
 
@@ -153,20 +154,30 @@ fi
 
 if [ -L "${LATEST_LINK}" ]; then
     CURRENT_TARGET="$(readlink "${LATEST_LINK}")"
-    CURRENT_VERSION="${CURRENT_TARGET%%/*}"
+    case "${CURRENT_TARGET}" in
+        "${RELEASE_ROOT}/"*)
+            CURRENT_RELATIVE_TARGET="${CURRENT_TARGET#"${RELEASE_ROOT}/"}"
+            ;;
+        *)
+            echo -e "Error: ${LATEST_LINK} must contain an absolute target under the release root."
+            echo -e "Target: ${CURRENT_TARGET}"
+            exit 1
+            ;;
+    esac
+    CURRENT_VERSION="${CURRENT_RELATIVE_TARGET%%/*}"
     if [[ ! "${CURRENT_VERSION}" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
         echo -e "Error: ${LATEST_LINK} contains an invalid version."
         echo -e "Target: ${CURRENT_TARGET}"
         exit 1
     fi
-    EXPECTED_CURRENT_TARGET="${CURRENT_VERSION}/${IMAGE_NAME}_${CURRENT_VERSION}-docker.img.gz"
+    EXPECTED_CURRENT_TARGET="${RELEASE_ROOT}/${CURRENT_VERSION}/${IMAGE_NAME}_${CURRENT_VERSION}-docker.img.gz"
     if [ "${CURRENT_TARGET}" != "${EXPECTED_CURRENT_TARGET}" ]; then
         echo -e "Error: ${LATEST_LINK} has an unexpected target."
         echo -e "Target: ${CURRENT_TARGET}"
         exit 1
     fi
     CURRENT_VERSION_DIR="${RELEASE_ROOT}/${CURRENT_VERSION}"
-    CURRENT_ARTIFACT="${RELEASE_ROOT}/${CURRENT_TARGET}"
+    CURRENT_ARTIFACT="${CURRENT_TARGET}"
     if [ ! -d "${CURRENT_VERSION_DIR}" ] || [ -L "${CURRENT_VERSION_DIR}" ] ||
        [ ! -f "${CURRENT_ARTIFACT}" ] || [ -L "${CURRENT_ARTIFACT}" ] ||
        [ ! -s "${CURRENT_ARTIFACT}" ] || ! gzip -t "${CURRENT_ARTIFACT}"; then
