@@ -18,6 +18,7 @@ The release helper stores one immutable artifact per version under
 `latest` symlink only after the artifact is created successfully. A shared
 release lock serializes stable, nbuprod, and manual publication. Artifacts and
 the `latest` link are staged and renamed atomically. Release versions use
-numeric `MAJOR.MINOR.PATCH` format. Published directories use mode `2755`, and
-artifacts use mode `0644`. An interrupted publication is rolled back or resumed
-from its pending marker on the next invocation.
+numeric `MAJOR.MINOR.PATCH` format. Published directories use mode `0755` and
+preserve an inherited setgid bit (`2755`), while artifacts use mode `0644`. An
+interrupted publication is rolled back or resumed from its pending marker on
+the next invocation.

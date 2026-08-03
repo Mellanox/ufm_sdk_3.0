@@ -18,8 +18,9 @@ is supplied at runtime by each consumer (UFM, UFM HA) via a ConfigMap mounted at
   `/auto/mswg/release/ufm/ufm-state-mirror/<VERSION>/ufm-state-mirror_<VERSION>-docker.img.gz`.
 - Each version is immutable and contains exactly one release artifact. Publishing
   an existing version is rejected.
-- Published version directories use mode `2755`, and release artifacts use mode
-  `0644`, so authorized consumers can traverse and read them.
+- Published version directories use mode `0755` and preserve an inherited
+  setgid bit (`2755`), while release artifacts use mode `0644`, so authorized
+  consumers can traverse and read them.
 - After a successful release, `ufm-state-mirror/latest` points to the new
   versioned artifact using an absolute symlink so consumers can reuse the
   `readlink` result from another directory. The target preserves the configured
