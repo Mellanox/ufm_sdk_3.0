@@ -13,7 +13,7 @@ credentials:
 volumes:
   - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
   - {mountPath: /auto/mswg, hostPath: /auto/mswg}
-  - {mountPath: /auto/sw, hostPath: /auto/sw}
+  - {mountPath: /auto/sw/release/ufm, hostPath: /auto/sw/release/ufm}
 
 runs_on_dockers:
   - {url: 'nbu-harbor.gtm.nvidia.com/ufm/ci/dind_ufm_x86_64:20251224', name: 'docker_builder', arch: 'x86_64', category: 'tool', nodeLabel: 'SWX-CI-DOCKER'}
