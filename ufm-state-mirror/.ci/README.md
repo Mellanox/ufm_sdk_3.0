@@ -10,9 +10,10 @@ Release builds must use the StateMirror-owned release matrix files:
 Both matrices delegate the actual release artifact creation to
 `ufm-state-mirror/.ci/release_build.sh`.
 
-The nbuprod matrix runs in the approved x86_64 Docker builder container on the
-`SWX-CI-DOCKER` agent and mounts the host Docker socket, the logical
-`/auto/mswg` release path, and its `/auto/sw/release/ufm` physical alias target.
+The nbuprod matrix runs the approved privileged x86_64 DIND builder in the
+`il-ipp-blossom-prod` Kubernetes cloud. It starts the nested Docker daemon and
+mounts the logical `/auto/mswg` release path plus its
+`/auto/sw/release/ufm` physical alias target.
 
 The release helper stores one immutable artifact per version under
 `/auto/mswg/release/ufm/ufm-state-mirror/<VERSION>/` and updates the absolute

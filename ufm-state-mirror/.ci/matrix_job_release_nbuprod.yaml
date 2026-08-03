@@ -10,22 +10,38 @@ credentials:
   # harbor login/password
   - {credentialsId: '425bb907-c357-4fde-92e0-67854a857b4f', usernameVariable: 'UFM_USER', passwordVariable: 'UFM_PASS'}
 
+kubernetes:
+  cloud: il-ipp-blossom-prod
+  namespace: swx
+  privileged: true
+
 volumes:
-  - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
   - {mountPath: /auto/mswg, hostPath: /auto/mswg}
   - {mountPath: /auto/sw/release/ufm, hostPath: /auto/sw/release/ufm}
 
 runs_on_dockers:
-  - {url: 'nbu-harbor.gtm.nvidia.com/ufm/ci/dind_ufm_x86_64:20251224', name: 'docker_builder', arch: 'x86_64', category: 'tool', nodeLabel: 'SWX-CI-DOCKER'}
+  - {url: 'nbu-harbor.gtm.nvidia.com/ufm/ci/dind_ufm_x86_64:20251224', name: 'docker_builder', arch: 'x86_64', category: 'tool'}
 
 steps:
   - name: Build StateMirror
-    agentSelector: "{nodeLabel: 'SWX-CI-DOCKER'}"
+    containerSelector: "{name: 'docker_builder'}"
     run: |
       set -x
       if [ "${PLUGIN_NAME}" != "ufm-state-mirror" ]; then
         echo -e "Error: ufm-state-mirror release matrix requires PLUGIN_NAME=ufm-state-mirror."
         echo -e "PLUGIN_NAME: ${PLUGIN_NAME}"
+        exit 1
+      fi
+
+      export DOCKER_HOST=unix:///run/docker.sock
+      nohup /usr/local/bin/dockerd-entrypoint.sh >/var/log/docker.log 2>&1 &
+      for i in $(seq 1 60); do
+        docker info >/dev/null 2>&1 && break
+        sleep 2
+      done
+      if ! docker info >/dev/null 2>&1; then
+        echo -e "Error: Docker did not become available within 120 seconds."
+        cat /var/log/docker.log
         exit 1
       fi
 
