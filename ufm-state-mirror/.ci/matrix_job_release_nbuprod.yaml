@@ -19,7 +19,7 @@ runs_on_dockers:
 
 steps:
   - name: Build StateMirror
-    containerSelector: "{name: 'docker_builder'}"
+    agentSelector: "{nodeLabel: 'SWX-CI-DOCKER'}"
     run: |
       set -x
       if [ "${PLUGIN_NAME}" != "ufm-state-mirror" ]; then
