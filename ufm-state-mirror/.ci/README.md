@@ -11,7 +11,8 @@ Both matrices delegate the actual release artifact creation to
 `ufm-state-mirror/.ci/release_build.sh`.
 
 The nbuprod matrix runs in the approved x86_64 Docker builder container on the
-`SWX-CI-DOCKER` agent and mounts the host Docker socket and release share.
+`SWX-CI-DOCKER` agent and mounts the host Docker socket, the logical
+`/auto/mswg` release path, and its `/auto/sw` physical alias target.
 
 The release helper stores one immutable artifact per version under
 `/auto/mswg/release/ufm/ufm-state-mirror/<VERSION>/` and updates the absolute
