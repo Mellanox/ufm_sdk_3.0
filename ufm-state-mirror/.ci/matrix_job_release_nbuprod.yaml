@@ -48,14 +48,31 @@ steps:
 
       # Keep dockerd privileged, but access the root-squashed release export as
       # the swx-jenkins owner and shared sw_ufm group.
+      RELEASE_USER=swx-jenkins
       RELEASE_UID=6213
       RELEASE_GID=4200
-      chgrp "${RELEASE_GID}" /run/docker.sock
+      ACTUAL_RELEASE_UID="$(id -u "${RELEASE_USER}" 2>/dev/null || true)"
+      if [ "${ACTUAL_RELEASE_UID}" != "${RELEASE_UID}" ]; then
+        echo -e "Error: ${RELEASE_USER} must have UID ${RELEASE_UID}."
+        echo -e "Actual UID: ${ACTUAL_RELEASE_UID:-<missing>}"
+        exit 1
+      fi
+      RELEASE_GROUP="$(awk -F: -v gid="${RELEASE_GID}" \
+        '$3 == gid { print $1; exit }' /etc/group)"
+      if [ -z "${RELEASE_GROUP}" ]; then
+        RELEASE_GROUP=sw_ufm
+        addgroup -S -g "${RELEASE_GID}" "${RELEASE_GROUP}"
+      fi
+      if ! id -nG "${RELEASE_USER}" | tr ' ' '\n' | grep -Fxq "${RELEASE_GROUP}"; then
+        addgroup "${RELEASE_USER}" "${RELEASE_GROUP}"
+      fi
+
+      chgrp "${RELEASE_GROUP}" /run/docker.sock
       chmod 0660 /run/docker.sock
       sudo --preserve-env=DOCKER_HOST -n -H \
-        -u "#${RELEASE_UID}" -g "#${RELEASE_GID}" id
+        -u "${RELEASE_USER}" -g "${RELEASE_GROUP}" id
       if ! sudo --preserve-env=DOCKER_HOST -n -H \
-        -u "#${RELEASE_UID}" -g "#${RELEASE_GID}" docker info >/dev/null; then
+        -u "${RELEASE_USER}" -g "${RELEASE_GROUP}" docker info >/dev/null; then
         echo -e "Error: release identity cannot access Docker."
         exit 1
       fi
@@ -63,7 +80,7 @@ steps:
       RELEASE_ROOT="/auto/mswg/release/ufm/ufm-state-mirror"
       RELEASE_ROOT_ALIAS="/auto/sw/release/ufm/ufm-state-mirror"
       sudo --preserve-env=DOCKER_HOST -n -H \
-        -u "#${RELEASE_UID}" -g "#${RELEASE_GID}" \
+        -u "${RELEASE_USER}" -g "${RELEASE_GROUP}" \
         bash -x ufm-state-mirror/.ci/release_build.sh \
           "${PLUGIN_VERSION}" "${RELEASE_ROOT}" "${RELEASE_ROOT_ALIAS}"
       BUILD_EXIT_CODE=$?
