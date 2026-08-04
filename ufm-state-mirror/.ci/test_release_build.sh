@@ -81,13 +81,32 @@ assert_link_target() {
     fi
 }
 
+test_directory_mode_normalization() {
+    local name="$1"
+    local base_version="$2"
+    local extended_version="$3"
+    local initial_mode="$4"
+    local expected_mode="$5"
+    local release_root="${TEST_ROOT}/${name}-release"
+    local component
+
+    make_artifact "${release_root}" "${base_version}"
+    if ! chmod "${initial_mode}" "${release_root}/${base_version}"; then
+        echo "Skipping ${initial_mode} mode test: filesystem rejected the special bit" >&2
+        return
+    fi
+    component="$(make_component "component-${name}" "${base_version}" "${extended_version}")"
+    run_release "${component}" "${extended_version}" "${release_root}"
+    test "$(stat -c '%a' "${release_root}/${base_version}")" = "${expected_mode}"
+}
+
 PHYSICAL_ROOT="${TEST_ROOT}/physical-release"
 LOGICAL_ROOT="${TEST_ROOT}/logical-release"
 mkdir -p "${PHYSICAL_ROOT}"
 ln -s "${PHYSICAL_ROOT}" "${LOGICAL_ROOT}"
 
 make_artifact "${PHYSICAL_ROOT}" "1.0.1"
-chmod 0777 "${PHYSICAL_ROOT}/1.0.1"
+chmod 1777 "${PHYSICAL_ROOT}/1.0.1"
 ln -s "1.0.1/ufm-state-mirror_1.0.1-docker.img.gz" "${PHYSICAL_ROOT}/latest"
 mkdir "${PHYSICAL_ROOT}/.latest.rollback.fixture"
 ln -s "1.0.1/ufm-state-mirror_1.0.1-docker.img.gz" \
@@ -262,6 +281,7 @@ if run_release "${COMPONENT_EQUAL_STALE}" "1.0.7-1" "${EQUAL_STALE_ROOT}"; then
     exit 1
 fi
 test ! -e "${EQUAL_STALE_ROOT}/1.0.7/ufm-state-mirror_1.0.7-1-docker.img.gz"
+test ! -e "${EQUAL_STALE_ROOT}/1.0.7"
 assert_link_target "${EQUAL_STALE_ROOT}/latest" \
     "${EQUAL_STALE_ROOT}/1.0.7/ufm-state-mirror_1.0.7-1-docker.img.gz"
 
@@ -275,5 +295,8 @@ run_release "${COMPONENT_ALIAS}" "1.0.8-2" \
     "${EXPLICIT_ALIAS_ROOT}" "${EXPLICIT_ALIAS}"
 assert_link_target "${EXPLICIT_ALIAS_ROOT}/latest" \
     "${EXPLICIT_ALIAS_ROOT}/1.0.8/ufm-state-mirror_1.0.8-2-docker.img.gz"
+
+test_directory_mode_normalization setuid 1.0.9 1.0.9-1 4777 755
+test_directory_mode_normalization setgid 1.0.10 1.0.10-1 2777 2755
 
 echo "StateMirror release helper tests passed"

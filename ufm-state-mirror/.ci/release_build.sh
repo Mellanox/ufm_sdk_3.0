@@ -34,6 +34,7 @@ PENDING_MARKER=""
 BASE_DIR_CREATED=false
 PENDING_MARKER_CREATED_BY_RUN=false
 ARTIFACT_MOVE_ATTEMPTED=false
+LATEST_MOVE_ATTEMPTED=false
 LATEST_COMMITTED=false
 BASE_VERSION_PATTERN='(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)'
 VERSION_PATTERN='(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-([1-9][0-9]*))?'
@@ -147,6 +148,18 @@ release_artifact_is_valid() {
         gzip -t "${artifact}"
 }
 
+normalize_version_directory_mode() {
+    local directory="$1"
+    local current_mode
+
+    current_mode="$(stat -c '%a' "${directory}")"
+    if (( (8#${current_mode} & 8#2000) != 0 )); then
+        chmod 2755 "${directory}"
+    else
+        chmod 0755 "${directory}"
+    fi
+}
+
 latest_target_version() {
     local target="$1"
     local relative_target target_dir artifact version base_version expected_artifact
@@ -210,7 +223,8 @@ cleanup_legacy_rollback_entries() {
 }
 
 cleanup() {
-    if [ "${LATEST_COMMITTED}" = false ] && [ -n "${LATEST_LINK}" ] &&
+    if [ "${LATEST_COMMITTED}" = false ] && [ "${LATEST_MOVE_ATTEMPTED}" = true ] &&
+       [ -n "${LATEST_LINK}" ] &&
        [ -n "${LATEST_TARGET}" ] && [ -L "${LATEST_LINK}" ] &&
        [ "$(readlink "${LATEST_LINK}")" = "${LATEST_TARGET}" ]; then
         LATEST_COMMITTED=true
@@ -266,7 +280,7 @@ if [ ! -d "${BASE_VERSION_DIR}" ]; then
     mkdir "${BASE_VERSION_DIR}"
     BASE_DIR_CREATED=true
 fi
-chmod go-w,u+rwx,go+rx "${BASE_VERSION_DIR}"
+normalize_version_directory_mode "${BASE_VERSION_DIR}"
 
 if [ "${LEGACY_VERSION_DIR}" != "${BASE_VERSION_DIR}" ] &&
    { [ -e "${LEGACY_ARTIFACT_PATH}" ] || [ -L "${LEGACY_ARTIFACT_PATH}" ]; }; then
@@ -354,12 +368,13 @@ fi
 
 if [ "${RESUME_PUBLISH}" = true ]; then
     chmod 0644 "${ARTIFACT_PATH}"
-    chmod go-w,u+rwx,go+rx "${BASE_VERSION_DIR}"
+    normalize_version_directory_mode "${BASE_VERSION_DIR}"
 fi
 
 LATEST_TMP_DIR="$(mktemp -d "${RELEASE_ROOT}/.latest.staging.XXXXXX")"
 LATEST_TMP="${LATEST_TMP_DIR}/latest"
 ln -s "${LATEST_TARGET}" "${LATEST_TMP}"
+LATEST_MOVE_ATTEMPTED=true
 mv -Tf "${LATEST_TMP}" "${LATEST_LINK}"
 LATEST_TMP=""
 LATEST_COMMITTED=true
