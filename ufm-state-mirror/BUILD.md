@@ -17,7 +17,8 @@ is supplied at runtime by each consumer (UFM, UFM HA) via a ConfigMap mounted at
   `<BASE_VERSION>-<BUILD_NUMBER>` (`MAJOR.MINOR.PATCH-BUILD`).
 - The image tag is derived from the resulting `EXTENDED_VERSION`
   (`mellanox/ufm-state-mirror:<EXTENDED_VERSION>`).
-- CI validates lint (`ruff`), unit tests (`pytest`), and a no-push image build.
+- Before merge, validate lint (`ruff`), unit tests (`pytest`), the release
+  helper, and a no-push image build using the commands below.
 - Blossom publishes the release artifact as
   `/auto/mswg/release/ufm/ufm-state-mirror/<BASE_VERSION>/ufm-state-mirror_<EXTENDED_VERSION>-docker.img.gz`.
 - Each extended version is immutable. Multiple build artifacts may coexist
@@ -83,7 +84,7 @@ This image is for verification only. Do not push it and do not tag this commit y
 Merge only after:
 
 - the verification image build above succeeds
-- the `ufm-state-mirror` CI job passes
+- the documented lint, unit, and release-helper tests pass
 - the PR is approved and merged
 
 ## Phase B - Automated release from the merged commit
