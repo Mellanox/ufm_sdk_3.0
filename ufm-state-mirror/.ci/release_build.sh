@@ -200,17 +200,34 @@ cleanup_legacy_rollback_entries() {
 
     while IFS= read -r entry; do
         if [ -L "${entry}" ]; then
-            rm -f -- "${entry}"
+            if ! rm -f -- "${entry}"; then
+                echo -e "Warning: cannot remove inaccessible legacy latest rollback entry."
+                echo -e "Path: ${entry}"
+                continue
+            fi
         elif [ -d "${entry}" ]; then
-            unexpected_entry="$(find "${entry}" -mindepth 1 -maxdepth 1 ! -name latest -print -quit)"
+            if [ ! -r "${entry}" ] || [ ! -x "${entry}" ]; then
+                echo -e "Warning: cannot inspect inaccessible legacy latest rollback entry; ignoring it."
+                echo -e "Path: ${entry}"
+                continue
+            fi
+            if ! unexpected_entry="$(find "${entry}" -mindepth 1 -maxdepth 1 \
+                ! -name latest -print -quit 2>/dev/null)"; then
+                echo -e "Warning: cannot inspect inaccessible legacy latest rollback entry; ignoring it."
+                echo -e "Path: ${entry}"
+                continue
+            fi
             if [ -n "${unexpected_entry}" ] ||
                { [ -e "${entry}/latest" ] && [ ! -L "${entry}/latest" ]; }; then
                 echo -e "Error: legacy latest rollback entry contains unexpected data."
                 echo -e "Path: ${entry}"
                 exit 1
             fi
-            rm -f -- "${entry}/latest"
-            rmdir -- "${entry}"
+            if ! rm -f -- "${entry}/latest" || ! rmdir -- "${entry}"; then
+                echo -e "Warning: cannot remove inaccessible legacy latest rollback entry."
+                echo -e "Path: ${entry}"
+                continue
+            fi
         else
             echo -e "Error: legacy latest rollback entry has an unexpected type."
             echo -e "Path: ${entry}"

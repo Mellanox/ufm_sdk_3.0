@@ -224,6 +224,15 @@ if run_release "${COMPONENT_UNSAFE}" "1.0.1-11" "${UNSAFE_ROLLBACK_ROOT}"; then
 fi
 test -f "${UNSAFE_ROLLBACK_ROOT}/.latest.rollback.fixture/unexpected-data"
 
+INACCESSIBLE_ROLLBACK_ROOT="${TEST_ROOT}/inaccessible-rollback-release"
+mkdir -p "${INACCESSIBLE_ROLLBACK_ROOT}/.latest.rollback.fixture"
+chmod 000 "${INACCESSIBLE_ROLLBACK_ROOT}/.latest.rollback.fixture"
+COMPONENT_INACCESSIBLE="$(make_component component-inaccessible 1.0.11 1)"
+run_release "${COMPONENT_INACCESSIBLE}" "1.0.11-1" "${INACCESSIBLE_ROLLBACK_ROOT}"
+assert_link_target "${INACCESSIBLE_ROLLBACK_ROOT}/latest" \
+    "${INACCESSIBLE_ROLLBACK_ROOT}/1.0.11/ufm-state-mirror_1.0.11-1-docker.img.gz"
+chmod 700 "${INACCESSIBLE_ROLLBACK_ROOT}/.latest.rollback.fixture"
+
 COMPONENT_INVALID="$(make_component component-invalid 1.0.1 0)"
 if run_release "${COMPONENT_INVALID}" "1.0.1-0" "${TEST_ROOT}/invalid-release"; then
     echo "Expected build suffix 0 to be rejected" >&2
