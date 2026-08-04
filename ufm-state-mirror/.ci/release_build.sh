@@ -39,6 +39,7 @@ LATEST_MOVE_ATTEMPTED=false
 LATEST_COMMITTED=false
 BASE_VERSION_PATTERN='(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)'
 VERSION_PATTERN='(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-([1-9][0-9]*))?'
+RELEASE_GROUP_ID="${STATE_MIRROR_RELEASE_GROUP_ID:-4200}"
 
 if [ -z "${VERSION}" ] || [ -z "${RELEASE_ROOT}" ]; then
     echo "Usage: $0 <VERSION> <RELEASE_ROOT>"
@@ -150,20 +151,33 @@ release_artifact_is_valid() {
 
 normalize_version_directory_mode() {
     local directory="$1"
-    local current_mode directory_details
+    local current_gid current_mode directory_details final_gid final_mode
 
+    current_gid="$(stat -c '%g' "${directory}")"
     current_mode="$(stat -c '%a' "${directory}")"
-    if [ "${current_mode}" = 2775 ]; then
+    if [ "${current_gid}" = "${RELEASE_GROUP_ID}" ] && [ "${current_mode}" = 2775 ]; then
         return
     fi
-    if ! chmod u=rwx,g=rwx,o=rx "${directory}" ||
+    if { [ "${current_gid}" != "${RELEASE_GROUP_ID}" ] &&
+         ! chgrp "${RELEASE_GROUP_ID}" "${directory}"; } ||
+       ! chmod u=rwx,g=rwx,o=rx "${directory}" ||
        ! chmod u-s,g-s,o-t "${directory}" ||
        ! chmod g+s "${directory}"; then
         directory_details="$(stat -c 'owner=%U(%u) group=%G(%g) mode=%a' "${directory}")"
         echo -e "Error: base-version directory permissions cannot be normalized."
         echo -e "Path: ${directory}"
         echo -e "Current: ${directory_details}"
-        echo -e "Expected: group=sw_ufm(4200) mode=2775"
+        echo -e "Expected: group GID ${RELEASE_GROUP_ID}, mode 2775"
+        return 1
+    fi
+    final_gid="$(stat -c '%g' "${directory}")"
+    final_mode="$(stat -c '%a' "${directory}")"
+    if [ "${final_gid}" != "${RELEASE_GROUP_ID}" ] || [ "${final_mode}" != 2775 ]; then
+        directory_details="$(stat -c 'owner=%U(%u) group=%G(%g) mode=%a' "${directory}")"
+        echo -e "Error: base-version directory normalization did not reach the required state."
+        echo -e "Path: ${directory}"
+        echo -e "Current: ${directory_details}"
+        echo -e "Expected: group GID ${RELEASE_GROUP_ID}, mode 2775"
         return 1
     fi
 }
@@ -179,7 +193,7 @@ verify_version_directory_writable() {
         echo -e "Path: ${directory}"
         echo -e "Current: ${directory_details}"
         echo -e "Process: uid=$(id -u) gid=$(id -g)"
-        echo -e "Expected: process group=sw_ufm(4200), directory mode=2775"
+        echo -e "Expected: process group GID ${RELEASE_GROUP_ID}, directory mode=2775"
         return 1
     fi
     if ! rm -f -- "${WRITE_PROBE}"; then

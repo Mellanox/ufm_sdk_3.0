@@ -18,6 +18,7 @@ TEST_ROOT="$(cd "${TEST_ROOT}" && pwd -P)"
 trap 'rm -rf -- "${TEST_ROOT}"' EXIT
 
 REAL_CHMOD="$(command -v chmod)"
+REAL_CHGRP="$(command -v chgrp)"
 REAL_MKTEMP="$(command -v mktemp)"
 PORTABLE_BIN="${TEST_ROOT}/portable-bin"
 mkdir -p "${PORTABLE_BIN}"
@@ -34,6 +35,14 @@ fi
 exec "${REAL_CHMOD}" "\$@"
 PORTABLE_CHMOD
 "${REAL_CHMOD}" +x "${PORTABLE_BIN}/chmod"
+cat > "${PORTABLE_BIN}/chgrp" <<PORTABLE_CHGRP
+#!/bin/bash
+if [ -n "\${CHGRP_NOOP_PATH:-}" ] && [ "\${!#}" = "\${CHGRP_NOOP_PATH}" ]; then
+    exit 0
+fi
+exec "${REAL_CHGRP}" "\$@"
+PORTABLE_CHGRP
+"${REAL_CHMOD}" +x "${PORTABLE_BIN}/chgrp"
 cat > "${PORTABLE_BIN}/mktemp" <<PORTABLE_MKTEMP
 #!/bin/bash
 for argument in "\$@"; do
@@ -47,6 +56,7 @@ exec "${REAL_MKTEMP}" "\$@"
 PORTABLE_MKTEMP
 "${REAL_CHMOD}" +x "${PORTABLE_BIN}/mktemp"
 export PATH="${PORTABLE_BIN}:${PATH}"
+export STATE_MIRROR_RELEASE_GROUP_ID="$(id -g)"
 
 make_component() {
     local name="$1"
@@ -374,6 +384,31 @@ WRITE_DENIED_BUILD
     test ! -e "${BUILD_RAN_MARKER}"
 else
     echo "Skipping write-probe failure test: filesystem rejected setgid" >&2
+fi
+
+WRONG_GROUP_ROOT="${TEST_ROOT}/wrong-group-release"
+make_artifact "${WRONG_GROUP_ROOT}" "1.0.14"
+WRONG_GROUP_DIR="${WRONG_GROUP_ROOT}/1.0.14"
+if "${REAL_CHMOD}" 2775 "${WRONG_GROUP_DIR}"; then
+    COMPONENT_WRONG_GROUP="$(make_component component-wrong-group 1.0.14 1)"
+    BUILD_RAN_MARKER="${TEST_ROOT}/wrong-group-build-ran"
+    cat > "${COMPONENT_WRONG_GROUP}/build/docker_build.sh" <<WRONG_GROUP_BUILD
+#!/bin/bash
+touch "${BUILD_RAN_MARKER}"
+exit 99
+WRONG_GROUP_BUILD
+    "${REAL_CHMOD}" +x "${COMPONENT_WRONG_GROUP}/build/docker_build.sh"
+    export CHGRP_NOOP_PATH="${WRONG_GROUP_DIR}"
+    export STATE_MIRROR_RELEASE_GROUP_ID="$(( $(id -g) + 1 ))"
+    if run_release "${COMPONENT_WRONG_GROUP}" "1.0.14-1" "${WRONG_GROUP_ROOT}"; then
+        echo "Expected wrong base-version group rejection" >&2
+        exit 1
+    fi
+    unset CHGRP_NOOP_PATH
+    export STATE_MIRROR_RELEASE_GROUP_ID="$(id -g)"
+    test ! -e "${BUILD_RAN_MARKER}"
+else
+    echo "Skipping wrong-group test: filesystem rejected setgid" >&2
 fi
 
 echo "StateMirror release helper tests passed"
