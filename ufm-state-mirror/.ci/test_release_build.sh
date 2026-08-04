@@ -26,6 +26,10 @@ if [[ "\${1:-}" == =* ]]; then
     echo "chmod: invalid mode '\${1}'" >&2
     exit 1
 fi
+if [ -n "\${CHMOD_DENY_PATH:-}" ] && [ "\${!#}" = "\${CHMOD_DENY_PATH}" ]; then
+    echo "chmod: \${CHMOD_DENY_PATH}: Operation not permitted" >&2
+    exit 1
+fi
 exec "${REAL_CHMOD}" "\$@"
 PORTABLE_CHMOD
 "${REAL_CHMOD}" +x "${PORTABLE_BIN}/chmod"
@@ -322,5 +326,18 @@ assert_link_target "${EXPLICIT_ALIAS_ROOT}/latest" \
 
 test_directory_mode_normalization setuid 1.0.9 1 4777 755
 test_directory_mode_normalization setgid 1.0.10 1 2777 2755
+
+EXACT_MODE_ROOT="${TEST_ROOT}/exact-mode-release"
+make_artifact "${EXACT_MODE_ROOT}" "1.0.12"
+EXACT_MODE_DIR="${EXACT_MODE_ROOT}/1.0.12"
+if "${REAL_CHMOD}" 2755 "${EXACT_MODE_DIR}"; then
+    COMPONENT_EXACT_MODE="$(make_component component-exact-mode 1.0.12 1)"
+    export CHMOD_DENY_PATH="${EXACT_MODE_DIR}"
+    run_release "${COMPONENT_EXACT_MODE}" "1.0.12-1" "${EXACT_MODE_ROOT}"
+    unset CHMOD_DENY_PATH
+    test "$(stat -c '%a' "${EXACT_MODE_DIR}")" = 2755
+else
+    echo "Skipping exact-mode ownership test: filesystem rejected setgid" >&2
+fi
 
 echo "StateMirror release helper tests passed"

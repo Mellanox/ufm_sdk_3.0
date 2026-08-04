@@ -152,6 +152,9 @@ normalize_version_directory_mode() {
     local current_mode
 
     current_mode="$(stat -c '%a' "${directory}")"
+    if [ "${current_mode}" = 755 ] || [ "${current_mode}" = 2755 ]; then
+        return
+    fi
     chmod u=rwx,g=rx,o=rx "${directory}"
     chmod u-s,g-s,o-t "${directory}"
     if (( (8#${current_mode} & 8#2000) != 0 )); then
