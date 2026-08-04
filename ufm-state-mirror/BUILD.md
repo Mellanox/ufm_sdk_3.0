@@ -11,10 +11,11 @@ is supplied at runtime by each consumer (UFM, UFM HA) via a ConfigMap mounted at
 ## Release rules
 
 - `ufm-state-mirror/VERSION` is the release version source of truth and must be
-  committed. It declares `BASE_VERSION` and `EXTENDED_VERSION` explicitly.
-- `BASE_VERSION` uses `MAJOR.MINOR.PATCH`; `EXTENDED_VERSION` must equal that
-  base followed by a positive numeric build suffix (`MAJOR.MINOR.PATCH-BUILD`).
-- The image tag is derived from `EXTENDED_VERSION`
+  committed. It declares `BASE_VERSION` and `BUILD_NUMBER`.
+- `BASE_VERSION` uses `MAJOR.MINOR.PATCH` and `BUILD_NUMBER` is a positive
+  integer. `EXTENDED_VERSION` is derived as
+  `<BASE_VERSION>-<BUILD_NUMBER>` (`MAJOR.MINOR.PATCH-BUILD`).
+- The image tag is derived from the resulting `EXTENDED_VERSION`
   (`mellanox/ufm-state-mirror:<EXTENDED_VERSION>`).
 - CI validates lint (`ruff`), unit tests (`pytest`), and a no-push image build.
 - Blossom publishes the release artifact as
@@ -65,12 +66,11 @@ pytest -q
 
 ```bash
 CHART=ufm-state-mirror
-VERSION="$(git show HEAD:${CHART}/VERSION | sed -n 's/^EXTENDED_VERSION=//p')"
 STAGE_DIR="$(mktemp -d /tmp/ufm-state-mirror-stage.XXXXXX)"
 
 git archive --format=tar HEAD "${CHART}" | tar -xf - -C "${STAGE_DIR}"
 
-REGISTRY=mellanox "${STAGE_DIR}/${CHART}/build/docker_build.sh" "${VERSION}"
+REGISTRY=mellanox "${STAGE_DIR}/${CHART}/build/docker_build.sh"
 ```
 
 This image is for verification only. Do not push it and do not tag this commit yet.
@@ -100,15 +100,15 @@ Use these parameters:
 
 - `sha1`: the merged commit SHA, release branch, or `main` after it contains the
   version bump.
-- `PLUGIN_VERSION`: the `EXTENDED_VERSION` value in
+- `PLUGIN_VERSION`: `<BASE_VERSION>-<BUILD_NUMBER>` using the values in
   `ufm-state-mirror/VERSION`.
 - Stable job selector: `Plugin_name=ufm-state-mirror`.
 - Nbuprod job selector: `PLUGIN_NAME=ufm-state-mirror`.
 - Stable `conf_file`: `ufm-state-mirror/.ci/matrix_job_release.yaml`.
 - Nbuprod `conf_file`: `ufm-state-mirror/.ci/matrix_job_release_nbuprod.yaml`.
 
-The matrix job fails fast if `PLUGIN_VERSION` does not match `EXTENDED_VERSION`,
-if the base and extended values are inconsistent, or if the target artifact
+The matrix job fails fast if `PLUGIN_VERSION` does not match the derived
+extended version, if either version field is invalid, or if the target artifact
 already exists.
 The StateMirror release matrices dispatch to
 `ufm-state-mirror/.ci/release_build.sh`.
@@ -138,7 +138,8 @@ Expected release layout:
 After the Blossom job succeeds, tag the commit that produced the artifact:
 
 ```bash
-VERSION="$(git show HEAD:ufm-state-mirror/VERSION | sed -n 's/^EXTENDED_VERSION=//p')"
+source ufm-state-mirror/VERSION
+VERSION="${BASE_VERSION}-${BUILD_NUMBER}"
 git tag -a "ufm-state-mirror-v${VERSION}" -m "Release ufm-state-mirror ${VERSION}"
 git push origin "ufm-state-mirror-v${VERSION}"
 ```
@@ -150,12 +151,13 @@ Use this only if the Blossom job is unavailable. It should produce the same
 
 ```bash
 CHART=ufm-state-mirror
-VERSION="$(git show HEAD:${CHART}/VERSION | sed -n 's/^EXTENDED_VERSION=//p')"
 STAGE_DIR="$(mktemp -d /tmp/ufm-state-mirror-stage.XXXXXX)"
 RELEASE_ROOT="/auto/mswg/release/ufm/${CHART}"
 RELEASE_ROOT_ALIAS="/auto/sw/release/ufm/${CHART}"
 
 git archive --format=tar HEAD "${CHART}" | tar -xf - -C "${STAGE_DIR}"
+source "${STAGE_DIR}/${CHART}/VERSION"
+VERSION="${BASE_VERSION}-${BUILD_NUMBER}"
 
 REGISTRY=mellanox \
   "${STAGE_DIR}/${CHART}/.ci/release_build.sh" \

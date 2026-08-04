@@ -64,7 +64,7 @@ if [ -n "${RELEASE_ROOT_ALIAS}" ]; then
 fi
 
 BASE_VERSION=""
-EXTENDED_VERSION=""
+BUILD_NUMBER=""
 # shellcheck disable=SC1091
 source "${COMPONENT_DIR}/VERSION"
 
@@ -73,14 +73,13 @@ if [[ ! "${BASE_VERSION}" =~ ^${BASE_VERSION_PATTERN}$ ]]; then
     echo -e "BASE_VERSION: ${BASE_VERSION}"
     exit 1
 fi
-if [[ ! "${EXTENDED_VERSION}" =~ ^${VERSION_PATTERN}$ ]] ||
-   [[ "${EXTENDED_VERSION}" != *-* ]] ||
-   [ "${EXTENDED_VERSION%%-*}" != "${BASE_VERSION}" ]; then
-    echo -e "Error: EXTENDED_VERSION must equal BASE_VERSION followed by a positive build suffix."
+if [[ ! "${BUILD_NUMBER}" =~ ^([1-9][0-9]*)$ ]]; then
+    echo -e "Error: BUILD_NUMBER must be a positive integer."
     echo -e "BASE_VERSION: ${BASE_VERSION}"
-    echo -e "EXTENDED_VERSION: ${EXTENDED_VERSION}"
+    echo -e "BUILD_NUMBER: ${BUILD_NUMBER}"
     exit 1
 fi
+EXTENDED_VERSION="${BASE_VERSION}-${BUILD_NUMBER}"
 if [ "${VERSION}" != "${EXTENDED_VERSION}" ]; then
     echo -e "Error: ufm-state-mirror release version must match ufm-state-mirror/VERSION."
     echo -e "PLUGIN_VERSION: ${VERSION}"

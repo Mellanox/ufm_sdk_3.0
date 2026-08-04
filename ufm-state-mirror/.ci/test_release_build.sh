@@ -20,12 +20,12 @@ trap 'rm -rf -- "${TEST_ROOT}"' EXIT
 make_component() {
     local name="$1"
     local base_version="$2"
-    local extended_version="$3"
+    local build_number="$3"
     local component_dir="${TEST_ROOT}/${name}"
 
     cp -R "${SOURCE_DIR}" "${component_dir}"
-    printf 'BASE_VERSION=%s\nEXTENDED_VERSION=%s\n' \
-        "${base_version}" "${extended_version}" > "${component_dir}/VERSION"
+    printf 'BASE_VERSION=%s\nBUILD_NUMBER=%s\n' \
+        "${base_version}" "${build_number}" > "${component_dir}/VERSION"
     cat > "${component_dir}/build/docker_build.sh" <<'STUB'
 #!/bin/bash
 set -eEuo pipefail
@@ -84,10 +84,11 @@ assert_link_target() {
 test_directory_mode_normalization() {
     local name="$1"
     local base_version="$2"
-    local extended_version="$3"
+    local build_number="$3"
     local initial_mode="$4"
     local expected_mode="$5"
     local release_root="${TEST_ROOT}/${name}-release"
+    local extended_version="${base_version}-${build_number}"
     local component
 
     make_artifact "${release_root}" "${base_version}"
@@ -95,7 +96,7 @@ test_directory_mode_normalization() {
         echo "Skipping ${initial_mode} mode test: filesystem rejected the special bit" >&2
         return
     fi
-    component="$(make_component "component-${name}" "${base_version}" "${extended_version}")"
+    component="$(make_component "component-${name}" "${base_version}" "${build_number}")"
     run_release "${component}" "${extended_version}" "${release_root}"
     test "$(stat -c '%a' "${release_root}/${base_version}")" = "${expected_mode}"
 }
@@ -112,7 +113,7 @@ mkdir "${PHYSICAL_ROOT}/.latest.rollback.fixture"
 ln -s "1.0.1/ufm-state-mirror_1.0.1-docker.img.gz" \
     "${PHYSICAL_ROOT}/.latest.rollback.fixture/latest"
 
-COMPONENT_8="$(make_component component-8 1.0.1 1.0.1-8)"
+COMPONENT_8="$(make_component component-8 1.0.1 8)"
 run_release "${COMPONENT_8}" "1.0.1-8" "${LOGICAL_ROOT}"
 assert_link_target "${PHYSICAL_ROOT}/latest" \
     "${LOGICAL_ROOT}/1.0.1/ufm-state-mirror_1.0.1-8-docker.img.gz"
@@ -126,7 +127,7 @@ rm -f "${PHYSICAL_ROOT}/latest"
 make_legacy_flat_artifact "${PHYSICAL_ROOT}" "1.0.1-8"
 ln -s "${PHYSICAL_ROOT}/1.0.1-8/ufm-state-mirror_1.0.1-8-docker.img.gz" \
     "${PHYSICAL_ROOT}/latest"
-COMPONENT_9="$(make_component component-9 1.0.1 1.0.1-9)"
+COMPONENT_9="$(make_component component-9 1.0.1 9)"
 run_release "${COMPONENT_9}" "1.0.1-9" "${LOGICAL_ROOT}"
 assert_link_target "${PHYSICAL_ROOT}/latest" \
     "${LOGICAL_ROOT}/1.0.1/ufm-state-mirror_1.0.1-9-docker.img.gz"
@@ -136,7 +137,7 @@ test -f "${PHYSICAL_ROOT}/1.0.1/ufm-state-mirror_1.0.1-9-docker.img.gz"
 rm -f "${PHYSICAL_ROOT}/latest"
 ln -s "1.0.1/ufm-state-mirror_1.0.1-9-docker.img.gz" "${PHYSICAL_ROOT}/latest"
 rm -f "${PHYSICAL_ROOT}/1.0.1/ufm-state-mirror_1.0.1-9-docker.img.gz"
-COMPONENT_10="$(make_component component-10 1.0.1 1.0.1-10)"
+COMPONENT_10="$(make_component component-10 1.0.1 10)"
 run_release "${COMPONENT_10}" "1.0.1-10" "${LOGICAL_ROOT}"
 assert_link_target "${PHYSICAL_ROOT}/latest" \
     "${LOGICAL_ROOT}/1.0.1/ufm-state-mirror_1.0.1-10-docker.img.gz"
@@ -151,7 +152,7 @@ test -f "${PHYSICAL_ROOT}/1.0.1/ufm-state-mirror_1.0.1-10-docker.img.gz"
 RESUME_ROOT="${TEST_ROOT}/resume-release"
 make_artifact "${RESUME_ROOT}" "1.0.3-4"
 touch "${RESUME_ROOT}/1.0.3/.1.0.3-4.pending-latest"
-COMPONENT_RESUME="$(make_component component-resume 1.0.3 1.0.3-4)"
+COMPONENT_RESUME="$(make_component component-resume 1.0.3 4)"
 printf '#!/bin/bash\nexit 99\n' > "${COMPONENT_RESUME}/build/docker_build.sh"
 chmod +x "${COMPONENT_RESUME}/build/docker_build.sh"
 run_release "${COMPONENT_RESUME}" "1.0.3-4" "${RESUME_ROOT}"
@@ -160,7 +161,7 @@ assert_link_target "${RESUME_ROOT}/latest" \
 test ! -e "${RESUME_ROOT}/1.0.3/.1.0.3-4.pending-latest"
 
 SIGNAL_ROOT="${TEST_ROOT}/signal-release"
-SIGNAL_COMPONENT="$(make_component component-signal 1.0.5 1.0.5-1)"
+SIGNAL_COMPONENT="$(make_component component-signal 1.0.5 1)"
 SIGNAL_BIN="${TEST_ROOT}/signal-bin"
 SIGNAL_REAL_MV="$(command -v mv)"
 mkdir -p "${SIGNAL_BIN}"
@@ -195,7 +196,7 @@ mkdir -p "${DOWNGRADE_PHYSICAL_ROOT}"
 ln -s "${DOWNGRADE_PHYSICAL_ROOT}" "${DOWNGRADE_LOGICAL_ROOT}"
 ln -s "${DOWNGRADE_PHYSICAL_ROOT}/1.0.2/ufm-state-mirror_1.0.2-1-docker.img.gz" \
     "${DOWNGRADE_PHYSICAL_ROOT}/latest"
-COMPONENT_99="$(make_component component-99 1.0.1 1.0.1-99)"
+COMPONENT_99="$(make_component component-99 1.0.1 99)"
 if run_release "${COMPONENT_99}" "1.0.1-99" "${DOWNGRADE_LOGICAL_ROOT}"; then
     echo "Expected build-suffix downgrade rejection" >&2
     exit 1
@@ -206,7 +207,7 @@ mkdir -p "${SAME_CORE_ROOT}"
 make_artifact "${SAME_CORE_ROOT}" "1.0.1-10"
 ln -s "${SAME_CORE_ROOT}/1.0.1/ufm-state-mirror_1.0.1-10-docker.img.gz" \
     "${SAME_CORE_ROOT}/latest"
-COMPONENT_9_DOWNGRADE="$(make_component component-9-downgrade 1.0.1 1.0.1-9)"
+COMPONENT_9_DOWNGRADE="$(make_component component-9-downgrade 1.0.1 9)"
 if run_release "${COMPONENT_9_DOWNGRADE}" "1.0.1-9" "${SAME_CORE_ROOT}"; then
     echo "Expected same-core build-suffix downgrade rejection" >&2
     exit 1
@@ -216,28 +217,28 @@ UNSAFE_ROLLBACK_ROOT="${TEST_ROOT}/unsafe-rollback-release"
 mkdir -p "${UNSAFE_ROLLBACK_ROOT}/.latest.rollback.fixture"
 printf 'must be preserved\n' > \
     "${UNSAFE_ROLLBACK_ROOT}/.latest.rollback.fixture/unexpected-data"
-COMPONENT_UNSAFE="$(make_component component-unsafe 1.0.1 1.0.1-11)"
+COMPONENT_UNSAFE="$(make_component component-unsafe 1.0.1 11)"
 if run_release "${COMPONENT_UNSAFE}" "1.0.1-11" "${UNSAFE_ROLLBACK_ROOT}"; then
     echo "Expected unsafe legacy rollback cleanup rejection" >&2
     exit 1
 fi
 test -f "${UNSAFE_ROLLBACK_ROOT}/.latest.rollback.fixture/unexpected-data"
 
-COMPONENT_INVALID="$(make_component component-invalid 1.0.1 1.0.1-0)"
+COMPONENT_INVALID="$(make_component component-invalid 1.0.1 0)"
 if run_release "${COMPONENT_INVALID}" "1.0.1-0" "${TEST_ROOT}/invalid-release"; then
     echo "Expected build suffix 0 to be rejected" >&2
     exit 1
 fi
 
-COMPONENT_MISMATCH="$(make_component component-mismatch 1.0.2 1.0.1-12)"
-if run_release "${COMPONENT_MISMATCH}" "1.0.1-12" "${TEST_ROOT}/mismatch-release"; then
-    echo "Expected mismatched base and extended versions to be rejected" >&2
+COMPONENT_INVALID_BASE="$(make_component component-invalid-base 1.0.x 12)"
+if run_release "${COMPONENT_INVALID_BASE}" "1.0.x-12" "${TEST_ROOT}/invalid-base-release"; then
+    echo "Expected malformed base version to be rejected" >&2
     exit 1
 fi
 
-COMPONENT_MALFORMED="$(make_component component-malformed 1.0.1 1x0y1-8)"
-if run_release "${COMPONENT_MALFORMED}" "1x0y1-8" "${TEST_ROOT}/malformed-release"; then
-    echo "Expected malformed extended version to be rejected" >&2
+COMPONENT_MALFORMED="$(make_component component-malformed 1.0.1 8x)"
+if run_release "${COMPONENT_MALFORMED}" "1.0.1-8x" "${TEST_ROOT}/malformed-release"; then
+    echo "Expected malformed build number to be rejected" >&2
     exit 1
 fi
 
@@ -247,7 +248,7 @@ make_artifact "${STALE_PENDING_ROOT}" "1.0.1-9"
 touch "${STALE_PENDING_ROOT}/1.0.1/.1.0.1-8.pending-latest"
 ln -s "${STALE_PENDING_ROOT}/1.0.1/ufm-state-mirror_1.0.1-9-docker.img.gz" \
     "${STALE_PENDING_ROOT}/latest"
-COMPONENT_STALE="$(make_component component-stale 1.0.1 1.0.1-8)"
+COMPONENT_STALE="$(make_component component-stale 1.0.1 8)"
 if run_release "${COMPONENT_STALE}" "1.0.1-8" "${STALE_PENDING_ROOT}"; then
     echo "Expected resumed older build to be rejected" >&2
     exit 1
@@ -262,7 +263,7 @@ FAILED_RESUME_ROOT="${TEST_ROOT}/failed-resume-release"
 make_artifact "${FAILED_RESUME_ROOT}" "1.0.4-1"
 touch "${FAILED_RESUME_ROOT}/1.0.4/.1.0.4-1.pending-latest"
 ln -s "/unexpected/latest-target" "${FAILED_RESUME_ROOT}/latest"
-COMPONENT_FAILED_RESUME="$(make_component component-failed-resume 1.0.4 1.0.4-1)"
+COMPONENT_FAILED_RESUME="$(make_component component-failed-resume 1.0.4 1)"
 if run_release "${COMPONENT_FAILED_RESUME}" "1.0.4-1" "${FAILED_RESUME_ROOT}"; then
     echo "Expected recovery with an unexpected latest target to fail" >&2
     exit 1
@@ -275,7 +276,7 @@ EQUAL_STALE_ROOT="${TEST_ROOT}/equal-stale-release"
 mkdir -p "${EQUAL_STALE_ROOT}"
 ln -s "${EQUAL_STALE_ROOT}/1.0.7/ufm-state-mirror_1.0.7-1-docker.img.gz" \
     "${EQUAL_STALE_ROOT}/latest"
-COMPONENT_EQUAL_STALE="$(make_component component-equal-stale 1.0.7 1.0.7-1)"
+COMPONENT_EQUAL_STALE="$(make_component component-equal-stale 1.0.7 1)"
 if run_release "${COMPONENT_EQUAL_STALE}" "1.0.7-1" "${EQUAL_STALE_ROOT}"; then
     echo "Expected equal-version dangling latest to reject immutable rebuild" >&2
     exit 1
@@ -290,13 +291,13 @@ EXPLICIT_ALIAS="${TEST_ROOT}/unresolved-physical-alias"
 make_artifact "${EXPLICIT_ALIAS_ROOT}" "1.0.8-1"
 ln -s "${EXPLICIT_ALIAS}/1.0.8/ufm-state-mirror_1.0.8-1-docker.img.gz" \
     "${EXPLICIT_ALIAS_ROOT}/latest"
-COMPONENT_ALIAS="$(make_component component-alias 1.0.8 1.0.8-2)"
+COMPONENT_ALIAS="$(make_component component-alias 1.0.8 2)"
 run_release "${COMPONENT_ALIAS}" "1.0.8-2" \
     "${EXPLICIT_ALIAS_ROOT}" "${EXPLICIT_ALIAS}"
 assert_link_target "${EXPLICIT_ALIAS_ROOT}/latest" \
     "${EXPLICIT_ALIAS_ROOT}/1.0.8/ufm-state-mirror_1.0.8-2-docker.img.gz"
 
-test_directory_mode_normalization setuid 1.0.9 1.0.9-1 4777 755
-test_directory_mode_normalization setgid 1.0.10 1.0.10-1 2777 2755
+test_directory_mode_normalization setuid 1.0.9 1 4777 755
+test_directory_mode_normalization setgid 1.0.10 1 2777 2755
 
 echo "StateMirror release helper tests passed"
