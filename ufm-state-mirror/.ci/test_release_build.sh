@@ -204,20 +204,20 @@ test ! -e "${RESUME_ROOT}/1.0.3/.1.0.3-4.pending-latest"
 SIGNAL_ROOT="${TEST_ROOT}/signal-release"
 SIGNAL_COMPONENT="$(make_component component-signal 1.0.5 1)"
 SIGNAL_BIN="${TEST_ROOT}/signal-bin"
-SIGNAL_REAL_MV="$(command -v mv)"
+SIGNAL_REAL_LN="$(command -v ln)"
 mkdir -p "${SIGNAL_BIN}"
-cat > "${SIGNAL_BIN}/mv" <<'SIGNAL_MV'
+cat > "${SIGNAL_BIN}/ln" <<'SIGNAL_LN'
 #!/bin/bash
 set -eEuo pipefail
 destination="${!#}"
-"${SIGNAL_REAL_MV}" "$@"
+"${SIGNAL_REAL_LN}" "$@"
 if [[ "${destination}" == */latest ]]; then
     kill -TERM "${PPID}"
 fi
-SIGNAL_MV
-chmod +x "${SIGNAL_BIN}/mv"
+SIGNAL_LN
+chmod +x "${SIGNAL_BIN}/ln"
 if (
-    export SIGNAL_REAL_MV
+    export SIGNAL_REAL_LN
     export PATH="${SIGNAL_BIN}:${PATH}"
     run_release "${SIGNAL_COMPONENT}" "1.0.5-1" "${SIGNAL_ROOT}"
 ); then

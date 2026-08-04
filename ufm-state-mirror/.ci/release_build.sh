@@ -26,8 +26,6 @@ RELEASE_ROOT_ALIAS="${3:-}"
 IMAGE_NAME="ufm-state-mirror"
 STAGING_DIR=""
 STAGED_ARTIFACT=""
-LATEST_TMP=""
-LATEST_TMP_DIR=""
 LATEST_LINK=""
 LATEST_TARGET=""
 PENDING_MARKER=""
@@ -290,12 +288,6 @@ cleanup() {
        [ "$(readlink "${LATEST_LINK}")" = "${LATEST_TARGET}" ]; then
         LATEST_COMMITTED=true
     fi
-    if [ -n "${LATEST_TMP}" ]; then
-        rm -f -- "${LATEST_TMP}"
-    fi
-    if [ -n "${LATEST_TMP_DIR}" ]; then
-        rmdir -- "${LATEST_TMP_DIR}" 2>/dev/null || true
-    fi
     if [ -n "${WRITE_PROBE}" ]; then
         rm -f -- "${WRITE_PROBE}" 2>/dev/null || true
     fi
@@ -422,7 +414,7 @@ if [ "${RESUME_PUBLISH}" = false ]; then
     PENDING_MARKER_CREATED_BY_RUN=true
     touch "${PENDING_MARKER}"
     ARTIFACT_MOVE_ATTEMPTED=true
-    mv -T "${STAGED_ARTIFACT}" "${ARTIFACT_PATH}"
+    mv "${STAGED_ARTIFACT}" "${ARTIFACT_PATH}"
     rmdir -- "${STAGING_DIR}"
     STAGING_DIR=""
 fi
@@ -432,15 +424,12 @@ if [ "${RESUME_PUBLISH}" = true ]; then
     normalize_version_directory_mode "${BASE_VERSION_DIR}"
 fi
 
-LATEST_TMP_DIR="$(mktemp -d "${RELEASE_ROOT}/.latest.staging.XXXXXX")"
-LATEST_TMP="${LATEST_TMP_DIR}/latest"
-ln -s "${LATEST_TARGET}" "${LATEST_TMP}"
 LATEST_MOVE_ATTEMPTED=true
-mv -Tf "${LATEST_TMP}" "${LATEST_LINK}"
-LATEST_TMP=""
+if [ -L "${LATEST_LINK}" ]; then
+    unlink "${LATEST_LINK}"
+fi
+ln -s "${LATEST_TARGET}" "${LATEST_LINK}"
 LATEST_COMMITTED=true
-rmdir -- "${LATEST_TMP_DIR}"
-LATEST_TMP_DIR=""
 rm -f -- "${PENDING_MARKER}"
 
 echo "Updated ${RELEASE_ROOT}/latest -> ${LATEST_TARGET}"

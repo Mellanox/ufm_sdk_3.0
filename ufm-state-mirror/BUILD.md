@@ -34,9 +34,10 @@ is supplied at runtime by each consumer (UFM, UFM HA) via a ConfigMap mounted at
   `/auto/mswg` to `/auto/sw`.
 - Release locking is temporarily disabled. Operators must ensure that stable,
   nbuprod, and manual releases never overlap until locking is restored.
-  Artifacts and `latest` are staged and renamed atomically, and `latest` is
-  never moved to an older version. An interrupted publication is rolled back or
-  safely resumed.
+  Artifacts are staged before publication. After the artifact succeeds, the
+  existing `latest` link is unlinked and recreated; `latest` is never moved to
+  an older version. An interrupted publication is rolled back or safely
+  resumed.
 - Recognized legacy relative, `/auto/sw`, and flat extended-version `latest`
   targets are migrated to the canonical grouped absolute `/auto/mswg` target
   after a successful release. Stale or dangling recognized targets are
