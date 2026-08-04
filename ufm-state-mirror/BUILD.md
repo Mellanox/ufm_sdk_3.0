@@ -11,7 +11,9 @@ is supplied at runtime by each consumer (UFM, UFM HA) via a ConfigMap mounted at
 ## Release rules
 
 - `ufm-state-mirror/VERSION` is the release version source of truth and must be committed.
-- Release versions use numeric `MAJOR.MINOR.PATCH` format.
+- Release versions use `MAJOR.MINOR.PATCH` or `MAJOR.MINOR.PATCH-BUILD` format;
+  the optional build suffix is a positive integer and bare releases are build 0
+  for ordering purposes.
 - The image tag is derived from `VERSION` (`mellanox/ufm-state-mirror:<VERSION>`).
 - CI validates lint (`ruff`), unit tests (`pytest`), and a no-push image build.
 - Blossom publishes the release artifact as
@@ -29,6 +31,11 @@ is supplied at runtime by each consumer (UFM, UFM HA) via a ConfigMap mounted at
 - Stable, nbuprod, and manual releases share one lock. Artifacts and `latest`
   are staged and renamed atomically, and `latest` is never moved to an older
   version. An interrupted publication is rolled back or safely resumed.
+- Recognized legacy relative and `/auto/sw` `latest` targets are migrated to the
+  canonical absolute `/auto/mswg` target after a successful release. Stale or
+  dangling recognized targets are recoverable without weakening downgrade
+  protection, and legacy `.latest.rollback.*` entries are cleaned under the
+  release lock only when they contain the expected rollback structure.
 - The StateMirror-specific release matrices and release helper live under
   `ufm-state-mirror/.ci`.
 - Always build from git-tracked files, not from the live working directory.
@@ -112,9 +119,9 @@ Expected release layout:
 /auto/mswg/release/ufm/ufm-state-mirror/
 ├── 1.0.1/
 │   └── ufm-state-mirror_1.0.1-docker.img.gz
-├── 1.0.2/
-│   └── ufm-state-mirror_1.0.2-docker.img.gz
-└── latest -> /auto/mswg/release/ufm/ufm-state-mirror/1.0.2/ufm-state-mirror_1.0.2-docker.img.gz
+├── 1.0.1-8/
+│   └── ufm-state-mirror_1.0.1-8-docker.img.gz
+└── latest -> /auto/mswg/release/ufm/ufm-state-mirror/1.0.1-8/ufm-state-mirror_1.0.1-8-docker.img.gz
 ```
 
 ### 3. Tag the same commit

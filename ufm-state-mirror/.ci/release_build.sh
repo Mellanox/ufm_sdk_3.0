@@ -28,6 +28,7 @@ LATEST_TMP=""
 LATEST_TMP_DIR=""
 VERSION_PUBLISHED=false
 LATEST_COMMITTED=false
+VERSION_PATTERN='(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-([1-9][0-9]*))?'
 
 if [ -z "${VERSION}" ] || [ -z "${RELEASE_ROOT}" ]; then
     echo "Usage: $0 <VERSION> <RELEASE_ROOT>"
@@ -51,18 +52,29 @@ if [ "${VERSION}" != "${EXPECTED_VERSION}" ]; then
     exit 1
 fi
 
-if [[ ! "${VERSION}" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-    echo -e "Error: release version must use numeric MAJOR.MINOR.PATCH format."
+if [[ ! "${VERSION}" =~ ^${VERSION_PATTERN}$ ]]; then
+    echo -e "Error: release version must use MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-BUILD format."
     echo -e "Version: ${VERSION}"
     exit 1
 fi
 
 version_is_older() {
-    local candidate_major candidate_minor candidate_patch
-    local current_major current_minor current_patch
+    local candidate_core candidate_major candidate_minor candidate_patch candidate_build
+    local current_core current_major current_minor current_patch current_build
 
-    IFS=. read -r candidate_major candidate_minor candidate_patch <<< "$1"
-    IFS=. read -r current_major current_minor current_patch <<< "$2"
+    candidate_core="${1%%-*}"
+    current_core="${2%%-*}"
+    candidate_build=0
+    current_build=0
+    if [[ "$1" == *-* ]]; then
+        candidate_build="${1##*-}"
+    fi
+    if [[ "$2" == *-* ]]; then
+        current_build="${2##*-}"
+    fi
+
+    IFS=. read -r candidate_major candidate_minor candidate_patch <<< "${candidate_core}"
+    IFS=. read -r current_major current_minor current_patch <<< "${current_core}"
 
     if [ "${candidate_major}" != "${current_major}" ]; then
         numeric_component_is_older "${candidate_major}" "${current_major}"
@@ -74,6 +86,10 @@ version_is_older() {
     fi
     if [ "${candidate_patch}" != "${current_patch}" ]; then
         numeric_component_is_older "${candidate_patch}" "${current_patch}"
+        return
+    fi
+    if [ "${candidate_build}" != "${current_build}" ]; then
+        numeric_component_is_older "${candidate_build}" "${current_build}"
         return
     fi
     return 1
@@ -102,6 +118,62 @@ release_artifact_is_valid() {
         gzip -t "${artifact}"
 }
 
+latest_target_version() {
+    local target="$1"
+    local relative_target version expected_relative_target
+
+    case "${target}" in
+        "${RELEASE_ROOT}/"*)
+            relative_target="${target#"${RELEASE_ROOT}/"}"
+            ;;
+        "${PHYSICAL_RELEASE_ROOT}/"*)
+            relative_target="${target#"${PHYSICAL_RELEASE_ROOT}/"}"
+            ;;
+        /*)
+            return 1
+            ;;
+        *)
+            relative_target="${target}"
+            ;;
+    esac
+
+    version="${relative_target%%/*}"
+    if [[ ! "${version}" =~ ^${VERSION_PATTERN}$ ]]; then
+        return 1
+    fi
+    expected_relative_target="${version}/${IMAGE_NAME}_${version}-docker.img.gz"
+    if [ "${relative_target}" != "${expected_relative_target}" ]; then
+        return 1
+    fi
+    printf '%s\n' "${version}"
+}
+
+cleanup_legacy_rollback_entries() {
+    local entry unexpected_entry
+
+    while IFS= read -r entry; do
+        if [ -L "${entry}" ]; then
+            rm -f -- "${entry}"
+        elif [ -d "${entry}" ]; then
+            unexpected_entry="$(find "${entry}" -mindepth 1 -maxdepth 1 ! -name latest -print -quit)"
+            if [ -n "${unexpected_entry}" ] ||
+               { [ -e "${entry}/latest" ] && [ ! -L "${entry}/latest" ]; }; then
+                echo -e "Error: legacy latest rollback entry contains unexpected data."
+                echo -e "Path: ${entry}"
+                exit 1
+            fi
+            rm -f -- "${entry}/latest"
+            rmdir -- "${entry}"
+        else
+            echo -e "Error: legacy latest rollback entry has an unexpected type."
+            echo -e "Path: ${entry}"
+            exit 1
+        fi
+        echo "Removed legacy latest rollback entry: ${entry}"
+    done < <(find -H "${RELEASE_ROOT}" -mindepth 1 -maxdepth 1 \
+        -name '.latest.rollback.*' -print)
+}
+
 cleanup() {
     if [ -n "${LATEST_TMP}" ]; then
         rm -f -- "${LATEST_TMP}"
@@ -125,6 +197,8 @@ if ! flock -n 9; then
     echo -e "Lock: ${RELEASE_ROOT}/.release.lock"
     exit 1
 fi
+PHYSICAL_RELEASE_ROOT="$(cd "${RELEASE_ROOT}" && pwd -P)"
+cleanup_legacy_rollback_entries
 
 VERSION_DIR="${RELEASE_ROOT}/${VERSION}"
 ARTIFACT_NAME="${IMAGE_NAME}_${VERSION}-docker.img.gz"
@@ -162,40 +236,23 @@ fi
 
 if [ -L "${LATEST_LINK}" ]; then
     CURRENT_TARGET="$(readlink "${LATEST_LINK}")"
-    case "${CURRENT_TARGET}" in
-        "${RELEASE_ROOT}/"*)
-            CURRENT_RELATIVE_TARGET="${CURRENT_TARGET#"${RELEASE_ROOT}/"}"
-            ;;
-        *)
-            echo -e "Error: ${LATEST_LINK} must contain an absolute target under the release root."
-            echo -e "Target: ${CURRENT_TARGET}"
-            exit 1
-            ;;
-    esac
-    CURRENT_VERSION="${CURRENT_RELATIVE_TARGET%%/*}"
-    if [[ ! "${CURRENT_VERSION}" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-        echo -e "Error: ${LATEST_LINK} contains an invalid version."
-        echo -e "Target: ${CURRENT_TARGET}"
-        exit 1
-    fi
-    EXPECTED_CURRENT_TARGET="${RELEASE_ROOT}/${CURRENT_VERSION}/${IMAGE_NAME}_${CURRENT_VERSION}-docker.img.gz"
-    if [ "${CURRENT_TARGET}" != "${EXPECTED_CURRENT_TARGET}" ]; then
+    if ! CURRENT_VERSION="$(latest_target_version "${CURRENT_TARGET}")"; then
         echo -e "Error: ${LATEST_LINK} has an unexpected target."
         echo -e "Target: ${CURRENT_TARGET}"
         exit 1
     fi
+    EXPECTED_CURRENT_TARGET="${RELEASE_ROOT}/${CURRENT_VERSION}/${IMAGE_NAME}_${CURRENT_VERSION}-docker.img.gz"
     CURRENT_VERSION_DIR="${RELEASE_ROOT}/${CURRENT_VERSION}"
-    CURRENT_ARTIFACT="${CURRENT_TARGET}"
-    if [ ! -d "${CURRENT_VERSION_DIR}" ] || [ -L "${CURRENT_VERSION_DIR}" ] ||
-       [ ! -f "${CURRENT_ARTIFACT}" ] || [ -L "${CURRENT_ARTIFACT}" ] ||
-       [ ! -s "${CURRENT_ARTIFACT}" ] || ! gzip -t "${CURRENT_ARTIFACT}"; then
-        echo -e "Error: ${LATEST_LINK} does not resolve to a valid release artifact."
-        echo -e "Target: ${CURRENT_TARGET}"
-        exit 1
-    fi
+    CURRENT_ARTIFACT="${EXPECTED_CURRENT_TARGET}"
     if version_is_older "${VERSION}" "${CURRENT_VERSION}"; then
         echo -e "Error: refusing to move latest from ${CURRENT_VERSION} back to ${VERSION}."
         exit 1
+    fi
+    if ! release_artifact_is_valid "${CURRENT_VERSION_DIR}" "${CURRENT_ARTIFACT}"; then
+        echo -e "Warning: ${LATEST_LINK} is stale or dangling and will be replaced after a successful release."
+        echo -e "Target: ${CURRENT_TARGET}"
+    elif [ "${CURRENT_TARGET}" != "${EXPECTED_CURRENT_TARGET}" ]; then
+        echo "Migrating legacy latest target: ${CURRENT_TARGET}"
     fi
 elif [ -e "${LATEST_LINK}" ]; then
     echo -e "Error: ${LATEST_LINK} exists and is not a symbolic link."
