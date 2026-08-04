@@ -14,6 +14,7 @@ kubernetes:
   cloud: il-ipp-blossom-prod
   namespace: swx
   privileged: true
+  runAsGroup: 4200
 
 volumes:
   - {mountPath: /auto/mswg, hostPath: /auto/mswg}

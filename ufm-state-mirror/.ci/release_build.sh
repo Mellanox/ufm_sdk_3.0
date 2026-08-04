@@ -31,6 +31,7 @@ LATEST_TMP_DIR=""
 LATEST_LINK=""
 LATEST_TARGET=""
 PENDING_MARKER=""
+WRITE_PROBE=""
 BASE_DIR_CREATED=false
 PENDING_MARKER_CREATED_BY_RUN=false
 ARTIFACT_MOVE_ATTEMPTED=false
@@ -149,17 +150,44 @@ release_artifact_is_valid() {
 
 normalize_version_directory_mode() {
     local directory="$1"
-    local current_mode
+    local current_mode directory_details
 
     current_mode="$(stat -c '%a' "${directory}")"
-    if [ "${current_mode}" = 755 ] || [ "${current_mode}" = 2755 ]; then
+    if [ "${current_mode}" = 2775 ]; then
         return
     fi
-    chmod u=rwx,g=rx,o=rx "${directory}"
-    chmod u-s,g-s,o-t "${directory}"
-    if (( (8#${current_mode} & 8#2000) != 0 )); then
-        chmod g+s "${directory}"
+    if ! chmod u=rwx,g=rwx,o=rx "${directory}" ||
+       ! chmod u-s,g-s,o-t "${directory}" ||
+       ! chmod g+s "${directory}"; then
+        directory_details="$(stat -c 'owner=%U(%u) group=%G(%g) mode=%a' "${directory}")"
+        echo -e "Error: base-version directory permissions cannot be normalized."
+        echo -e "Path: ${directory}"
+        echo -e "Current: ${directory_details}"
+        echo -e "Expected: group=sw_ufm(4200) mode=2775"
+        return 1
     fi
+}
+
+verify_version_directory_writable() {
+    local directory="$1"
+    local directory_details
+
+    WRITE_PROBE=""
+    if ! WRITE_PROBE="$(mktemp "${directory}/.write-test.XXXXXX")"; then
+        directory_details="$(stat -c 'owner=%U(%u) group=%G(%g) mode=%a' "${directory}")"
+        echo -e "Error: release process cannot write to the base-version directory."
+        echo -e "Path: ${directory}"
+        echo -e "Current: ${directory_details}"
+        echo -e "Process: uid=$(id -u) gid=$(id -g)"
+        echo -e "Expected: process group=sw_ufm(4200), directory mode=2775"
+        return 1
+    fi
+    if ! rm -f -- "${WRITE_PROBE}"; then
+        echo -e "Error: release process cannot remove its base-version write probe."
+        echo -e "Path: ${WRITE_PROBE}"
+        return 1
+    fi
+    WRITE_PROBE=""
 }
 
 latest_target_version() {
@@ -253,6 +281,9 @@ cleanup() {
     fi
     if [ -n "${LATEST_TMP_DIR}" ]; then
         rmdir -- "${LATEST_TMP_DIR}" 2>/dev/null || true
+    fi
+    if [ -n "${WRITE_PROBE}" ]; then
+        rm -f -- "${WRITE_PROBE}" 2>/dev/null || true
     fi
     if [ "${LATEST_COMMITTED}" = false ] && [ "${ARTIFACT_MOVE_ATTEMPTED}" = true ] &&
        [ ! -e "${STAGED_ARTIFACT}" ] && [ ! -L "${STAGED_ARTIFACT}" ]; then
@@ -363,6 +394,8 @@ elif [ -e "${LATEST_LINK}" ]; then
     echo -e "Error: ${LATEST_LINK} exists and is not a symbolic link."
     exit 1
 fi
+
+verify_version_directory_writable "${BASE_VERSION_DIR}"
 
 if [ "${RESUME_PUBLISH}" = false ]; then
     STAGING_DIR="$(mktemp -d "${RELEASE_ROOT}/.${VERSION}.staging.XXXXXX")"

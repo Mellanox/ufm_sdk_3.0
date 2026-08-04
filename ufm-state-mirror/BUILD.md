@@ -23,9 +23,9 @@ is supplied at runtime by each consumer (UFM, UFM HA) via a ConfigMap mounted at
 - Each extended version is immutable. Multiple build artifacts may coexist
   directly in one base-version directory; publishing the same extended version
   again is rejected.
-- Published version directories use mode `0755` and preserve an inherited
-  setgid bit (`2755`), while release artifacts use mode `0644`, so authorized
-  consumers can traverse and read them.
+- Published version directories use group-writable setgid mode `2775` and group
+  `sw_ufm` (`GID 4200`), while release artifacts use mode `0644`. This lets
+  successive Blossom releases add immutable builds under the same base version.
 - After a successful release, `ufm-state-mirror/latest` points to the new
   versioned artifact using an absolute symlink so consumers can reuse the
   `readlink` result from another directory. The target preserves the configured

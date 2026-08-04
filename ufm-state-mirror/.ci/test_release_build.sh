@@ -18,6 +18,7 @@ TEST_ROOT="$(cd "${TEST_ROOT}" && pwd -P)"
 trap 'rm -rf -- "${TEST_ROOT}"' EXIT
 
 REAL_CHMOD="$(command -v chmod)"
+REAL_MKTEMP="$(command -v mktemp)"
 PORTABLE_BIN="${TEST_ROOT}/portable-bin"
 mkdir -p "${PORTABLE_BIN}"
 cat > "${PORTABLE_BIN}/chmod" <<PORTABLE_CHMOD
@@ -33,6 +34,18 @@ fi
 exec "${REAL_CHMOD}" "\$@"
 PORTABLE_CHMOD
 "${REAL_CHMOD}" +x "${PORTABLE_BIN}/chmod"
+cat > "${PORTABLE_BIN}/mktemp" <<PORTABLE_MKTEMP
+#!/bin/bash
+for argument in "\$@"; do
+    if [ -n "\${WRITE_PROBE_DENY_DIR:-}" ] &&
+       [[ "\${argument}" == "\${WRITE_PROBE_DENY_DIR}/.write-test."* ]]; then
+        echo "mktemp: cannot create file via template '\${argument}': Permission denied" >&2
+        exit 1
+    fi
+done
+exec "${REAL_MKTEMP}" "\$@"
+PORTABLE_MKTEMP
+"${REAL_CHMOD}" +x "${PORTABLE_BIN}/mktemp"
 export PATH="${PORTABLE_BIN}:${PATH}"
 
 make_component() {
@@ -138,7 +151,7 @@ assert_link_target "${PHYSICAL_ROOT}/latest" \
 test ! -e "${PHYSICAL_ROOT}/.latest.rollback.fixture"
 test ! -e "${PHYSICAL_ROOT}/1.0.1-8"
 test -f "${PHYSICAL_ROOT}/1.0.1/ufm-state-mirror_1.0.1-docker.img.gz"
-test "$(stat -c '%a' "${PHYSICAL_ROOT}/1.0.1")" = 755
+test "$(stat -c '%a' "${PHYSICAL_ROOT}/1.0.1")" = 2775
 test "$(stat -c '%a' "${PHYSICAL_ROOT}/1.0.1/ufm-state-mirror_1.0.1-8-docker.img.gz")" = 644
 
 rm -f "${PHYSICAL_ROOT}/latest"
@@ -324,20 +337,43 @@ run_release "${COMPONENT_ALIAS}" "1.0.8-2" \
 assert_link_target "${EXPLICIT_ALIAS_ROOT}/latest" \
     "${EXPLICIT_ALIAS_ROOT}/1.0.8/ufm-state-mirror_1.0.8-2-docker.img.gz"
 
-test_directory_mode_normalization setuid 1.0.9 1 4777 755
-test_directory_mode_normalization setgid 1.0.10 1 2777 2755
+test_directory_mode_normalization setuid 1.0.9 1 4777 2775
+test_directory_mode_normalization setgid 1.0.10 1 2777 2775
 
 EXACT_MODE_ROOT="${TEST_ROOT}/exact-mode-release"
 make_artifact "${EXACT_MODE_ROOT}" "1.0.12"
 EXACT_MODE_DIR="${EXACT_MODE_ROOT}/1.0.12"
-if "${REAL_CHMOD}" 2755 "${EXACT_MODE_DIR}"; then
+if "${REAL_CHMOD}" 2775 "${EXACT_MODE_DIR}"; then
     COMPONENT_EXACT_MODE="$(make_component component-exact-mode 1.0.12 1)"
     export CHMOD_DENY_PATH="${EXACT_MODE_DIR}"
     run_release "${COMPONENT_EXACT_MODE}" "1.0.12-1" "${EXACT_MODE_ROOT}"
     unset CHMOD_DENY_PATH
-    test "$(stat -c '%a' "${EXACT_MODE_DIR}")" = 2755
+    test "$(stat -c '%a' "${EXACT_MODE_DIR}")" = 2775
 else
     echo "Skipping exact-mode ownership test: filesystem rejected setgid" >&2
+fi
+
+WRITE_DENIED_ROOT="${TEST_ROOT}/write-denied-release"
+make_artifact "${WRITE_DENIED_ROOT}" "1.0.13"
+WRITE_DENIED_DIR="${WRITE_DENIED_ROOT}/1.0.13"
+if "${REAL_CHMOD}" 2775 "${WRITE_DENIED_DIR}"; then
+    COMPONENT_WRITE_DENIED="$(make_component component-write-denied 1.0.13 1)"
+    BUILD_RAN_MARKER="${TEST_ROOT}/write-denied-build-ran"
+    cat > "${COMPONENT_WRITE_DENIED}/build/docker_build.sh" <<WRITE_DENIED_BUILD
+#!/bin/bash
+touch "${BUILD_RAN_MARKER}"
+exit 99
+WRITE_DENIED_BUILD
+    "${REAL_CHMOD}" +x "${COMPONENT_WRITE_DENIED}/build/docker_build.sh"
+    export WRITE_PROBE_DENY_DIR="${WRITE_DENIED_DIR}"
+    if run_release "${COMPONENT_WRITE_DENIED}" "1.0.13-1" "${WRITE_DENIED_ROOT}"; then
+        echo "Expected base-version write probe failure" >&2
+        exit 1
+    fi
+    unset WRITE_PROBE_DENY_DIR
+    test ! -e "${BUILD_RAN_MARKER}"
+else
+    echo "Skipping write-probe failure test: filesystem rejected setgid" >&2
 fi
 
 echo "StateMirror release helper tests passed"

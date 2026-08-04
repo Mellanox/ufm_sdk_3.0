@@ -24,8 +24,9 @@ version is derived as `<BASE_VERSION>-<BUILD_NUMBER>`. The absolute `latest`
 symlink is updated only after the artifact is created successfully. A shared
 release lock serializes stable, nbuprod, and manual publication. Artifacts and
 the `latest`
-link are staged and renamed atomically. Published directories use mode `0755`
-and preserve an inherited setgid bit (`2755`), while artifacts use mode `0644`.
+link are staged and renamed atomically. Published directories use group-writable
+setgid mode `2775` with the Blossom release group `sw_ufm` (`GID 4200`), while
+artifacts use mode `0644`.
 Recognized relative, physical-alias, and legacy flat `latest` targets are
 migrated to the canonical grouped path. An interrupted publication is rolled
 back or resumed from its build-specific pending marker on the next invocation.
