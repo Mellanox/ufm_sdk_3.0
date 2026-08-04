@@ -8,7 +8,7 @@ step_allow_single_selector: true
 
 kubernetes:
   cloud: swx-k8s-spray
-  runAsGroup: 4200
+  runAsGroup: "4200"
 
 credentials:
   # harbor login/password
