@@ -153,6 +153,7 @@ normalize_version_directory_mode() {
 
     current_mode="$(stat -c '%a' "${directory}")"
     chmod u=rwx,g=rx,o=rx "${directory}"
+    chmod u-s,g-s,o-t "${directory}"
     if (( (8#${current_mode} & 8#2000) != 0 )); then
         chmod g+s "${directory}"
     fi
