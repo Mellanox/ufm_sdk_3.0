@@ -17,6 +17,20 @@ TEST_ROOT="$(mktemp -d /tmp/ufm-state-mirror-release-test.XXXXXX)"
 TEST_ROOT="$(cd "${TEST_ROOT}" && pwd -P)"
 trap 'rm -rf -- "${TEST_ROOT}"' EXIT
 
+REAL_CHMOD="$(command -v chmod)"
+PORTABLE_BIN="${TEST_ROOT}/portable-bin"
+mkdir -p "${PORTABLE_BIN}"
+cat > "${PORTABLE_BIN}/chmod" <<PORTABLE_CHMOD
+#!/bin/bash
+if [[ "\${1:-}" == =* ]]; then
+    echo "chmod: invalid mode '\${1}'" >&2
+    exit 1
+fi
+exec "${REAL_CHMOD}" "\$@"
+PORTABLE_CHMOD
+"${REAL_CHMOD}" +x "${PORTABLE_BIN}/chmod"
+export PATH="${PORTABLE_BIN}:${PATH}"
+
 make_component() {
     local name="$1"
     local base_version="$2"
