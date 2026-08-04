@@ -46,10 +46,26 @@ steps:
         exit 1
       fi
 
+      # Keep dockerd privileged, but access the root-squashed release export as
+      # the swx-jenkins owner and shared sw_ufm group.
+      RELEASE_UID=6213
+      RELEASE_GID=4200
+      chgrp "${RELEASE_GID}" /run/docker.sock
+      chmod 0660 /run/docker.sock
+      sudo --preserve-env=DOCKER_HOST -n -H \
+        -u "#${RELEASE_UID}" -g "#${RELEASE_GID}" id
+      if ! sudo --preserve-env=DOCKER_HOST -n -H \
+        -u "#${RELEASE_UID}" -g "#${RELEASE_GID}" docker info >/dev/null; then
+        echo -e "Error: release identity cannot access Docker."
+        exit 1
+      fi
+
       RELEASE_ROOT="/auto/mswg/release/ufm/ufm-state-mirror"
       RELEASE_ROOT_ALIAS="/auto/sw/release/ufm/ufm-state-mirror"
-      bash -x ufm-state-mirror/.ci/release_build.sh \
-        "${PLUGIN_VERSION}" "${RELEASE_ROOT}" "${RELEASE_ROOT_ALIAS}"
+      sudo --preserve-env=DOCKER_HOST -n -H \
+        -u "#${RELEASE_UID}" -g "#${RELEASE_GID}" \
+        bash -x ufm-state-mirror/.ci/release_build.sh \
+          "${PLUGIN_VERSION}" "${RELEASE_ROOT}" "${RELEASE_ROOT_ALIAS}"
       BUILD_EXIT_CODE=$?
       ls -l "${RELEASE_ROOT}" || true
       if [ $BUILD_EXIT_CODE -ne 0 ];then
