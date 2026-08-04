@@ -24,10 +24,13 @@ VERSION="$1"
 RELEASE_ROOT="$2"
 IMAGE_NAME="ufm-state-mirror"
 STAGING_DIR=""
+STAGED_ARTIFACT=""
 LATEST_TMP=""
 LATEST_TMP_DIR=""
 PENDING_MARKER=""
 BASE_DIR_CREATED=false
+PENDING_MARKER_CREATED_BY_RUN=false
+ARTIFACT_MOVE_ATTEMPTED=false
 LATEST_COMMITTED=false
 BASE_VERSION_PATTERN='(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)'
 VERSION_PATTERN='(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-([1-9][0-9]*))?'
@@ -56,7 +59,9 @@ if [[ ! "${BASE_VERSION}" =~ ^${BASE_VERSION_PATTERN}$ ]]; then
     echo -e "BASE_VERSION: ${BASE_VERSION}"
     exit 1
 fi
-if [[ ! "${EXTENDED_VERSION}" =~ ^${BASE_VERSION}-([1-9][0-9]*)$ ]]; then
+if [[ ! "${EXTENDED_VERSION}" =~ ^${VERSION_PATTERN}$ ]] ||
+   [[ "${EXTENDED_VERSION}" != *-* ]] ||
+   [ "${EXTENDED_VERSION%%-*}" != "${BASE_VERSION}" ]; then
     echo -e "Error: EXTENDED_VERSION must equal BASE_VERSION followed by a positive build suffix."
     echo -e "BASE_VERSION: ${BASE_VERSION}"
     echo -e "EXTENDED_VERSION: ${EXTENDED_VERSION}"
@@ -200,12 +205,15 @@ cleanup() {
     if [ -n "${LATEST_TMP_DIR}" ]; then
         rmdir -- "${LATEST_TMP_DIR}" 2>/dev/null || true
     fi
+    if [ "${LATEST_COMMITTED}" = false ] && [ "${ARTIFACT_MOVE_ATTEMPTED}" = true ] &&
+       [ ! -e "${STAGED_ARTIFACT}" ] && [ ! -L "${STAGED_ARTIFACT}" ]; then
+        rm -f -- "${ARTIFACT_PATH}"
+    fi
     if [ -n "${STAGING_DIR}" ]; then
         rm -rf -- "${STAGING_DIR}"
     fi
-    if [ "${LATEST_COMMITTED}" = false ] && [ -n "${PENDING_MARKER}" ] &&
-       [ -f "${PENDING_MARKER}" ] && [ ! -L "${PENDING_MARKER}" ]; then
-        rm -f -- "${ARTIFACT_PATH}" "${PENDING_MARKER}"
+    if [ "${LATEST_COMMITTED}" = false ] && [ "${PENDING_MARKER_CREATED_BY_RUN}" = true ]; then
+        rm -f -- "${PENDING_MARKER}"
     fi
     if [ "${BASE_DIR_CREATED}" = true ] && [ "${LATEST_COMMITTED}" = false ]; then
         rmdir -- "${BASE_VERSION_DIR}" 2>/dev/null || true
@@ -286,6 +294,9 @@ if [ -L "${LATEST_LINK}" ]; then
     CURRENT_VERSION_DIR="${RELEASE_ROOT}/${CURRENT_BASE_VERSION}"
     CURRENT_ARTIFACT="${EXPECTED_CURRENT_TARGET}"
     if version_is_older "${VERSION}" "${CURRENT_VERSION}"; then
+        if [ "${RESUME_PUBLISH}" = true ]; then
+            rm -f -- "${PENDING_MARKER}"
+        fi
         echo -e "Error: refusing to move latest from ${CURRENT_VERSION} back to ${VERSION}."
         exit 1
     fi
@@ -313,7 +324,9 @@ if [ "${RESUME_PUBLISH}" = false ]; then
     fi
 
     chmod 0644 "${STAGED_ARTIFACT}"
+    PENDING_MARKER_CREATED_BY_RUN=true
     touch "${PENDING_MARKER}"
+    ARTIFACT_MOVE_ATTEMPTED=true
     mv -T "${STAGED_ARTIFACT}" "${ARTIFACT_PATH}"
     rmdir -- "${STAGING_DIR}"
     STAGING_DIR=""

@@ -183,4 +183,40 @@ if run_release "${COMPONENT_MISMATCH}" "1.0.1-12" "${TEST_ROOT}/mismatch-release
     exit 1
 fi
 
+COMPONENT_MALFORMED="$(make_component component-malformed 1.0.1 1x0y1-8)"
+if run_release "${COMPONENT_MALFORMED}" "1x0y1-8" "${TEST_ROOT}/malformed-release"; then
+    echo "Expected malformed extended version to be rejected" >&2
+    exit 1
+fi
+
+STALE_PENDING_ROOT="${TEST_ROOT}/stale-pending-release"
+make_artifact "${STALE_PENDING_ROOT}" "1.0.1-8"
+make_artifact "${STALE_PENDING_ROOT}" "1.0.1-9"
+touch "${STALE_PENDING_ROOT}/1.0.1/.1.0.1-8.pending-latest"
+ln -s "${STALE_PENDING_ROOT}/1.0.1/ufm-state-mirror_1.0.1-9-docker.img.gz" \
+    "${STALE_PENDING_ROOT}/latest"
+COMPONENT_STALE="$(make_component component-stale 1.0.1 1.0.1-8)"
+if run_release "${COMPONENT_STALE}" "1.0.1-8" "${STALE_PENDING_ROOT}"; then
+    echo "Expected resumed older build to be rejected" >&2
+    exit 1
+fi
+test -f "${STALE_PENDING_ROOT}/1.0.1/ufm-state-mirror_1.0.1-8-docker.img.gz"
+test -f "${STALE_PENDING_ROOT}/1.0.1/ufm-state-mirror_1.0.1-9-docker.img.gz"
+test ! -e "${STALE_PENDING_ROOT}/1.0.1/.1.0.1-8.pending-latest"
+assert_link_target "${STALE_PENDING_ROOT}/latest" \
+    "${STALE_PENDING_ROOT}/1.0.1/ufm-state-mirror_1.0.1-9-docker.img.gz"
+
+FAILED_RESUME_ROOT="${TEST_ROOT}/failed-resume-release"
+make_artifact "${FAILED_RESUME_ROOT}" "1.0.4-1"
+touch "${FAILED_RESUME_ROOT}/1.0.4/.1.0.4-1.pending-latest"
+ln -s "/unexpected/latest-target" "${FAILED_RESUME_ROOT}/latest"
+COMPONENT_FAILED_RESUME="$(make_component component-failed-resume 1.0.4 1.0.4-1)"
+if run_release "${COMPONENT_FAILED_RESUME}" "1.0.4-1" "${FAILED_RESUME_ROOT}"; then
+    echo "Expected recovery with an unexpected latest target to fail" >&2
+    exit 1
+fi
+test -f "${FAILED_RESUME_ROOT}/1.0.4/ufm-state-mirror_1.0.4-1-docker.img.gz"
+test -f "${FAILED_RESUME_ROOT}/1.0.4/.1.0.4-1.pending-latest"
+assert_link_target "${FAILED_RESUME_ROOT}/latest" "/unexpected/latest-target"
+
 echo "StateMirror release helper tests passed"
