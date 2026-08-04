@@ -316,12 +316,7 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "${RELEASE_ROOT}"
-exec 9>"${RELEASE_ROOT}/.release.lock"
-if ! flock -n 9; then
-    echo -e "Error: another ${IMAGE_NAME} release is already in progress."
-    echo -e "Lock: ${RELEASE_ROOT}/.release.lock"
-    exit 1
-fi
+echo -e "Warning: release locking is temporarily disabled."
 PHYSICAL_RELEASE_ROOT="$(cd "${RELEASE_ROOT}" && pwd -P)"
 cleanup_legacy_rollback_entries
 

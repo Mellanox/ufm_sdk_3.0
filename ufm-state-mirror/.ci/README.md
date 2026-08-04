@@ -21,12 +21,13 @@ The release helper groups immutable build artifacts by base version under
 `/auto/mswg/release/ufm/ufm-state-mirror/<BASE_VERSION>/`. The `VERSION` file
 declares `BASE_VERSION` and a positive numeric `BUILD_NUMBER`; the extended
 version is derived as `<BASE_VERSION>-<BUILD_NUMBER>`. The absolute `latest`
-symlink is updated only after the artifact is created successfully. A shared
-release lock serializes stable, nbuprod, and manual publication. Artifacts and
-the `latest`
-link are staged and renamed atomically. Published directories use group-writable
-setgid mode `2775` with the Blossom release group `sw_ufm` (`GID 4200`), while
-artifacts use mode `0644`.
+symlink is updated only after the artifact is created successfully. Release
+locking is temporarily disabled; operators must ensure that stable, nbuprod,
+and manual publication never overlap until locking is restored. Artifacts and
+the `latest` link are staged and renamed atomically. Published directories use
+group-writable setgid mode `2775` with the Blossom release group `sw_ufm`
+(`GID 4200`), while artifacts use mode `0644`.
 Recognized relative, physical-alias, and legacy flat `latest` targets are
 migrated to the canonical grouped path. An interrupted publication is rolled
 back or resumed from its build-specific pending marker on the next invocation.
+Legacy rollback-residue cleanup currently runs without lock protection.

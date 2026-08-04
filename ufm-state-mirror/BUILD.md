@@ -31,16 +31,19 @@ is supplied at runtime by each consumer (UFM, UFM HA) via a ConfigMap mounted at
   `readlink` result from another directory. The target preserves the configured
   release-root path and does not resolve filesystem aliases such as
   `/auto/mswg` to `/auto/sw`.
-- Stable, nbuprod, and manual releases share one lock. Artifacts and `latest`
-  are staged and renamed atomically, and `latest` is never moved to an older
-  version. An interrupted publication is rolled back or safely resumed.
+- Release locking is temporarily disabled. Operators must ensure that stable,
+  nbuprod, and manual releases never overlap until locking is restored.
+  Artifacts and `latest` are staged and renamed atomically, and `latest` is
+  never moved to an older version. An interrupted publication is rolled back or
+  safely resumed.
 - Recognized legacy relative, `/auto/sw`, and flat extended-version `latest`
   targets are migrated to the canonical grouped absolute `/auto/mswg` target
   after a successful release. Stale or dangling recognized targets are
   recoverable without weakening downgrade protection, and legacy
-  `.latest.rollback.*` entries are cleaned under the release lock only when
-  they contain the expected rollback structure. The release matrices pass the
-  `/auto/sw` alias explicitly, independent of bind-mount path resolution.
+  `.latest.rollback.*` entries are currently cleaned without lock protection,
+  and only when they contain the expected rollback structure. The release
+  matrices pass the `/auto/sw` alias explicitly, independent of bind-mount path
+  resolution.
 - The StateMirror-specific release matrices and release helper live under
   `ufm-state-mirror/.ci`.
 - Always build from git-tracked files, not from the live working directory.
