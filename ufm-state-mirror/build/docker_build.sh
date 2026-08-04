@@ -15,7 +15,8 @@
 # Usage:
 #   build/docker_build.sh [VERSION] [OUT_DIR] [RANDOM_HASH]
 #
-#   VERSION      image tag; defaults to the component VERSION file, else "latest".
+#   VERSION      image tag; defaults to EXTENDED_VERSION in the component
+#                VERSION file, else "latest".
 #   OUT_DIR      if set, the built image is `docker save`d as a .img.gz here.
 #   RANDOM_HASH  appended to the saved artifact name for CI uniqueness.
 #
@@ -37,7 +38,11 @@ RANDOM_HASH="$3"
 
 if [ -z "${VERSION}" ]; then
     if [ -f "${COMPONENT_DIR}/VERSION" ]; then
-        VERSION="$(tr -d '\n' < "${COMPONENT_DIR}/VERSION")"
+        BASE_VERSION=""
+        EXTENDED_VERSION=""
+        # shellcheck disable=SC1091
+        source "${COMPONENT_DIR}/VERSION"
+        VERSION="${EXTENDED_VERSION}"
     else
         VERSION="latest"
     fi

@@ -26,8 +26,10 @@ IMAGE_NAME="ufm-state-mirror"
 STAGING_DIR=""
 LATEST_TMP=""
 LATEST_TMP_DIR=""
-VERSION_PUBLISHED=false
+PENDING_MARKER=""
+BASE_DIR_CREATED=false
 LATEST_COMMITTED=false
+BASE_VERSION_PATTERN='(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)'
 VERSION_PATTERN='(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-([1-9][0-9]*))?'
 
 if [ -z "${VERSION}" ] || [ -z "${RELEASE_ROOT}" ]; then
@@ -44,17 +46,26 @@ while [[ "${RELEASE_ROOT}" == */ ]]; do
     RELEASE_ROOT="${RELEASE_ROOT%/}"
 done
 
-EXPECTED_VERSION="$(tr -d '\n' < "${COMPONENT_DIR}/VERSION")"
-if [ "${VERSION}" != "${EXPECTED_VERSION}" ]; then
-    echo -e "Error: ufm-state-mirror release version must match ufm-state-mirror/VERSION."
-    echo -e "PLUGIN_VERSION: ${VERSION}"
-    echo -e "Expected: ${EXPECTED_VERSION}"
+BASE_VERSION=""
+EXTENDED_VERSION=""
+# shellcheck disable=SC1091
+source "${COMPONENT_DIR}/VERSION"
+
+if [[ ! "${BASE_VERSION}" =~ ^${BASE_VERSION_PATTERN}$ ]]; then
+    echo -e "Error: BASE_VERSION must use numeric MAJOR.MINOR.PATCH format."
+    echo -e "BASE_VERSION: ${BASE_VERSION}"
     exit 1
 fi
-
-if [[ ! "${VERSION}" =~ ^${VERSION_PATTERN}$ ]]; then
-    echo -e "Error: release version must use MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-BUILD format."
-    echo -e "Version: ${VERSION}"
+if [[ ! "${EXTENDED_VERSION}" =~ ^${BASE_VERSION}-([1-9][0-9]*)$ ]]; then
+    echo -e "Error: EXTENDED_VERSION must equal BASE_VERSION followed by a positive build suffix."
+    echo -e "BASE_VERSION: ${BASE_VERSION}"
+    echo -e "EXTENDED_VERSION: ${EXTENDED_VERSION}"
+    exit 1
+fi
+if [ "${VERSION}" != "${EXTENDED_VERSION}" ]; then
+    echo -e "Error: ufm-state-mirror release version must match ufm-state-mirror/VERSION."
+    echo -e "PLUGIN_VERSION: ${VERSION}"
+    echo -e "Expected: ${EXTENDED_VERSION}"
     exit 1
 fi
 
@@ -120,7 +131,7 @@ release_artifact_is_valid() {
 
 latest_target_version() {
     local target="$1"
-    local relative_target version expected_relative_target
+    local relative_target target_dir artifact version base_version expected_artifact
 
     case "${target}" in
         "${RELEASE_ROOT}/"*)
@@ -137,12 +148,20 @@ latest_target_version() {
             ;;
     esac
 
-    version="${relative_target%%/*}"
+    target_dir="${relative_target%%/*}"
+    artifact="${relative_target#*/}"
+    if [ "${artifact}" = "${relative_target}" ]; then
+        return 1
+    fi
+    version="${artifact#"${IMAGE_NAME}_"}"
+    version="${version%-docker.img.gz}"
     if [[ ! "${version}" =~ ^${VERSION_PATTERN}$ ]]; then
         return 1
     fi
-    expected_relative_target="${version}/${IMAGE_NAME}_${version}-docker.img.gz"
-    if [ "${relative_target}" != "${expected_relative_target}" ]; then
+    base_version="${version%%-*}"
+    expected_artifact="${IMAGE_NAME}_${version}-docker.img.gz"
+    if [ "${artifact}" != "${expected_artifact}" ] ||
+       { [ "${target_dir}" != "${base_version}" ] && [ "${target_dir}" != "${version}" ]; }; then
         return 1
     fi
     printf '%s\n' "${version}"
@@ -184,8 +203,12 @@ cleanup() {
     if [ -n "${STAGING_DIR}" ]; then
         rm -rf -- "${STAGING_DIR}"
     fi
-    if [ "${VERSION_PUBLISHED}" = true ] && [ "${LATEST_COMMITTED}" = false ]; then
-        rm -rf -- "${VERSION_DIR}"
+    if [ "${LATEST_COMMITTED}" = false ] && [ -n "${PENDING_MARKER}" ] &&
+       [ -f "${PENDING_MARKER}" ] && [ ! -L "${PENDING_MARKER}" ]; then
+        rm -f -- "${ARTIFACT_PATH}" "${PENDING_MARKER}"
+    fi
+    if [ "${BASE_DIR_CREATED}" = true ] && [ "${LATEST_COMMITTED}" = false ]; then
+        rmdir -- "${BASE_VERSION_DIR}" 2>/dev/null || true
     fi
 }
 trap cleanup EXIT
@@ -200,38 +223,55 @@ fi
 PHYSICAL_RELEASE_ROOT="$(cd "${RELEASE_ROOT}" && pwd -P)"
 cleanup_legacy_rollback_entries
 
-VERSION_DIR="${RELEASE_ROOT}/${VERSION}"
+BASE_VERSION_DIR="${RELEASE_ROOT}/${BASE_VERSION}"
 ARTIFACT_NAME="${IMAGE_NAME}_${VERSION}-docker.img.gz"
+ARTIFACT_PATH="${BASE_VERSION_DIR}/${ARTIFACT_NAME}"
+LEGACY_VERSION_DIR="${RELEASE_ROOT}/${VERSION}"
+LEGACY_ARTIFACT_PATH="${LEGACY_VERSION_DIR}/${ARTIFACT_NAME}"
 LATEST_LINK="${RELEASE_ROOT}/latest"
-LATEST_TARGET="${VERSION_DIR}/${ARTIFACT_NAME}"
-PENDING_MARKER="${VERSION_DIR}/.pending-latest"
+LATEST_TARGET="${ARTIFACT_PATH}"
+PENDING_MARKER="${BASE_VERSION_DIR}/.${VERSION}.pending-latest"
 RESUME_PUBLISH=false
 
-if [ -e "${VERSION_DIR}" ] || [ -L "${VERSION_DIR}" ]; then
+if [ -L "${BASE_VERSION_DIR}" ] || { [ -e "${BASE_VERSION_DIR}" ] && [ ! -d "${BASE_VERSION_DIR}" ]; }; then
+    echo -e "Error: base version path exists and is not a directory."
+    echo -e "Path: ${BASE_VERSION_DIR}"
+    exit 1
+fi
+if [ ! -d "${BASE_VERSION_DIR}" ]; then
+    mkdir "${BASE_VERSION_DIR}"
+    BASE_DIR_CREATED=true
+fi
+chmod u+rwx,go+rx "${BASE_VERSION_DIR}"
+
+if [ "${LEGACY_VERSION_DIR}" != "${BASE_VERSION_DIR}" ] &&
+   { [ -e "${LEGACY_ARTIFACT_PATH}" ] || [ -L "${LEGACY_ARTIFACT_PATH}" ]; }; then
+    echo -e "A legacy flat build for ${IMAGE_NAME} ${VERSION} already exists."
+    echo -e "Path: ${LEGACY_ARTIFACT_PATH}"
+    exit 1
+fi
+
+if [ -e "${PENDING_MARKER}" ] || [ -L "${PENDING_MARKER}" ]; then
     if [ -f "${PENDING_MARKER}" ] && [ ! -L "${PENDING_MARKER}" ]; then
-        UNEXPECTED_ENTRY="$(find "${VERSION_DIR}" -mindepth 1 -maxdepth 1 \
-            ! -name "${ARTIFACT_NAME}" ! -name ".pending-latest" -print -quit)"
-        if [ -n "${UNEXPECTED_ENTRY}" ]; then
-            echo -e "Error: incomplete release directory contains an unexpected entry."
-            echo -e "Path: ${UNEXPECTED_ENTRY}"
-            exit 1
-        fi
-        if release_artifact_is_valid "${VERSION_DIR}" "${VERSION_DIR}/${ARTIFACT_NAME}"; then
+        if release_artifact_is_valid "${BASE_VERSION_DIR}" "${ARTIFACT_PATH}"; then
             echo "Resuming latest publication for ${IMAGE_NAME} ${VERSION}."
             RESUME_PUBLISH=true
-            VERSION_PUBLISHED=true
         elif [ -L "${LATEST_LINK}" ] && [ "$(readlink "${LATEST_LINK}")" = "${LATEST_TARGET}" ]; then
             echo -e "Error: latest points to an invalid incomplete release."
-            echo -e "Path: ${VERSION_DIR}"
+            echo -e "Path: ${ARTIFACT_PATH}"
             exit 1
         else
-            rm -rf -- "${VERSION_DIR}"
+            rm -f -- "${ARTIFACT_PATH}" "${PENDING_MARKER}"
         fi
     else
-        echo -e "A build for ${IMAGE_NAME} ${VERSION} already exists."
-        echo -e "Path: ${VERSION_DIR}"
+        echo -e "Error: pending release marker has an unexpected type."
+        echo -e "Path: ${PENDING_MARKER}"
         exit 1
     fi
+elif [ -e "${ARTIFACT_PATH}" ] || [ -L "${ARTIFACT_PATH}" ]; then
+    echo -e "A build for ${IMAGE_NAME} ${VERSION} already exists."
+    echo -e "Path: ${ARTIFACT_PATH}"
+    exit 1
 fi
 
 if [ -L "${LATEST_LINK}" ]; then
@@ -241,8 +281,9 @@ if [ -L "${LATEST_LINK}" ]; then
         echo -e "Target: ${CURRENT_TARGET}"
         exit 1
     fi
-    EXPECTED_CURRENT_TARGET="${RELEASE_ROOT}/${CURRENT_VERSION}/${IMAGE_NAME}_${CURRENT_VERSION}-docker.img.gz"
-    CURRENT_VERSION_DIR="${RELEASE_ROOT}/${CURRENT_VERSION}"
+    CURRENT_BASE_VERSION="${CURRENT_VERSION%%-*}"
+    EXPECTED_CURRENT_TARGET="${RELEASE_ROOT}/${CURRENT_BASE_VERSION}/${IMAGE_NAME}_${CURRENT_VERSION}-docker.img.gz"
+    CURRENT_VERSION_DIR="${RELEASE_ROOT}/${CURRENT_BASE_VERSION}"
     CURRENT_ARTIFACT="${EXPECTED_CURRENT_TARGET}"
     if version_is_older "${VERSION}" "${CURRENT_VERSION}"; then
         echo -e "Error: refusing to move latest from ${CURRENT_VERSION} back to ${VERSION}."
@@ -272,16 +313,15 @@ if [ "${RESUME_PUBLISH}" = false ]; then
     fi
 
     chmod 0644 "${STAGED_ARTIFACT}"
-    chmod u+rwx,go+rx "${STAGING_DIR}"
-    touch "${STAGING_DIR}/.pending-latest"
-    mv -T "${STAGING_DIR}" "${VERSION_DIR}"
+    touch "${PENDING_MARKER}"
+    mv -T "${STAGED_ARTIFACT}" "${ARTIFACT_PATH}"
+    rmdir -- "${STAGING_DIR}"
     STAGING_DIR=""
-    VERSION_PUBLISHED=true
 fi
 
 if [ "${RESUME_PUBLISH}" = true ]; then
-    chmod 0644 "${VERSION_DIR}/${ARTIFACT_NAME}"
-    chmod u+rwx,go+rx "${VERSION_DIR}"
+    chmod 0644 "${ARTIFACT_PATH}"
+    chmod u+rwx,go+rx "${BASE_VERSION_DIR}"
 fi
 
 LATEST_TMP_DIR="$(mktemp -d "${RELEASE_ROOT}/.latest.staging.XXXXXX")"
