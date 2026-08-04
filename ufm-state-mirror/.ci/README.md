@@ -13,7 +13,9 @@ Both matrices delegate the actual release artifact creation to
 The nbuprod matrix runs the approved privileged x86_64 DIND builder in the
 `il-ipp-blossom-prod` Kubernetes cloud. It starts the nested Docker daemon and
 mounts the logical `/auto/mswg` release path plus its
-`/auto/sw/release/ufm` physical alias target.
+`/auto/sw/release/ufm` physical alias target. Both release matrices pass the
+physical StateMirror alias explicitly to the helper, so target recognition does
+not depend on how a Kubernetes bind mount reports `pwd -P`.
 
 The release helper groups immutable build artifacts by base version under
 `/auto/mswg/release/ufm/ufm-state-mirror/<BASE_VERSION>/`. The `VERSION` file

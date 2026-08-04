@@ -38,7 +38,8 @@ is supplied at runtime by each consumer (UFM, UFM HA) via a ConfigMap mounted at
   after a successful release. Stale or dangling recognized targets are
   recoverable without weakening downgrade protection, and legacy
   `.latest.rollback.*` entries are cleaned under the release lock only when
-  they contain the expected rollback structure.
+  they contain the expected rollback structure. The release matrices pass the
+  `/auto/sw` alias explicitly, independent of bind-mount path resolution.
 - The StateMirror-specific release matrices and release helper live under
   `ufm-state-mirror/.ci`.
 - Always build from git-tracked files, not from the live working directory.
@@ -152,11 +153,13 @@ CHART=ufm-state-mirror
 VERSION="$(git show HEAD:${CHART}/VERSION | sed -n 's/^EXTENDED_VERSION=//p')"
 STAGE_DIR="$(mktemp -d /tmp/ufm-state-mirror-stage.XXXXXX)"
 RELEASE_ROOT="/auto/mswg/release/ufm/${CHART}"
+RELEASE_ROOT_ALIAS="/auto/sw/release/ufm/${CHART}"
 
 git archive --format=tar HEAD "${CHART}" | tar -xf - -C "${STAGE_DIR}"
 
 REGISTRY=mellanox \
-  "${STAGE_DIR}/${CHART}/.ci/release_build.sh" "${VERSION}" "${RELEASE_ROOT}"
+  "${STAGE_DIR}/${CHART}/.ci/release_build.sh" \
+  "${VERSION}" "${RELEASE_ROOT}" "${RELEASE_ROOT_ALIAS}"
 ```
 
 ## Consuming the image

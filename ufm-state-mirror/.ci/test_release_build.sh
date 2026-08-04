@@ -63,8 +63,10 @@ run_release() {
     local component_dir="$1"
     local version="$2"
     local release_root="$3"
+    local release_root_alias="${4:-}"
 
-    "${component_dir}/.ci/release_build.sh" "${version}" "${release_root}"
+    "${component_dir}/.ci/release_build.sh" \
+        "${version}" "${release_root}" "${release_root_alias}"
 }
 
 assert_link_target() {
@@ -85,6 +87,7 @@ mkdir -p "${PHYSICAL_ROOT}"
 ln -s "${PHYSICAL_ROOT}" "${LOGICAL_ROOT}"
 
 make_artifact "${PHYSICAL_ROOT}" "1.0.1"
+chmod 0777 "${PHYSICAL_ROOT}/1.0.1"
 ln -s "1.0.1/ufm-state-mirror_1.0.1-docker.img.gz" "${PHYSICAL_ROOT}/latest"
 mkdir "${PHYSICAL_ROOT}/.latest.rollback.fixture"
 ln -s "1.0.1/ufm-state-mirror_1.0.1-docker.img.gz" \
@@ -136,6 +139,36 @@ run_release "${COMPONENT_RESUME}" "1.0.3-4" "${RESUME_ROOT}"
 assert_link_target "${RESUME_ROOT}/latest" \
     "${RESUME_ROOT}/1.0.3/ufm-state-mirror_1.0.3-4-docker.img.gz"
 test ! -e "${RESUME_ROOT}/1.0.3/.1.0.3-4.pending-latest"
+
+SIGNAL_ROOT="${TEST_ROOT}/signal-release"
+SIGNAL_COMPONENT="$(make_component component-signal 1.0.5 1.0.5-1)"
+SIGNAL_BIN="${TEST_ROOT}/signal-bin"
+SIGNAL_REAL_MV="$(command -v mv)"
+mkdir -p "${SIGNAL_BIN}"
+cat > "${SIGNAL_BIN}/mv" <<'SIGNAL_MV'
+#!/bin/bash
+set -eEuo pipefail
+destination="${!#}"
+"${SIGNAL_REAL_MV}" "$@"
+if [[ "${destination}" == */latest ]]; then
+    kill -TERM "${PPID}"
+fi
+SIGNAL_MV
+chmod +x "${SIGNAL_BIN}/mv"
+if (
+    export SIGNAL_REAL_MV
+    export PATH="${SIGNAL_BIN}:${PATH}"
+    run_release "${SIGNAL_COMPONENT}" "1.0.5-1" "${SIGNAL_ROOT}"
+); then
+    echo "Expected injected post-latest SIGTERM to interrupt publication" >&2
+    exit 1
+fi
+assert_link_target "${SIGNAL_ROOT}/latest" \
+    "${SIGNAL_ROOT}/1.0.5/ufm-state-mirror_1.0.5-1-docker.img.gz"
+test -f "${SIGNAL_ROOT}/1.0.5/ufm-state-mirror_1.0.5-1-docker.img.gz"
+test -f "${SIGNAL_ROOT}/1.0.5/.1.0.5-1.pending-latest"
+run_release "${SIGNAL_COMPONENT}" "1.0.5-1" "${SIGNAL_ROOT}"
+test ! -e "${SIGNAL_ROOT}/1.0.5/.1.0.5-1.pending-latest"
 
 DOWNGRADE_PHYSICAL_ROOT="${TEST_ROOT}/downgrade-physical"
 DOWNGRADE_LOGICAL_ROOT="${TEST_ROOT}/downgrade-logical"
@@ -218,5 +251,29 @@ fi
 test -f "${FAILED_RESUME_ROOT}/1.0.4/ufm-state-mirror_1.0.4-1-docker.img.gz"
 test -f "${FAILED_RESUME_ROOT}/1.0.4/.1.0.4-1.pending-latest"
 assert_link_target "${FAILED_RESUME_ROOT}/latest" "/unexpected/latest-target"
+
+EQUAL_STALE_ROOT="${TEST_ROOT}/equal-stale-release"
+mkdir -p "${EQUAL_STALE_ROOT}"
+ln -s "${EQUAL_STALE_ROOT}/1.0.7/ufm-state-mirror_1.0.7-1-docker.img.gz" \
+    "${EQUAL_STALE_ROOT}/latest"
+COMPONENT_EQUAL_STALE="$(make_component component-equal-stale 1.0.7 1.0.7-1)"
+if run_release "${COMPONENT_EQUAL_STALE}" "1.0.7-1" "${EQUAL_STALE_ROOT}"; then
+    echo "Expected equal-version dangling latest to reject immutable rebuild" >&2
+    exit 1
+fi
+test ! -e "${EQUAL_STALE_ROOT}/1.0.7/ufm-state-mirror_1.0.7-1-docker.img.gz"
+assert_link_target "${EQUAL_STALE_ROOT}/latest" \
+    "${EQUAL_STALE_ROOT}/1.0.7/ufm-state-mirror_1.0.7-1-docker.img.gz"
+
+EXPLICIT_ALIAS_ROOT="${TEST_ROOT}/explicit-alias-release"
+EXPLICIT_ALIAS="${TEST_ROOT}/unresolved-physical-alias"
+make_artifact "${EXPLICIT_ALIAS_ROOT}" "1.0.8-1"
+ln -s "${EXPLICIT_ALIAS}/1.0.8/ufm-state-mirror_1.0.8-1-docker.img.gz" \
+    "${EXPLICIT_ALIAS_ROOT}/latest"
+COMPONENT_ALIAS="$(make_component component-alias 1.0.8 1.0.8-2)"
+run_release "${COMPONENT_ALIAS}" "1.0.8-2" \
+    "${EXPLICIT_ALIAS_ROOT}" "${EXPLICIT_ALIAS}"
+assert_link_target "${EXPLICIT_ALIAS_ROOT}/latest" \
+    "${EXPLICIT_ALIAS_ROOT}/1.0.8/ufm-state-mirror_1.0.8-2-docker.img.gz"
 
 echo "StateMirror release helper tests passed"

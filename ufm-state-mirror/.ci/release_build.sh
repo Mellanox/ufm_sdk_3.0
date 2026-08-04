@@ -13,7 +13,7 @@
 # Release helper for UFM_PLUGINS_SDK_RELEASE.
 #
 # Usage:
-#   ufm-state-mirror/.ci/release_build.sh <VERSION> <RELEASE_ROOT>
+#   ufm-state-mirror/.ci/release_build.sh <VERSION> <RELEASE_ROOT> [RELEASE_ROOT_ALIAS]
 
 set -eEo pipefail
 
@@ -22,11 +22,14 @@ COMPONENT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
 
 VERSION="$1"
 RELEASE_ROOT="$2"
+RELEASE_ROOT_ALIAS="${3:-}"
 IMAGE_NAME="ufm-state-mirror"
 STAGING_DIR=""
 STAGED_ARTIFACT=""
 LATEST_TMP=""
 LATEST_TMP_DIR=""
+LATEST_LINK=""
+LATEST_TARGET=""
 PENDING_MARKER=""
 BASE_DIR_CREATED=false
 PENDING_MARKER_CREATED_BY_RUN=false
@@ -48,6 +51,16 @@ fi
 while [[ "${RELEASE_ROOT}" == */ ]]; do
     RELEASE_ROOT="${RELEASE_ROOT%/}"
 done
+if [ -n "${RELEASE_ROOT_ALIAS}" ]; then
+    if [[ "${RELEASE_ROOT_ALIAS}" != /* ]] || [ "${RELEASE_ROOT_ALIAS}" = "/" ]; then
+        echo -e "Error: release-root alias must be an absolute path other than /."
+        echo -e "Path: ${RELEASE_ROOT_ALIAS}"
+        exit 1
+    fi
+    while [[ "${RELEASE_ROOT_ALIAS}" == */ ]]; do
+        RELEASE_ROOT_ALIAS="${RELEASE_ROOT_ALIAS%/}"
+    done
+fi
 
 BASE_VERSION=""
 EXTENDED_VERSION=""
@@ -138,20 +151,18 @@ latest_target_version() {
     local target="$1"
     local relative_target target_dir artifact version base_version expected_artifact
 
-    case "${target}" in
-        "${RELEASE_ROOT}/"*)
-            relative_target="${target#"${RELEASE_ROOT}/"}"
-            ;;
-        "${PHYSICAL_RELEASE_ROOT}/"*)
-            relative_target="${target#"${PHYSICAL_RELEASE_ROOT}/"}"
-            ;;
-        /*)
-            return 1
-            ;;
-        *)
-            relative_target="${target}"
-            ;;
-    esac
+    if [[ "${target}" == "${RELEASE_ROOT}/"* ]]; then
+        relative_target="${target#"${RELEASE_ROOT}/"}"
+    elif [ -n "${RELEASE_ROOT_ALIAS}" ] &&
+         [[ "${target}" == "${RELEASE_ROOT_ALIAS}/"* ]]; then
+        relative_target="${target#"${RELEASE_ROOT_ALIAS}/"}"
+    elif [[ "${target}" == "${PHYSICAL_RELEASE_ROOT}/"* ]]; then
+        relative_target="${target#"${PHYSICAL_RELEASE_ROOT}/"}"
+    elif [[ "${target}" == /* ]]; then
+        return 1
+    else
+        relative_target="${target}"
+    fi
 
     target_dir="${relative_target%%/*}"
     artifact="${relative_target#*/}"
@@ -199,6 +210,11 @@ cleanup_legacy_rollback_entries() {
 }
 
 cleanup() {
+    if [ "${LATEST_COMMITTED}" = false ] && [ -n "${LATEST_LINK}" ] &&
+       [ -n "${LATEST_TARGET}" ] && [ -L "${LATEST_LINK}" ] &&
+       [ "$(readlink "${LATEST_LINK}")" = "${LATEST_TARGET}" ]; then
+        LATEST_COMMITTED=true
+    fi
     if [ -n "${LATEST_TMP}" ]; then
         rm -f -- "${LATEST_TMP}"
     fi
@@ -250,7 +266,7 @@ if [ ! -d "${BASE_VERSION_DIR}" ]; then
     mkdir "${BASE_VERSION_DIR}"
     BASE_DIR_CREATED=true
 fi
-chmod u+rwx,go+rx "${BASE_VERSION_DIR}"
+chmod go-w,u+rwx,go+rx "${BASE_VERSION_DIR}"
 
 if [ "${LEGACY_VERSION_DIR}" != "${BASE_VERSION_DIR}" ] &&
    { [ -e "${LEGACY_ARTIFACT_PATH}" ] || [ -L "${LEGACY_ARTIFACT_PATH}" ]; }; then
@@ -300,6 +316,10 @@ if [ -L "${LATEST_LINK}" ]; then
         echo -e "Error: refusing to move latest from ${CURRENT_VERSION} back to ${VERSION}."
         exit 1
     fi
+    if [ "${VERSION}" = "${CURRENT_VERSION}" ] && [ "${RESUME_PUBLISH}" = false ]; then
+        echo -e "Error: refusing to rebuild immutable version ${VERSION} from a stale latest target."
+        exit 1
+    fi
     if ! release_artifact_is_valid "${CURRENT_VERSION_DIR}" "${CURRENT_ARTIFACT}"; then
         echo -e "Warning: ${LATEST_LINK} is stale or dangling and will be replaced after a successful release."
         echo -e "Target: ${CURRENT_TARGET}"
@@ -334,7 +354,7 @@ fi
 
 if [ "${RESUME_PUBLISH}" = true ]; then
     chmod 0644 "${ARTIFACT_PATH}"
-    chmod u+rwx,go+rx "${BASE_VERSION_DIR}"
+    chmod go-w,u+rwx,go+rx "${BASE_VERSION_DIR}"
 fi
 
 LATEST_TMP_DIR="$(mktemp -d "${RELEASE_ROOT}/.latest.staging.XXXXXX")"
