@@ -8,6 +8,7 @@ step_allow_single_selector: true
 
 kubernetes:
   cloud: swx-k8s-spray
+  runAsGroup: "4200"
 
 credentials:
   # harbor login/password
@@ -35,7 +36,9 @@ steps:
       whoami
 
       RELEASE_ROOT="/auto/mswg/release/ufm/ufm-state-mirror"
-      bash -x ufm-state-mirror/.ci/release_build.sh "${PLUGIN_VERSION}" "${RELEASE_ROOT}"
+      RELEASE_ROOT_ALIAS="/auto/sw/release/ufm/ufm-state-mirror"
+      bash -x ufm-state-mirror/.ci/release_build.sh \
+        "${PLUGIN_VERSION}" "${RELEASE_ROOT}" "${RELEASE_ROOT_ALIAS}"
       BUILD_EXIT_CODE=$?
       ls -l "${RELEASE_ROOT}" || true
       if [ $BUILD_EXIT_CODE -ne 0 ];then

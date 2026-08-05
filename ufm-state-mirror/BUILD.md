@@ -10,19 +10,42 @@ is supplied at runtime by each consumer (UFM, UFM HA) via a ConfigMap mounted at
 
 ## Release rules
 
-- `ufm-state-mirror/VERSION` is the release version source of truth and must be committed.
-- Release versions use numeric `MAJOR.MINOR.PATCH` format.
-- The image tag is derived from `VERSION` (`mellanox/ufm-state-mirror:<VERSION>`).
-- CI validates lint (`ruff`), unit tests (`pytest`), and a no-push image build.
+- `ufm-state-mirror/VERSION` is the release version source of truth and must be
+  committed. It declares `BASE_VERSION` and `BUILD_NUMBER`.
+- `BASE_VERSION` uses `MAJOR.MINOR.PATCH` and `BUILD_NUMBER` is a positive
+  integer. `EXTENDED_VERSION` is derived as
+  `<BASE_VERSION>-<BUILD_NUMBER>` (`MAJOR.MINOR.PATCH-BUILD`).
+- The image tag is derived from the resulting `EXTENDED_VERSION`
+  (`mellanox/ufm-state-mirror:<EXTENDED_VERSION>`).
+- Before merge, validate lint (`ruff`), unit tests (`pytest`), the release
+  helper, and a no-push image build using the commands below.
 - Blossom publishes the release artifact as
-  `/auto/mswg/release/ufm/ufm-state-mirror/<VERSION>/ufm-state-mirror_<VERSION>-docker.img.gz`.
-- Each version is immutable and contains exactly one release artifact. Publishing
-  an existing version is rejected.
+  `/auto/mswg/release/ufm/ufm-state-mirror/<BASE_VERSION>/ufm-state-mirror_<EXTENDED_VERSION>-docker.img.gz`.
+- Each extended version is immutable. Multiple build artifacts may coexist
+  directly in one base-version directory; publishing the same extended version
+  again is rejected.
+- Published version directories use group-writable setgid mode `2775` and group
+  `sw_ufm` (`GID 4200`), while release artifacts use mode `0644`. This lets
+  successive Blossom releases add immutable builds under the same base version.
 - After a successful release, `ufm-state-mirror/latest` points to the new
-  versioned artifact using a relative symlink.
-- Stable, nbuprod, and manual releases share one lock. Artifacts and `latest`
-  are staged and renamed atomically, and `latest` is never moved to an older
-  version. An interrupted publication is rolled back or safely resumed.
+  versioned artifact using an absolute symlink so consumers can reuse the
+  `readlink` result from another directory. The target preserves the configured
+  release-root path and does not resolve filesystem aliases such as
+  `/auto/mswg` to `/auto/sw`.
+- Release locking is temporarily disabled. Operators must ensure that stable,
+  nbuprod, and manual releases never overlap until locking is restored.
+  Artifacts are staged before publication. After the artifact succeeds, the
+  existing `latest` link is unlinked and recreated; `latest` is never moved to
+  an older version. An interrupted publication is rolled back or safely
+  resumed.
+- Recognized legacy relative, `/auto/sw`, and flat extended-version `latest`
+  targets are migrated to the canonical grouped absolute `/auto/mswg` target
+  after a successful release. Stale or dangling recognized targets are
+  recoverable without weakening downgrade protection, and legacy
+  `.latest.rollback.*` entries are currently cleaned without lock protection,
+  and only when they contain the expected rollback structure. The release
+  matrices pass the `/auto/sw` alias explicitly, independent of bind-mount path
+  resolution.
 - The StateMirror-specific release matrices and release helper live under
   `ufm-state-mirror/.ci`.
 - Always build from git-tracked files, not from the live working directory.
@@ -48,12 +71,11 @@ pytest -q
 
 ```bash
 CHART=ufm-state-mirror
-VERSION="$(git show HEAD:${CHART}/VERSION | tr -d '\n')"
 STAGE_DIR="$(mktemp -d /tmp/ufm-state-mirror-stage.XXXXXX)"
 
 git archive --format=tar HEAD "${CHART}" | tar -xf - -C "${STAGE_DIR}"
 
-REGISTRY=mellanox "${STAGE_DIR}/${CHART}/build/docker_build.sh" "${VERSION}"
+REGISTRY=mellanox "${STAGE_DIR}/${CHART}/build/docker_build.sh"
 ```
 
 This image is for verification only. Do not push it and do not tag this commit yet.
@@ -63,7 +85,7 @@ This image is for verification only. Do not push it and do not tag this commit y
 Merge only after:
 
 - the verification image build above succeeds
-- the `ufm-state-mirror` CI job passes
+- the documented lint, unit, and release-helper tests pass
 - the PR is approved and merged
 
 ## Phase B - Automated release from the merged commit
@@ -83,21 +105,23 @@ Use these parameters:
 
 - `sha1`: the merged commit SHA, release branch, or `main` after it contains the
   version bump.
-- `PLUGIN_VERSION`: the exact content of `ufm-state-mirror/VERSION`.
+- `PLUGIN_VERSION`: `<BASE_VERSION>-<BUILD_NUMBER>` using the values in
+  `ufm-state-mirror/VERSION`.
 - Stable job selector: `Plugin_name=ufm-state-mirror`.
 - Nbuprod job selector: `PLUGIN_NAME=ufm-state-mirror`.
 - Stable `conf_file`: `ufm-state-mirror/.ci/matrix_job_release.yaml`.
 - Nbuprod `conf_file`: `ufm-state-mirror/.ci/matrix_job_release_nbuprod.yaml`.
 
-The matrix job fails fast if `PLUGIN_VERSION` does not match
-`ufm-state-mirror/VERSION` or if the target artifact already exists.
+The matrix job fails fast if `PLUGIN_VERSION` does not match the derived
+extended version, if either version field is invalid, or if the target artifact
+already exists.
 The StateMirror release matrices dispatch to
 `ufm-state-mirror/.ci/release_build.sh`.
 
 Expected output:
 
 ```text
-/auto/mswg/release/ufm/ufm-state-mirror/<VERSION>/ufm-state-mirror_<VERSION>-docker.img.gz
+/auto/mswg/release/ufm/ufm-state-mirror/<BASE_VERSION>/ufm-state-mirror_<EXTENDED_VERSION>-docker.img.gz
 ```
 
 Expected release layout:
@@ -105,10 +129,13 @@ Expected release layout:
 ```text
 /auto/mswg/release/ufm/ufm-state-mirror/
 ├── 1.0.1/
-│   └── ufm-state-mirror_1.0.1-docker.img.gz
+│   ├── ufm-state-mirror_1.0.1-docker.img.gz
+│   ├── ufm-state-mirror_1.0.1-8-docker.img.gz
+│   └── ufm-state-mirror_1.0.1-9-docker.img.gz
 ├── 1.0.2/
-│   └── ufm-state-mirror_1.0.2-docker.img.gz
-└── latest -> 1.0.2/ufm-state-mirror_1.0.2-docker.img.gz
+│   ├── ufm-state-mirror_1.0.2-8-docker.img.gz
+│   └── ufm-state-mirror_1.0.2-9-docker.img.gz
+└── latest -> /auto/mswg/release/ufm/ufm-state-mirror/1.0.2/ufm-state-mirror_1.0.2-9-docker.img.gz
 ```
 
 ### 3. Tag the same commit
@@ -116,7 +143,8 @@ Expected release layout:
 After the Blossom job succeeds, tag the commit that produced the artifact:
 
 ```bash
-VERSION="$(git show HEAD:ufm-state-mirror/VERSION | tr -d '\n')"
+source ufm-state-mirror/VERSION
+VERSION="${BASE_VERSION}-${BUILD_NUMBER}"
 git tag -a "ufm-state-mirror-v${VERSION}" -m "Release ufm-state-mirror ${VERSION}"
 git push origin "ufm-state-mirror-v${VERSION}"
 ```
@@ -128,14 +156,17 @@ Use this only if the Blossom job is unavailable. It should produce the same
 
 ```bash
 CHART=ufm-state-mirror
-VERSION="$(git show HEAD:${CHART}/VERSION | tr -d '\n')"
 STAGE_DIR="$(mktemp -d /tmp/ufm-state-mirror-stage.XXXXXX)"
 RELEASE_ROOT="/auto/mswg/release/ufm/${CHART}"
+RELEASE_ROOT_ALIAS="/auto/sw/release/ufm/${CHART}"
 
 git archive --format=tar HEAD "${CHART}" | tar -xf - -C "${STAGE_DIR}"
+source "${STAGE_DIR}/${CHART}/VERSION"
+VERSION="${BASE_VERSION}-${BUILD_NUMBER}"
 
 REGISTRY=mellanox \
-  "${STAGE_DIR}/${CHART}/.ci/release_build.sh" "${VERSION}" "${RELEASE_ROOT}"
+  "${STAGE_DIR}/${CHART}/.ci/release_build.sh" \
+  "${VERSION}" "${RELEASE_ROOT}" "${RELEASE_ROOT_ALIAS}"
 ```
 
 ## Consuming the image

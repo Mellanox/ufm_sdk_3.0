@@ -6,23 +6,26 @@ registry_path: /swx-storage/ci-demo
 registry_auth: swx-storage
 step_allow_single_selector: true
 
-kubernetes:
-  cloud: swx-k8s-spray
-
 credentials:
   # harbor login/password
   - {credentialsId: '425bb907-c357-4fde-92e0-67854a857b4f', usernameVariable: 'UFM_USER', passwordVariable: 'UFM_PASS'}
 
+kubernetes:
+  cloud: il-ipp-blossom-prod
+  namespace: swx
+  privileged: true
+  runAsGroup: "4200"
+
 volumes:
-  - {mountPath: /var/run/docker.sock, hostPath: /var/run/docker.sock}
   - {mountPath: /auto/mswg, hostPath: /auto/mswg}
+  - {mountPath: /auto/sw/release/ufm, hostPath: /auto/sw/release/ufm}
 
 runs_on_dockers:
-  - {file: '.ci/Dockerfile', arch: 'x86_64', name: 'plugin_worker', tag: 'latest'}
+  - {url: 'nbu-harbor.gtm.nvidia.com/ufm/ci/dind_ufm_x86_64:20251224', name: 'docker_builder', arch: 'x86_64', category: 'tool'}
 
 steps:
   - name: Build StateMirror
-    containerSelector: "{name: 'plugin_worker'}"
+    containerSelector: "{name: 'docker_builder'}"
     run: |
       set -x
       if [ "${PLUGIN_NAME}" != "ufm-state-mirror" ]; then
@@ -31,8 +34,55 @@ steps:
         exit 1
       fi
 
+      export DOCKER_HOST=unix:///run/docker.sock
+      nohup /usr/local/bin/dockerd-entrypoint.sh >/var/log/docker.log 2>&1 &
+      for i in $(seq 1 60); do
+        docker info >/dev/null 2>&1 && break
+        sleep 2
+      done
+      if ! docker info >/dev/null 2>&1; then
+        echo -e "Error: Docker did not become available within 120 seconds."
+        cat /var/log/docker.log
+        exit 1
+      fi
+
+      # Keep dockerd privileged, but access the root-squashed release export as
+      # the swx-jenkins owner and shared sw_ufm group.
+      RELEASE_USER=swx-jenkins
+      RELEASE_UID=6213
+      RELEASE_GID=4200
+      ACTUAL_RELEASE_UID="$(id -u "${RELEASE_USER}" 2>/dev/null || true)"
+      if [ "${ACTUAL_RELEASE_UID}" != "${RELEASE_UID}" ]; then
+        echo -e "Error: ${RELEASE_USER} must have UID ${RELEASE_UID}."
+        echo -e "Actual UID: ${ACTUAL_RELEASE_UID:-<missing>}"
+        exit 1
+      fi
+      RELEASE_GROUP="$(awk -F: -v gid="${RELEASE_GID}" \
+        '$3 == gid { print $1; exit }' /etc/group)"
+      if [ -z "${RELEASE_GROUP}" ]; then
+        RELEASE_GROUP=sw_ufm
+        addgroup -S -g "${RELEASE_GID}" "${RELEASE_GROUP}"
+      fi
+      if ! id -nG "${RELEASE_USER}" | tr ' ' '\n' | grep -Fxq "${RELEASE_GROUP}"; then
+        addgroup "${RELEASE_USER}" "${RELEASE_GROUP}"
+      fi
+
+      chgrp "${RELEASE_GROUP}" /run/docker.sock
+      chmod 0660 /run/docker.sock
+      sudo --preserve-env=DOCKER_HOST -n -H \
+        -u "${RELEASE_USER}" -g "${RELEASE_GROUP}" id
+      if ! sudo --preserve-env=DOCKER_HOST -n -H \
+        -u "${RELEASE_USER}" -g "${RELEASE_GROUP}" docker info >/dev/null; then
+        echo -e "Error: release identity cannot access Docker."
+        exit 1
+      fi
+
       RELEASE_ROOT="/auto/mswg/release/ufm/ufm-state-mirror"
-      bash -x ufm-state-mirror/.ci/release_build.sh "${PLUGIN_VERSION}" "${RELEASE_ROOT}"
+      RELEASE_ROOT_ALIAS="/auto/sw/release/ufm/ufm-state-mirror"
+      sudo --preserve-env=DOCKER_HOST -n -H \
+        -u "${RELEASE_USER}" -g "${RELEASE_GROUP}" \
+        bash -x ufm-state-mirror/.ci/release_build.sh \
+          "${PLUGIN_VERSION}" "${RELEASE_ROOT}" "${RELEASE_ROOT_ALIAS}"
       BUILD_EXIT_CODE=$?
       ls -l "${RELEASE_ROOT}" || true
       if [ $BUILD_EXIT_CODE -ne 0 ];then

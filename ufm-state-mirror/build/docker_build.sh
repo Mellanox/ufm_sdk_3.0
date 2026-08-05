@@ -15,7 +15,8 @@
 # Usage:
 #   build/docker_build.sh [VERSION] [OUT_DIR] [RANDOM_HASH]
 #
-#   VERSION      image tag; defaults to the component VERSION file, else "latest".
+#   VERSION      image tag; defaults to BASE_VERSION-BUILD_NUMBER from the
+#                component VERSION file, else "latest".
 #   OUT_DIR      if set, the built image is `docker save`d as a .img.gz here.
 #   RANDOM_HASH  appended to the saved artifact name for CI uniqueness.
 #
@@ -37,7 +38,16 @@ RANDOM_HASH="$3"
 
 if [ -z "${VERSION}" ]; then
     if [ -f "${COMPONENT_DIR}/VERSION" ]; then
-        VERSION="$(tr -d '\n' < "${COMPONENT_DIR}/VERSION")"
+        BASE_VERSION=""
+        BUILD_NUMBER=""
+        # shellcheck disable=SC1091
+        source "${COMPONENT_DIR}/VERSION"
+        if [[ ! "${BASE_VERSION}" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] ||
+           [[ ! "${BUILD_NUMBER}" =~ ^([1-9][0-9]*)$ ]]; then
+            echo "Error: VERSION must define a numeric BASE_VERSION and positive BUILD_NUMBER." >&2
+            exit 1
+        fi
+        VERSION="${BASE_VERSION}-${BUILD_NUMBER}"
     else
         VERSION="latest"
     fi
