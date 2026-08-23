@@ -1,1 +1,33 @@
-<p>general-route-module works!</p>
+<ng-container *ngIf="data">
+  <div class="row">
+    <div class="col-sm-6">
+      <sms-card [cardBody]="tableTemplate"></sms-card>
+    </div>
+    <div class="col-sm-6">
+      <sms-card [cardBody]="graphTemplate"></sms-card>
+    </div>
+  </div>
+</ng-container>
+
+<ng-template #tableTemplate>
+  <app-inventory-general-table [data]="table_Data"
+                               [componentInfo]="componentInfo"
+                               [autoSize]="true"
+                               [rightAdditionalTemplate]="rightAdditionalTemplate"
+                               [isDataLoading]="isReloading"
+  ></app-inventory-general-table>
+</ng-template>
+
+<ng-template #rightAdditionalTemplate>
+  <div class="control-btns-template control-btns-wrapper">
+    <button class="refresh-button btn btn-primary"
+            title="Refresh"
+            (click)="loadData(true)">
+      <i class="fa fa-sync" [class.fa-spin]="isReloading"></i>
+    </button>
+  </div>
+</ng-template>
+
+<ng-template #graphTemplate>
+  <app-generic-histogram [histogramData]="data.graph_data.histogram" [rawData]="table_Data"></app-generic-histogram>
+</ng-template>
