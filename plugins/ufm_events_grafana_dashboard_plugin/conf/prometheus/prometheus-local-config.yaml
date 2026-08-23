@@ -1,0 +1,18 @@
+global:
+  scrape_interval:     60s
+
+scrape_configs:
+  # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
+  - job_name: "prometheus"
+
+    # metrics_path defaults to '/metrics'
+    # scheme defaults to 'http'.
+
+    static_configs:
+      - targets: ["127.0.0.1:@@PROMETHEUS_PORT@@"]
+
+    metric_relabel_configs:
+      # Keep only the specified metrics and drop all others.
+      - source_labels: [__name__]
+        regex: '^(prometheus_tsdb_head_samples_appended_total|prometheus_tsdb_compaction_chunk_size_bytes_sum|prometheus_tsdb_compaction_chunk_samples_sum|prometheus_tsdb_storage_blocks_bytes|prometheus_tsdb_head_chunks_storage_size_bytes|prometheus_tsdb_wal_storage_size_bytes)$'
+        action: keep
