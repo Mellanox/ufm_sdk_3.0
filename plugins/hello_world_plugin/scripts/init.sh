@@ -21,7 +21,7 @@ PLUGIN_NAME=hello_world
 SRC_DIR_PATH=/opt/ufm/ufm_plugin_${PLUGIN_NAME}/${PLUGIN_NAME}_plugin
 CONFIG_PATH=/config
 
-cp $SRC_DIR_PATH/conf/${PLUGIN_NAME}_httpd_proxy.conf ${CONFIG_PATH}
+cp $SRC_DIR_PATH/conf/${PLUGIN_NAME}_httpd_proxy.conf $SRC_DIR_PATH/conf/${PLUGIN_NAME}_ufm_health_args.ini ${CONFIG_PATH}
 
 touch ${CONFIG_PATH}/${PLUGIN_NAME}_shared_volumes.conf
 
