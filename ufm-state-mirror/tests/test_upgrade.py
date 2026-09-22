@@ -212,6 +212,58 @@ class TestPreflight:
             _preflight(store, api, classifier, target="7.2.0")
         assert _env(api)["STATE_MIRROR_TARGET_VERSION"] == "7.1.0"
 
+    @pytest.mark.parametrize(
+        "data",
+        [
+            pytest.param({}, id="missing-upgrade-env"),
+            pytest.param(
+                {
+                    "upgrade.env": (
+                        "STATE_MIRROR_UPGRADE_MODE=unknown\n"
+                        "STATE_MIRROR_TARGET_VERSION=7.1.0\n"
+                        f"STATE_MIRROR_OPERATION_ID={OPERATION_ID}\n"
+                    )
+                },
+                id="unsupported-mode",
+            ),
+            pytest.param(
+                {
+                    "upgrade.env": (
+                        "STATE_MIRROR_UPGRADE_MODE=upgrade\n"
+                        "STATE_MIRROR_SOURCE_VERSION=7.0.0\n"
+                        "STATE_MIRROR_TARGET_VERSION=7.1.0\n"
+                        f"STATE_MIRROR_OPERATION_ID={OPERATION_ID}\n"
+                    )
+                },
+                id="incomplete-upgrade-payload",
+            ),
+            pytest.param(
+                {
+                    "upgrade.env": (
+                        "STATE_MIRROR_UPGRADE_MODE=committed\n"
+                        "STATE_MIRROR_TARGET_VERSION=7.1.0\n"
+                        f"STATE_MIRROR_OPERATION_ID={OPERATION_ID}\n"
+                    ),
+                    "unexpected.txt": "must fail closed\n",
+                },
+                id="unexpected-committed-payload",
+            ),
+        ],
+    )
+    def test_labeled_malformed_handoff_fails_closed(self, backend, classifier, data):
+        store, api = backend
+        api.write_cm(
+            "ufm-upgrade",
+            labels={HANDOFF_LABEL: HANDOFF_LABEL_VALUE},
+            annotations={},
+            data=data,
+            binary_data={},
+        )
+
+        with pytest.raises(UpgradeError, match="handoff ConfigMap|handoff .*payload"):
+            _preflight(store, api, classifier)
+        assert api.objs["ufm-upgrade"]["data"] == data
+
     def test_concurrent_fresh_preflight_does_not_overwrite_winner(self, backend, classifier):
         store, api = backend
 

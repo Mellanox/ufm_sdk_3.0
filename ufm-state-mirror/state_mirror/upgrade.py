@@ -352,6 +352,38 @@ def _parse_env(raw: str) -> dict[str, str]:
     return values
 
 
+def _validate_handoff_payload(data: object) -> dict[str, str]:
+    if not isinstance(data, dict):
+        raise UpgradeError("handoff ConfigMap data is missing or invalid")
+    raw = data.get("upgrade.env")
+    if not isinstance(raw, str):
+        raise UpgradeError("handoff ConfigMap is missing text key 'upgrade.env'")
+    values = _parse_env(raw)
+    mode = values.get("STATE_MIRROR_UPGRADE_MODE")
+    common = {
+        "STATE_MIRROR_UPGRADE_MODE",
+        "STATE_MIRROR_TARGET_VERSION",
+        "STATE_MIRROR_OPERATION_ID",
+    }
+    if mode == "upgrade":
+        expected_env = common | {"STATE_MIRROR_SOURCE_VERSION"}
+        expected_files = {"upgrade.env", "source-gv.cfg", "preserve-paths.txt"}
+    elif mode in ("fresh", "committed"):
+        expected_env = common
+        expected_files = {"upgrade.env"}
+    else:
+        raise UpgradeError(f"handoff ConfigMap has unsupported mode {mode!r}")
+    if set(values) != expected_env:
+        raise UpgradeError(f"handoff {mode} environment keys are invalid: {sorted(values)!r}")
+    if set(data) != expected_files or any(not isinstance(data[name], str) for name in data):
+        raise UpgradeError(f"handoff {mode} payload files are invalid: {sorted(map(str, data))!r}")
+    _validated_version(values["STATE_MIRROR_TARGET_VERSION"], "handoff target")
+    _validated_operation_id(values["STATE_MIRROR_OPERATION_ID"])
+    if mode == "upgrade":
+        _validated_version(values["STATE_MIRROR_SOURCE_VERSION"], "handoff source")
+    return values
+
+
 def _upgrade_env(transaction: UpgradeTransaction, mode: str = "upgrade") -> str:
     lines = [f"STATE_MIRROR_UPGRADE_MODE={mode}"]
     if mode == "upgrade":
@@ -418,56 +450,52 @@ def _operation_for_preflight(
     for existing in api.list_cms(HANDOFF_SELECTOR):
         if existing.get("name") == handoff_name:
             named_handoff = existing
-        raw = (existing.get("data") or {}).get("upgrade.env")
-        if isinstance(raw, str):
-            values = _parse_env(raw)
-            live_mode = values.get("STATE_MIRROR_UPGRADE_MODE")
-            if live_mode == "committed":
-                live_operation = _validated_operation_id(values.get("STATE_MIRROR_OPERATION_ID"))
-                live_target = values.get("STATE_MIRROR_TARGET_VERSION")
-                if mode == "committed":
-                    if requested_operation_id != live_operation or live_target != target_version:
-                        raise UpgradeError("committed handoff conflicts with durable manifest")
-                    transaction = UpgradeTransaction(source_version, target_version, live_operation)
-                    if (existing.get("data") or {}) != _handoff_data(mode, transaction):
-                        raise UpgradeError("committed handoff payload is inconsistent")
-                    return live_operation, _resource_version(existing)
-                if live_target == target_version:
-                    raise UpgradeError("committed handoff conflicts with requested transaction")
-                continue
-            if live_mode not in ("fresh", "upgrade"):
-                continue
-            operation_id = _validated_operation_id(values.get("STATE_MIRROR_OPERATION_ID"))
-            if existing.get("name") != handoff_name:
-                raise UpgradeError(
-                    "active upgrade handoff "
-                    f"{existing.get('name')!r} conflicts with {handoff_name!r}"
-                )
+        values = _validate_handoff_payload(existing.get("data"))
+        live_mode = values["STATE_MIRROR_UPGRADE_MODE"]
+        if live_mode == "committed":
+            live_operation = values["STATE_MIRROR_OPERATION_ID"]
+            live_target = values["STATE_MIRROR_TARGET_VERSION"]
             if mode == "committed":
-                if (
-                    requested_operation_id == operation_id
-                    and values.get("STATE_MIRROR_TARGET_VERSION") == target_version
-                ):
-                    return operation_id, _resource_version(existing)
-                raise UpgradeError("active handoff conflicts with committed transaction")
-            identity = (
-                live_mode,
-                values.get("STATE_MIRROR_SOURCE_VERSION") if live_mode == "upgrade" else "",
-                values.get("STATE_MIRROR_TARGET_VERSION"),
+                if requested_operation_id != live_operation or live_target != target_version:
+                    raise UpgradeError("committed handoff conflicts with durable manifest")
+                transaction = UpgradeTransaction(source_version, target_version, live_operation)
+                if (existing.get("data") or {}) != _handoff_data(mode, transaction):
+                    raise UpgradeError("committed handoff payload is inconsistent")
+                return live_operation, _resource_version(existing)
+            if live_target == target_version:
+                raise UpgradeError("committed handoff conflicts with requested transaction")
+            continue
+        operation_id = values["STATE_MIRROR_OPERATION_ID"]
+        if existing.get("name") != handoff_name:
+            raise UpgradeError(
+                "active upgrade handoff "
+                f"{existing.get('name')!r} conflicts with {handoff_name!r}"
             )
-            requested = (mode, source_version if mode == "upgrade" else "", target_version)
-            if identity != requested:
-                raise UpgradeError(
-                    "existing handoff conflicts with requested transaction: "
-                    f"stored={identity!r}, requested={requested!r}"
-                )
-            if requested_operation_id is not None and requested_operation_id != operation_id:
-                raise UpgradeError("requested operation ID conflicts with existing handoff")
-            transaction = UpgradeTransaction(source_version, target_version, operation_id)
-            expected_data = _handoff_data(mode, transaction, source_gv=source_gv, paths=paths)
-            if (existing.get("data") or {}) != expected_data:
-                raise UpgradeError("existing handoff payload conflicts with requested transaction")
-            return operation_id, _resource_version(existing)
+        if mode == "committed":
+            if (
+                requested_operation_id == operation_id
+                and values["STATE_MIRROR_TARGET_VERSION"] == target_version
+            ):
+                return operation_id, _resource_version(existing)
+            raise UpgradeError("active handoff conflicts with committed transaction")
+        identity = (
+            live_mode,
+            values.get("STATE_MIRROR_SOURCE_VERSION") if live_mode == "upgrade" else "",
+            values["STATE_MIRROR_TARGET_VERSION"],
+        )
+        requested = (mode, source_version if mode == "upgrade" else "", target_version)
+        if identity != requested:
+            raise UpgradeError(
+                "existing handoff conflicts with requested transaction: "
+                f"stored={identity!r}, requested={requested!r}"
+            )
+        if requested_operation_id is not None and requested_operation_id != operation_id:
+            raise UpgradeError("requested operation ID conflicts with existing handoff")
+        transaction = UpgradeTransaction(source_version, target_version, operation_id)
+        expected_data = _handoff_data(mode, transaction, source_gv=source_gv, paths=paths)
+        if (existing.get("data") or {}) != expected_data:
+            raise UpgradeError("existing handoff payload conflicts with requested transaction")
+        return operation_id, _resource_version(existing)
     resource_version = _resource_version(named_handoff) if named_handoff is not None else None
     if named_handoff is not None:
         values = _parse_env((named_handoff.get("data") or {}).get("upgrade.env", ""))
@@ -532,7 +560,7 @@ def _validate_committed_authority(
     for handoff in api.list_cms(HANDOFF_SELECTOR):
         if handoff.get("name") != handoff_name:
             continue
-        values = _parse_env((handoff.get("data") or {}).get("upgrade.env", ""))
+        values = _validate_handoff_payload(handoff.get("data"))
         if values.get("STATE_MIRROR_UPGRADE_MODE") != "committed":
             return
         if manifest is None:
@@ -669,16 +697,13 @@ def _read_handoff_dir(path: str) -> tuple[dict[str, str], dict[str, str]]:
                     data[name] = fh.read()
             except OSError as exc:
                 raise UpgradeError(f"cannot read mounted handoff {file_path}: {exc}") from exc
-    return values, data
+    return _validate_handoff_payload(data), data
 
 
 def _find_handoff(api: ConfigMapApi, operation_id: str) -> dict:
     matches: list[dict] = []
     for cm in api.list_cms(HANDOFF_SELECTOR):
-        raw = (cm.get("data") or {}).get("upgrade.env")
-        if not isinstance(raw, str):
-            continue
-        values = _parse_env(raw)
+        values = _validate_handoff_payload(cm.get("data"))
         if values.get("STATE_MIRROR_OPERATION_ID") == operation_id:
             matches.append(cm)
     if len(matches) != 1:
@@ -698,7 +723,7 @@ def _validate_live_handoff(
     existing: Optional[UpgradeManifest],
     mounted_data: dict[str, str],
 ) -> None:
-    values = _parse_env((handoff.get("data") or {}).get("upgrade.env", ""))
+    values = _validate_handoff_payload(handoff.get("data"))
     live_mode = values.get("STATE_MIRROR_UPGRADE_MODE")
     live_target = values.get("STATE_MIRROR_TARGET_VERSION")
     live_operation = values.get("STATE_MIRROR_OPERATION_ID")
@@ -716,6 +741,12 @@ def _validate_live_handoff(
             != identity
         ):
             raise UpgradeError("committed handoff conflicts with durable upgrade manifest")
+        transaction = UpgradeTransaction(source_version, target_version, operation_id)
+        expected_data = _handoff_data("committed", transaction)
+        if (handoff.get("data") or {}) != expected_data:
+            raise UpgradeError("committed handoff payload is inconsistent")
+        if mounted_mode == "committed" and mounted_data != expected_data:
+            raise UpgradeError("mounted committed handoff payload is inconsistent")
         return
     if (handoff.get("data") or {}) != mounted_data:
         raise UpgradeError("live handoff payload conflicts with mounted transaction")
