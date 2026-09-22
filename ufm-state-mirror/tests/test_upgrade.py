@@ -24,6 +24,7 @@ from state_mirror.upgrade import (
     HANDOFF_LABEL_VALUE,
     MANIFEST_KEY,
     UpgradeError,
+    UpgradeManifest,
     _commit_target_from_env,
     commit,
     compare_versions,
@@ -37,6 +38,8 @@ OPERATION_ID = "0123456789abcdef0123456789abcdef"
 class FakeConfigMaps:
     def __init__(self):
         self.objs = {}
+        self.next_resource_version = 1
+        self.before_cas = None
 
     def read_cm(self, name):
         value = self.objs.get(name)
@@ -45,11 +48,39 @@ class FakeConfigMaps:
     def write_cm(self, name, *, labels, annotations, data, binary_data):
         self.objs[name] = {
             "name": name,
+            "resource_version": str(self.next_resource_version),
             "labels": dict(labels),
             "annotations": dict(annotations),
             "data": dict(data),
             "binary_data": dict(binary_data),
         }
+        self.next_resource_version += 1
+
+    def write_cm_cas(
+        self,
+        name,
+        *,
+        expected_resource_version,
+        labels,
+        annotations,
+        data,
+        binary_data,
+    ):
+        if self.before_cas is not None:
+            hook, self.before_cas = self.before_cas, None
+            hook(self)
+        current = self.objs.get(name)
+        current_version = current["resource_version"] if current is not None else None
+        if current_version != expected_resource_version:
+            return False
+        self.write_cm(
+            name,
+            labels=labels,
+            annotations=annotations,
+            data=data,
+            binary_data=binary_data,
+        )
+        return True
 
     def delete_cm(self, name):
         self.objs.pop(name, None)
@@ -145,6 +176,30 @@ class TestPreflight:
         }
         assert store.get(MANIFEST_KEY) is None
 
+    def test_fresh_preflight_retry_reuses_operation(self, backend, classifier):
+        store, api = backend
+        api.source_gv()
+        kwargs = {
+            "classifier": classifier,
+            "target_version": "7.1.0",
+            "handoff_configmap": "ufm-upgrade",
+            "source_gv_configmap": "ufm-gv-cfg",
+            "source_gv_key": "gv.cfg",
+            "store": store,
+            "configmaps": api,
+        }
+        assert preflight(**kwargs) is None
+        first_operation = _env(api)["STATE_MIRROR_OPERATION_ID"]
+        assert preflight(**kwargs) is None
+        assert _env(api)["STATE_MIRROR_OPERATION_ID"] == first_operation
+
+    def test_fresh_preflight_rejects_conflicting_target(self, backend, classifier):
+        store, api = backend
+        assert _preflight(store, api, classifier, target="7.1.0") is None
+        with pytest.raises(UpgradeError, match="existing handoff conflicts"):
+            _preflight(store, api, classifier, target="7.2.0")
+        assert _env(api)["STATE_MIRROR_TARGET_VERSION"] == "7.1.0"
+
     def test_resolves_one_legacy_source_version(self, backend, classifier):
         store, api = backend
         _put(store, "ufm:state:a", "7.0.0")
@@ -175,6 +230,22 @@ class TestPreflight:
             )
             api.objs[name]["binary_data"]["body"] = "Y29ycnVwdA=="
         with pytest.raises(wire.WireError, match="content hash mismatch"):
+            _preflight(store, api, classifier)
+
+    def test_partial_manifest_fails_closed(self, backend, classifier):
+        store, api = backend
+        body = b"{}"
+        if isinstance(store, RedisStore):
+            store._client.store[MANIFEST_KEY] = body
+        else:
+            _put(store, MANIFEST_KEY, "7.0.0", body)
+            name = next(
+                name
+                for name, cm in api.objs.items()
+                if cm.get("annotations", {}).get("state-mirror.nvidia.com/key") == MANIFEST_KEY
+            )
+            api.objs[name]["data"].clear()
+        with pytest.raises(UpgradeError, match="missing body or metadata"):
             _preflight(store, api, classifier)
 
     def test_downgrade_fails_closed(self, backend, classifier):
@@ -372,3 +443,33 @@ class TestCommit:
                 configmaps=api,
             )
         assert store.get(MANIFEST_KEY) is None
+
+    def test_concurrent_manifest_change_is_not_overwritten(self, backend, classifier, tmp_path):
+        store, api = backend
+        _put(store, "ufm:state:a", "7.0.0")
+        _preflight(store, api, classifier)
+        handoff_dir = _mount_handoff(tmp_path, api)
+        competing = UpgradeManifest(
+            source_version="7.0.0",
+            target_version="7.0.1",
+            operation_id="f" * 32,
+            committed_at="2026-09-22T00:00:00Z",
+        )
+        body = competing.to_bytes()
+        meta = wire.build_meta(body, "upgrade_manifest", "7.0.1", "test")
+        if isinstance(store, RedisStore):
+            store._client.before_eval = lambda client: wire.write_pair(
+                client, MANIFEST_KEY, body, meta
+            )
+        else:
+            api.before_cas = lambda cm_api: ConfigMapStore(cm_api).put(MANIFEST_KEY, body, meta)
+
+        with pytest.raises(UpgradeError, match="changed during commit"):
+            commit(
+                handoff_dir=handoff_dir,
+                target_version="7.1.0",
+                store=store,
+                configmaps=api,
+            )
+        assert load_manifest(store) == competing
+        assert _env(api)["STATE_MIRROR_UPGRADE_MODE"] == "upgrade"

@@ -251,17 +251,24 @@ def _entry_owns_path(entry: Entry, candidate: str) -> bool:
     return entry.recursive or os.sep not in relative
 
 
-def load_manifest(store: Store) -> Optional[UpgradeManifest]:
+def _load_manifest_record(store: Store) -> tuple[Optional[UpgradeManifest], Optional[bytes]]:
     result = store.get(MANIFEST_KEY)
     if result is None:
-        return None
+        keys = set(store.list_keys(MANIFEST_KEY))
+        if MANIFEST_KEY in keys or wire.meta_key(MANIFEST_KEY) in keys:
+            raise UpgradeError("durable upgrade manifest is missing body or metadata")
+        return None, None
     body, meta = result
     if meta.handler != MANIFEST_HANDLER:
         raise UpgradeError(f"durable upgrade manifest has unexpected handler {meta.handler!r}")
     manifest = UpgradeManifest.from_bytes(body)
     if meta.ufm_version != manifest.target_version:
         raise UpgradeError("durable upgrade manifest metadata version is inconsistent")
-    return manifest
+    return manifest, body
+
+
+def load_manifest(store: Store) -> Optional[UpgradeManifest]:
+    return _load_manifest_record(store)[0]
 
 
 def _entry_store_keys(store: Store, entry: Entry) -> set[str]:
@@ -360,39 +367,50 @@ def _write_handoff(api: ConfigMapApi, name: str, data: dict[str, str]) -> None:
     )
 
 
-def _transaction_for_preflight(
+def _operation_for_preflight(
     api: ConfigMapApi,
     handoff_name: str,
+    mode: str,
     source_version: str,
     target_version: str,
     requested_operation_id: Optional[str],
-) -> UpgradeTransaction:
-    """Reuse a retry of the same preflight and reject an in-flight conflict."""
-    existing = api.read_cm(handoff_name)
-    if existing is not None:
+) -> str:
+    """Reuse an identical retry and reject any globally active conflict."""
+    for existing in api.list_cms(HANDOFF_SELECTOR):
         raw = (existing.get("data") or {}).get("upgrade.env")
         if isinstance(raw, str):
             values = _parse_env(raw)
-            if values.get("STATE_MIRROR_UPGRADE_MODE") == "upgrade":
-                identity = (
-                    values.get("STATE_MIRROR_SOURCE_VERSION"),
-                    values.get("STATE_MIRROR_TARGET_VERSION"),
+            live_mode = values.get("STATE_MIRROR_UPGRADE_MODE")
+            if live_mode not in ("fresh", "upgrade"):
+                continue
+            operation_id = _validated_operation_id(values.get("STATE_MIRROR_OPERATION_ID"))
+            if existing.get("name") != handoff_name:
+                raise UpgradeError(
+                    "active upgrade handoff "
+                    f"{existing.get('name')!r} conflicts with {handoff_name!r}"
                 )
-                requested = (source_version, target_version)
-                if identity != requested:
-                    raise UpgradeError(
-                        "existing handoff conflicts with requested transaction: "
-                        f"stored={identity!r}, requested={requested!r}"
-                    )
-                operation_id = _validated_operation_id(values.get("STATE_MIRROR_OPERATION_ID"))
-                if requested_operation_id is not None and requested_operation_id != operation_id:
-                    raise UpgradeError("requested operation ID conflicts with existing handoff")
-                return UpgradeTransaction(source_version, target_version, operation_id)
-    return UpgradeTransaction(
-        source_version=source_version,
-        target_version=target_version,
-        operation_id=_validated_operation_id(requested_operation_id or uuid.uuid4().hex),
-    )
+            if mode == "committed":
+                if (
+                    requested_operation_id == operation_id
+                    and values.get("STATE_MIRROR_TARGET_VERSION") == target_version
+                ):
+                    return operation_id
+                raise UpgradeError("active handoff conflicts with committed transaction")
+            identity = (
+                live_mode,
+                values.get("STATE_MIRROR_SOURCE_VERSION") if live_mode == "upgrade" else "",
+                values.get("STATE_MIRROR_TARGET_VERSION"),
+            )
+            requested = (mode, source_version if mode == "upgrade" else "", target_version)
+            if identity != requested:
+                raise UpgradeError(
+                    "existing handoff conflicts with requested transaction: "
+                    f"stored={identity!r}, requested={requested!r}"
+                )
+            if requested_operation_id is not None and requested_operation_id != operation_id:
+                raise UpgradeError("requested operation ID conflicts with existing handoff")
+            return operation_id
+    return _validated_operation_id(requested_operation_id or uuid.uuid4().hex)
 
 
 def preflight(
@@ -418,7 +436,14 @@ def preflight(
         else resolve_legacy_source_version(store, classifier)
     )
     if source_version is None:
-        fresh_operation = _validated_operation_id(operation_id or uuid.uuid4().hex)
+        fresh_operation = _operation_for_preflight(
+            configmaps,
+            handoff_configmap,
+            "fresh",
+            "",
+            target_version,
+            operation_id,
+        )
         _write_handoff(
             configmaps,
             handoff_configmap,
@@ -439,7 +464,15 @@ def preflight(
                 "target/source version conflict: versions compare equal but are not identical "
                 f"({source_version!r} != {target_version!r})"
             )
-        operation = manifest.operation_id if manifest is not None else uuid.uuid4().hex
+        requested_operation = manifest.operation_id if manifest is not None else uuid.uuid4().hex
+        operation = _operation_for_preflight(
+            configmaps,
+            handoff_configmap,
+            "committed",
+            source_version,
+            target_version,
+            requested_operation,
+        )
         transaction = UpgradeTransaction(source_version, target_version, operation)
         if manifest is None:
             # A same-version Helm change needs no UFM migration, but it still
@@ -453,7 +486,8 @@ def preflight(
             )
             body = manifest.to_bytes()
             meta = wire.build_meta(body, MANIFEST_HANDLER, target_version, "state-mirror:upgrade")
-            store.put(MANIFEST_KEY, body, meta)
+            if not store.put_if_unchanged(MANIFEST_KEY, None, body, meta):
+                raise UpgradeError("durable upgrade manifest changed during preflight")
         _write_handoff(
             configmaps,
             handoff_configmap,
@@ -464,13 +498,15 @@ def preflight(
         )
         return None
 
-    transaction = _transaction_for_preflight(
+    operation = _operation_for_preflight(
         configmaps,
         handoff_configmap,
+        "upgrade",
         source_version,
         target_version,
         operation_id,
     )
+    transaction = UpgradeTransaction(source_version, target_version, operation)
     source_gv = _read_source_gv(configmaps, source_gv_configmap, source_gv_key)
     _write_handoff(
         configmaps,
@@ -573,7 +609,7 @@ def commit(
         raise UpgradeError(f"handoff is not an upgrade transaction (mode={mode!r})")
 
     store.probe()
-    existing = load_manifest(store)
+    existing, existing_body = _load_manifest_record(store)
     write_manifest = False
     if mode == "committed":
         if existing is None:
@@ -634,7 +670,8 @@ def commit(
     if write_manifest:
         body = manifest.to_bytes()
         meta = wire.build_meta(body, MANIFEST_HANDLER, target_version, "state-mirror:upgrade")
-        store.put(MANIFEST_KEY, body, meta)
+        if not store.put_if_unchanged(MANIFEST_KEY, existing_body, body, meta):
+            raise UpgradeError("durable upgrade manifest changed during commit")
 
     transaction = UpgradeTransaction(source_version, target_version, operation_id)
     _write_handoff(

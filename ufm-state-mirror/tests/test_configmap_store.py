@@ -92,6 +92,8 @@ class FakeConfigMapApi:
 
     def __init__(self):
         self.objs: dict[str, dict] = {}
+        self.next_resource_version = 1
+        self.before_cas = None
 
     def read_cm(self, name):
         obj = self.objs.get(name)
@@ -99,6 +101,7 @@ class FakeConfigMapApi:
             return None
         return {
             "name": name,
+            "resource_version": obj["resource_version"],
             "annotations": dict(obj["annotations"]),
             "data": dict(obj["data"]),
             "binary_data": dict(obj["binary_data"]),
@@ -106,11 +109,39 @@ class FakeConfigMapApi:
 
     def write_cm(self, name, *, labels, annotations, data, binary_data):
         self.objs[name] = {
+            "resource_version": str(self.next_resource_version),
             "labels": dict(labels),
             "annotations": dict(annotations),
             "data": dict(data),
             "binary_data": dict(binary_data),
         }
+        self.next_resource_version += 1
+
+    def write_cm_cas(
+        self,
+        name,
+        *,
+        expected_resource_version,
+        labels,
+        annotations,
+        data,
+        binary_data,
+    ):
+        if self.before_cas is not None:
+            hook, self.before_cas = self.before_cas, None
+            hook(self)
+        current = self.objs.get(name)
+        current_version = current["resource_version"] if current is not None else None
+        if current_version != expected_resource_version:
+            return False
+        self.write_cm(
+            name,
+            labels=labels,
+            annotations=annotations,
+            data=data,
+            binary_data=binary_data,
+        )
+        return True
 
     def delete_cm(self, name):
         self.objs.pop(name, None)
@@ -122,6 +153,7 @@ class FakeConfigMapApi:
                 out.append(
                     {
                         "name": name,
+                        "resource_version": obj["resource_version"],
                         "annotations": dict(obj["annotations"]),
                         "data": dict(obj["data"]),
                         "binary_data": dict(obj["binary_data"]),

@@ -110,6 +110,42 @@ class K8sConfigMapApi:
             if exc.status != 404:
                 raise
 
+    def write_cm_cas(
+        self,
+        name,
+        *,
+        expected_resource_version,
+        labels,
+        annotations,
+        data,
+        binary_data,
+    ) -> bool:
+        """Create-if-absent or resourceVersion-guarded replace."""
+        from kubernetes import client
+        from kubernetes.client.exceptions import ApiException
+
+        body = client.V1ConfigMap(
+            metadata=client.V1ObjectMeta(
+                name=name,
+                namespace=self._ns,
+                labels=labels or None,
+                annotations=annotations or None,
+                resource_version=expected_resource_version,
+            ),
+            data=data or None,
+            binary_data=binary_data or None,
+        )
+        try:
+            if expected_resource_version is None:
+                self._api.create_namespaced_config_map(self._ns, body)
+            else:
+                self._api.replace_namespaced_config_map(name, self._ns, body)
+        except ApiException as exc:
+            if exc.status == 409:
+                return False
+            raise
+        return True
+
     def list_cms(self, label_selector: str) -> list[dict]:
         resp = self._api.list_namespaced_config_map(self._ns, label_selector=label_selector)
         return [self._to_dict(cm) for cm in resp.items]
@@ -119,6 +155,7 @@ class K8sConfigMapApi:
         meta = cm.metadata
         return {
             "name": meta.name,
+            "resource_version": meta.resource_version,
             "annotations": dict(meta.annotations or {}),
             "data": dict(cm.data or {}),
             "binary_data": dict(cm.binary_data or {}),

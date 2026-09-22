@@ -37,6 +37,7 @@ from typing import Optional, Protocol
 
 from state_mirror import wire
 from state_mirror.k8s_errors import classify_k8s_error
+from state_mirror.redis_errors import classify_redis_error
 from state_mirror.wire import Meta
 
 log = logging.getLogger(__name__)
@@ -61,6 +62,16 @@ class Store(ABC):
     @abstractmethod
     def put(self, key: str, body: bytes, meta: Meta) -> None:
         """Atomically write a body together with its metadata."""
+
+    @abstractmethod
+    def put_if_unchanged(
+        self, key: str, expected_body: Optional[bytes], body: bytes, meta: Meta
+    ) -> bool:
+        """Atomically write only when the current body equals ``expected_body``.
+
+        ``expected_body=None`` means the key must be absent. Returns ``False``
+        on a concurrent change and never overwrites that change.
+        """
 
     @abstractmethod
     def delete(self, key: str) -> None:
@@ -95,6 +106,39 @@ class RedisStore(Store):
 
     def put(self, key: str, body: bytes, meta: Meta) -> None:
         wire.write_pair(self._client, key, body, meta)
+
+    def put_if_unchanged(
+        self, key: str, expected_body: Optional[bytes], body: bytes, meta: Meta
+    ) -> bool:
+        # Lua runs atomically on Redis. Check both body and metadata presence so
+        # a partial/corrupt pair can never be accepted as an absent manifest.
+        script = """
+local current_body = redis.call('GET', KEYS[1])
+local current_meta = redis.call('GET', KEYS[2])
+if ARGV[1] == 'absent' then
+    if current_body or current_meta then return 0 end
+else
+    if not current_body or not current_meta or current_body ~= ARGV[2] then return 0 end
+end
+redis.call('SET', KEYS[1], ARGV[3])
+redis.call('SET', KEYS[2], ARGV[4])
+return 1
+"""
+        try:
+            result = self._client.eval(
+                script,
+                2,
+                key,
+                wire.meta_key(key),
+                "absent" if expected_body is None else "present",
+                expected_body or b"",
+                body,
+                meta.to_json(),
+            )
+        except Exception as exc:
+            reason = classify_redis_error(exc)
+            raise wire.WireError(f"{key}: conditional write failed: {exc}", reason=reason) from exc
+        return bool(result)
 
     def delete(self, key: str) -> None:
         wire.delete_pair(self._client, key)
@@ -184,6 +228,17 @@ class ConfigMapApi(Protocol):
 
     def list_cms(self, label_selector: str) -> list[dict]: ...
 
+    def write_cm_cas(
+        self,
+        name: str,
+        *,
+        expected_resource_version: Optional[str],
+        labels: dict[str, str],
+        annotations: dict[str, str],
+        data: dict[str, str],
+        binary_data: dict[str, str],
+    ) -> bool: ...
+
 
 class ConfigMapStore(Store):
     """:class:`Store` backed by Kubernetes ConfigMaps: one object per key.
@@ -214,21 +269,7 @@ class ConfigMapStore(Store):
         return self._meta_of(cm) if cm is not None else None
 
     def put(self, key: str, body: bytes, meta: Meta) -> None:
-        b64 = base64.b64encode(body).decode("ascii")
-        data = {META_FIELD: meta.to_json().decode("utf-8")}
-        binary_data = {BODY_FIELD: b64}
-
-        # Intentionally conservative: we count the base64 length of the body,
-        # which is ~33% larger than the raw bytes etcd actually stores (base64 is
-        # only the REST/JSON representation of binaryData). This fails closed a bit
-        # early rather than risk an apiserver rejection near the ~1 MiB ceiling.
-        total = len(b64) + sum(len(k) + len(v) for k, v in data.items())
-        if total > self._max:
-            log.error("%s encoded object %d bytes exceeds limit %d", key, total, self._max)
-            raise wire.WireError(
-                f"{key}: encoded object {total} bytes exceeds ConfigMap limit {self._max}",
-                reason="toolarge",
-            )
+        data, binary_data = self._encoded_fields(key, body, meta)
 
         try:
             self._api.write_cm(
@@ -245,6 +286,41 @@ class ConfigMapStore(Store):
             )
             raise wire.WireError(f"{key}: configmap write failed: {exc}", reason=reason) from exc
         log.debug("wrote configmap for %s (%d bytes)", key, len(body))
+
+    def put_if_unchanged(
+        self, key: str, expected_body: Optional[bytes], body: bytes, meta: Meta
+    ) -> bool:
+        current = self._read(key)
+        if current is None:
+            if expected_body is not None:
+                return False
+            resource_version = None
+        else:
+            current_meta = self._meta_of(current)
+            if current_meta is None:
+                raise wire.WireError(f"{key}: stored object is missing metadata")
+            current_body = wire.verify_body(self._body_of(current), current_meta, key)
+            if expected_body is None or current_body != expected_body:
+                return False
+            resource_version = current.get("resource_version")
+            if not resource_version:
+                raise wire.WireError(f"{key}: ConfigMap is missing resourceVersion")
+
+        data, binary_data = self._encoded_fields(key, body, meta)
+        try:
+            return self._api.write_cm_cas(
+                configmap_name(key),
+                expected_resource_version=resource_version,
+                labels={MANAGED_BY_LABEL: MANAGED_BY_VALUE},
+                annotations={KEY_ANNOTATION: key},
+                data=data,
+                binary_data=binary_data,
+            )
+        except Exception as exc:
+            reason = classify_k8s_error(exc)
+            raise wire.WireError(
+                f"{key}: conditional ConfigMap write failed: {exc}", reason=reason
+            ) from exc
 
     def delete(self, key: str) -> None:
         try:
@@ -282,6 +358,19 @@ class ConfigMapStore(Store):
             raise wire.WireError(f"configmap probe failed: {exc}", reason=reason) from exc
 
     # --- internals -------------------------------------------------------
+
+    def _encoded_fields(self, key: str, body: bytes, meta: Meta):
+        b64 = base64.b64encode(body).decode("ascii")
+        data = {META_FIELD: meta.to_json().decode("utf-8")}
+        binary_data = {BODY_FIELD: b64}
+        total = len(b64) + sum(len(field) + len(value) for field, value in data.items())
+        if total > self._max:
+            log.error("%s encoded object %d bytes exceeds limit %d", key, total, self._max)
+            raise wire.WireError(
+                f"{key}: encoded object {total} bytes exceeds ConfigMap limit {self._max}",
+                reason="toolarge",
+            )
+        return data, binary_data
 
     def _read(self, key: str) -> Optional[dict]:
         try:
