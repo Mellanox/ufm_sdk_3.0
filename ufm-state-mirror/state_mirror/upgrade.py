@@ -186,7 +186,13 @@ def compare_versions(left: str, right: str) -> int:
         return -1
     left_tokens = tuple(_natural_tokens(left_suffix))
     right_tokens = tuple(_natural_tokens(right_suffix))
-    return -1 if left_tokens < right_tokens else 1
+    if left_tokens != right_tokens:
+        return -1 if left_tokens < right_tokens else 1
+    left_normalized = left_suffix.lower()
+    right_normalized = right_suffix.lower()
+    if left_normalized == right_normalized:
+        return 0
+    return -1 if left_normalized < right_normalized else 1
 
 
 def _natural_tokens(value: str):
@@ -217,6 +223,14 @@ def validate_path_ownership(classifier: Classifier) -> None:
         for owned in HELM_OWNED_PATHS:
             if _entry_owns_path(entry, owned):
                 conflicts.append(f"{entry.path} overlaps Helm-owned {owned}")
+        key = entry.redis_key_prefix if entry.is_directory else entry.redis_key
+        assert key is not None
+        reserved = (MANIFEST_KEY, wire.meta_key(MANIFEST_KEY))
+        if (
+            entry.is_directory
+            and any(key.startswith(item) or item.startswith(key) for item in reserved)
+        ) or (not entry.is_directory and key in reserved):
+            conflicts.append(f"backend key {key!r} overlaps the durable upgrade manifest")
     if conflicts:
         raise UpgradeError("classifier/Helm path ownership conflict: " + "; ".join(conflicts))
 
@@ -420,6 +434,11 @@ def preflight(
             f"{source_version} is newer than target {target_version}"
         )
     if comparison == 0:
+        if target_version != source_version:
+            raise UpgradeError(
+                "target/source version conflict: versions compare equal but are not identical "
+                f"({source_version!r} != {target_version!r})"
+            )
         operation = manifest.operation_id if manifest is not None else uuid.uuid4().hex
         transaction = UpgradeTransaction(source_version, target_version, operation)
         if manifest is None:
@@ -497,6 +516,42 @@ def _find_handoff(api: ConfigMapApi, operation_id: str) -> dict:
     return matches[0]
 
 
+def _validate_live_handoff(
+    handoff: dict,
+    *,
+    mounted_mode: str,
+    source_version: str,
+    target_version: str,
+    operation_id: str,
+    existing: Optional[UpgradeManifest],
+) -> None:
+    values = _parse_env((handoff.get("data") or {}).get("upgrade.env", ""))
+    live_mode = values.get("STATE_MIRROR_UPGRADE_MODE")
+    live_target = values.get("STATE_MIRROR_TARGET_VERSION")
+    live_operation = values.get("STATE_MIRROR_OPERATION_ID")
+    if live_target != target_version or live_operation != operation_id:
+        raise UpgradeError("live handoff ConfigMap conflicts with mounted transaction")
+    if live_mode == "committed":
+        identity = (source_version, target_version, operation_id)
+        if (
+            existing is None
+            or (
+                existing.source_version,
+                existing.target_version,
+                existing.operation_id,
+            )
+            != identity
+        ):
+            raise UpgradeError("committed handoff conflicts with durable upgrade manifest")
+        return
+    if live_mode != mounted_mode:
+        raise UpgradeError(
+            f"live handoff mode {live_mode!r} conflicts with mounted mode {mounted_mode!r}"
+        )
+    if live_mode == "upgrade" and values.get("STATE_MIRROR_SOURCE_VERSION") != source_version:
+        raise UpgradeError("live handoff source version conflicts with mounted transaction")
+
+
 def commit(
     *,
     handoff_dir: str,
@@ -519,6 +574,7 @@ def commit(
 
     store.probe()
     existing = load_manifest(store)
+    write_manifest = False
     if mode == "committed":
         if existing is None:
             raise UpgradeError("committed handoff has no durable upgrade manifest")
@@ -552,9 +608,7 @@ def commit(
                 operation_id=operation_id,
                 committed_at=_utcnow_iso(),
             )
-            body = manifest.to_bytes()
-            meta = wire.build_meta(body, MANIFEST_HANDLER, target_version, "state-mirror:upgrade")
-            store.put(MANIFEST_KEY, body, meta)
+            write_manifest = True
     elif mode in ("fresh", "upgrade"):
         manifest = UpgradeManifest(
             source_version=source_version,
@@ -562,20 +616,26 @@ def commit(
             operation_id=operation_id,
             committed_at=_utcnow_iso(),
         )
+        write_manifest = True
+
+    # Validate the authoritative live object before changing durable state.
+    # The mounted ConfigMap can lag an earlier successful API update, so a live
+    # committed mode is accepted only when the durable manifest already agrees.
+    handoff = _find_handoff(configmaps, operation_id)
+    _validate_live_handoff(
+        handoff,
+        mounted_mode=mode,
+        source_version=source_version,
+        target_version=target_version,
+        operation_id=operation_id,
+        existing=existing,
+    )
+
+    if write_manifest:
         body = manifest.to_bytes()
         meta = wire.build_meta(body, MANIFEST_HANDLER, target_version, "state-mirror:upgrade")
         store.put(MANIFEST_KEY, body, meta)
 
-    handoff = _find_handoff(configmaps, operation_id)
-    handoff_values = _parse_env((handoff.get("data") or {}).get("upgrade.env", ""))
-    if handoff_values.get("STATE_MIRROR_TARGET_VERSION") != target_version:
-        raise UpgradeError("handoff ConfigMap target version conflicts with commit")
-    if handoff_values.get("STATE_MIRROR_UPGRADE_MODE") not in (
-        "fresh",
-        "upgrade",
-        "committed",
-    ):
-        raise UpgradeError("handoff ConfigMap has an invalid transaction mode")
     transaction = UpgradeTransaction(source_version, target_version, operation_id)
     _write_handoff(
         configmaps,

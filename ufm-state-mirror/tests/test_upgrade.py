@@ -26,6 +26,7 @@ from state_mirror.upgrade import (
     UpgradeError,
     _commit_target_from_env,
     commit,
+    compare_versions,
     load_manifest,
     preflight,
 )
@@ -217,6 +218,35 @@ class TestPreflight:
         with pytest.raises(UpgradeError, match="ownership conflict"):
             _preflight(store, api, classifier)
 
+    def test_classifier_cannot_overlap_upgrade_manifest(self, backend):
+        store, api = backend
+        classifier = Classifier.from_dict(
+            {
+                "entries": [
+                    {
+                        "path": "/opt/ufm/files/conf/plugins",
+                        "handler": "directory",
+                        "redis_key_prefix": "state-mirror:",
+                        "recursive": True,
+                    }
+                ]
+            }
+        )
+        with pytest.raises(UpgradeError, match="durable upgrade manifest"):
+            _preflight(store, api, classifier)
+
+    def test_semantically_equal_but_distinct_versions_conflict(self, backend, classifier):
+        store, api = backend
+        _put(store, "ufm:state:a", "7.1")
+        with pytest.raises(UpgradeError, match="target/source version conflict"):
+            _preflight(store, api, classifier, target="7.1.0")
+        assert store.get(MANIFEST_KEY) is None
+
+
+def test_version_comparison_is_symmetric_for_punctuation_equivalent_suffixes():
+    assert compare_versions("7.1.0-rc.1", "7.1.0-rc1") == -1
+    assert compare_versions("7.1.0-rc1", "7.1.0-rc.1") == 1
+
 
 class TestCommit:
     def test_environment_target_versions_must_agree(self, monkeypatch):
@@ -324,3 +354,21 @@ class TestCommit:
                 store=store,
                 configmaps=api,
             )
+
+    def test_live_handoff_conflict_does_not_write_manifest(self, backend, classifier, tmp_path):
+        store, api = backend
+        _put(store, "ufm:state:a", "7.0.0")
+        _preflight(store, api, classifier)
+        handoff_dir = _mount_handoff(tmp_path, api)
+        api.objs["ufm-upgrade"]["data"]["upgrade.env"] = api.objs["ufm-upgrade"]["data"][
+            "upgrade.env"
+        ].replace("7.1.0", "7.2.0")
+
+        with pytest.raises(UpgradeError, match="live handoff ConfigMap conflicts"):
+            commit(
+                handoff_dir=handoff_dir,
+                target_version="7.1.0",
+                store=store,
+                configmaps=api,
+            )
+        assert store.get(MANIFEST_KEY) is None
