@@ -158,9 +158,8 @@ def _preflight(store, api, classifier, target="7.1.0"):
 def _mount_handoff(tmp_path, api):
     path = tmp_path / "handoff"
     path.mkdir()
-    (path / "upgrade.env").write_text(
-        api.objs["ufm-upgrade"]["data"]["upgrade.env"], encoding="utf-8"
-    )
+    for name, value in api.objs["ufm-upgrade"]["data"].items():
+        (path / name).write_text(value, encoding="utf-8")
     return str(path)
 
 
@@ -252,6 +251,27 @@ class TestPreflight:
         assert transaction.source_version == "7.0.0"
         assert transaction.target_version == "7.1.0"
         assert _env(api)["STATE_MIRROR_UPGRADE_MODE"] == "upgrade"
+
+    @pytest.mark.parametrize("field", ["source-gv.cfg", "preserve-paths.txt"])
+    def test_upgrade_retry_rejects_changed_payload(self, backend, classifier, field):
+        store, api = backend
+        _put(store, "ufm:state:a", "7.0.0")
+        _preflight(store, api, classifier)
+        if field == "source-gv.cfg":
+            api.objs["ufm-gv-cfg"]["data"]["gv.cfg"] = "different-old-gv\n"
+        else:
+            api.objs["ufm-upgrade"]["data"][field] = "different/path\n"
+        with pytest.raises(UpgradeError, match="handoff payload conflicts"):
+            preflight(
+                classifier=classifier,
+                target_version="7.1.0",
+                handoff_configmap="ufm-upgrade",
+                source_gv_configmap="ufm-gv-cfg",
+                source_gv_key="gv.cfg",
+                store=store,
+                configmaps=api,
+                operation_id=OPERATION_ID,
+            )
 
     def test_inconsistent_metadata_fails_closed(self, backend, classifier):
         store, api = backend
@@ -487,6 +507,51 @@ class TestCommit:
                 configmaps=api,
             )
         assert store.get(MANIFEST_KEY) is None
+
+    @pytest.mark.parametrize("field", ["source-gv.cfg", "preserve-paths.txt"])
+    def test_live_payload_change_does_not_write_manifest(
+        self, backend, classifier, tmp_path, field
+    ):
+        store, api = backend
+        _put(store, "ufm:state:a", "7.0.0")
+        _preflight(store, api, classifier)
+        handoff_dir = _mount_handoff(tmp_path, api)
+        api.objs["ufm-upgrade"]["data"][field] += "changed\n"
+
+        with pytest.raises(UpgradeError, match="payload conflicts"):
+            commit(
+                handoff_dir=handoff_dir,
+                target_version="7.1.0",
+                store=store,
+                configmaps=api,
+            )
+        assert store.get(MANIFEST_KEY) is None
+
+    def test_committed_handoff_without_manifest_fails_preflight(self, backend, classifier):
+        store, api = backend
+        _preflight(store, api, classifier)
+        env = api.objs["ufm-upgrade"]["data"]["upgrade.env"]
+        api.objs["ufm-upgrade"]["data"] = {
+            "upgrade.env": env.replace("MODE=fresh", "MODE=committed")
+        }
+        with pytest.raises(UpgradeError, match="no durable upgrade manifest"):
+            _preflight(store, api, classifier)
+
+    def test_committed_handoff_operation_must_match_manifest(self, backend, classifier, tmp_path):
+        store, api = backend
+        _put(store, "ufm:state:a", "7.0.0")
+        _preflight(store, api, classifier)
+        commit(
+            handoff_dir=_mount_handoff(tmp_path, api),
+            target_version="7.1.0",
+            store=store,
+            configmaps=api,
+        )
+        api.objs["ufm-upgrade"]["data"]["upgrade.env"] = api.objs["ufm-upgrade"]["data"][
+            "upgrade.env"
+        ].replace(OPERATION_ID, "f" * 32)
+        with pytest.raises(UpgradeError, match="conflicts with durable upgrade manifest"):
+            _preflight(store, api, classifier, target="7.1.0")
 
     def test_concurrent_manifest_change_is_not_overwritten(self, backend, classifier, tmp_path):
         store, api = backend
