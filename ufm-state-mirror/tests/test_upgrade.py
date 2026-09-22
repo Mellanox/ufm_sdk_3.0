@@ -165,6 +165,19 @@ def _mount_handoff(tmp_path, api):
 
 
 class TestPreflight:
+    def test_handoff_cannot_overwrite_source_gv_configmap(self, backend, classifier):
+        store, api = backend
+        with pytest.raises(UpgradeError, match="must be different"):
+            preflight(
+                classifier=classifier,
+                target_version="7.1.0",
+                handoff_configmap="same-configmap",
+                source_gv_configmap="same-configmap",
+                source_gv_key="gv.cfg",
+                store=store,
+                configmaps=api,
+            )
+
     def test_fresh_state_produces_no_upgrade_transaction(self, backend, classifier):
         store, api = backend
         transaction = _preflight(store, api, classifier)
@@ -199,6 +212,37 @@ class TestPreflight:
         with pytest.raises(UpgradeError, match="existing handoff conflicts"):
             _preflight(store, api, classifier, target="7.2.0")
         assert _env(api)["STATE_MIRROR_TARGET_VERSION"] == "7.1.0"
+
+    def test_concurrent_fresh_preflight_does_not_overwrite_winner(self, backend, classifier):
+        store, api = backend
+
+        def competing_handoff(cm_api):
+            cm_api.write_cm(
+                "ufm-upgrade",
+                labels={HANDOFF_LABEL: HANDOFF_LABEL_VALUE},
+                annotations={},
+                data={
+                    "upgrade.env": (
+                        "STATE_MIRROR_UPGRADE_MODE=fresh\n"
+                        "STATE_MIRROR_TARGET_VERSION=7.1.0\n"
+                        f"STATE_MIRROR_OPERATION_ID={'f' * 32}\n"
+                    )
+                },
+                binary_data={},
+            )
+
+        api.before_cas = competing_handoff
+        with pytest.raises(UpgradeError, match="operation ID conflicts"):
+            preflight(
+                classifier=classifier,
+                target_version="7.1.0",
+                handoff_configmap="ufm-upgrade",
+                source_gv_configmap="ufm-gv-cfg",
+                source_gv_key="gv.cfg",
+                store=store,
+                configmaps=api,
+            )
+        assert _env(api)["STATE_MIRROR_OPERATION_ID"] == "f" * 32
 
     def test_resolves_one_legacy_source_version(self, backend, classifier):
         store, api = backend
@@ -473,3 +517,51 @@ class TestCommit:
             )
         assert load_manifest(store) == competing
         assert _env(api)["STATE_MIRROR_UPGRADE_MODE"] == "upgrade"
+
+    def test_handoff_change_after_validation_is_not_overwritten(
+        self, fake_redis, classifier, tmp_path
+    ):
+        store = RedisStore(fake_redis)
+        api = FakeConfigMaps()
+        _put(store, "ufm:state:a", "7.0.0")
+        _preflight(store, api, classifier)
+        handoff_dir = _mount_handoff(tmp_path, api)
+
+        def competing_handoff(cm_api):
+            current = cm_api.objs["ufm-upgrade"]
+            cm_api.write_cm(
+                "ufm-upgrade",
+                labels=current["labels"],
+                annotations={},
+                data={
+                    "upgrade.env": current["data"]["upgrade.env"].replace(OPERATION_ID, "f" * 32)
+                },
+                binary_data={},
+            )
+
+        api.before_cas = competing_handoff
+        with pytest.raises(UpgradeError, match="handoff ConfigMap changed during commit"):
+            commit(
+                handoff_dir=handoff_dir,
+                target_version="7.1.0",
+                store=store,
+                configmaps=api,
+            )
+        assert load_manifest(store).operation_id == OPERATION_ID
+        assert _env(api)["STATE_MIRROR_OPERATION_ID"] == "f" * 32
+
+
+def test_redis_manifest_cas_detects_metadata_only_change(fake_redis):
+    store = RedisStore(fake_redis)
+    old_body = b"old"
+    old_meta = wire.build_meta(old_body, "upgrade_manifest", "7.0.0", "test")
+    store.put(MANIFEST_KEY, old_body, old_meta)
+    fake_redis.before_eval = lambda client: client.store.__setitem__(
+        wire.meta_key(MANIFEST_KEY), b"changed-meta"
+    )
+    new_body = b"new"
+    new_meta = wire.build_meta(new_body, "upgrade_manifest", "7.1.0", "test")
+
+    assert not store.put_if_unchanged(MANIFEST_KEY, (old_body, old_meta), new_body, new_meta)
+    assert fake_redis.store[MANIFEST_KEY] == old_body
+    assert fake_redis.store[wire.meta_key(MANIFEST_KEY)] == b"changed-meta"

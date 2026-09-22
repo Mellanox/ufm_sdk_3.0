@@ -200,6 +200,18 @@ class TestK8sConfigMapApiWrites:
         assert core.replaced_versions == ["1", "2"]
         assert core.current.data == {"upgrade.env": "mode=committed"}
 
+        assert api.write_cm_cas(
+            "handoff",
+            expected_resource_version="3",
+            **kwargs,
+        )
+        core.conflict_once = True
+        assert not api.write_cm_cas(
+            "handoff",
+            expected_resource_version="3",
+            **kwargs,
+        )
+
 
 class TestRoundTrip:
     def test_probe_is_read_only(self, cm_store, cm_api):

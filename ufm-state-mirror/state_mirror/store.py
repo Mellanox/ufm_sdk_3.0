@@ -65,11 +65,11 @@ class Store(ABC):
 
     @abstractmethod
     def put_if_unchanged(
-        self, key: str, expected_body: Optional[bytes], body: bytes, meta: Meta
+        self, key: str, expected: Optional[tuple[bytes, Meta]], body: bytes, meta: Meta
     ) -> bool:
-        """Atomically write only when the current body equals ``expected_body``.
+        """Atomically write only when body and metadata equal ``expected``.
 
-        ``expected_body=None`` means the key must be absent. Returns ``False``
+        ``expected=None`` means the key must be absent. Returns ``False``
         on a concurrent change and never overwrites that change.
         """
 
@@ -108,7 +108,7 @@ class RedisStore(Store):
         wire.write_pair(self._client, key, body, meta)
 
     def put_if_unchanged(
-        self, key: str, expected_body: Optional[bytes], body: bytes, meta: Meta
+        self, key: str, expected: Optional[tuple[bytes, Meta]], body: bytes, meta: Meta
     ) -> bool:
         # Lua runs atomically on Redis. Check both body and metadata presence so
         # a partial/corrupt pair can never be accepted as an absent manifest.
@@ -118,20 +118,23 @@ local current_meta = redis.call('GET', KEYS[2])
 if ARGV[1] == 'absent' then
     if current_body or current_meta then return 0 end
 else
-    if not current_body or not current_meta or current_body ~= ARGV[2] then return 0 end
+    if not current_body or not current_meta or current_body ~= ARGV[2]
+       or current_meta ~= ARGV[3] then return 0 end
 end
-redis.call('SET', KEYS[1], ARGV[3])
-redis.call('SET', KEYS[2], ARGV[4])
+redis.call('SET', KEYS[1], ARGV[4])
+redis.call('SET', KEYS[2], ARGV[5])
 return 1
 """
+        expected_body, expected_meta = expected or (b"", None)
         try:
             result = self._client.eval(
                 script,
                 2,
                 key,
                 wire.meta_key(key),
-                "absent" if expected_body is None else "present",
-                expected_body or b"",
+                "absent" if expected is None else "present",
+                expected_body,
+                expected_meta.to_json() if expected_meta is not None else b"",
                 body,
                 meta.to_json(),
             )
@@ -288,11 +291,11 @@ class ConfigMapStore(Store):
         log.debug("wrote configmap for %s (%d bytes)", key, len(body))
 
     def put_if_unchanged(
-        self, key: str, expected_body: Optional[bytes], body: bytes, meta: Meta
+        self, key: str, expected: Optional[tuple[bytes, Meta]], body: bytes, meta: Meta
     ) -> bool:
         current = self._read(key)
         if current is None:
-            if expected_body is not None:
+            if expected is not None:
                 return False
             resource_version = None
         else:
@@ -300,7 +303,10 @@ class ConfigMapStore(Store):
             if current_meta is None:
                 raise wire.WireError(f"{key}: stored object is missing metadata")
             current_body = wire.verify_body(self._body_of(current), current_meta, key)
-            if expected_body is None or current_body != expected_body:
+            if expected is None:
+                return False
+            expected_body, expected_meta = expected
+            if current_body != expected_body or current_meta.to_json() != expected_meta.to_json():
                 return False
             resource_version = current.get("resource_version")
             if not resource_version:

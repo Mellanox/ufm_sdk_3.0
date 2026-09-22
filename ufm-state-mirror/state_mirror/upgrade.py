@@ -84,6 +84,17 @@ class ConfigMapApi(Protocol):
 
     def list_cms(self, label_selector: str) -> list[dict]: ...
 
+    def write_cm_cas(
+        self,
+        name: str,
+        *,
+        expected_resource_version: Optional[str],
+        labels: dict[str, str],
+        annotations: dict[str, str],
+        data: dict[str, str],
+        binary_data: dict[str, str],
+    ) -> bool: ...
+
 
 @dataclass(frozen=True)
 class UpgradeManifest:
@@ -115,7 +126,7 @@ class UpgradeManifest:
                 source_version=_validated_version(data["source_version"], "manifest source"),
                 target_version=_validated_version(data["target_version"], "manifest target"),
                 operation_id=_validated_operation_id(data["operation_id"]),
-                committed_at=str(data["committed_at"]),
+                committed_at=_validated_timestamp(data["committed_at"]),
             )
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             raise UpgradeError(f"durable upgrade manifest is corrupt: {exc}") from exc
@@ -154,6 +165,18 @@ def _validated_version(value: object, description: str) -> str:
 def _validated_operation_id(value: object) -> str:
     if not isinstance(value, str) or not _OPERATION_ID_RE.fullmatch(value):
         raise UpgradeError(f"invalid StateMirror operation ID: {value!r}")
+    return value
+
+
+def _validated_timestamp(value: object) -> str:
+    if not isinstance(value, str) or not re.fullmatch(
+        r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", value
+    ):
+        raise UpgradeError(f"invalid manifest timestamp: {value!r}")
+    try:
+        datetime.datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError as exc:
+        raise UpgradeError(f"invalid manifest timestamp: {value!r}") from exc
     return value
 
 
@@ -251,7 +274,9 @@ def _entry_owns_path(entry: Entry, candidate: str) -> bool:
     return entry.recursive or os.sep not in relative
 
 
-def _load_manifest_record(store: Store) -> tuple[Optional[UpgradeManifest], Optional[bytes]]:
+def _load_manifest_record(
+    store: Store,
+) -> tuple[Optional[UpgradeManifest], Optional[tuple[bytes, wire.Meta]]]:
     result = store.get(MANIFEST_KEY)
     if result is None:
         keys = set(store.list_keys(MANIFEST_KEY))
@@ -264,7 +289,7 @@ def _load_manifest_record(store: Store) -> tuple[Optional[UpgradeManifest], Opti
     manifest = UpgradeManifest.from_bytes(body)
     if meta.ufm_version != manifest.target_version:
         raise UpgradeError("durable upgrade manifest metadata version is inconsistent")
-    return manifest, body
+    return manifest, (body, meta)
 
 
 def load_manifest(store: Store) -> Optional[UpgradeManifest]:
@@ -357,16 +382,6 @@ def _read_source_gv(api: ConfigMapApi, name: str, key: str) -> str:
     return value
 
 
-def _write_handoff(api: ConfigMapApi, name: str, data: dict[str, str]) -> None:
-    api.write_cm(
-        name,
-        labels={HANDOFF_LABEL: HANDOFF_LABEL_VALUE},
-        annotations={},
-        data=data,
-        binary_data={},
-    )
-
-
 def _operation_for_preflight(
     api: ConfigMapApi,
     handoff_name: str,
@@ -374,9 +389,12 @@ def _operation_for_preflight(
     source_version: str,
     target_version: str,
     requested_operation_id: Optional[str],
-) -> str:
+) -> tuple[str, Optional[str]]:
     """Reuse an identical retry and reject any globally active conflict."""
+    named_handoff = None
     for existing in api.list_cms(HANDOFF_SELECTOR):
+        if existing.get("name") == handoff_name:
+            named_handoff = existing
         raw = (existing.get("data") or {}).get("upgrade.env")
         if isinstance(raw, str):
             values = _parse_env(raw)
@@ -394,7 +412,7 @@ def _operation_for_preflight(
                     requested_operation_id == operation_id
                     and values.get("STATE_MIRROR_TARGET_VERSION") == target_version
                 ):
-                    return operation_id
+                    return operation_id, _resource_version(existing)
                 raise UpgradeError("active handoff conflicts with committed transaction")
             identity = (
                 live_mode,
@@ -409,8 +427,70 @@ def _operation_for_preflight(
                 )
             if requested_operation_id is not None and requested_operation_id != operation_id:
                 raise UpgradeError("requested operation ID conflicts with existing handoff")
-            return operation_id
-    return _validated_operation_id(requested_operation_id or uuid.uuid4().hex)
+            return operation_id, _resource_version(existing)
+    resource_version = _resource_version(named_handoff) if named_handoff is not None else None
+    if named_handoff is not None:
+        values = _parse_env((named_handoff.get("data") or {}).get("upgrade.env", ""))
+        if (
+            mode != "committed"
+            and values.get("STATE_MIRROR_UPGRADE_MODE") == "committed"
+            and values.get("STATE_MIRROR_TARGET_VERSION") == target_version
+        ):
+            raise UpgradeError("handoff transaction was already committed")
+    return _validated_operation_id(requested_operation_id or uuid.uuid4().hex), resource_version
+
+
+def _resource_version(configmap: dict) -> str:
+    value = configmap.get("resource_version")
+    if not isinstance(value, str) or not value:
+        raise UpgradeError(f"ConfigMap {configmap.get('name')!r} is missing resourceVersion")
+    return value
+
+
+def _write_preflight_handoff(
+    api: ConfigMapApi,
+    *,
+    handoff_name: str,
+    mode: str,
+    source_version: str,
+    target_version: str,
+    requested_operation_id: Optional[str],
+    source_gv: Optional[str] = None,
+    paths: Optional[list[str]] = None,
+) -> UpgradeTransaction:
+    operation_id = requested_operation_id
+    for _attempt in range(3):
+        operation_id, resource_version = _operation_for_preflight(
+            api,
+            handoff_name,
+            mode,
+            source_version,
+            target_version,
+            operation_id,
+        )
+        transaction = UpgradeTransaction(source_version, target_version, operation_id)
+        if mode == "fresh":
+            data = {"upgrade.env": _fresh_env(target_version, operation_id)}
+        elif mode == "committed":
+            data = {"upgrade.env": _upgrade_env(transaction, mode="committed")}
+        else:
+            assert source_gv is not None
+            assert paths is not None
+            data = {
+                "upgrade.env": _upgrade_env(transaction),
+                "source-gv.cfg": source_gv,
+                "preserve-paths.txt": "".join(f"{path}\n" for path in paths),
+            }
+        if api.write_cm_cas(
+            handoff_name,
+            expected_resource_version=resource_version,
+            labels={HANDOFF_LABEL: HANDOFF_LABEL_VALUE},
+            annotations={},
+            data=data,
+            binary_data={},
+        ):
+            return transaction
+    raise UpgradeError("handoff ConfigMap changed during preflight")
 
 
 def preflight(
@@ -425,6 +505,8 @@ def preflight(
     operation_id: Optional[str] = None,
 ) -> Optional[UpgradeTransaction]:
     target_version = _validated_version(target_version, "target")
+    if handoff_configmap == source_gv_configmap:
+        raise UpgradeError("handoff and source gv.cfg ConfigMaps must be different")
     store.probe()
     validate_path_ownership(classifier)
     paths = preserve_paths(classifier)
@@ -436,18 +518,13 @@ def preflight(
         else resolve_legacy_source_version(store, classifier)
     )
     if source_version is None:
-        fresh_operation = _operation_for_preflight(
+        _write_preflight_handoff(
             configmaps,
-            handoff_configmap,
-            "fresh",
-            "",
-            target_version,
-            operation_id,
-        )
-        _write_handoff(
-            configmaps,
-            handoff_configmap,
-            {"upgrade.env": _fresh_env(target_version, fresh_operation)},
+            handoff_name=handoff_configmap,
+            mode="fresh",
+            source_version="",
+            target_version=target_version,
+            requested_operation_id=operation_id,
         )
         log.info("fresh durable state: no upgrade transaction required")
         return None
@@ -465,7 +542,7 @@ def preflight(
                 f"({source_version!r} != {target_version!r})"
             )
         requested_operation = manifest.operation_id if manifest is not None else uuid.uuid4().hex
-        operation = _operation_for_preflight(
+        operation, _resource_version_before_manifest = _operation_for_preflight(
             configmaps,
             handoff_configmap,
             "committed",
@@ -473,7 +550,6 @@ def preflight(
             target_version,
             requested_operation,
         )
-        transaction = UpgradeTransaction(source_version, target_version, operation)
         if manifest is None:
             # A same-version Helm change needs no UFM migration, but it still
             # needs durable authority so the committed handoff remains valid
@@ -488,34 +564,29 @@ def preflight(
             meta = wire.build_meta(body, MANIFEST_HANDLER, target_version, "state-mirror:upgrade")
             if not store.put_if_unchanged(MANIFEST_KEY, None, body, meta):
                 raise UpgradeError("durable upgrade manifest changed during preflight")
-        _write_handoff(
+        _write_preflight_handoff(
             configmaps,
-            handoff_configmap,
-            {"upgrade.env": _upgrade_env(transaction, mode="committed")},
+            handoff_name=handoff_configmap,
+            mode="committed",
+            source_version=source_version,
+            target_version=target_version,
+            requested_operation_id=operation,
         )
         log.info(
             "target %s already matches durable state; migration will not replay", target_version
         )
         return None
 
-    operation = _operation_for_preflight(
-        configmaps,
-        handoff_configmap,
-        "upgrade",
-        source_version,
-        target_version,
-        operation_id,
-    )
-    transaction = UpgradeTransaction(source_version, target_version, operation)
     source_gv = _read_source_gv(configmaps, source_gv_configmap, source_gv_key)
-    _write_handoff(
+    transaction = _write_preflight_handoff(
         configmaps,
-        handoff_configmap,
-        {
-            "upgrade.env": _upgrade_env(transaction),
-            "source-gv.cfg": source_gv,
-            "preserve-paths.txt": "".join(f"{path}\n" for path in paths),
-        },
+        handoff_name=handoff_configmap,
+        mode="upgrade",
+        source_version=source_version,
+        target_version=target_version,
+        requested_operation_id=operation_id,
+        source_gv=source_gv,
+        paths=paths,
     )
     log.info(
         "prepared StateMirror upgrade %s -> %s (%s)",
@@ -609,7 +680,7 @@ def commit(
         raise UpgradeError(f"handoff is not an upgrade transaction (mode={mode!r})")
 
     store.probe()
-    existing, existing_body = _load_manifest_record(store)
+    existing, existing_record = _load_manifest_record(store)
     write_manifest = False
     if mode == "committed":
         if existing is None:
@@ -670,15 +741,19 @@ def commit(
     if write_manifest:
         body = manifest.to_bytes()
         meta = wire.build_meta(body, MANIFEST_HANDLER, target_version, "state-mirror:upgrade")
-        if not store.put_if_unchanged(MANIFEST_KEY, existing_body, body, meta):
+        if not store.put_if_unchanged(MANIFEST_KEY, existing_record, body, meta):
             raise UpgradeError("durable upgrade manifest changed during commit")
 
     transaction = UpgradeTransaction(source_version, target_version, operation_id)
-    _write_handoff(
-        configmaps,
+    if not configmaps.write_cm_cas(
         handoff["name"],
-        {"upgrade.env": _upgrade_env(transaction, mode="committed")},
-    )
+        expected_resource_version=_resource_version(handoff),
+        labels={HANDOFF_LABEL: HANDOFF_LABEL_VALUE},
+        annotations={},
+        data={"upgrade.env": _upgrade_env(transaction, mode="committed")},
+        binary_data={},
+    ):
+        raise UpgradeError("handoff ConfigMap changed during commit")
     log.info("committed StateMirror upgrade to %s (%s)", target_version, operation_id)
     return manifest
 

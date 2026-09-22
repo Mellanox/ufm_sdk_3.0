@@ -65,7 +65,9 @@ class FakeRedis:
     def ping(self):
         return True
 
-    def eval(self, script, numkeys, body_key, meta_key, mode, expected, body, meta):
+    def eval(
+        self, script, numkeys, body_key, meta_key, mode, expected_body, expected_meta, body, meta
+    ):
         if self.before_eval is not None:
             hook, self.before_eval = self.before_eval, None
             hook(self)
@@ -74,7 +76,12 @@ class FakeRedis:
         if mode == "absent":
             if current_body is not None or current_meta is not None:
                 return 0
-        elif current_body is None or current_meta is None or current_body != expected:
+        elif (
+            current_body is None
+            or current_meta is None
+            or current_body != expected_body
+            or current_meta != expected_meta
+        ):
             return 0
         self.store[body_key] = body
         self.store[meta_key] = meta
