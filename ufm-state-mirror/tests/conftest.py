@@ -41,6 +41,7 @@ class FakeRedis:
 
     def __init__(self):
         self.store = {}
+        self.before_eval = None
 
     def get(self, key):
         return self.store.get(key)
@@ -63,6 +64,28 @@ class FakeRedis:
 
     def ping(self):
         return True
+
+    def eval(
+        self, script, numkeys, body_key, meta_key, mode, expected_body, expected_meta, body, meta
+    ):
+        if self.before_eval is not None:
+            hook, self.before_eval = self.before_eval, None
+            hook(self)
+        current_body = self.store.get(body_key)
+        current_meta = self.store.get(meta_key)
+        if mode == "absent":
+            if current_body is not None or current_meta is not None:
+                return 0
+        elif (
+            current_body is None
+            or current_meta is None
+            or current_body != expected_body
+            or current_meta != expected_meta
+        ):
+            return 0
+        self.store[body_key] = body
+        self.store[meta_key] = meta
+        return 1
 
 
 @pytest.fixture

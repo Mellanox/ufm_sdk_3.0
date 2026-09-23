@@ -14,11 +14,14 @@
 
 import base64
 import re
+import sys
+import types
 
 import pytest
 
 from state_mirror import store as store_mod
 from state_mirror import wire
+from state_mirror.k8s_client import K8sConfigMapApi
 from state_mirror.store import (
     BODY_FIELD,
     KEY_ANNOTATION,
@@ -38,11 +41,59 @@ class _ApiException(Exception):
         self.status = status
 
 
+def _install_fake_kubernetes(monkeypatch):
+    class V1ObjectMeta:
+        def __init__(self, **kwargs):
+            self.__dict__.update(kwargs)
+
+    class V1ConfigMap:
+        def __init__(self, **kwargs):
+            self.__dict__.update(kwargs)
+
+    kubernetes = types.ModuleType("kubernetes")
+    client = types.ModuleType("kubernetes.client")
+    exceptions = types.ModuleType("kubernetes.client.exceptions")
+    client.V1ObjectMeta = V1ObjectMeta
+    client.V1ConfigMap = V1ConfigMap
+    exceptions.ApiException = _ApiException
+    kubernetes.client = client
+    monkeypatch.setitem(sys.modules, "kubernetes", kubernetes)
+    monkeypatch.setitem(sys.modules, "kubernetes.client", client)
+    monkeypatch.setitem(sys.modules, "kubernetes.client.exceptions", exceptions)
+
+
+class _VersionedCoreV1:
+    def __init__(self):
+        self.current = None
+        self.replaced_versions = []
+        self.conflict_once = False
+
+    def read_namespaced_config_map(self, name, namespace):
+        if self.current is None:
+            raise _ApiException(404)
+        return self.current
+
+    def create_namespaced_config_map(self, namespace, body):
+        body.metadata.resource_version = "1"
+        self.current = body
+
+    def replace_namespaced_config_map(self, name, namespace, body):
+        self.replaced_versions.append(body.metadata.resource_version)
+        if self.conflict_once:
+            self.conflict_once = False
+            self.current.metadata.resource_version = "2"
+            raise _ApiException(409)
+        body.metadata.resource_version = "3"
+        self.current = body
+
+
 class FakeConfigMapApi:
     """In-memory CoreV1-ish ConfigMap API for unit tests."""
 
     def __init__(self):
         self.objs: dict[str, dict] = {}
+        self.next_resource_version = 1
+        self.before_cas = None
 
     def read_cm(self, name):
         obj = self.objs.get(name)
@@ -50,6 +101,7 @@ class FakeConfigMapApi:
             return None
         return {
             "name": name,
+            "resource_version": obj["resource_version"],
             "annotations": dict(obj["annotations"]),
             "data": dict(obj["data"]),
             "binary_data": dict(obj["binary_data"]),
@@ -57,11 +109,39 @@ class FakeConfigMapApi:
 
     def write_cm(self, name, *, labels, annotations, data, binary_data):
         self.objs[name] = {
+            "resource_version": str(self.next_resource_version),
             "labels": dict(labels),
             "annotations": dict(annotations),
             "data": dict(data),
             "binary_data": dict(binary_data),
         }
+        self.next_resource_version += 1
+
+    def write_cm_cas(
+        self,
+        name,
+        *,
+        expected_resource_version,
+        labels,
+        annotations,
+        data,
+        binary_data,
+    ):
+        if self.before_cas is not None:
+            hook, self.before_cas = self.before_cas, None
+            hook(self)
+        current = self.objs.get(name)
+        current_version = current["resource_version"] if current is not None else None
+        if current_version != expected_resource_version:
+            return False
+        self.write_cm(
+            name,
+            labels=labels,
+            annotations=annotations,
+            data=data,
+            binary_data=binary_data,
+        )
+        return True
 
     def delete_cm(self, name):
         self.objs.pop(name, None)
@@ -73,6 +153,7 @@ class FakeConfigMapApi:
                 out.append(
                     {
                         "name": name,
+                        "resource_version": obj["resource_version"],
                         "annotations": dict(obj["annotations"]),
                         "data": dict(obj["data"]),
                         "binary_data": dict(obj["binary_data"]),
@@ -95,6 +176,41 @@ def _put(store, key, body, handler="blob", ufm_version="7.0.1"):
     meta = wire.build_meta(body, handler, ufm_version, "state-mirror:test")
     store.put(key, body, meta)
     return meta
+
+
+class TestK8sConfigMapApiWrites:
+    def test_create_then_resource_versioned_replace_with_conflict_retry(self, monkeypatch):
+        _install_fake_kubernetes(monkeypatch)
+        core = _VersionedCoreV1()
+        api = K8sConfigMapApi(core, "ufm")
+        kwargs = {
+            "labels": {"app": "state-mirror"},
+            "annotations": {},
+            "data": {"upgrade.env": "mode=upgrade"},
+            "binary_data": {},
+        }
+
+        api.write_cm("handoff", **kwargs)
+        assert core.current.metadata.resource_version == "1"
+
+        core.conflict_once = True
+        kwargs["data"] = {"upgrade.env": "mode=committed"}
+        api.write_cm("handoff", **kwargs)
+
+        assert core.replaced_versions == ["1", "2"]
+        assert core.current.data == {"upgrade.env": "mode=committed"}
+
+        assert api.write_cm_cas(
+            "handoff",
+            expected_resource_version="3",
+            **kwargs,
+        )
+        core.conflict_once = True
+        assert not api.write_cm_cas(
+            "handoff",
+            expected_resource_version="3",
+            **kwargs,
+        )
 
 
 class TestRoundTrip:
