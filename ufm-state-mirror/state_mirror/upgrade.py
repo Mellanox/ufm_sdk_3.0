@@ -25,6 +25,7 @@ a handoff must never say ``committed`` before the durable manifest exists.
 from __future__ import annotations
 
 import argparse
+import base64
 import datetime
 import json
 import logging
@@ -168,15 +169,15 @@ def _validated_operation_id(value: object) -> str:
     return value
 
 
-def _validated_timestamp(value: object) -> str:
+def _validated_timestamp(value: object, description: str = "manifest") -> str:
     if not isinstance(value, str) or not re.fullmatch(
         r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", value
     ):
-        raise UpgradeError(f"invalid manifest timestamp: {value!r}")
+        raise UpgradeError(f"invalid {description} timestamp: {value!r}")
     try:
         datetime.datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
     except ValueError as exc:
-        raise UpgradeError(f"invalid manifest timestamp: {value!r}") from exc
+        raise UpgradeError(f"invalid {description} timestamp: {value!r}") from exc
     return value
 
 
@@ -314,28 +315,48 @@ def _entry_store_keys(raw_keys: set[str], entry: Entry) -> set[str]:
 
 
 def resolve_legacy_source_version(store: Store, classifier: Classifier) -> Optional[str]:
-    """Resolve exactly one version from verified legacy classifier objects.
+    """Resolve the source version from verified legacy classifier objects.
 
-    Missing optional classifier objects are valid.  Any object which is present
-    must have a valid body/metadata pair, and every present object must agree on
-    its UFM version.  No objects means this is genuinely fresh durable state.
+    Each object records the UFM version that last wrote it, and the sidecar only
+    rewrites an object whose content changed.  A backend that has served more
+    than one UFM release therefore legitimately holds several version stamps.
+    The most recently written stamp is the version the durable state was last
+    maintained by; an older stamp only means "unchanged since".  Missing
+    optional classifier objects are valid.  Any object which is present must
+    have a valid body/metadata pair.  No objects means this is genuinely fresh
+    durable state.  Once a transaction commits, the manifest is authoritative
+    and this legacy resolution path is no longer used.
     """
-    versions: set[str] = set()
-    found = False
+    candidates: list[tuple[str, str]] = []
     raw_keys = set(store.list_keys(""))
     for entry in classifier.entries:
         for key in sorted(_entry_store_keys(raw_keys, entry)):
-            found = True
             result = store.get(key)
             if result is None:
                 raise UpgradeError(f"persisted object {key!r} is missing metadata")
             _body, meta = result
-            versions.add(_validated_version(meta.ufm_version, f"persisted object {key!r}"))
-    if not found:
+            version = _validated_version(meta.ufm_version, f"persisted object {key!r}")
+            stamp = (
+                ""
+                if meta.written_at is None
+                else _validated_timestamp(meta.written_at, f"persisted object {key!r}")
+            )
+            candidates.append((stamp, version))
+    if not candidates:
         return None
-    if len(versions) != 1:
-        raise UpgradeError("inconsistent source-version metadata: " + ", ".join(sorted(versions)))
-    return next(iter(versions))
+    newest = max(stamp for stamp, _version in candidates)
+    resolved = ""
+    for stamp, version in candidates:
+        if stamp == newest and (not resolved or compare_versions(version, resolved) > 0):
+            resolved = version
+    distinct = sorted({version for _stamp, version in candidates})
+    if len(distinct) > 1:
+        log.info(
+            "durable state spans UFM versions %s; migrating from the most recently written %s",
+            ", ".join(distinct),
+            resolved,
+        )
+    return resolved
 
 
 def _parse_env(raw: str) -> dict[str, str]:
@@ -430,9 +451,17 @@ def _read_source_gv(api: ConfigMapApi, name: str, key: str) -> str:
     if cm is None:
         raise UpgradeError(f"source gv.cfg ConfigMap {name!r} does not exist")
     value = (cm.get("data") or {}).get(key)
-    if not isinstance(value, str):
-        raise UpgradeError(f"source ConfigMap {name!r} is missing text key {key!r}")
-    return value
+    if isinstance(value, str):
+        return value
+    encoded = (cm.get("binary_data") or {}).get(key)
+    if isinstance(encoded, str):
+        try:
+            return base64.b64decode(encoded, validate=True).decode("utf-8")
+        except ValueError as exc:
+            raise UpgradeError(
+                f"source ConfigMap {name!r} key {key!r} is not decodable UTF-8 text: {exc}"
+            ) from exc
+    raise UpgradeError(f"source ConfigMap {name!r} is missing text key {key!r}")
 
 
 def _operation_for_preflight(

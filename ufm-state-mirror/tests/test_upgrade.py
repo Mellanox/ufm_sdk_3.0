@@ -12,6 +12,7 @@
 
 """Tests for the transactional UFM no-PVC upgrade handoff."""
 
+import base64
 import copy
 
 import pytest
@@ -93,13 +94,14 @@ class FakeConfigMaps:
             if obj.get("labels", {}).get(key) == value
         ]
 
-    def source_gv(self, value="old-gv\n"):
+    def source_gv(self, value="old-gv\n", binary=False):
+        encoded = base64.b64encode(value.encode("utf-8")).decode("ascii")
         self.objs["ufm-gv-cfg"] = {
             "name": "ufm-gv-cfg",
             "labels": {},
             "annotations": {},
-            "data": {"gv.cfg": value},
-            "binary_data": {},
+            "data": {} if binary else {"gv.cfg": value},
+            "binary_data": {"gv.cfg": encoded} if binary else {},
         }
 
 
@@ -131,8 +133,11 @@ def classifier():
     )
 
 
-def _put(store, key, version, body=b"state"):
-    store.put(key, body, wire.build_meta(body, "blob", version, "test"))
+def _put(store, key, version, body=b"state", written_at=None):
+    meta = wire.build_meta(body, "blob", version, "test")
+    if written_at is not None:
+        meta.written_at = written_at
+    store.put(key, body, meta)
 
 
 def _env(api):
@@ -325,11 +330,34 @@ class TestPreflight:
                 operation_id=OPERATION_ID,
             )
 
-    def test_inconsistent_metadata_fails_closed(self, backend, classifier):
+    def test_divergent_metadata_migrates_from_newest_write(self, backend, classifier):
         store, api = backend
-        _put(store, "ufm:state:a", "7.0.0")
-        _put(store, "ufm:plugins:tool.json", "6.9.0")
-        with pytest.raises(UpgradeError, match="inconsistent source-version"):
+        _put(
+            store,
+            "ufm:plugins:tool.json",
+            "6.9.0",
+            written_at="2026-01-02T03:04:05Z",
+        )
+        _put(store, "ufm:state:a", "7.0.0", written_at="2026-02-03T04:05:06Z")
+
+        transaction = _preflight(store, api, classifier)
+
+        assert transaction.source_version == "7.0.0"
+        assert _env(api)["STATE_MIRROR_UPGRADE_MODE"] == "upgrade"
+
+    def test_divergent_metadata_breaks_stamp_ties_by_version(self, backend, classifier):
+        store, api = backend
+        stamp = "2026-02-03T04:05:06Z"
+        _put(store, "ufm:state:a", "6.9.0", written_at=stamp)
+        _put(store, "ufm:plugins:tool.json", "7.0.0", written_at=stamp)
+
+        assert _preflight(store, api, classifier).source_version == "7.0.0"
+
+    def test_invalid_legacy_write_timestamp_fails_closed(self, backend, classifier):
+        store, api = backend
+        _put(store, "ufm:state:a", "7.0.0", written_at="not-a-timestamp")
+
+        with pytest.raises(UpgradeError, match="invalid persisted object .* timestamp"):
             _preflight(store, api, classifier)
         assert "ufm-upgrade" not in api.objs
 
@@ -369,6 +397,65 @@ class TestPreflight:
         _put(store, "ufm:state:a", "7.2.0")
         with pytest.raises(UpgradeError, match="downgrade refused"):
             _preflight(store, api, classifier, target="7.1.0")
+
+    def test_newest_write_still_refuses_downgrade(self, backend, classifier):
+        store, api = backend
+        _put(
+            store,
+            "ufm:plugins:tool.json",
+            "7.0.0",
+            written_at="2026-01-02T03:04:05Z",
+        )
+        _put(store, "ufm:state:a", "9.9.0", written_at="2026-02-03T04:05:06Z")
+
+        with pytest.raises(UpgradeError, match="downgrade refused"):
+            _preflight(store, api, classifier)
+        assert "ufm-upgrade" not in api.objs
+
+    def test_reads_source_gv_from_chart_binary_data(self, backend, classifier):
+        store, api = backend
+        _put(store, "ufm:state:a", "7.0.0")
+        api.source_gv(binary=True)
+
+        transaction = preflight(
+            classifier=classifier,
+            target_version="7.1.0",
+            handoff_configmap="ufm-upgrade",
+            source_gv_configmap="ufm-gv-cfg",
+            source_gv_key="gv.cfg",
+            store=store,
+            configmaps=api,
+            operation_id=OPERATION_ID,
+        )
+
+        assert transaction.source_version == "7.0.0"
+        assert api.objs["ufm-upgrade"]["data"]["source-gv.cfg"] == "old-gv\n"
+
+    @pytest.mark.parametrize(
+        "encoded",
+        [
+            pytest.param("not-base64!", id="invalid-base64"),
+            pytest.param(base64.b64encode(b"\xff").decode("ascii"), id="invalid-utf8"),
+        ],
+    )
+    def test_invalid_binary_source_gv_fails_closed(self, backend, classifier, encoded):
+        store, api = backend
+        _put(store, "ufm:state:a", "7.0.0")
+        api.source_gv(binary=True)
+        api.objs["ufm-gv-cfg"]["binary_data"]["gv.cfg"] = encoded
+
+        with pytest.raises(UpgradeError, match="not decodable UTF-8 text"):
+            preflight(
+                classifier=classifier,
+                target_version="7.1.0",
+                handoff_configmap="ufm-upgrade",
+                source_gv_configmap="ufm-gv-cfg",
+                source_gv_key="gv.cfg",
+                store=store,
+                configmaps=api,
+                operation_id=OPERATION_ID,
+            )
+        assert "ufm-upgrade" not in api.objs
 
     def test_reads_exact_gv_key_and_generates_preserve_paths(self, backend, classifier):
         store, api = backend
