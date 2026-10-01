@@ -60,25 +60,46 @@ class K8sConfigMapApi:
         from kubernetes import client
         from kubernetes.client.exceptions import ApiException
 
-        body = client.V1ConfigMap(
-            metadata=client.V1ObjectMeta(
-                name=name,
-                namespace=self._ns,
-                labels=labels or None,
-                annotations=annotations or None,
-            ),
-            data=data or None,
-            binary_data=binary_data or None,
-        )
-        # The sidecar is the sole writer of these objects, so a last-write-wins
-        # replace is safe; fall back to create when the object does not exist.
-        try:
-            self._api.replace_namespaced_config_map(name, self._ns, body)
-        except ApiException as exc:
-            if exc.status == 404:
-                self._api.create_namespaced_config_map(self._ns, body)
-            else:
-                raise
+        def body(resource_version=None):
+            return client.V1ConfigMap(
+                metadata=client.V1ObjectMeta(
+                    name=name,
+                    namespace=self._ns,
+                    labels=labels or None,
+                    annotations=annotations or None,
+                    resource_version=resource_version,
+                ),
+                data=data or None,
+                binary_data=binary_data or None,
+            )
+
+        # Kubernetes replace requires the current resourceVersion. Re-read and
+        # retry a bounded number of times on an optimistic-concurrency conflict;
+        # the StateMirror writer is idempotent, so replacing the complete object
+        # with the same desired data is safe.
+        for attempt in range(3):
+            try:
+                current = self._api.read_namespaced_config_map(name, self._ns)
+            except ApiException as exc:
+                if exc.status != 404:
+                    raise
+                try:
+                    self._api.create_namespaced_config_map(self._ns, body())
+                    return
+                except ApiException as create_exc:
+                    if create_exc.status != 409 or attempt == 2:
+                        raise
+                    continue
+
+            resource_version = current.metadata.resource_version
+            try:
+                self._api.replace_namespaced_config_map(
+                    name, self._ns, body(resource_version=resource_version)
+                )
+                return
+            except ApiException as exc:
+                if exc.status != 409 or attempt == 2:
+                    raise
 
     def delete_cm(self, name: str) -> None:
         from kubernetes.client.exceptions import ApiException
@@ -89,6 +110,42 @@ class K8sConfigMapApi:
             if exc.status != 404:
                 raise
 
+    def write_cm_cas(
+        self,
+        name,
+        *,
+        expected_resource_version,
+        labels,
+        annotations,
+        data,
+        binary_data,
+    ) -> bool:
+        """Create-if-absent or resourceVersion-guarded replace."""
+        from kubernetes import client
+        from kubernetes.client.exceptions import ApiException
+
+        body = client.V1ConfigMap(
+            metadata=client.V1ObjectMeta(
+                name=name,
+                namespace=self._ns,
+                labels=labels or None,
+                annotations=annotations or None,
+                resource_version=expected_resource_version,
+            ),
+            data=data or None,
+            binary_data=binary_data or None,
+        )
+        try:
+            if expected_resource_version is None:
+                self._api.create_namespaced_config_map(self._ns, body)
+            else:
+                self._api.replace_namespaced_config_map(name, self._ns, body)
+        except ApiException as exc:
+            if exc.status == 409:
+                return False
+            raise
+        return True
+
     def list_cms(self, label_selector: str) -> list[dict]:
         resp = self._api.list_namespaced_config_map(self._ns, label_selector=label_selector)
         return [self._to_dict(cm) for cm in resp.items]
@@ -98,6 +155,7 @@ class K8sConfigMapApi:
         meta = cm.metadata
         return {
             "name": meta.name,
+            "resource_version": meta.resource_version,
             "annotations": dict(meta.annotations or {}),
             "data": dict(cm.data or {}),
             "binary_data": dict(cm.binary_data or {}),
