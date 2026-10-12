@@ -55,6 +55,20 @@ spec:
         {{- end }}
       {{- end }}
     spec:
+      {{- with $plugin.dra }}
+      {{- if and .resourceClaimTemplateName .resourceClaimName }}
+      {{- fail (printf "plugin %s: set only one of dra.resourceClaimTemplateName or dra.resourceClaimName" $name) }}
+      {{- end }}
+      {{- if .resourceClaimTemplateName }}
+      resourceClaims:
+        - name: fabric
+          resourceClaimTemplateName: {{ .resourceClaimTemplateName | quote }}
+      {{- else if .resourceClaimName }}
+      resourceClaims:
+        - name: fabric
+          resourceClaimName: {{ .resourceClaimName | quote }}
+      {{- end }}
+      {{- end }}
       {{- with $.Values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
@@ -80,7 +94,11 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with $.Values.nodeSelector }}
+      {{- $nodeSelector := deepCopy ($.Values.nodeSelector | default dict) }}
+      {{- if $plugin.nodeSelector }}
+      {{- $nodeSelector = mergeOverwrite $nodeSelector $plugin.nodeSelector }}
+      {{- end }}
+      {{- with $nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -218,7 +236,8 @@ spec:
           {{- $res := $plugin.resources | default $.Values.plugins.defaultResources }}
           {{- $hasRequests := $res.requests }}
           {{- $hasLimits := or $res.limits (and $pluginRdma.resourceName (ne (toString $pluginRdma.resourceCount) "0")) }}
-          {{- if or $hasRequests $hasLimits }}
+          {{- $hasDraClaim := and $plugin.dra (or $plugin.dra.resourceClaimTemplateName $plugin.dra.resourceClaimName) }}
+          {{- if or $hasRequests $hasLimits $hasDraClaim }}
           resources:
             {{- if $res.requests }}
             requests:
@@ -232,6 +251,10 @@ spec:
               {{- if and $pluginRdma.resourceName (ne (toString $pluginRdma.resourceCount) "0") }}
               {{ $pluginRdma.resourceName }}: {{ $pluginRdma.resourceCount }}
               {{- end }}
+            {{- end }}
+            {{- if $hasDraClaim }}
+            claims:
+              - name: fabric
             {{- end }}
           {{- end }}
           {{- with $plugin.startupProbe }}

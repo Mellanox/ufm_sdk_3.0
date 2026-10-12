@@ -50,7 +50,8 @@ jobs:
           for f in \
             examples/log-streamer-config.yaml \
             examples/two-plugins.yaml \
-            examples/upgrade-one-plugin.yaml; do
+            examples/upgrade-one-plugin.yaml \
+            examples/utm-second-hca-dra.yaml; do
             echo "--- lint + template: ${f} ---"
             helm lint "${CHART}" -f "${CHART}/${f}"
             helm template ufm-plugin-test "${CHART}" -f "${CHART}/${f}" -n "${NS}" --debug > /dev/null
@@ -183,6 +184,21 @@ jobs:
           assert_contains "telemetry_exporter in ConfigMap" "$OUT" "name: telemetry_exporter"
           assert_contains "port 8080"                     "$OUT" "port: 8080"
           assert_contains "port 9090"                     "$OUT" "port: 9090"
+
+          # --- UTM second-HCA DRA profile for the two-HCA workaround ---
+          echo "--- examples/utm-second-hca-dra.yaml: Bug 5000014 assertions ---"
+          # Simulate an upgrade where a previous release has global RDMA enabled.
+          OUT=$(render_set examples/utm-second-hca-dra.yaml rdma.resourceCount=1)
+          assert_count    "exactly 1 UTM Deployment"       "$OUT" "kind: Deployment" 1
+          assert_contains "stable UTM service name"        "$OUT" "name: ufm-ufm-enterprise-plugin-utm"
+          assert_contains "UTM is pinned to UFM node"       "$OUT" "kubernetes.io/hostname: replace-with-ufm-node"
+          assert_contains "UTM references second-PF claim"  "$OUT" "resourceClaimTemplateName: \"utm-ib-hca\""
+          assert_contains "UTM maps claim to container"    "$OUT" "claims:"
+          assert_count    "fabric claim is registered and mapped" "$OUT" "name: fabric" 2
+          assert_contains "UTM remains non-privileged"     "$OUT" "privileged: false"
+          assert_contains "UTM gets IPC_LOCK capability"   "$OUT" "- IPC_LOCK"
+          assert_not_contains "UTM does not request shared RDMA" "$OUT" "rdma/hca_shared"
+          assert_contains "plugins config retains UTM name" "$OUT" "name: utm"
 
           # --- ClusterIP Service + plugins.yaml host (ci-values-service.yaml) ---
           echo "Validating ClusterIP Service + plugins.yaml host (ci-values-service.yaml)..."

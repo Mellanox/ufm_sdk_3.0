@@ -1,0 +1,21 @@
+# Temporary two-HCA workaround for Bug 5000014.
+# Configure this template to select a PF different from UFM's DRA claim, then
+# replace the hostname with the node running UFM.
+ufmFullname: "ufm-ufm-enterprise"
+namespace: "ufm-enterprise"
+
+plugins:
+  entries:
+    utm:
+      image: docker.io/mellanox/ufm-plugin-utm
+      tag: "1.19.10"
+      port: 8888
+      nodeSelector:
+        kubernetes.io/hostname: replace-with-ufm-node
+      dra:
+        resourceClaimTemplateName: utm-ib-hca
+      extraCapabilities:
+        - IPC_LOCK
+      # Avoid retaining an older chart-wide shared-RDMA setting with --reuse-values.
+      rdma:
+        resourceCount: "0"
