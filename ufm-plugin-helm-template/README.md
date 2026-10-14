@@ -123,7 +123,9 @@ Each plugin is a map entry keyed by its canonical name (use underscores, e.g. `l
 | `healthEndpoint` | HTTP path for the default liveness probe (e.g. `/health`). When set, the chart uses native httpGet on this path. | No |
 | `healthPort` | Port for the default liveness httpGet probe; defaults to `port`. | No |
 | `host` | Host written into `plugins.yaml`. Default: in-cluster DNS `{ufmFullname}-plugin-{name}.{namespace}.svc.cluster.local`. | No |
+| `nodeSelector` | Additional selector for this plugin's pod. Merged over the chart-level `nodeSelector`; useful for placing UTM on the same node as UFM. | No |
 | `rdma` | Per-plugin RDMA override: `{ resourceName, resourceCount }`. | No |
+| `dra` | Optional exclusive DRA allocation: set exactly one of `resourceClaimTemplateName` or `resourceClaimName`. The plugin's main container references the claim. Requires `resource.k8s.io/v1`; Helm fails early if this API is unavailable. For offline rendering, pass `--api-versions resource.k8s.io/v1`. | No |
 | `resources` | `requests`/`limits` for this plugin; overrides `plugins.defaultResources`. | No |
 | `startupProbe` | Full startup probe spec. | No |
 | `livenessProbe` | Full liveness probe spec. Overrides the chart default (httpGet or tcpSocket). | No |
@@ -218,7 +220,7 @@ To disable watchdog for all plugins: `watchdog.enabled: false`. For a single plu
 - **Deployment per plugin**: One Deployment per enabled entry in `plugins.entries` (sorted alphabetically for stable output), using `Recreate` strategy by default (old pod is terminated before new pod starts)—safer for single-replica plugins that share resources. Override per plugin with `strategy: RollingUpdate` if you need zero-downtime. Each Deployment includes:
   - Init container that runs `/init.sh -ufm_version ${UFM_VERSION}`; `UFM_VERSION` is read from the ConfigMap `{ufmFullname}-config` (see Prerequisites). In default `configmap` mode, `/config`, `/log`, and `/data` are local writable pod volumes. In explicit `pvc` mode, the chart preserves the legacy shared PVC mounts.
   - Main container with the same mounts, optional `PLUGIN_PORT` and `HEALTH_ENDPOINT`/`HEALTH_PORT` (for the default liveness script), and RDMA resources when configured.
-  - Optional placement control via `affinity`, `nodeSelector`, and `tolerations` (no default affinity; set `affinity` if you want e.g. same node as UFM).
+  - Optional placement control via chart-level or per-plugin `nodeSelector`, `affinity`, and `tolerations`.
   - **Liveness**: default is **native Kubernetes**—**httpGet** when `healthEndpoint` is set, **tcpSocket** when `port` is set; otherwise no default. Override with `livenessProbe`.
   - **Readiness**: no default; set `readinessProbe` if you want a readiness probe.
 - **ConfigMap `plugins.yaml`**: One ConfigMap (name from `configMapName` / default `{ufmFullname}-plugins`) containing `plugins.yaml` consumed by UFM (list of name, host, port, tag for enabled plugins). Default host per plugin is the in-cluster DNS name; a matching **Service** is created when ports are defined. Override `host` per plugin if needed (e.g. Ingress).
