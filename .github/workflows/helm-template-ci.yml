@@ -68,7 +68,7 @@ jobs:
 
           assert_contains() {
             local desc="$1" output="$2" expected="$3"
-            if echo "$output" | grep -q "$expected"; then
+            if echo "$output" | grep -q -- "$expected"; then
               echo "  PASS: ${desc}"
               PASS=$((PASS + 1))
             else
@@ -79,7 +79,7 @@ jobs:
 
           assert_not_contains() {
             local desc="$1" output="$2" unexpected="$3"
-            if echo "$output" | grep -q "$unexpected"; then
+            if echo "$output" | grep -q -- "$unexpected"; then
               echo "  FAIL: ${desc} (unexpected: ${unexpected})"
               FAIL=$((FAIL + 1))
             else
@@ -91,7 +91,7 @@ jobs:
           assert_count() {
             local desc="$1" output="$2" pattern="$3" expected="$4"
             local actual
-            actual=$(echo "$output" | grep -c "$pattern" || true)
+            actual=$(echo "$output" | grep -c -- "$pattern" || true)
             if [ "$actual" -eq "$expected" ]; then
               echo "  PASS: ${desc} (count: ${actual})"
               PASS=$((PASS + 1))
@@ -101,8 +101,8 @@ jobs:
             fi
           }
 
-          render() { helm template test "${CHART}" -f "${CHART}/$1" -n "${NS}" 2>/dev/null; }
-          render_set() { helm template test "${CHART}" -f "${CHART}/$1" --set "$2" -n "${NS}" 2>/dev/null; }
+          render() { helm template test "${CHART}" -f "${CHART}/$1" -n "${NS}"; }
+          render_set() { helm template test "${CHART}" -f "${CHART}/$1" --set "$2" -n "${NS}"; }
 
           # --- Single plugin baseline ---
           echo "--- ci-values.yaml: single plugin assertions ---"
@@ -188,7 +188,9 @@ jobs:
           # --- UTM second-HCA DRA profile for the two-HCA workaround ---
           echo "--- examples/utm-second-hca-dra.yaml: Bug 5000014 assertions ---"
           # Simulate an upgrade where a previous release has global RDMA enabled.
-          OUT=$(render_set examples/utm-second-hca-dra.yaml rdma.resourceCount=1)
+          OUT=$(helm template test "${CHART}" \
+            -f "${CHART}/examples/utm-second-hca-dra.yaml" \
+            --set-string rdma.resourceCount=1 -n "${NS}")
           assert_count    "exactly 1 UTM Deployment"       "$OUT" "kind: Deployment" 1
           assert_contains "stable UTM service name"        "$OUT" "name: ufm-ufm-enterprise-plugin-utm"
           assert_contains "UTM is pinned to UFM node"       "$OUT" "kubernetes.io/hostname: replace-with-ufm-node"
