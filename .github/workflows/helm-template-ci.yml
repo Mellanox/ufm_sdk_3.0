@@ -186,7 +186,20 @@ jobs:
 
           # --- Per-plugin DRA allocation and node selection ---
           echo "--- ci-values.yaml: DRA assertions ---"
+          # Both claim forms must fail early when the stable DRA API is unavailable.
+          for claim_field in resourceClaimTemplateName resourceClaimName; do
+            if OUT=$(helm template test "${CHART}" -f "${CHART}/ci-values.yaml" \
+              --set-string "plugins.entries.ci_test_plugin.dra.${claim_field}=ci-fabric" \
+              -n "${NS}" 2>&1); then
+              echo "  FAIL: ${claim_field} rendered without the DRA API"
+              FAIL=$((FAIL + 1))
+            else
+              assert_contains "${claim_field} reports missing DRA API" "$OUT" \
+                "plugin ci_test_plugin: DRA requires the resource.k8s.io/v1 API"
+            fi
+          done
           OUT=$(helm template test "${CHART}" -f "${CHART}/ci-values.yaml" \
+            --api-versions resource.k8s.io/v1 \
             --set-string rdma.resourceCount=1 \
             --set-string plugins.entries.ci_test_plugin.rdma.resourceCount=0 \
             --set-string plugins.entries.ci_test_plugin.dra.resourceClaimTemplateName=ci-fabric \
@@ -197,6 +210,13 @@ jobs:
           assert_count "claim is registered and mapped" "$OUT" "name: fabric" 2
           assert_contains "explicit IPC_LOCK capability" "$OUT" "- IPC_LOCK"
           assert_not_contains "per-plugin RDMA override disables shared allocation" "$OUT" "rdma/hca_shared"
+
+          OUT=$(helm template test "${CHART}" -f "${CHART}/ci-values.yaml" \
+            --api-versions resource.k8s.io/v1 \
+            --set-string plugins.entries.ci_test_plugin.dra.resourceClaimName=ci-existing-fabric \
+            -n "${NS}")
+          assert_contains "existing DRA claim" "$OUT" 'resourceClaimName: "ci-existing-fabric"'
+          assert_count "existing claim is registered and mapped" "$OUT" "name: fabric" 2
 
           # --- ClusterIP Service + plugins.yaml host (ci-values-service.yaml) ---
           echo "Validating ClusterIP Service + plugins.yaml host (ci-values-service.yaml)..."

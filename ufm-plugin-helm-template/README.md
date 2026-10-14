@@ -125,7 +125,7 @@ Each plugin is a map entry keyed by its canonical name (use underscores, e.g. `l
 | `host` | Host written into `plugins.yaml`. Default: in-cluster DNS `{ufmFullname}-plugin-{name}.{namespace}.svc.cluster.local`. | No |
 | `nodeSelector` | Additional selector for this plugin's pod. Merged over the chart-level `nodeSelector`; useful for placing UTM on the same node as UFM. | No |
 | `rdma` | Per-plugin RDMA override: `{ resourceName, resourceCount }`. | No |
-| `dra` | Optional exclusive DRA allocation: set exactly one of `resourceClaimTemplateName` or `resourceClaimName`. The plugin's main container references the claim. | No |
+| `dra` | Optional exclusive DRA allocation: set exactly one of `resourceClaimTemplateName` or `resourceClaimName`. The plugin's main container references the claim. Requires `resource.k8s.io/v1`; Helm fails early if this API is unavailable. For offline rendering, pass `--api-versions resource.k8s.io/v1`. | No |
 | `resources` | `requests`/`limits` for this plugin; overrides `plugins.defaultResources`. | No |
 | `startupProbe` | Full startup probe spec. | No |
 | `livenessProbe` | Full liveness probe spec. Overrides the chart default (httpGet or tcpSocket). | No |
