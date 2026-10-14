@@ -50,8 +50,7 @@ jobs:
           for f in \
             examples/log-streamer-config.yaml \
             examples/two-plugins.yaml \
-            examples/upgrade-one-plugin.yaml \
-            examples/utm-second-hca-dra.yaml; do
+            examples/upgrade-one-plugin.yaml; do
             echo "--- lint + template: ${f} ---"
             helm lint "${CHART}" -f "${CHART}/${f}"
             helm template ufm-plugin-test "${CHART}" -f "${CHART}/${f}" -n "${NS}" --debug > /dev/null
@@ -185,22 +184,19 @@ jobs:
           assert_contains "port 8080"                     "$OUT" "port: 8080"
           assert_contains "port 9090"                     "$OUT" "port: 9090"
 
-          # --- UTM second-HCA DRA profile for the two-HCA workaround ---
-          echo "--- examples/utm-second-hca-dra.yaml: Bug 5000014 assertions ---"
-          # Simulate an upgrade where a previous release has global RDMA enabled.
-          OUT=$(helm template test "${CHART}" \
-            -f "${CHART}/examples/utm-second-hca-dra.yaml" \
-            --set-string rdma.resourceCount=1 -n "${NS}")
-          assert_count    "exactly 1 UTM Deployment"       "$OUT" "kind: Deployment" 1
-          assert_contains "stable UTM service name"        "$OUT" "name: ufm-ufm-enterprise-plugin-utm"
-          assert_contains "UTM is pinned to UFM node"       "$OUT" "kubernetes.io/hostname: replace-with-ufm-node"
-          assert_contains "UTM references second-PF claim"  "$OUT" "resourceClaimTemplateName: \"utm-ib-hca\""
-          assert_contains "UTM maps claim to container"    "$OUT" "claims:"
-          assert_count    "fabric claim is registered and mapped" "$OUT" "name: fabric" 2
-          assert_contains "UTM remains non-privileged"     "$OUT" "privileged: false"
-          assert_contains "UTM gets IPC_LOCK capability"   "$OUT" "- IPC_LOCK"
-          assert_not_contains "UTM does not request shared RDMA" "$OUT" "rdma/hca_shared"
-          assert_contains "plugins config retains UTM name" "$OUT" "name: utm"
+          # --- Per-plugin DRA allocation and node selection ---
+          echo "--- ci-values.yaml: DRA assertions ---"
+          OUT=$(helm template test "${CHART}" -f "${CHART}/ci-values.yaml" \
+            --set-string rdma.resourceCount=1 \
+            --set-string plugins.entries.ci_test_plugin.rdma.resourceCount=0 \
+            --set-string plugins.entries.ci_test_plugin.dra.resourceClaimTemplateName=ci-fabric \
+            --set-string plugins.entries.ci_test_plugin.nodeSelector.test-node=worker-a \
+            --set-string 'plugins.entries.ci_test_plugin.extraCapabilities[0]=IPC_LOCK' -n "${NS}")
+          assert_contains "per-plugin node selector" "$OUT" "test-node: worker-a"
+          assert_contains "DRA claim template" "$OUT" 'resourceClaimTemplateName: "ci-fabric"'
+          assert_count "claim is registered and mapped" "$OUT" "name: fabric" 2
+          assert_contains "explicit IPC_LOCK capability" "$OUT" "- IPC_LOCK"
+          assert_not_contains "per-plugin RDMA override disables shared allocation" "$OUT" "rdma/hca_shared"
 
           # --- ClusterIP Service + plugins.yaml host (ci-values-service.yaml) ---
           echo "Validating ClusterIP Service + plugins.yaml host (ci-values-service.yaml)..."

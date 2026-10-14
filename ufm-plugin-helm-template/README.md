@@ -13,23 +13,6 @@ Generic Helm chart for deploying UFM plugins. You **install the chart once** and
 
 ## Quick Start
 
-### Temporary two-HCA workaround for Bug 5000014
-
-When a node has two available HCAs, UFM and UTM can use separate exclusive DRA
-claims. Keep UFM on its current HCA and configure a UTM `ResourceClaimTemplate`
-named `utm-ib-hca` to select the other HCA. Pin UTM to the node running UFM.
-Install the claim template in the UFM namespace and use the same DeviceClass as
-UFM, with a selector for the separate PF. Ensure the node has two matching,
-available HCAs. This workaround does not support a node with only one available
-HCA.
-
-The example [`examples/utm-second-hca-dra.yaml`](examples/utm-second-hca-dra.yaml)
-shows the plugin values. Replace the node name and template name as needed, and
-use the customer's supported UTM image and tag. The example sets UTM's per-plugin
-RDMA count to `0` so a chart-wide shared-RDMA setting preserved by `--reuse-values`
-does not add a second, unintended allocation to the UTM pod. It adds `IPC_LOCK`
-explicitly because the shared-RDMA setting no longer adds that capability.
-
 1. **Create a plugins definition file** (e.g. `my-plugins.yaml`):
 
    ```yaml
