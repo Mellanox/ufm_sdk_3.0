@@ -58,6 +58,24 @@ def _reason(exc: BaseException) -> str:
     return getattr(exc, "reason", None) or classify_redis_error(exc)
 
 
+def serialized(empty_result):
+    """Serialize backend work and declare its return value after checkpoint."""
+    from functools import wraps
+
+    def decorate(method):
+        @wraps(method)
+        def wrapped(self, *args, **kwargs):
+            with self._io_lock:
+                if self._checkpoint_ack:
+                    self.state.heartbeat()
+                    return empty_result()
+                return method(self, *args, **kwargs)
+
+        return wrapped
+
+    return decorate
+
+
 class Mirror:
     def __init__(
         self,
@@ -68,6 +86,8 @@ class Mirror:
         state: HealthState | None = None,
         max_queue: int = DEFAULT_MAX_QUEUE,
     ):
+        self._io_lock = threading.RLock()
+        self._checkpoint_ack = False
         self.store = store
         self._handlers = [
             make_handler(e, store, ufm_version, written_by) for e in classifier.entries
@@ -99,6 +119,57 @@ class Mirror:
             self._resolver, self._mark_dirty, self._mark_delete
         )
         self._observer = None
+
+    def final_checkpoint(self, operation_id, target_version, validate_live):
+        """Force final snapshots, then acknowledge a durable fence on this writer."""
+        from state_mirror.generation import (
+            FencedStore,
+            GenerationError,
+            require_checkpoint,
+            validate_snapshot_paths,
+            verify_classified,
+        )
+
+        store = self.store
+        if not isinstance(store, FencedStore):
+            raise GenerationError("checkpoint requires a fenced writer")
+        with self._io_lock:
+            try:
+                require_checkpoint(
+                    store.raw, store.generation, store.digest, operation_id, target_version
+                )
+            except GenerationError:
+                pass
+            else:
+                self._checkpoint_ack = True
+                return
+            if self._observer is not None:
+                self._cleanup_observer(self._observer)
+                emitters = getattr(self._observer, "emitters", ())
+                if self._observer.is_alive() or any(emitter.is_alive() for emitter in emitters):
+                    raise GenerationError("watchdog failed to stop for final checkpoint")
+                self._observer = None
+            self.drain_once(now=time.monotonic(), rate_limited=False)
+            # Fresh handlers force the final SQLite backup instead of trusting
+            # a cached poll fingerprint. Keep queue/deletion ownership intact.
+            self._handlers = [
+                make_handler(handler.entry, store, store.version, "state-mirror:checkpoint")
+                for handler in self._handlers
+            ]
+            self._by_path = {handler.entry.path: handler for handler in self._handlers}
+            classifier = Classifier([handler.entry for handler in self._handlers])
+            validate_snapshot_paths(classifier)
+            result = self.full_scan()
+            with self._lock:
+                pending = bool(self._pending_deletes or self._dirty or self._known_drift)
+            if not result.succeeded or pending:
+                raise GenerationError(
+                    "final checkpoint has failed writes, unresolved drift or deletes"
+                )
+            verify_classified(store, classifier)
+            validate_live()
+            store.freeze(operation_id, target_version)
+            self._checkpoint_ack = True
 
     def _mark_dirty(self, entry: Entry) -> None:
         with self._lock:
@@ -177,6 +248,7 @@ class Mirror:
         self.state.inc_events()
         self._wakeup.set()
 
+    @serialized(int)
     def drain_once(self, now: float, rate_limited: bool = True) -> int:
         """Process queued watchdog marks. Returns the number of store ops.
 
@@ -224,6 +296,7 @@ class Mirror:
             self.state.add_mirror_ops(ops)
         return ops
 
+    @serialized(MirrorResult)
     def flush_pending_deletes(self) -> MirrorResult:
         """Propagate observed deletes to the backend; retry the ones that failed.
 
@@ -274,6 +347,7 @@ class Mirror:
         else:
             handler.on_delete()
 
+    @serialized(MirrorResult)
     def full_scan(self) -> MirrorResult:
         """Mirror every entry and report all work and failures.
 
@@ -399,6 +473,7 @@ class Mirror:
             return key.startswith(handler.entry.redis_key_prefix)
         return key == handler.entry.redis_key
 
+    @serialized(int)
     def poll_sqlite(self, now: float | None = None) -> int:
         now = time.monotonic() if now is None else now
         sent = 0
@@ -498,6 +573,15 @@ class Mirror:
         readiness before the current scan has completed.
         """
         self.state.mark_initial_reconcile(False)
+        from state_mirror.generation import FencedStore
+
+        if isinstance(self.store, FencedStore):
+            try:
+                self.store.assert_writable()
+            except Exception:
+                log.exception("startup waiting for writable generation authority")
+                self.state.heartbeat()
+                return False
         watchers_ok = self._observer_healthy(self._observer)
         if not watchers_ok and self._observer is not None:
             self._cleanup_observer(self._observer)
@@ -582,7 +666,13 @@ def main() -> int:
     global log
     log = setup_logging("state_mirror.mirror")
     classifier_path = os.environ.get("CLASSIFIER_PATH", "/etc/state_mirror/state_mirror.yaml")
-    ufm_version = os.environ.get("UFM_VERSION", "unknown")
+    from state_mirror.upgrade import release_version_from_env
+
+    try:
+        ufm_version = release_version_from_env()
+    except Exception:
+        log.exception("authoritative UFM release version is required")
+        return 1
     written_by = "state-mirror:" + os.environ.get("STATE_MIRROR_GIT_SHA", "dev")
     port = int(os.environ.get("STATE_MIRROR_METRICS_PORT", DEFAULT_PORT))
     max_queue = int(os.environ.get("STATE_MIRROR_MAX_QUEUE", DEFAULT_MAX_QUEUE))
@@ -595,16 +685,39 @@ def main() -> int:
         "on",
     )
     state = HealthState(allow_poll_only=allow_poll_only)
-    HealthServer(state, port=port).start()
+    server = HealthServer(state, port=port)
+    server.start()
     try:
         classifier = Classifier.load_file(classifier_path)
+        from state_mirror.generation import FencedStore
+        from state_mirror.upgrade import release_authority, validate_path_ownership
+
         store = build_store(backend_from_env())
+        validate_path_ownership(classifier)
+        manifest, source_version = release_authority(store, classifier)
+        if source_version is not None and source_version != ufm_version:
+            raise ValueError("writer release conflicts with durable release authority")
+        if manifest is not None:
+            if manifest.target_version != ufm_version:
+                raise ValueError("writer release conflicts with durable manifest")
+            if manifest.classifier_digest and manifest.classifier_digest != classifier.digest():
+                raise ValueError("writer classifier digest conflicts with durable manifest")
+        store = FencedStore(
+            store, manifest.generation if manifest else "", classifier.digest(), ufm_version
+        )
         mirror = Mirror(
             classifier, store, ufm_version, written_by, state=state, max_queue=max_queue
         )
     except Exception:
         log.exception("state-mirror sidecar failed to initialize")
         return 1
+    from state_mirror.checkpoint import final_checkpoint
+    from state_mirror.k8s_client import detect_namespace
+    from state_mirror.upgrade import _configmap_api
+
+    server.checkpoint = lambda request: final_checkpoint(
+        mirror, classifier, _configmap_api(detect_namespace()), request
+    )
     mirror.run_forever()
     return 0
 
