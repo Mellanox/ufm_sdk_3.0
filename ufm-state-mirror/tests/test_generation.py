@@ -494,3 +494,152 @@ def test_fresh_commit_rechecks_no_legacy_writer_appeared(backend, classifier, tm
     with pytest.raises(UpgradeError, match="fresh commit conflicts"):
         _commit(store, api, handoff, classifier)
     assert load_manifest(store) is None
+
+
+@pytest.mark.parametrize("target", ["7.0.0", "7.1.0"])
+def test_existing_schema1_committed_handoff_is_adopted_with_new_digest(
+    backend, classifier, tmp_path, target
+):
+    from state_mirror.upgrade import UpgradeManifest
+    from state_mirror.upgrade_contract import HANDOFF_LABEL, HANDOFF_LABEL_VALUE
+
+    store, api = backend
+    _put(store, "ufm:state:a", "7.0.0")
+    previous = UpgradeManifest(
+        source_version="6.9.0",
+        target_version="7.0.0",
+        operation_id="a" * 32,
+        committed_at="2026-10-20T12:00:00Z",
+        schema_version=1,
+    )
+    body = previous.to_bytes()
+    store.put(MANIFEST_KEY, body, wire.build_meta(body, "upgrade_manifest", "7.0.0", "old"))
+    api.write_cm(
+        "ufm-upgrade",
+        labels={HANDOFF_LABEL: HANDOFF_LABEL_VALUE},
+        annotations={},
+        data={
+            "upgrade.env": "STATE_MIRROR_UPGRADE_MODE=committed\n"
+            "STATE_MIRROR_TARGET_VERSION=7.0.0\n"
+            f"STATE_MIRROR_OPERATION_ID={'a' * 32}\n"
+        },
+        binary_data={},
+    )
+    transaction = _preflight(store, api, classifier, target=target)
+    assert transaction.classifier_digest == classifier.digest()
+    assert transaction.operation_id == OPERATION_ID
+    assert _env(api)["STATE_MIRROR_UPGRADE_MODE"] == "upgrade"
+    handoff = _mount_handoff(tmp_path, api, store, classifier)
+    current = commit(
+        classifier=classifier,
+        handoff_dir=handoff,
+        target_version=target,
+        store=store,
+        configmaps=api,
+    )
+    assert current.schema_version == 2
+    verify_inventory(GenerationStore(store, current.generation))
+
+
+@pytest.mark.parametrize("alias", [False, True])
+@pytest.mark.parametrize("handler", ["blob", "directory"])
+def test_helm_ownership_rejects_symlinked_parents_and_aliases(
+    tmp_path, monkeypatch, alias, handler
+):
+    from state_mirror.upgrade import validate_path_ownership
+
+    real = tmp_path / "real"
+    real.mkdir()
+    symlink = tmp_path / "link"
+    symlink.symlink_to(real, target_is_directory=True)
+    owned = symlink / "gv.cfg"
+    owned.write_text("helm-owned")
+    root = real if alias else symlink
+    path = root / "gv.cfg" if handler == "blob" else root
+    raw = {"path": str(path), "handler": handler}
+    raw["redis_key" if handler == "blob" else "redis_key_prefix"] = "state:"
+    classified = Classifier.from_dict({"entries": [raw]})
+    monkeypatch.setattr("state_mirror.upgrade.HELM_OWNED_PATHS", (str(owned),))
+    with pytest.raises(UpgradeError, match="ownership conflict"):
+        validate_path_ownership(classified)
+
+
+@pytest.mark.parametrize("field", ["STATE_MIRROR_OPERATION_ID", "STATE_MIRROR_TARGET_VERSION"])
+def test_legacy_committed_handoff_cannot_override_manifest_authority(backend, classifier, field):
+    from state_mirror.upgrade import UpgradeManifest
+    from state_mirror.upgrade_contract import HANDOFF_LABEL, HANDOFF_LABEL_VALUE
+
+    store, api = backend
+    previous = UpgradeManifest(
+        source_version="6.9.0",
+        target_version="7.0.0",
+        operation_id="a" * 32,
+        committed_at="2026-10-20T12:00:00Z",
+        schema_version=1,
+    )
+    body = previous.to_bytes()
+    store.put(MANIFEST_KEY, body, wire.build_meta(body, "upgrade_manifest", "7.0.0", "old"))
+    values = {
+        "STATE_MIRROR_UPGRADE_MODE": "committed",
+        "STATE_MIRROR_TARGET_VERSION": "7.0.0",
+        "STATE_MIRROR_OPERATION_ID": "a" * 32,
+    }
+    values[field] = "b" * 32 if field == "STATE_MIRROR_OPERATION_ID" else "8.0.0"
+    api.write_cm(
+        "ufm-upgrade",
+        labels={HANDOFF_LABEL: HANDOFF_LABEL_VALUE},
+        annotations={},
+        data={"upgrade.env": "".join(f"{key}={value}\n" for key, value in values.items())},
+        binary_data={},
+    )
+    before = api.read_cm("ufm-upgrade")
+    with pytest.raises(UpgradeError, match="legacy committed handoff conflicts"):
+        _preflight(store, api, classifier)
+    assert api.read_cm("ufm-upgrade") == before
+    assert load_manifest(store) == previous
+
+
+def test_legacy_handoff_adoption_retries_after_lost_configmap_response(
+    backend, classifier, monkeypatch
+):
+    from state_mirror.upgrade import UpgradeManifest
+    from state_mirror.upgrade_contract import HANDOFF_LABEL, HANDOFF_LABEL_VALUE
+
+    store, api = backend
+    previous = UpgradeManifest(
+        source_version="6.9.0",
+        target_version="7.0.0",
+        operation_id="a" * 32,
+        committed_at="2026-10-20T12:00:00Z",
+        schema_version=1,
+    )
+    body = previous.to_bytes()
+    store.put(MANIFEST_KEY, body, wire.build_meta(body, "upgrade_manifest", "7.0.0", "old"))
+    api.write_cm(
+        "ufm-upgrade",
+        labels={HANDOFF_LABEL: HANDOFF_LABEL_VALUE},
+        annotations={},
+        data={
+            "upgrade.env": "STATE_MIRROR_UPGRADE_MODE=committed\n"
+            "STATE_MIRROR_TARGET_VERSION=7.0.0\n"
+            f"STATE_MIRROR_OPERATION_ID={'a' * 32}\n"
+        },
+        binary_data={},
+    )
+    cas = api.write_cm_cas
+
+    def lost_response(name, **kwargs):
+        accepted = cas(name, **kwargs)
+        if name == "ufm-upgrade":
+            assert accepted
+            raise OSError("adoption response lost")
+        return accepted
+
+    monkeypatch.setattr(api, "write_cm_cas", lost_response)
+    with pytest.raises(OSError, match="adoption response lost"):
+        _preflight(store, api, classifier)
+    monkeypatch.setattr(api, "write_cm_cas", cas)
+    retry = _preflight(store, api, classifier)
+    assert retry.operation_id == OPERATION_ID
+    assert retry.classifier_digest == classifier.digest()
+    assert load_manifest(store) == previous

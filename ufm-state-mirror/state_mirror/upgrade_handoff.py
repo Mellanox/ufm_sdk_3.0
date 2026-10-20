@@ -147,6 +147,36 @@ def _read_source_gv(api: ConfigMapApi, name: str, key: str) -> str:
     raise UpgradeError(f"source ConfigMap {name!r} is missing text key {key!r}")
 
 
+def _is_legacy_committed(data, manifest):
+    """Recognize only a completed schema-1 handoff backed by matching authority.
+
+    Legacy active transactions remain invalid: they never bound a classifier
+    digest. Adoption creates a new, digest-bound checkpoint transaction.
+    """
+    if manifest is None or manifest.schema_version != 1:
+        return False
+    if not isinstance(data, dict) or set(data) != {"upgrade.env"}:
+        return False
+    raw = data.get("upgrade.env")
+    if not isinstance(raw, str):
+        return False
+    values = _parse_env(raw)
+    if set(values) != {
+        "STATE_MIRROR_UPGRADE_MODE",
+        "STATE_MIRROR_TARGET_VERSION",
+        "STATE_MIRROR_OPERATION_ID",
+    }:
+        return False
+    if values["STATE_MIRROR_UPGRADE_MODE"] != "committed":
+        return False
+    if (
+        values["STATE_MIRROR_TARGET_VERSION"] != manifest.target_version
+        or values["STATE_MIRROR_OPERATION_ID"] != manifest.operation_id
+    ):
+        raise UpgradeError("legacy committed handoff conflicts with durable manifest")
+    return True
+
+
 def _operation_for_preflight(
     api: ConfigMapApi,
     handoff_name: str,
@@ -157,12 +187,17 @@ def _operation_for_preflight(
     classifier_digest: str,
     source_gv: Optional[str] = None,
     paths: Optional[list[str]] = None,
+    legacy_manifest: Optional[UpgradeManifest] = None,
 ) -> tuple[str, Optional[str]]:
     """Reuse an identical retry and reject any globally active conflict."""
     named_handoff = None
+    legacy_named = False
     for existing in api.list_cms(HANDOFF_SELECTOR):
         if existing.get("name") == handoff_name:
             named_handoff = existing
+            if _is_legacy_committed(existing.get("data"), legacy_manifest):
+                legacy_named = True
+                continue
         values = _validate_handoff_payload(existing.get("data"))
         if values["STATE_MIRROR_CLASSIFIER_DIGEST"] != classifier_digest:
             raise UpgradeError("handoff classifier digest conflicts with requested transaction")
@@ -215,7 +250,7 @@ def _operation_for_preflight(
             raise UpgradeError("existing handoff payload conflicts with requested transaction")
         return operation_id, _resource_version(existing)
     resource_version = _resource_version(named_handoff) if named_handoff is not None else None
-    if named_handoff is not None:
+    if named_handoff is not None and not legacy_named:
         values = _parse_env((named_handoff.get("data") or {}).get("upgrade.env", ""))
         if (
             mode != "committed"
@@ -244,6 +279,7 @@ def _write_preflight_handoff(
     classifier_digest: str,
     source_gv: Optional[str] = None,
     paths: Optional[list[str]] = None,
+    legacy_manifest: Optional[UpgradeManifest] = None,
 ) -> UpgradeTransaction:
     operation_id = requested_operation_id
     for _attempt in range(3):
@@ -257,6 +293,7 @@ def _write_preflight_handoff(
             classifier_digest,
             source_gv,
             paths,
+            legacy_manifest=legacy_manifest,
         )
         transaction = UpgradeTransaction(
             source_version, target_version, operation_id, classifier_digest
@@ -282,6 +319,8 @@ def _validate_committed_authority(
     for handoff in api.list_cms(HANDOFF_SELECTOR):
         if handoff.get("name") != handoff_name:
             continue
+        if _is_legacy_committed(handoff.get("data"), manifest):
+            return
         values = _validate_handoff_payload(handoff.get("data"))
         if values.get("STATE_MIRROR_UPGRADE_MODE") != "committed":
             return

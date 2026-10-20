@@ -26,6 +26,10 @@ Mixed legacy versions require operator investigation; startup and restore reject
 them too, so reconciliation cannot erase the evidence before preflight.
 Schema-1 manifests remain readable as source authority but are adopted through a
 checkpoint and complete generation publication, even for the same release.
+An existing schema-1 committed handoff without a digest is accepted only when
+its exact operation and target release match the authoritative schema-1 manifest.
+Preflight replaces it using ConfigMap CAS with a new digest-bound transaction;
+legacy active handoffs and mismatched completed handoffs remain invalid.
 
 `STATE_MIRROR_CLASSIFIER_DIGEST` is a SHA-256 hash of effective classifier
 semantics: normalized lexical absolute paths, handlers, backend keys/prefixes,

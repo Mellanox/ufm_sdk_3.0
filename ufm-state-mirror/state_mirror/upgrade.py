@@ -128,7 +128,7 @@ def validate_path_ownership(classifier: Classifier) -> None:
 
 
 def _entry_owns_path(entry: Entry, candidate: str) -> bool:
-    entry_path = os.path.abspath(os.path.normpath(entry.path))
+    entry_path = os.path.realpath(entry.path)
     candidate_path = os.path.realpath(candidate)
     if entry_path == candidate_path:
         return True
@@ -314,6 +314,7 @@ def preflight(
         classifier_digest=classifier_digest,
         source_gv=source_gv,
         paths=paths,
+        legacy_manifest=manifest,
     )
     log.info(
         "prepared StateMirror upgrade %s -> %s (%s)",
