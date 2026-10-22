@@ -1,0 +1,27 @@
+.top-controls-wrapper {
+  padding-top: 10px;
+  .flex {
+    display: flex;
+
+    .bins-label {
+      align-self: center;
+      margin-right: 5px;
+    }
+
+    .bins-input {
+      padding: 6px 6px;
+    }
+  }
+
+  .filterable-columns-wrapper {
+    width: 60%;
+
+    .dropdown-wrapper {
+      flex-grow: 1;
+    }
+  }
+}
+
+.chart-wrapper {
+  height: 400px;
+}

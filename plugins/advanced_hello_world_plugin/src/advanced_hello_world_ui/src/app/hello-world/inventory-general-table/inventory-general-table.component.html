@@ -1,0 +1,12 @@
+<app-x-core-ag-grid [rowData]="tableData"
+                    *ngIf="isReady && tableOptions; else spinner"
+                    [dataIsLoading] = "isDataLoading"
+                    [options]="tableOptions"
+                    (onRowSelectionChange)="onRowSelection($event)"
+                    #inventoryTable
+>
+</app-x-core-ag-grid>
+<ng-template #spinner>
+  <spinner class="center"></spinner>
+</ng-template>
+
