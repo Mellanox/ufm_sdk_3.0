@@ -81,6 +81,18 @@
                   "resourceCount": { "type": "string" }
                 }
               },
+              "dra": {
+                "type": "object",
+                "description": "Optional DRA fabric claim for this plugin. Set exactly one claim template or existing claim name.",
+                "properties": {
+                  "resourceClaimTemplateName": { "type": "string", "minLength": 1 },
+                  "resourceClaimName": { "type": "string", "minLength": 1 }
+                },
+                "oneOf": [
+                  { "required": ["resourceClaimTemplateName"], "not": { "required": ["resourceClaimName"] } },
+                  { "required": ["resourceClaimName"], "not": { "required": ["resourceClaimTemplateName"] } }
+                ]
+              },
               "resources": {
                 "type": "object",
                 "properties": {
@@ -93,6 +105,7 @@
               "disableLivenessProbe": { "type": "boolean" },
               "readinessProbe": { "type": "object" },
               "extraCapabilities": { "type": "array", "items": { "type": "string" } },
+              "nodeSelector": { "type": "object" },
               "env": { "type": "array" },
               "volumes": { "type": "array" },
               "volumeMounts": { "type": "array" },
