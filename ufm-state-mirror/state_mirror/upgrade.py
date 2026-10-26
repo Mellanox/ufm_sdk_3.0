@@ -46,6 +46,7 @@ from state_mirror.upgrade_contract import (
     HELM_OWNED_PATHS,
     MANIFEST_HANDLER,
     MANIFEST_KEY,
+    SOURCE_UID_ANNOTATION,
     TARGET_VERSION_ENV,
     ConfigMapApi,
     UpgradeError,
@@ -246,8 +247,12 @@ def preflight(
     store: Store,
     configmaps: ConfigMapApi,
     operation_id: Optional[str] = None,
+    checkpoint_required: bool = False,
+    source_pod_uid: Optional[str] = None,
 ) -> Optional[UpgradeTransaction]:
     target_version = _validated_version(target_version, "target")
+    if checkpoint_required and (not operation_id or not source_pod_uid):
+        raise UpgradeError("checkpoint-required preflight needs an operation ID and source pod UID")
     if handoff_configmap == source_gv_configmap:
         raise UpgradeError("handoff and source gv.cfg ConfigMaps must be different")
     store.probe()
@@ -278,7 +283,13 @@ def preflight(
         )
     if comparison == 0 and target_version != source_version:
         raise UpgradeError("target/source version conflict: equivalent but distinct releases")
-    if comparison == 0 and manifest is not None and manifest.schema_version == 2:
+    already_published = manifest is not None and manifest.operation_id == operation_id
+    if (
+        comparison == 0
+        and manifest is not None
+        and manifest.schema_version == 2
+        and (not checkpoint_required or already_published)
+    ):
         if manifest.classifier_digest != classifier_digest:
             raise UpgradeError("classifier digest conflicts with durable release")
         _write_preflight_handoff(
@@ -315,6 +326,8 @@ def preflight(
         source_gv=source_gv,
         paths=paths,
         legacy_manifest=manifest,
+        checkpoint_required=checkpoint_required,
+        source_pod_uid=source_pod_uid,
     )
     log.info(
         "prepared StateMirror upgrade %s -> %s (%s)",
@@ -473,7 +486,7 @@ def commit(
         handoff["name"],
         expected_resource_version=_resource_version(handoff),
         labels={HANDOFF_LABEL: HANDOFF_LABEL_VALUE},
-        annotations={},
+        annotations=dict(handoff.get("annotations") or {}),
         data={"upgrade.env": _upgrade_env(transaction, mode="committed")},
         binary_data={},
     ):
@@ -523,6 +536,94 @@ def _commit_target_from_env() -> str:
     return release_version_from_env()
 
 
+UPGRADE_CAPABILITIES = (
+    "durable_generation_publish",
+    "checkpoint_fencing",
+    "classifier_binding",
+    "authoritative_state_version",
+    "live_handoff_inspection",
+    "same_release_checkpoint",
+    "source_uid_binding",
+    "pinned_runtime_generation",
+)
+
+
+def capabilities(classifier):
+    from state_mirror.generation import runtime_generation
+
+    validate_path_ownership(classifier)
+    preserve_paths(classifier)
+    return {
+        "capabilities": list(UPGRADE_CAPABILITIES),
+        "classifier_digest": classifier.digest(),
+        "release_version": release_version_from_env(),
+        "source_pod_uid": os.environ.get("STATE_MIRROR_POD_UID", ""),
+        "runtime_generation": runtime_generation(),
+    }
+
+
+def inspect_handoff(*, classifier, target_version, handoff_configmap, store, configmaps):
+    """Read live authority without restoring files or changing the transaction.
+
+    Normalize a lost publication response locally. The durable manifest, rather
+    than a projected ConfigMap, decides whether migration has already committed.
+    """
+    from state_mirror.generation import require_checkpoint
+    from state_mirror.upgrade_handoff import _handoff_data, _validate_handoff_payload
+
+    manifest, source = release_authority(store, classifier)
+    handoff = configmaps.read_cm(handoff_configmap)
+    if handoff is None:
+        raise UpgradeError("upgrade handoff ConfigMap is missing")
+    data = handoff.get("data")
+    values = _validate_handoff_payload(data)
+    digest = classifier.digest()
+    if values["STATE_MIRROR_TARGET_VERSION"] != target_version:
+        raise UpgradeError("live handoff target release conflicts")
+    if values["STATE_MIRROR_CLASSIFIER_DIGEST"] != digest:
+        raise UpgradeError("live handoff classifier digest conflicts")
+    operation = values["STATE_MIRROR_OPERATION_ID"]
+    mode = values["STATE_MIRROR_UPGRADE_MODE"]
+    committed = manifest is not None and manifest.operation_id == operation
+    if committed:
+        if manifest.target_version != target_version or manifest.schema_version != 2:
+            raise UpgradeError("committed handoff has no complete target generation")
+        mode = "committed"
+        data = _handoff_data(
+            mode, UpgradeTransaction(manifest.source_version, target_version, operation, digest)
+        )
+    elif mode == "committed":
+        raise UpgradeError("committed handoff conflicts with durable manifest")
+    elif mode == "fresh":
+        if source is not None:
+            raise UpgradeError("fresh handoff conflicts with durable release")
+    elif values["STATE_MIRROR_SOURCE_VERSION"] != source:
+        raise UpgradeError("handoff source release conflicts with durable authority")
+    else:
+        validate_preservation(classifier, data)
+    checkpoint = False
+    if mode == "upgrade":
+        try:
+            require_checkpoint(
+                store, manifest.generation if manifest else "", digest, operation, target_version
+            )
+        except UpgradeError:
+            pass
+        else:
+            checkpoint = True
+    return {
+        "operation_id": operation,
+        "classifier_digest": digest,
+        "target_version": target_version,
+        "source_version": source,
+        "mode": mode,
+        "generation": manifest.generation if manifest else "legacy",
+        "checkpoint_acknowledged": checkpoint,
+        "handoff": data,
+        "source_pod_uid": (handoff.get("annotations") or {}).get(SOURCE_UID_ANNOTATION, ""),
+    }
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="StateMirror UFM upgrade transaction")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -533,7 +634,13 @@ def _parser() -> argparse.ArgumentParser:
     pre.add_argument("--handoff-configmap", required=True)
     pre.add_argument("--source-gv-configmap", required=True)
     pre.add_argument("--source-gv-key", required=True)
+    pre.add_argument("--operation-id")
+    pre.add_argument("--checkpoint-required", action="store_true")
+    pre.add_argument("--source-pod-uid")
     subparsers.add_parser("commit")
+    subparsers.add_parser("capabilities")
+    inspect = subparsers.add_parser("inspect")
+    inspect.add_argument("--handoff-configmap", required=True)
     checkpoint_parser = subparsers.add_parser("checkpoint")
     checkpoint_parser.add_argument("--quiesced", action="store_true", required=True)
     checkpoint_parser.add_argument("--handoff-configmap", required=True)
@@ -541,40 +648,62 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Optional[list[str]] = None) -> int:
-    setup_logging("state_mirror.upgrade")
-    args = _parser().parse_args(argv)
-    try:
-        if args.command == "preflight":
-            classifier = Classifier.load_file(args.classifier)
-            store, api = _runtime(args.namespace)
-            preflight(
-                classifier=classifier,
-                target_version=args.target_version,
-                handoff_configmap=args.handoff_configmap,
-                source_gv_configmap=args.source_gv_configmap,
-                source_gv_key=args.source_gv_key,
-                store=store,
-                configmaps=api,
-            )
-        elif args.command == "checkpoint":
-            from state_mirror.checkpoint import request_checkpoint
+def _execute(args):
+    classifier = Classifier.load_file(
+        getattr(args, "classifier", None)
+        or os.environ.get("CLASSIFIER_PATH", "/etc/state_mirror/state_mirror.yaml")
+    )
+    if args.command == "capabilities":
+        return capabilities(classifier)
+    namespace = getattr(args, "namespace", None) or detect_namespace()
+    store, api = _runtime(namespace)
+    if args.command == "preflight":
+        preflight(
+            classifier=classifier,
+            target_version=args.target_version,
+            handoff_configmap=args.handoff_configmap,
+            source_gv_configmap=args.source_gv_configmap,
+            source_gv_key=args.source_gv_key,
+            store=store,
+            configmaps=api,
+            operation_id=args.operation_id,
+            checkpoint_required=args.checkpoint_required,
+            source_pod_uid=args.source_pod_uid,
+        )
+    elif args.command == "inspect":
+        return inspect_handoff(
+            classifier=classifier,
+            target_version=release_version_from_env(),
+            handoff_configmap=args.handoff_configmap,
+            store=store,
+            configmaps=api,
+        )
+    elif args.command == "checkpoint":
+        from state_mirror.checkpoint import request_checkpoint
 
-            request_checkpoint(
-                _configmap_api(detect_namespace()), args.handoff_configmap, timeout=args.timeout
-            )
-        else:
-            namespace = detect_namespace()
-            store, api = _runtime(namespace)
-            commit(
-                classifier=Classifier.load_file(
-                    os.environ.get("CLASSIFIER_PATH", "/etc/state_mirror/state_mirror.yaml")
-                ),
-                handoff_dir=os.environ.get(HANDOFF_DIR_ENV, DEFAULT_HANDOFF_DIR),
-                target_version=_commit_target_from_env(),
-                store=store,
-                configmaps=api,
-            )
+        request_checkpoint(api, args.handoff_configmap, timeout=args.timeout)
+    else:
+        commit(
+            classifier=classifier,
+            handoff_dir=os.environ.get(HANDOFF_DIR_ENV, DEFAULT_HANDOFF_DIR),
+            target_version=_commit_target_from_env(),
+            store=store,
+            configmaps=api,
+        )
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    import contextlib
+    import json
+
+    args = _parser().parse_args(argv)
+    json_output = args.command in ("capabilities", "inspect")
+    try:
+        with contextlib.redirect_stdout(sys.stderr if json_output else sys.stdout):
+            setup_logging("state_mirror.upgrade")
+            result = _execute(args)
+        if json_output:
+            print(json.dumps(result))
     except Exception as exc:
         log.error("StateMirror upgrade %s failed: %s", args.command, exc)
         return 1

@@ -163,18 +163,54 @@ SQLite WAL snapshots, directory fan-out and successive upgrades.
 These tests do not replace deployment-level failover and API outage testing on
 an actual Redis/Sentinel or Kubernetes installation.
 
-## UFM integration checked in the companion worktree
+## Consumer integration and compatibility
 
-The companion UFM chart currently supplies `UFM_VERSION` from `Chart.AppVersion`,
-which remains supported. Its commit container mounts migrated files and the
-classifier; the classifier defaults to the SDK's default path. A custom classifier
-mount also requires `CLASSIFIER_PATH` in the commit container.
+The companion UFM integration uses the existing CLI lifecycle above. It does
+not require `state_mirror.upgrade ufm-contract` or a JSON mutation protocol.
+Two read-only commands expose information the consumer needs before downtime
+and after response loss:
 
-The consumer still needs to wire the checkpoint call after actual source-writer
-quiescence and before source pod replacement, and mount the handoff into the
-restore container (including credentials if live ConfigMap refresh is used).
-Its current hook calls preparation/preflight only. The SDK intentionally refuses
-a release-changing restore without the checkpoint-bound handoff. On a restart
-following a lost manifest response, refresh the handoff before the UFM installer
-reads it so `committed` skips migration. Those chart/shutdown changes belong to
-the UFM repository and are outside this StateMirror change.
+- `python -m state_mirror.upgrade capabilities` returns JSON capability names,
+  canonical `classifier_digest`, explicit `release_version`, and
+  `source_pod_uid` from `STATE_MIRROR_POD_UID`, and an optional per-pod
+  `runtime_generation` pin. It does not access the backend.
+- `python -m state_mirror.upgrade inspect --handoff-configmap NAME` returns live
+  validated handoff data, identity, authoritative source version, selected
+  generation, source UID and `checkpoint_acknowledged`. It does not restore
+  files or change backend state. If the manifest proves the operation committed
+  but the handoff update was lost, it returns a normalized committed handoff.
+  Freeze that payload locally before restore; commit can complete the original
+  handoff without recapturing files or rerunning migration.
+
+Only these two commands emit JSON on stdout, with diagnostics on stderr. The
+existing mutation commands retain their exit-status interface.
+
+UFM preflight supplies `--operation-id`, `--source-pod-uid` and
+`--checkpoint-required`. The caller derives an operation ID from its Helm
+revision, target release and classifier. `--checkpoint-required` makes a new
+same-release operation take its own checkpoint instead of reusing the previous
+committed operation. A retry of the already published operation still returns
+committed. The source UID is stored in a CAS-protected handoff annotation and
+cannot change during an active operation. Checkpoint validates it against the
+source sidecar's downward-API `STATE_MIRROR_POD_UID`. A subsequent operation may
+bind a new source UID only after the preceding handoff is committed.
+
+Source/target classifier changes remain unsupported, including path relocation
+and timing/snapshot changes. UFM compares their canonical digests before stopping
+services. An older source without checkpoint/fencing and maintenance support
+requires a separately validated offline migration. This SDK does not implement
+automatic abort/resume, external maintenance-evidence adoption or fence thaw.
+
+For the UFM lifecycle, set `STATE_MIRROR_GENERATION_FILE` on the runtime sidecar
+to a read-only per-pod file written by the consumer after durable commit. Mirror
+startup rejects a missing/invalid pin or a generation different from durable
+authority, before constructing a writable store. A restarted source must never
+adopt the target generation during a same-release upgrade. Other generic consumers
+may omit the variable; they must supply their own equivalent lifecycle guarantee.
+
+Pin the same tested SDK image for target restore/commit/runtime. SDK image
+versions are independent of UFM release inputs; a compatible SDK can serve
+multiple UFM releases. Each UFM release must document supported source releases,
+SDK capabilities and readable manifest schemas. Future schema/classifier changes
+need explicit migration and compatibility tests; retaining a source generation
+does not make Helm rollback a safe reverse data migration.

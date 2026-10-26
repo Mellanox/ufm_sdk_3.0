@@ -689,12 +689,13 @@ def main() -> int:
     server.start()
     try:
         classifier = Classifier.load_file(classifier_path)
-        from state_mirror.generation import FencedStore
+        from state_mirror.generation import FencedStore, validate_runtime_generation
         from state_mirror.upgrade import release_authority, validate_path_ownership
 
         store = build_store(backend_from_env())
         validate_path_ownership(classifier)
         manifest, source_version = release_authority(store, classifier)
+        validate_runtime_generation(manifest)
         if source_version is not None and source_version != ufm_version:
             raise ValueError("writer release conflicts with durable release authority")
         if manifest is not None:

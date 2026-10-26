@@ -24,6 +24,7 @@ from state_mirror.upgrade_contract import (
     HANDOFF_LABEL,
     HANDOFF_LABEL_VALUE,
     HANDOFF_SELECTOR,
+    SOURCE_UID_ANNOTATION,
     ConfigMapApi,
     UpgradeError,
     UpgradeManifest,
@@ -188,6 +189,7 @@ def _operation_for_preflight(
     source_gv: Optional[str] = None,
     paths: Optional[list[str]] = None,
     legacy_manifest: Optional[UpgradeManifest] = None,
+    checkpoint_required: bool = False,
 ) -> tuple[str, Optional[str]]:
     """Reuse an identical retry and reject any globally active conflict."""
     named_handoff = None
@@ -214,7 +216,7 @@ def _operation_for_preflight(
                 if (existing.get("data") or {}) != _handoff_data(mode, transaction):
                     raise UpgradeError("committed handoff payload is inconsistent")
                 return live_operation, _resource_version(existing)
-            if live_target == target_version:
+            if live_target == target_version and not checkpoint_required:
                 raise UpgradeError("committed handoff conflicts with requested transaction")
             continue
         operation_id = values["STATE_MIRROR_OPERATION_ID"]
@@ -256,6 +258,7 @@ def _operation_for_preflight(
             mode != "committed"
             and values.get("STATE_MIRROR_UPGRADE_MODE") == "committed"
             and values.get("STATE_MIRROR_TARGET_VERSION") == target_version
+            and not checkpoint_required
         ):
             raise UpgradeError("handoff transaction was already committed")
     return _validated_operation_id(requested_operation_id or uuid.uuid4().hex), resource_version
@@ -280,6 +283,8 @@ def _write_preflight_handoff(
     source_gv: Optional[str] = None,
     paths: Optional[list[str]] = None,
     legacy_manifest: Optional[UpgradeManifest] = None,
+    checkpoint_required: bool = False,
+    source_pod_uid: Optional[str] = None,
 ) -> UpgradeTransaction:
     operation_id = requested_operation_id
     for _attempt in range(3):
@@ -294,7 +299,20 @@ def _write_preflight_handoff(
             source_gv,
             paths,
             legacy_manifest=legacy_manifest,
+            checkpoint_required=checkpoint_required,
         )
+        current = api.read_cm(handoff_name)
+        annotations = dict((current or {}).get("annotations") or {})
+        bound_uid = annotations.get(SOURCE_UID_ANNOTATION)
+        if source_pod_uid:
+            previous = _parse_env(current["data"]["upgrade.env"]) if current else {}
+            replacing_committed = (
+                previous.get("STATE_MIRROR_UPGRADE_MODE") == "committed"
+                and previous.get("STATE_MIRROR_OPERATION_ID") != operation_id
+            )
+            if bound_uid and bound_uid != source_pod_uid and not replacing_committed:
+                raise UpgradeError("source pod UID conflicts with prepared handoff")
+            annotations[SOURCE_UID_ANNOTATION] = source_pod_uid
         transaction = UpgradeTransaction(
             source_version, target_version, operation_id, classifier_digest
         )
@@ -303,7 +321,7 @@ def _write_preflight_handoff(
             handoff_name,
             expected_resource_version=resource_version,
             labels={HANDOFF_LABEL: HANDOFF_LABEL_VALUE},
-            annotations={},
+            annotations=annotations,
             data=data,
             binary_data={},
         ):
@@ -410,6 +428,24 @@ def _validate_live_handoff(
         if mounted_mode == "committed" and mounted_data != expected_data:
             raise UpgradeError("mounted committed handoff payload is inconsistent")
         return
+    if mounted_mode == "committed" and existing is not None:
+        # Read-only inspection can normalize a lost commit response before the
+        # projected/live handoff was updated. Complete that same operation only.
+        transaction = UpgradeTransaction(
+            source_version, target_version, operation_id, classifier_digest
+        )
+        if (
+            existing.operation_id == operation_id
+            and existing.target_version == target_version
+            and existing.source_version == source_version
+            and existing.classifier_digest == classifier_digest
+            and existing.schema_version == 2
+            and mounted_data == _handoff_data("committed", transaction)
+            and (
+                live_mode == "fresh" or values.get("STATE_MIRROR_SOURCE_VERSION") == source_version
+            )
+        ):
+            return
     if (handoff.get("data") or {}) != mounted_data:
         raise UpgradeError("live handoff payload conflicts with mounted transaction")
     if live_mode != mounted_mode:

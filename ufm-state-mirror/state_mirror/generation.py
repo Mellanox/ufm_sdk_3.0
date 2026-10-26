@@ -35,6 +35,23 @@ FENCE_PREFIX = "state-mirror:fence:"
 INVENTORY_KEY = "state-mirror:inventory"
 
 
+def runtime_generation():
+    """Read a consumer-owned per-pod pin without resolving backend authority."""
+    import os
+    from pathlib import Path
+
+    from state_mirror.upgrade_contract import _validated_operation_id
+
+    path = os.environ.get("STATE_MIRROR_GENERATION_FILE")
+    return _validated_operation_id(Path(path).read_text().strip()) if path else ""
+
+
+def validate_runtime_generation(manifest):
+    pinned = runtime_generation()
+    if pinned and (manifest is None or manifest.generation != pinned):
+        raise GenerationError("runtime generation pin conflicts with durable manifest")
+
+
 class GenerationError(UpgradeError):
     """A generation or its writer fence cannot be safely used."""
 

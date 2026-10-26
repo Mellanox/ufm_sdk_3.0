@@ -128,6 +128,8 @@ still running, but newer snapshots are not durable.
 |----------|---------|---------|
 | `CLASSIFIER_PATH` | `/etc/state_mirror/state_mirror.yaml` | Classifier file. |
 | `UFM_RELEASE_VERSION` / `UFM_VERSION` | _(required)_ | Explicit installed UFM release, stamped into metadata. `UFM_VERSION` preserves the existing chart input; use dedicated `UFM_RELEASE_VERSION` when component versions differ. |
+| `STATE_MIRROR_POD_UID` | _(consumer-supplied)_ | Downward-API pod UID used by source-bound upgrade checkpoints. |
+| `STATE_MIRROR_GENERATION_FILE` | _(optional)_ | Consumer-owned per-pod generation pin; required by the paired UFM lifecycle to prevent a restarted source adopting a newer generation. |
 | `STATE_MIRROR_TARGET_VERSION` | _(optional)_ | Explicit release target; may supply release authority. Must exactly match `UFM_RELEASE_VERSION` when both are set. |
 | `STATE_MIRROR_METRICS_PORT` | `9180` | HTTP port. |
 | `STATE_MIRROR_MAX_QUEUE` | `100000` | Max observed-delete queue; drop-oldest on overflow (dropped deletes fall back to backend-wins, D2/HLD 8.2). |

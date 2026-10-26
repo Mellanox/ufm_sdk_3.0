@@ -36,6 +36,7 @@ HANDOFF_SELECTOR = f"{HANDOFF_LABEL}={HANDOFF_LABEL_VALUE}"
 HANDOFF_DIR_ENV = "STATE_MIRROR_UPGRADE_HANDOFF_DIR"
 DEFAULT_HANDOFF_DIR = "/var/run/state-mirror-upgrade"
 TARGET_VERSION_ENV = "STATE_MIRROR_TARGET_VERSION"
+SOURCE_UID_ANNOTATION = "state-mirror.nvidia.com/source-pod-uid"
 
 _VERSION_RE = re.compile(r"^[0-9]+(?:\.[0-9]+)*(?:[-+][0-9A-Za-z][0-9A-Za-z.-]*)?$")
 _OPERATION_ID_RE = re.compile(r"^[0-9a-f]{32}$")

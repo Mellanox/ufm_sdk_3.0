@@ -20,7 +20,7 @@ import urllib.request
 
 from state_mirror.generation import FencedStore
 from state_mirror.upgrade import validate_preservation
-from state_mirror.upgrade_contract import UpgradeError
+from state_mirror.upgrade_contract import SOURCE_UID_ANNOTATION, UpgradeError
 from state_mirror.upgrade_handoff import _find_handoff, _validate_handoff_payload
 
 
@@ -35,6 +35,9 @@ def final_checkpoint(mirror, classifier, api, request):
     operation_id = request.get("operation_id")
     handoff = _find_handoff(api, operation_id)
     values = _validate_handoff_payload(handoff["data"])
+    bound_uid = (handoff.get("annotations") or {}).get(SOURCE_UID_ANNOTATION)
+    if bound_uid and bound_uid != os.environ.get("STATE_MIRROR_POD_UID"):
+        raise UpgradeError("checkpoint source pod UID conflicts")
     digest = classifier.digest()
     if values["STATE_MIRROR_UPGRADE_MODE"] != "upgrade":
         raise UpgradeError("checkpoint requires a prepared upgrade handoff")
