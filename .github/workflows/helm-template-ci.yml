@@ -67,7 +67,7 @@ jobs:
 
           assert_contains() {
             local desc="$1" output="$2" expected="$3"
-            if echo "$output" | grep -q "$expected"; then
+            if echo "$output" | grep -q -- "$expected"; then
               echo "  PASS: ${desc}"
               PASS=$((PASS + 1))
             else
@@ -78,7 +78,7 @@ jobs:
 
           assert_not_contains() {
             local desc="$1" output="$2" unexpected="$3"
-            if echo "$output" | grep -q "$unexpected"; then
+            if echo "$output" | grep -q -- "$unexpected"; then
               echo "  FAIL: ${desc} (unexpected: ${unexpected})"
               FAIL=$((FAIL + 1))
             else
@@ -90,7 +90,7 @@ jobs:
           assert_count() {
             local desc="$1" output="$2" pattern="$3" expected="$4"
             local actual
-            actual=$(echo "$output" | grep -c "$pattern" || true)
+            actual=$(echo "$output" | grep -c -- "$pattern" || true)
             if [ "$actual" -eq "$expected" ]; then
               echo "  PASS: ${desc} (count: ${actual})"
               PASS=$((PASS + 1))
@@ -100,8 +100,8 @@ jobs:
             fi
           }
 
-          render() { helm template test "${CHART}" -f "${CHART}/$1" -n "${NS}" 2>/dev/null; }
-          render_set() { helm template test "${CHART}" -f "${CHART}/$1" --set "$2" -n "${NS}" 2>/dev/null; }
+          render() { helm template test "${CHART}" -f "${CHART}/$1" -n "${NS}"; }
+          render_set() { helm template test "${CHART}" -f "${CHART}/$1" --set "$2" -n "${NS}"; }
 
           # --- Single plugin baseline ---
           echo "--- ci-values.yaml: single plugin assertions ---"
@@ -183,6 +183,40 @@ jobs:
           assert_contains "telemetry_exporter in ConfigMap" "$OUT" "name: telemetry_exporter"
           assert_contains "port 8080"                     "$OUT" "port: 8080"
           assert_contains "port 9090"                     "$OUT" "port: 9090"
+
+          # --- Per-plugin DRA allocation and node selection ---
+          echo "--- ci-values.yaml: DRA assertions ---"
+          # Both claim forms must fail early when the stable DRA API is unavailable.
+          for claim_field in resourceClaimTemplateName resourceClaimName; do
+            if OUT=$(helm template test "${CHART}" -f "${CHART}/ci-values.yaml" \
+              --set-string "plugins.entries.ci_test_plugin.dra.${claim_field}=ci-fabric" \
+              -n "${NS}" 2>&1); then
+              echo "  FAIL: ${claim_field} rendered without the DRA API"
+              FAIL=$((FAIL + 1))
+            else
+              assert_contains "${claim_field} reports missing DRA API" "$OUT" \
+                "plugin ci_test_plugin: DRA requires the resource.k8s.io/v1 API"
+            fi
+          done
+          OUT=$(helm template test "${CHART}" -f "${CHART}/ci-values.yaml" \
+            --api-versions resource.k8s.io/v1 \
+            --set-string rdma.resourceCount=1 \
+            --set-string plugins.entries.ci_test_plugin.rdma.resourceCount=0 \
+            --set-string plugins.entries.ci_test_plugin.dra.resourceClaimTemplateName=ci-fabric \
+            --set-string plugins.entries.ci_test_plugin.nodeSelector.test-node=worker-a \
+            --set-string 'plugins.entries.ci_test_plugin.extraCapabilities[0]=IPC_LOCK' -n "${NS}")
+          assert_contains "per-plugin node selector" "$OUT" "test-node: worker-a"
+          assert_contains "DRA claim template" "$OUT" 'resourceClaimTemplateName: "ci-fabric"'
+          assert_count "claim is registered and mapped" "$OUT" "name: fabric" 2
+          assert_contains "explicit IPC_LOCK capability" "$OUT" "- IPC_LOCK"
+          assert_not_contains "per-plugin RDMA override disables shared allocation" "$OUT" "rdma/hca_shared"
+
+          OUT=$(helm template test "${CHART}" -f "${CHART}/ci-values.yaml" \
+            --api-versions resource.k8s.io/v1 \
+            --set-string plugins.entries.ci_test_plugin.dra.resourceClaimName=ci-existing-fabric \
+            -n "${NS}")
+          assert_contains "existing DRA claim" "$OUT" 'resourceClaimName: "ci-existing-fabric"'
+          assert_count "existing claim is registered and mapped" "$OUT" "name: fabric" 2
 
           # --- ClusterIP Service + plugins.yaml host (ci-values-service.yaml) ---
           echo "Validating ClusterIP Service + plugins.yaml host (ci-values-service.yaml)..."
