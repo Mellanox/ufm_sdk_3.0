@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# Preserve existing CodeRabbit web-app settings outside this policy.
+inheritance: true
+language: "en-US"
+reviews:
+  profile: "quiet"
+  review_details: true
+  path_instructions:
+    - path: "**"
+      instructions: |
+        Report only Critical (P0) and Major (P1) issues backed by concrete evidence:
+        correctness failures, security vulnerabilities, data loss, crashes, upgrade
+        regressions, HA failures, and breaking API or cross-repository contracts. Skip minor
+        findings, style, naming, and cosmetic or speculative suggestions. Apply this
+        severity threshold to all path-specific instructions and tool findings.
+  auto_review:
+    enabled: true
+    drafts: true
+    base_branches:
+      - .*
+    ignore_title_keywords:
+      - '[skip review]'
+  request_changes_workflow: false
+chat:
+  auto_reply: true
+knowledge_base:
+  linked_repositories:
+    - repository: "Mellanox/UFM"
+      instructions: "UFM server and plugin framework. Check SDK and community plugin changes against the REST API and plugin contracts."
