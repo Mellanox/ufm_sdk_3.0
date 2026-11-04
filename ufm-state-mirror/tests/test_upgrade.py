@@ -18,7 +18,10 @@ import copy
 import pytest
 
 from state_mirror import wire
+from state_mirror.checkpoint import final_checkpoint
 from state_mirror.classifier import Classifier
+from state_mirror.generation import FencedStore
+from state_mirror.mirror import Mirror
 from state_mirror.store import ConfigMapStore, RedisStore
 from state_mirror.upgrade import (
     HANDOFF_LABEL,
@@ -113,17 +116,21 @@ def backend(request, fake_redis):
 
 
 @pytest.fixture
-def classifier():
+def classifier(tmp_path, monkeypatch):
+    root = tmp_path / "files"
+    monkeypatch.setattr("state_mirror.upgrade.FILES_ROOT", str(root))
+    (root / "conf/plugins").mkdir(parents=True)
+    (root / "conf/a.json").write_bytes(b"state")
     return Classifier.from_dict(
         {
             "entries": [
                 {
-                    "path": "/opt/ufm/files/conf/a.json",
+                    "path": str(root / "conf/a.json"),
                     "handler": "blob",
                     "redis_key": "ufm:state:a",
                 },
                 {
-                    "path": "/opt/ufm/files/conf/plugins",
+                    "path": str(root / "conf/plugins"),
                     "handler": "directory",
                     "redis_key_prefix": "ufm:plugins:",
                     "recursive": True,
@@ -160,7 +167,28 @@ def _preflight(store, api, classifier, target="7.1.0"):
     )
 
 
-def _mount_handoff(tmp_path, api):
+def _mount_handoff(tmp_path, api, store, classifier):
+    values = _env(api)
+    if values["STATE_MIRROR_UPGRADE_MODE"] == "upgrade":
+        manifest = load_manifest(store)
+        view = FencedStore(
+            store,
+            manifest.generation if manifest else "",
+            classifier.digest(),
+            values["STATE_MIRROR_SOURCE_VERSION"],
+        )
+        mirror = Mirror(classifier, view, values["STATE_MIRROR_SOURCE_VERSION"], "test")
+        final_checkpoint(
+            mirror,
+            classifier,
+            api,
+            {
+                "quiesced": True,
+                "operation_id": values["STATE_MIRROR_OPERATION_ID"],
+                "target_version": values["STATE_MIRROR_TARGET_VERSION"],
+                "digest": classifier.digest(),
+            },
+        )
     path = tmp_path / "handoff"
     path.mkdir()
     for name, value in api.objs["ufm-upgrade"]["data"].items():
@@ -190,6 +218,7 @@ class TestPreflight:
             "STATE_MIRROR_UPGRADE_MODE": "fresh",
             "STATE_MIRROR_TARGET_VERSION": "7.1.0",
             "STATE_MIRROR_OPERATION_ID": OPERATION_ID,
+            "STATE_MIRROR_CLASSIFIER_DIGEST": classifier.digest(),
         }
         assert store.get(MANIFEST_KEY) is None
 
@@ -265,7 +294,9 @@ class TestPreflight:
             binary_data={},
         )
 
-        with pytest.raises(UpgradeError, match="handoff ConfigMap|handoff .*payload"):
+        with pytest.raises(
+            UpgradeError, match="handoff ConfigMap|handoff .*payload|handoff .*environment"
+        ):
             _preflight(store, api, classifier)
         assert api.objs["ufm-upgrade"]["data"] == data
 
@@ -282,6 +313,7 @@ class TestPreflight:
                         "STATE_MIRROR_UPGRADE_MODE=fresh\n"
                         "STATE_MIRROR_TARGET_VERSION=7.1.0\n"
                         f"STATE_MIRROR_OPERATION_ID={'f' * 32}\n"
+                        f"STATE_MIRROR_CLASSIFIER_DIGEST={classifier.digest()}\n"
                     )
                 },
                 binary_data={},
@@ -330,28 +362,15 @@ class TestPreflight:
                 operation_id=OPERATION_ID,
             )
 
-    def test_divergent_metadata_migrates_from_newest_write(self, backend, classifier):
+    @pytest.mark.parametrize("same_timestamp", [True, False])
+    def test_divergent_metadata_is_rejected(self, backend, classifier, same_timestamp):
         store, api = backend
-        _put(
-            store,
-            "ufm:plugins:tool.json",
-            "6.9.0",
-            written_at="2026-01-02T03:04:05Z",
-        )
-        _put(store, "ufm:state:a", "7.0.0", written_at="2026-02-03T04:05:06Z")
-
-        transaction = _preflight(store, api, classifier)
-
-        assert transaction.source_version == "7.0.0"
-        assert _env(api)["STATE_MIRROR_UPGRADE_MODE"] == "upgrade"
-
-    def test_divergent_metadata_breaks_stamp_ties_by_version(self, backend, classifier):
-        store, api = backend
-        stamp = "2026-02-03T04:05:06Z"
-        _put(store, "ufm:state:a", "6.9.0", written_at=stamp)
-        _put(store, "ufm:plugins:tool.json", "7.0.0", written_at=stamp)
-
-        assert _preflight(store, api, classifier).source_version == "7.0.0"
+        _put(store, "ufm:plugins:tool.json", "6.9.0", written_at="2026-01-02T03:04:05Z")
+        stamp = "2026-01-02T03:04:05Z" if same_timestamp else "2026-02-03T04:05:06Z"
+        _put(store, "ufm:state:a", "7.0.0", written_at=stamp)
+        with pytest.raises(UpgradeError, match="divergent legacy release versions"):
+            _preflight(store, api, classifier)
+        assert "ufm-upgrade" not in api.objs
 
     def test_invalid_legacy_write_timestamp_fails_closed(self, backend, classifier):
         store, api = backend
@@ -408,7 +427,7 @@ class TestPreflight:
         )
         _put(store, "ufm:state:a", "9.9.0", written_at="2026-02-03T04:05:06Z")
 
-        with pytest.raises(UpgradeError, match="downgrade refused"):
+        with pytest.raises(UpgradeError, match="divergent legacy release versions"):
             _preflight(store, api, classifier)
         assert "ufm-upgrade" not in api.objs
 
@@ -525,7 +544,7 @@ def test_version_comparison_is_symmetric_for_punctuation_equivalent_suffixes():
 class TestCommit:
     def test_environment_target_versions_must_agree(self, monkeypatch):
         monkeypatch.setenv("STATE_MIRROR_TARGET_VERSION", "7.1.0")
-        monkeypatch.setenv("UFM_VERSION", "7.2.0")
+        monkeypatch.setenv("UFM_RELEASE_VERSION", "7.2.0")
         with pytest.raises(UpgradeError, match="target version conflict"):
             _commit_target_from_env()
 
@@ -534,7 +553,8 @@ class TestCommit:
         assert _preflight(store, api, classifier) is None
 
         manifest = commit(
-            handoff_dir=_mount_handoff(tmp_path, api),
+            classifier=classifier,
+            handoff_dir=_mount_handoff(tmp_path, api, store, classifier),
             target_version="7.1.0",
             store=store,
             configmaps=api,
@@ -547,15 +567,17 @@ class TestCommit:
         store, api = backend
         _put(store, "ufm:state:a", "7.0.0")
         _preflight(store, api, classifier)
-        handoff_dir = _mount_handoff(tmp_path, api)
+        handoff_dir = _mount_handoff(tmp_path, api, store, classifier)
 
         first = commit(
+            classifier=classifier,
             handoff_dir=handoff_dir,
             target_version="7.1.0",
             store=store,
             configmaps=api,
         )
         second = commit(
+            classifier=classifier,
             handoff_dir=handoff_dir,
             target_version="7.1.0",
             store=store,
@@ -568,6 +590,7 @@ class TestCommit:
             "STATE_MIRROR_UPGRADE_MODE": "committed",
             "STATE_MIRROR_TARGET_VERSION": "7.1.0",
             "STATE_MIRROR_OPERATION_ID": OPERATION_ID,
+            "STATE_MIRROR_CLASSIFIER_DIGEST": classifier.digest(),
         }
 
         # A restarted pod mounts the now-committed ConfigMap, which deliberately
@@ -579,6 +602,7 @@ class TestCommit:
         )
         assert (
             commit(
+                classifier=classifier,
                 handoff_dir=str(committed_mount),
                 target_version="7.1.0",
                 store=store,
@@ -594,7 +618,8 @@ class TestCommit:
         _put(store, "ufm:state:a", "7.0.0")
         _preflight(store, api, classifier)
         commit(
-            handoff_dir=_mount_handoff(tmp_path, api),
+            classifier=classifier,
+            handoff_dir=_mount_handoff(tmp_path, api, store, classifier),
             target_version="7.1.0",
             store=store,
             configmaps=api,
@@ -609,8 +634,9 @@ class TestCommit:
         store, api = backend
         _put(store, "ufm:state:a", "7.0.0")
         _preflight(store, api, classifier)
-        handoff_dir = _mount_handoff(tmp_path, api)
+        handoff_dir = _mount_handoff(tmp_path, api, store, classifier)
         commit(
+            classifier=classifier,
             handoff_dir=handoff_dir,
             target_version="7.1.0",
             store=store,
@@ -623,6 +649,7 @@ class TestCommit:
         )
         with pytest.raises(UpgradeError, match="conflicts"):
             commit(
+                classifier=classifier,
                 handoff_dir=handoff_dir,
                 target_version="7.1.0",
                 store=store,
@@ -633,13 +660,14 @@ class TestCommit:
         store, api = backend
         _put(store, "ufm:state:a", "7.0.0")
         _preflight(store, api, classifier)
-        handoff_dir = _mount_handoff(tmp_path, api)
+        handoff_dir = _mount_handoff(tmp_path, api, store, classifier)
         api.objs["ufm-upgrade"]["data"]["upgrade.env"] = api.objs["ufm-upgrade"]["data"][
             "upgrade.env"
         ].replace("7.1.0", "7.2.0")
 
         with pytest.raises(UpgradeError, match="live handoff ConfigMap conflicts"):
             commit(
+                classifier=classifier,
                 handoff_dir=handoff_dir,
                 target_version="7.1.0",
                 store=store,
@@ -654,11 +682,12 @@ class TestCommit:
         store, api = backend
         _put(store, "ufm:state:a", "7.0.0")
         _preflight(store, api, classifier)
-        handoff_dir = _mount_handoff(tmp_path, api)
+        handoff_dir = _mount_handoff(tmp_path, api, store, classifier)
         api.objs["ufm-upgrade"]["data"][field] += "changed\n"
 
         with pytest.raises(UpgradeError, match="payload conflicts"):
             commit(
+                classifier=classifier,
                 handoff_dir=handoff_dir,
                 target_version="7.1.0",
                 store=store,
@@ -681,7 +710,8 @@ class TestCommit:
         _put(store, "ufm:state:a", "7.0.0")
         _preflight(store, api, classifier)
         commit(
-            handoff_dir=_mount_handoff(tmp_path, api),
+            classifier=classifier,
+            handoff_dir=_mount_handoff(tmp_path, api, store, classifier),
             target_version="7.1.0",
             store=store,
             configmaps=api,
@@ -696,12 +726,13 @@ class TestCommit:
         store, api = backend
         _put(store, "ufm:state:a", "7.0.0")
         _preflight(store, api, classifier)
-        handoff_dir = _mount_handoff(tmp_path, api)
+        handoff_dir = _mount_handoff(tmp_path, api, store, classifier)
         competing = UpgradeManifest(
             source_version="7.0.0",
             target_version="7.0.1",
             operation_id="f" * 32,
             committed_at="2026-09-22T00:00:00Z",
+            schema_version=1,
         )
         body = competing.to_bytes()
         meta = wire.build_meta(body, "upgrade_manifest", "7.0.1", "test")
@@ -714,6 +745,7 @@ class TestCommit:
 
         with pytest.raises(UpgradeError, match="changed during commit"):
             commit(
+                classifier=classifier,
                 handoff_dir=handoff_dir,
                 target_version="7.1.0",
                 store=store,
@@ -729,7 +761,7 @@ class TestCommit:
         api = FakeConfigMaps()
         _put(store, "ufm:state:a", "7.0.0")
         _preflight(store, api, classifier)
-        handoff_dir = _mount_handoff(tmp_path, api)
+        handoff_dir = _mount_handoff(tmp_path, api, store, classifier)
 
         def competing_handoff(cm_api):
             current = cm_api.objs["ufm-upgrade"]
@@ -746,6 +778,7 @@ class TestCommit:
         api.before_cas = competing_handoff
         with pytest.raises(UpgradeError, match="handoff ConfigMap changed during commit"):
             commit(
+                classifier=classifier,
                 handoff_dir=handoff_dir,
                 target_version="7.1.0",
                 store=store,
@@ -769,3 +802,287 @@ def test_redis_manifest_cas_detects_metadata_only_change(fake_redis):
     assert not store.put_if_unchanged(MANIFEST_KEY, (old_body, old_meta), new_body, new_meta)
     assert fake_redis.store[MANIFEST_KEY] == old_body
     assert fake_redis.store[wire.meta_key(MANIFEST_KEY)] == b"changed-meta"
+
+
+class TestConsumerInspection:
+    def inspect(self, store, api, classifier):
+        from state_mirror.upgrade import inspect_handoff
+
+        return inspect_handoff(
+            classifier=classifier,
+            target_version="7.1.0",
+            handoff_configmap="ufm-upgrade",
+            store=store,
+            configmaps=api,
+        )
+
+    def test_inspection_is_read_only_and_checkpoint_is_explicit(self, backend, classifier):
+        store, api = backend
+        _put(store, "ufm:state:a", "7.0.0")
+        _preflight(store, api, classifier)
+        before = copy.deepcopy(api.objs)
+        assert self.inspect(store, api, classifier)["checkpoint_acknowledged"] is False
+        assert api.objs == before
+        view = FencedStore(store, "", classifier.digest(), "7.0.0")
+        mirror = Mirror(classifier, view, "7.0.0", "test")
+        final_checkpoint(
+            mirror,
+            classifier,
+            api,
+            {
+                "quiesced": True,
+                "operation_id": OPERATION_ID,
+                "target_version": "7.1.0",
+                "digest": classifier.digest(),
+            },
+        )
+        assert self.inspect(store, api, classifier)["checkpoint_acknowledged"] is True
+
+    def test_lost_commit_response_can_be_normalized_without_mutation(
+        self, backend, classifier, tmp_path, monkeypatch
+    ):
+        store, api = backend
+        _put(store, "ufm:state:a", "7.0.0")
+        _preflight(store, api, classifier)
+        mounted = _mount_handoff(tmp_path, api, store, classifier)
+        real_cas = api.write_cm_cas
+        monkeypatch.setattr(
+            api,
+            "write_cm_cas",
+            lambda name, **kw: False if name == "ufm-upgrade" else real_cas(name, **kw),
+        )
+        with pytest.raises(UpgradeError, match="changed during commit"):
+            commit(
+                classifier=classifier,
+                handoff_dir=mounted,
+                target_version="7.1.0",
+                store=store,
+                configmaps=api,
+            )
+        before = copy.deepcopy(api.objs)
+        result = self.inspect(store, api, classifier)
+        assert result["mode"] == "committed"
+        assert api.objs == before
+        normalized = tmp_path / "normalized"
+        normalized.mkdir()
+        for name, value in result["handoff"].items():
+            (normalized / name).write_text(value)
+        monkeypatch.setattr(api, "write_cm_cas", real_cas)
+        committed = commit(
+            classifier=classifier,
+            handoff_dir=str(normalized),
+            target_version="7.1.0",
+            store=store,
+            configmaps=api,
+        )
+        assert committed.generation == result["generation"]
+        assert _env(api)["STATE_MIRROR_UPGRADE_MODE"] == "committed"
+
+    def test_same_release_operation_requires_its_own_checkpoint(
+        self, backend, classifier, tmp_path
+    ):
+        store, api = backend
+        _preflight(store, api, classifier)
+        manifest = commit(
+            classifier=classifier,
+            handoff_dir=_mount_handoff(tmp_path, api, store, classifier),
+            target_version="7.1.0",
+            store=store,
+            configmaps=api,
+        )
+        api.source_gv()
+        transaction = preflight(
+            classifier=classifier,
+            target_version="7.1.0",
+            handoff_configmap="ufm-upgrade",
+            source_gv_configmap="ufm-gv-cfg",
+            source_gv_key="gv.cfg",
+            store=store,
+            configmaps=api,
+            operation_id="b" * 32,
+            checkpoint_required=True,
+            source_pod_uid="source-uid",
+        )
+        assert transaction.operation_id == "b" * 32
+        assert self.inspect(store, api, classifier)["checkpoint_acknowledged"] is False
+        assert _env(api)["STATE_MIRROR_UPGRADE_MODE"] == "upgrade"
+        assert load_manifest(store) == manifest
+
+    def test_source_uid_cannot_change_during_active_operation(self, backend, classifier):
+        store, api = backend
+        _put(store, "ufm:state:a", "7.0.0")
+        api.source_gv()
+        arguments = dict(
+            classifier=classifier,
+            target_version="7.1.0",
+            handoff_configmap="ufm-upgrade",
+            source_gv_configmap="ufm-gv-cfg",
+            source_gv_key="gv.cfg",
+            store=store,
+            configmaps=api,
+            operation_id=OPERATION_ID,
+            checkpoint_required=True,
+        )
+        preflight(**arguments, source_pod_uid="original")
+        with pytest.raises(UpgradeError, match="source pod UID conflicts"):
+            preflight(**arguments, source_pod_uid="replacement")
+
+    def test_replaced_source_cannot_acknowledge_checkpoint(self, backend, classifier, monkeypatch):
+        from state_mirror.upgrade_contract import SOURCE_UID_ANNOTATION
+
+        store, api = backend
+        _put(store, "ufm:state:a", "7.0.0")
+        _preflight(store, api, classifier)
+        api.objs["ufm-upgrade"]["annotations"][SOURCE_UID_ANNOTATION] = "original"
+        monkeypatch.setenv("STATE_MIRROR_POD_UID", "replacement")
+        mirror = Mirror(
+            classifier, FencedStore(store, "", classifier.digest(), "7.0.0"), "7.0.0", "test"
+        )
+        with pytest.raises(UpgradeError, match="source pod UID conflicts"):
+            final_checkpoint(
+                mirror,
+                classifier,
+                api,
+                {
+                    "quiesced": True,
+                    "operation_id": OPERATION_ID,
+                    "target_version": "7.1.0",
+                    "digest": classifier.digest(),
+                },
+            )
+
+    def test_capabilities_and_inspection_are_actual_cli_commands(
+        self, backend, classifier, monkeypatch, capsys
+    ):
+        import json
+
+        from state_mirror import upgrade
+
+        store, api = backend
+        _preflight(store, api, classifier)
+        monkeypatch.setenv("UFM_RELEASE_VERSION", "7.1.0")
+        monkeypatch.setattr(upgrade.Classifier, "load_file", lambda path: classifier)
+        monkeypatch.setattr(upgrade, "_runtime", lambda namespace: (store, api))
+        assert upgrade.main(["capabilities"]) == 0
+        assert "live_handoff_inspection" in json.loads(capsys.readouterr().out)["capabilities"]
+        assert upgrade.main(["inspect", "--handoff-configmap", "ufm-upgrade"]) == 0
+        assert json.loads(capsys.readouterr().out)["mode"] == "fresh"
+
+
+class TestRuntimeGenerationPin:
+    @pytest.mark.parametrize("pin", ["f" * 32, "", "not-a-generation"])
+    def test_restarted_mirror_cannot_switch_generation_before_writing(
+        self, backend, classifier, tmp_path, monkeypatch, pin
+    ):
+        from unittest.mock import Mock
+
+        from state_mirror import generation, mirror
+
+        store, api = backend
+        _preflight(store, api, classifier)
+        commit(
+            classifier=classifier,
+            handoff_dir=_mount_handoff(tmp_path, api, store, classifier),
+            target_version="7.1.0",
+            store=store,
+            configmaps=api,
+        )
+        source_pin = tmp_path / "source-generation"
+        source_pin.write_text(pin)
+        monkeypatch.setenv("STATE_MIRROR_GENERATION_FILE", str(source_pin))
+        monkeypatch.setenv("UFM_RELEASE_VERSION", "7.1.0")
+        monkeypatch.setattr(mirror.Classifier, "load_file", lambda path: classifier)
+        monkeypatch.setattr("state_mirror.backends.build_store", lambda backend: store)
+        monkeypatch.setattr(mirror, "HealthServer", Mock())
+        writer = Mock()
+        monkeypatch.setattr(generation, "FencedStore", writer)
+        before = copy.deepcopy(api.objs)
+        assert mirror.main() == 1
+        writer.assert_not_called()
+        assert api.objs == before
+
+    def test_current_pod_pin_matches_authority(self, backend, classifier, tmp_path, monkeypatch):
+        from state_mirror.generation import validate_runtime_generation
+
+        store, api = backend
+        _preflight(store, api, classifier)
+        manifest = commit(
+            classifier=classifier,
+            handoff_dir=_mount_handoff(tmp_path, api, store, classifier),
+            target_version="7.1.0",
+            store=store,
+            configmaps=api,
+        )
+        pin = tmp_path / "generation"
+        pin.write_text(manifest.generation)
+        monkeypatch.setenv("STATE_MIRROR_GENERATION_FILE", str(pin))
+        validate_runtime_generation(manifest)
+
+
+class TestSourceUIDAdoption:
+    def test_new_committed_operation_can_bind_a_replacement_source(
+        self, backend, classifier, tmp_path
+    ):
+        from state_mirror.upgrade_contract import SOURCE_UID_ANNOTATION
+
+        store, api = backend
+        _preflight(store, api, classifier)
+        commit(
+            classifier=classifier,
+            handoff_dir=_mount_handoff(tmp_path, api, store, classifier),
+            target_version="7.1.0",
+            store=store,
+            configmaps=api,
+        )
+        api.objs["ufm-upgrade"]["annotations"][SOURCE_UID_ANNOTATION] = "previous-source"
+        api.source_gv()
+        preflight(
+            classifier=classifier,
+            target_version="7.2.0",
+            handoff_configmap="ufm-upgrade",
+            source_gv_configmap="ufm-gv-cfg",
+            source_gv_key="gv.cfg",
+            store=store,
+            configmaps=api,
+            operation_id="b" * 32,
+            checkpoint_required=True,
+            source_pod_uid="new-source",
+        )
+        assert api.objs["ufm-upgrade"]["annotations"][SOURCE_UID_ANNOTATION] == "new-source"
+
+    def test_schema_one_handoff_can_be_adopted_with_source_uid(self, backend, classifier):
+        store, api = backend
+        previous = UpgradeManifest(
+            source_version="6.9.0",
+            target_version="7.0.0",
+            operation_id="a" * 32,
+            committed_at="2026-10-20T12:00:00Z",
+            schema_version=1,
+        )
+        body = previous.to_bytes()
+        store.put(MANIFEST_KEY, body, wire.build_meta(body, "upgrade_manifest", "7.0.0", "old"))
+        api.write_cm(
+            "ufm-upgrade",
+            labels={HANDOFF_LABEL: HANDOFF_LABEL_VALUE},
+            annotations={},
+            data={
+                "upgrade.env": "STATE_MIRROR_UPGRADE_MODE=committed\n"
+                "STATE_MIRROR_TARGET_VERSION=7.0.0\n"
+                f"STATE_MIRROR_OPERATION_ID={'a' * 32}\n"
+            },
+            binary_data={},
+        )
+        api.source_gv()
+        transaction = preflight(
+            classifier=classifier,
+            target_version="7.1.0",
+            handoff_configmap="ufm-upgrade",
+            source_gv_configmap="ufm-gv-cfg",
+            source_gv_key="gv.cfg",
+            store=store,
+            configmaps=api,
+            operation_id=OPERATION_ID,
+            checkpoint_required=True,
+            source_pod_uid="source",
+        )
+        assert transaction.operation_id == OPERATION_ID

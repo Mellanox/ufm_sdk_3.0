@@ -15,6 +15,8 @@
 import urllib.error
 import urllib.request
 
+import pytest
+
 from state_mirror.health import HealthServer, HealthState, handle_request, render_metrics
 
 
@@ -214,3 +216,51 @@ class TestLiveServer:
             assert b"state_mirror_ready 1" in body
         finally:
             server.stop()
+
+
+def test_checkpoint_http_acknowledges_only_after_callback(monkeypatch):
+    import json
+
+    from test_upgrade import OPERATION_ID, FakeConfigMaps
+
+    from state_mirror.checkpoint import request_checkpoint
+    from state_mirror.upgrade_contract import UpgradeError
+
+    api = FakeConfigMaps()
+    api.objs["handoff"] = {
+        "data": {
+            "upgrade.env": (
+                "STATE_MIRROR_UPGRADE_MODE=fresh\nSTATE_MIRROR_TARGET_VERSION=7.1.0\n"
+                f"STATE_MIRROR_OPERATION_ID={OPERATION_ID}\n"
+                f"STATE_MIRROR_CLASSIFIER_DIGEST={'a' * 64}\n"
+            )
+        }
+    }
+    server = HealthServer(HealthState(), port=0, host="127.0.0.1")
+    assert server.start()
+    monkeypatch.setenv("STATE_MIRROR_METRICS_PORT", str(server._httpd.server_address[1]))
+    calls = []
+
+    def callback(payload):
+        calls.append(payload)
+        if not payload.get("quiesced"):
+            raise UpgradeError("not quiescent")
+        return {
+            "operation_id": payload["operation_id"],
+            "digest": payload["digest"],
+            "acknowledged": True,
+        }
+
+    server.checkpoint = callback
+    try:
+        assert request_checkpoint(api, "handoff")["acknowledged"]
+        assert calls[0]["quiesced"] is True
+        port = server._httpd.server_address[1]
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{port}/checkpoint", data=json.dumps({"quiesced": False}).encode()
+        )
+        with pytest.raises(urllib.error.HTTPError) as exc_info:
+            urllib.request.urlopen(request)
+        assert exc_info.value.code == 409
+    finally:
+        server.stop()

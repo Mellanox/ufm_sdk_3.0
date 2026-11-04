@@ -29,6 +29,7 @@ HTTP handlers only read snapshots of it.
 
 from __future__ import annotations
 
+import json
 import logging
 import threading
 import time
@@ -296,13 +297,35 @@ def handle_request(path: str, state: HealthState) -> tuple[int, str, bytes]:
     return 404, "text/plain", b"not found\n"
 
 
-def _make_handler(state: HealthState):
+def _make_handler(state: HealthState, server):
     class _Handler(BaseHTTPRequestHandler):
         def do_GET(self):  # noqa: N802 - required by BaseHTTPRequestHandler
             path = self.path.split("?", 1)[0]
             status, content_type, body = handle_request(path, state)
             self.send_response(status)
             self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_POST(self):  # noqa: N802 - required by BaseHTTPRequestHandler
+            if self.path != "/checkpoint" or self.client_address[0] not in ("127.0.0.1", "::1"):
+                self.send_error(404)
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if not 0 < length <= 4096 or server.checkpoint is None:
+                    raise ValueError("invalid checkpoint request or writer unavailable")
+                request = json.loads(self.rfile.read(length))
+                if not isinstance(request, dict):
+                    raise ValueError("checkpoint request must be an object")
+                body = json.dumps(server.checkpoint(request)).encode()
+                status = 200
+            except Exception as exc:
+                body = json.dumps({"error": str(exc)}).encode()
+                status = 409
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -317,6 +340,7 @@ class HealthServer:
     """Runs :func:`handle_request` over HTTP in a daemon thread. Fail-soft."""
 
     def __init__(self, state: HealthState, port: int = DEFAULT_PORT, host: str = "0.0.0.0"):
+        self.checkpoint = None
         self.state = state
         self.port = port
         self.host = host
@@ -325,7 +349,9 @@ class HealthServer:
 
     def start(self) -> bool:
         try:
-            self._httpd = ThreadingHTTPServer((self.host, self.port), _make_handler(self.state))
+            self._httpd = ThreadingHTTPServer(
+                (self.host, self.port), _make_handler(self.state, self)
+            )
         except OSError as exc:
             log.error("health server failed to bind %s:%d: %s", self.host, self.port, exc)
             return False
