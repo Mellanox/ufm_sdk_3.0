@@ -244,13 +244,17 @@ def verify_inventory(store, expected=None):
 
 
 def validate_snapshot_paths(classifier):
+    """A zero-byte SQLite file is a placeholder, not a checkpoint failure.
+
+    SqliteHandler.mirror skips an empty database. ufm_sharp_config.db stays
+    empty while use_sharp_storage keeps its default, so the checkpoint must
+    accept that file. A missing file is already allowed.
+    """
     for entry in classifier.entries:
-        if (
-            entry.handler is Handler.SQLITE
-            and path_exists(entry.path)
-            and os.path.getsize(entry.path) == 0
-        ):
-            raise GenerationError(f"cannot checkpoint an empty SQLite database: {entry.path}")
+        if entry.handler is not Handler.SQLITE or not path_exists(entry.path):
+            continue
+        if os.path.getsize(entry.path) == 0:
+            continue
 
 
 def verify_classified(store, classifier):

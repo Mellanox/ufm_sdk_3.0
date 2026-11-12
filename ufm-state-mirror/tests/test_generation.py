@@ -31,6 +31,7 @@ from state_mirror.generation import (
     GenerationStore,
     fence_key,
     publish_snapshot,
+    validate_snapshot_paths,
     verify_inventory,
 )
 from state_mirror.mirror import Mirror
@@ -643,3 +644,32 @@ def test_legacy_handoff_adoption_retries_after_lost_configmap_response(
     assert retry.operation_id == OPERATION_ID
     assert retry.classifier_digest == classifier.digest()
     assert load_manifest(store) == previous
+
+
+def test_checkpoint_accepts_empty_sqlite_placeholder(tmp_path):
+    empty = tmp_path / "ufm_sharp_config.db"
+    empty.write_bytes(b"")
+    present = tmp_path / "gv.db"
+    present.write_bytes(b"not-empty")
+    checked = Classifier.from_dict(
+        {
+            "entries": [
+                {
+                    "path": str(empty),
+                    "handler": "sqlite",
+                    "redis_key": "ufm:sqlite:ufm_sharp_config.db",
+                },
+                {
+                    "path": str(tmp_path / "absent.db"),
+                    "handler": "sqlite",
+                    "redis_key": "ufm:sqlite:absent.db",
+                },
+                {
+                    "path": str(present),
+                    "handler": "sqlite",
+                    "redis_key": "ufm:sqlite:gv.db",
+                },
+            ]
+        }
+    )
+    validate_snapshot_paths(checked)
