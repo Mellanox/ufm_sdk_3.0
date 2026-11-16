@@ -118,25 +118,63 @@ class SqliteHandler(BaseHandler):
             raise sqlite3.DatabaseError(f"integrity_check failed for {path}: {result!r}")
 
     # ---- snapshot (online backup) -----------------------------------------
+    def _backup_to(self, uri: str, tmp: str) -> None:
+        src = sqlite3.connect(uri, uri=True, timeout=30.0)
+        try:
+            dst = sqlite3.connect(tmp, timeout=30.0)
+            try:
+                src.backup(dst)
+            finally:
+                dst.close()
+        finally:
+            src.close()
+
+    def _has_wal_sidecars(self) -> bool:
+        """True if a -wal or -shm file exists beside the DB, including an empty one."""
+        return any(os.path.lexists(self.entry.path + s) for s in ("-wal", "-shm"))
+
+    def _backup_without_sidecars(self, tmp: str) -> None:
+        """Snapshot a DB that has no WAL files, when read-only access cannot create them.
+
+        A WAL-mode connection must create ``-shm`` even when opened ``mode=ro``,
+        which the sidecar's read-only mount forbids. With no ``-wal`` file every
+        committed page is already in the main file, so ``immutable=1`` reads all
+        of it without needing them. That holds only while no writer starts, so the
+        fallback is accepted only if no WAL file existed before the read, none
+        appeared during it, and the main file did not change. A DB that does
+        have a ``-wal`` is never read this way: ``immutable=1`` would drop its
+        uncheckpointed commits.
+        """
+        before = self.signature()
+        self._backup_to(f"file:{self.entry.path}?immutable=1", tmp)
+        if self._has_wal_sidecars() or self.signature() != before:
+            raise sqlite3.OperationalError(
+                f"{self.entry.path} changed while it was snapshotted without WAL access"
+            )
+
     def snapshot_bytes(self) -> bytes:
         """Consistent copy of the live DB via the SQLite online backup API.
 
         Records the wall-clock of the backup in :attr:`last_snapshot_seconds` so
         the loop can publish ``state_mirror_snapshot_duration_seconds`` (HLD 5.3.4).
+        The live ``-wal`` is never copied and the journal mode is never changed.
         """
         fd, tmp = tempfile.mkstemp(prefix="statemirror-sqlite-", suffix=".db")
         os.close(fd)
         try:
             started = time.perf_counter()
-            src = sqlite3.connect(f"file:{self.entry.path}?mode=ro", uri=True, timeout=30.0)
             try:
-                dst = sqlite3.connect(tmp, timeout=30.0)
-                try:
-                    src.backup(dst)
-                finally:
-                    dst.close()
-            finally:
-                src.close()
+                self._backup_to(f"file:{self.entry.path}?mode=ro", tmp)
+            except sqlite3.OperationalError as exc:
+                if self._has_wal_sidecars():
+                    raise
+                log.info(
+                    "sqlite snapshot of %s needs WAL files it cannot create (%s); "
+                    "no WAL files exist, reading the main file",
+                    self.entry.path,
+                    exc,
+                )
+                self._backup_without_sidecars(tmp)
             self.last_snapshot_seconds = time.perf_counter() - started
             with open(tmp, "rb") as f:
                 return f.read()
