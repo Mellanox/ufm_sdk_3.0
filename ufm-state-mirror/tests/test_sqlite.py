@@ -178,6 +178,109 @@ class TestSnapshot:
         assert h.signature() != original
 
 
+def _snapshot_rows(h, tmp_path):
+    out = tmp_path / "snapshot.db"
+    out.write_bytes(h.snapshot_bytes())
+    conn = sqlite3.connect(out)
+    try:
+        return [r[0] for r in conn.execute("SELECT v FROM t ORDER BY id")]
+    finally:
+        conn.close()
+
+
+def _wal_db(path, rows):
+    """WAL database whose writer stays open, so its commits remain in -wal."""
+    conn = sqlite3.connect(path)
+    assert conn.execute("PRAGMA journal_mode=WAL").fetchone()[0] == "wal"
+    conn.execute("PRAGMA wal_autocheckpoint=0")
+    conn.execute("CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT)")
+    conn.executemany("INSERT INTO t (v) VALUES (?)", [(r,) for r in rows])
+    conn.commit()
+    return conn
+
+
+@pytest.fixture
+def _cannot_create_wal_files(monkeypatch):
+    """Model the sidecar's read-only mount: ``mode=ro`` on a WAL DB without -wal/-shm fails."""
+    real = sqlite3.connect
+
+    def connect(target, *args, **kwargs):
+        if isinstance(target, str) and "mode=ro" in target:
+            db = target[len("file:") :].split("?")[0]
+            if not (os.path.exists(db + "-wal") or os.path.exists(db + "-shm")):
+                raise sqlite3.OperationalError("unable to open database file")
+        return real(target, *args, **kwargs)
+
+    monkeypatch.setattr("state_mirror.handlers.sqlite.sqlite3.connect", connect)
+
+
+class TestWalSnapshot:
+    def test_uncheckpointed_commit_is_in_snapshot(self, fake_redis, tmp_path):
+        db = tmp_path / "gv.db"
+        writer = _wal_db(str(db), ["checkpointed"])
+        writer.execute("PRAGMA wal_checkpoint(FULL)")
+        writer.execute("INSERT INTO t (v) VALUES ('uncheckpointed')")
+        writer.commit()
+        try:
+            assert os.path.getsize(str(db) + "-wal") > 0
+            h = _handler(db, fake_redis)
+            assert _snapshot_rows(h, tmp_path) == ["checkpointed", "uncheckpointed"]
+            assert sqlite3.connect(db).execute("PRAGMA journal_mode").fetchone()[0] == "wal"
+        finally:
+            writer.close()
+
+    @pytest.mark.usefixtures("_cannot_create_wal_files")
+    def test_wal_db_without_wal_files_snapshots_when_they_cannot_be_created(
+        self, fake_redis, tmp_path
+    ):
+        db = tmp_path / "gv.db"
+        _wal_db(str(db), ["a", "b"]).close()
+        for suffix in ("-wal", "-shm"):
+            if os.path.exists(str(db) + suffix):
+                os.remove(str(db) + suffix)
+        h = _handler(db, fake_redis)
+        assert _snapshot_rows(h, tmp_path) == ["a", "b"]
+        assert h.last_snapshot_seconds is not None
+
+    def test_never_reads_around_an_existing_wal(self, fake_redis, tmp_path, monkeypatch):
+        """immutable=1 would silently drop the uncheckpointed row, so the error must surface."""
+        db = tmp_path / "gv.db"
+        writer = _wal_db(str(db), ["only-in-wal"])
+        real = sqlite3.connect
+
+        def connect(target, *args, **kwargs):
+            if isinstance(target, str) and "mode=ro" in target:
+                raise sqlite3.OperationalError("unable to open database file")
+            return real(target, *args, **kwargs)
+
+        monkeypatch.setattr("state_mirror.handlers.sqlite.sqlite3.connect", connect)
+        try:
+            with pytest.raises(sqlite3.OperationalError):
+                _handler(db, fake_redis).snapshot_bytes()
+        finally:
+            writer.close()
+
+    @pytest.mark.usefixtures("_cannot_create_wal_files")
+    def test_rejects_snapshot_when_a_writer_appears_during_the_fallback(
+        self, fake_redis, tmp_path, monkeypatch
+    ):
+        db = tmp_path / "gv.db"
+        _wal_db(str(db), ["a"]).close()
+        for suffix in ("-wal", "-shm"):
+            if os.path.exists(str(db) + suffix):
+                os.remove(str(db) + suffix)
+        h = _handler(db, fake_redis)
+        original = h._backup_to
+
+        def backup_then_write(uri, tmp):
+            original(uri, tmp)
+            open(str(db) + "-wal", "wb").close()
+
+        monkeypatch.setattr(h, "_backup_to", backup_then_write)
+        with pytest.raises(sqlite3.OperationalError, match="changed while"):
+            h.snapshot_bytes()
+
+
 class TestRestoreFailClosed:
     def test_restore_raises_on_corrupt_base(self, fake_redis, tmp_path):
         # Store a base whose bytes are not a valid DB; restore must fail closed.

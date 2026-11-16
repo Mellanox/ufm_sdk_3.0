@@ -127,7 +127,10 @@ still running, but newer snapshots are not durable.
 | Variable | Default | Meaning |
 |----------|---------|---------|
 | `CLASSIFIER_PATH` | `/etc/state_mirror/state_mirror.yaml` | Classifier file. |
-| `UFM_VERSION` | `unknown` | Stamped into metadata. |
+| `UFM_RELEASE_VERSION` / `UFM_VERSION` | _(required)_ | Explicit installed UFM release, stamped into metadata. `UFM_VERSION` preserves the existing chart input; use dedicated `UFM_RELEASE_VERSION` when component versions differ. |
+| `STATE_MIRROR_POD_UID` | _(consumer-supplied)_ | Downward-API pod UID used by source-bound upgrade checkpoints. |
+| `STATE_MIRROR_GENERATION_FILE` | _(optional)_ | Consumer-owned per-pod generation pin; required by the paired UFM lifecycle to prevent a restarted source adopting a newer generation. |
+| `STATE_MIRROR_TARGET_VERSION` | _(optional)_ | Explicit release target; may supply release authority. Must exactly match `UFM_RELEASE_VERSION` when both are set. |
 | `STATE_MIRROR_METRICS_PORT` | `9180` | HTTP port. |
 | `STATE_MIRROR_MAX_QUEUE` | `100000` | Max observed-delete queue; drop-oldest on overflow (dropped deletes fall back to backend-wins, D2/HLD 8.2). |
 | `STATE_MIRROR_ALLOW_POLL_ONLY` | `false` | Internal unsupported escape hatch: permit readiness without watchdog after a clean reconcile; emits warnings and metrics. |
@@ -152,3 +155,6 @@ ruff check .
 ```
 
 See `BUILD.md` for the image build and release flow.
+
+See [UPGRADE.md](UPGRADE.md) for the checkpoint, generation publication, version authority,
+and interruption recovery contracts for no-PVC upgrades.

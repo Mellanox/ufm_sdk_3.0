@@ -23,9 +23,11 @@ descriptive fields without breaking the load.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any, Optional
 
@@ -141,6 +143,23 @@ class Classifier:
     """A validated collection of classifier entries."""
 
     entries: list[Entry] = field(default_factory=list)
+
+    def digest(self) -> str:
+        """Hash effective classifier semantics, independent of YAML formatting/order.
+
+        Use lexical absolute paths: resolving symlinks here would make the digest
+        depend on which container and filesystem stage evaluates it.
+        """
+        entries = []
+        for entry in self.entries:
+            item = asdict(entry)
+            item["path"] = os.path.abspath(os.path.normpath(entry.path))
+            if entry.baseline_path:
+                item["baseline_path"] = os.path.abspath(os.path.normpath(entry.baseline_path))
+            entries.append(item)
+        entries.sort(key=lambda item: item["path"])
+        raw = json.dumps(entries, sort_keys=True, separators=(",", ":")).encode()
+        return hashlib.sha256(raw).hexdigest()
 
     @staticmethod
     def from_dict(doc: dict[str, Any]) -> "Classifier":
