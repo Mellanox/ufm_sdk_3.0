@@ -19,7 +19,7 @@ RUN npm install --force && \
 # =============================================================================
 # Stage 2: Final Runtime Image
 # =============================================================================
-FROM nbu-harbor.gtm.nvidia.com/ufm/ufm_docker/ubuntu_base_${ARCH}_24_04:20260723 AS ndt_base_ubuntu24
+FROM nbu-harbor.gtm.nvidia.com/ufm/ufm_docker/ubuntu_base_${ARCH}_24_04:20261123 AS ndt_base_ubuntu24
 ARG ARCH
 ARG BASE_PATH
 
