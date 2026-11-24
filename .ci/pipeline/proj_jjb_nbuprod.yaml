@@ -1,0 +1,90 @@
+- project:
+    name: ufm_sdk_3.0
+    jjb_proj_ci: "ufm_sdk_3.0"
+    jjb_git_repo: Mellanox/ufm_sdk_3.0
+    jjb_git_ssh: "git@github.com:{jjb_git_repo}.git"
+    jjb_git_https: "https://github.com/{jjb_git_repo}"
+    jjb_owner: "Benny Itkin"
+    jobs:
+      - "{jjb_proj_ci}"
+
+- job-template:
+    name: "{jjb_proj_ci}"
+    project-type: pipeline
+    properties:
+      - github:
+          url: "{jjb_git_https}"
+      - build-discarder:
+          days-to-keep: 10
+          num-to-keep: 10
+      - inject:
+          keep-system-variables: true
+          properties-content: |
+            jjb_proj={jjb_proj_ci}
+            REPOSITORY="{jjb_git_ssh}"
+            PROJECT_NAME=UFM-NDT
+    description: Do NOT edit this job through the Web GUI !
+    concurrent: true
+    triggers:
+      - github-pull-request:
+          cron: "H/5 * * * *"
+          trigger-phrase: '.*\bbot:retest\b.*'
+          status-context: "PLUGINS CI"
+          status-add-test-results: true
+          auth-id: "c663a06a-8d46-410c-92b3-be80b6891532"
+          org-list: ["Mellanox"]
+          display-build-errors-on-downstream-builds: true
+          allow-whitelist-orgs-as-admins: true
+          cancel-builds-on-update: true
+    parameters:
+      - string:
+          name: "sha1"
+          default: master
+          description: "UFM Cyber AI Branch"
+      - bool:
+          name: "build_dockers"
+          default: true
+          description: "Rebuild docker containers. Check this box if .ci/DockerFile* was changed"
+      - string:
+          name: "UFM_TAG"
+          default: "weekly_0_0_0"
+          description: "ex: 6_5_95_1. This tag will be used for output /auto/UFM/tmp/$UFM_TAG"
+      - bool:
+          name: "SECURITY"
+          default: true
+          description: "Run BlackDuck, Bandit, Antivirus"
+      - string:
+          name: "BANDIT_OPTS"
+          default: "-s B608,B110,B108"
+          description: "additional params to Bandit check"
+      - string:
+          name: "EMAIL"
+          default: "atolikin@nvidia.com"
+          description: "email notifications"
+      - string:
+          name: "conf_file"
+          default: ".ci/matrix_job_ci.yaml"
+          description: "Regex to select job config file. Do not change it"
+      - string:
+          name: "SERVER_HOST"
+          default: "ufm-appliance04"
+          description: "host server for plugin container"
+      - bool:
+          name: "debug"
+          default: true
+          description: "More info in pipeline"
+    pipeline-scm:
+      scm:
+        - git:
+            url: "{jjb_git_ssh}"
+            credentials-id: "0b0ea4b8-2b37-427b-bc3f-b68c41a341f7"
+            branches: ["$sha1"]
+            refspec: "+refs/pull/*:refs/remotes/origin/pr/*"
+            browser: githubweb
+            browser-url: "{jjb_git_https}"
+            shallow-clone: true
+            submodule:
+              recursive: true
+              tracking: true
+              parent-credentials: true
+      script-path: ".ci/Jenkinsfile_nbuprod"
